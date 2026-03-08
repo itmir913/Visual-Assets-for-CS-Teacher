@@ -3,234 +3,511 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2-5-2. 파일의 입력과 출력 강의노트</title>
+    <title>2-5-2. 파일의 입출력 강의노트</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&family=Fira+Code:wght@400;500&display=swap');
         body { font-family: 'Pretendard', sans-serif; scroll-behavior: smooth; }
         .code-font { font-family: 'Fira Code', monospace; }
-        .concept-card { transition: all 0.3s ease; border: 1px solid #e2e8f0; }
-        .concept-card:hover { transform: translateY(-5px); border-color: #f59e0b; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05); }
-        .highlight-orange { background: linear-gradient(120deg, #ffedd5 0%, #ffedd5 100%); background-repeat: no-repeat; background-size: 100% 40%; background-position: 0 80%; }
-        .file-step { @apply relative flex flex-col items-center p-6 bg-white rounded-3xl shadow-sm border border-slate-100; }
-        .warning-box { border-left: 4px solid #f59e0b; background-color: #fffbeb; }
+        .concept-card { transition: transform 0.2s; }
+        .concept-card:hover { transform: translateY(-5px); }
+        .copy-toast { visibility: hidden; opacity: 0; transition: 0.3s; z-index: 9999; }
+        .copy-toast.show { visibility: visible; opacity: 1; }
+
+        /* 표 스타일 커스텀 */
+        .custom-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .custom-table th { background-color: #f8fafc; padding: 12px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+        .custom-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; background-color: white; }
+        .custom-table tr:last-child td { border-bottom: none; }
+
+        /* 코드 박스 스타일 최적화 */
+        pre {
+            margin: 0 !important;
+            border-radius: 0.75rem !important;
+            font-size: 0.9rem !important;
+        }
+
+        /* 문법/설명 박스 */
+        .grammar-box { padding-left: 1rem; margin: 1rem 0; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 pb-20">
 
-    <!-- Hero Section -->
-    <header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16 px-6 shadow-lg">
-        <div class="max-w-4xl mx-auto space-y-4">
-            <div class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold tracking-widest uppercase">Chapter 2. 프로그래밍의 기초</div>
-            <h1 class="text-4xl md:text-5xl font-black tracking-tight leading-tight">2-5-2. 파일의 입력과 출력<br><span class="text-blue-100 text-3xl md:text-4xl">파이썬으로 파일을 열고 닫아봅시다!</span></h1>
-            <p class="text-lg text-blue-50 max-w-2xl font-medium">
-                데이터를 자유자재로! <br>파이썬으로 <span class="font-bold text-white underline decoration-wavy text-2xl">TXT와 CSV 파일을 제어</span>해 봅시다.
+    <header class="bg-gradient-to-r from-orange-600 to-amber-500 text-white py-16 px-6 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')]"></div>
+        <div class="max-w-4xl mx-auto relative z-10">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold tracking-wider border border-white/30 backdrop-blur-md">Chapter 2-5-2</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 flex items-center gap-4">
+                <i data-lucide="file-output" class="w-10 h-10"></i>
+                파일의 입력과 출력
+            </h1>
+            <p class="text-lg text-orange-100 opacity-90 max-w-2xl font-medium leading-relaxed">
+                화면 출력을 넘어, 실제 파일(TXT, CSV)을 생성하여 데이터를 영구적으로 저장하고 읽어오는 방법을 완벽하게 마스터해 봅시다.
             </p>
         </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-6 -mt-12 space-y-16">
+    <main class="max-w-4xl mx-auto px-6 mt-12 space-y-12">
 
-        <!-- Part 1: TXT 파일 쓰기 -->
-        <section id="txt-write" class="bg-white rounded-[40px] p-8 md:p-14 shadow-xl space-y-10">
-            <div class="flex items-center gap-5 border-b border-slate-100 pb-8">
-                <div class="bg-amber-500 p-4 rounded-2xl text-white shadow-lg shadow-amber-200"><i data-lucide="file-edit"></i></div>
-                <div>
-                    <h2 class="text-3xl font-black text-slate-800 tracking-tight">1. TXT 파일에 저장하기</h2>
-                    <p class="text-slate-500 text-sm mt-1 uppercase tracking-wider font-semibold">Writing to Text Files</p>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200" id="txt-write">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-amber-100 p-3 rounded-2xl">
+                    <i data-lucide="file-edit" class="w-8 h-8 text-amber-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">1. 텍스트(TXT) 파일에 데이터 쓰기</h2>
+            </div>
+
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <div class="grammar-box border-l-4 border-amber-500 bg-slate-50 p-4 rounded-r-lg">
+                    <p class="font-medium text-slate-700 mb-2">
+                        파일을 다루는 기본 절차는 <strong>1.열기(open) → 2.작업(read/write) → 3.닫기(close)</strong> 순서입니다.
+                    </p>
+                    <ul class="list-disc list-inside text-sm text-slate-600 space-y-1">
+                        <li><code class="code-font font-bold text-amber-600">open("파일명", "w")</code> : 파일을 엽니다. "w" 모드는 쓰기(Write) 전용 모드입니다. 파일이 없으면 새로 만듭니다.</li>
+                        <li><code class="code-font font-bold text-amber-600">write("내용")</code> : 파일에 내용을 기록합니다. 줄바꿈이 자동으로 되지 않으므로 <code class="code-font">\n</code>을 사용해야 합니다.</li>
+                        <li><code class="code-font font-bold text-amber-600">close()</code> : 파일 작업을 마치면 반드시 닫아주어야 변경 사항이 안전하게 저장됩니다.</li>
+                    </ul>
                 </div>
             </div>
 
-            <p class="text-lg leading-relaxed">
-                파이썬에서 문자열을 저장할 때는 <span class="highlight-orange font-bold text-orange-700">f.write()</span>를 사용합니다. 줄을 바꾸고 싶다면 <code class="bg-slate-100 px-1 rounded text-red-500">"\n"</code>을 반드시 붙여주세요.
-            </p>
-
-            <div class="space-y-6">
-                <h4 class="font-bold text-slate-700 flex items-center gap-2 italic">
-                    <i data-lucide="terminal" class="w-5 h-5"></i> 예제: hello, world 저장하기
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <h4 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-amber-500"></i>
+                    파일 쓰기 실습 예제
                 </h4>
-                <div class="bg-slate-900 rounded-2xl p-6 shadow-inner relative">
-                    <div class="absolute top-4 right-6 text-slate-500 text-xs font-mono uppercase">python</div>
-                    <pre class="code-font text-sm leading-relaxed"><code class="text-indigo-300">f = open(<span class="text-emerald-400">"out.txt"</span>, <span class="text-emerald-400">"w"</span>)
-f.write(<span class="text-emerald-400">"hello\n"</span>)
-f.write(<span class="text-emerald-400">"python\n"</span>)
-f.write(<span class="text-emerald-400">"world\n"</span>)
-f.close()</code></pre>
-                </div>
-            </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            <div class="warning-box p-6 rounded-2xl">
-                <h5 class="text-amber-800 font-bold mb-2 flex items-center gap-2">
-                    <i data-lucide="lightbulb" class="w-5 h-5"></i> 1부터 n까지 제곱수 저장하기 (Tip)
-                </h5>
-                <p class="text-sm text-amber-900 leading-6">
-                    숫자를 파일에 저장할 때는 반드시 <code class="font-bold">str()</code> 함수를 사용해 <b>문자열로 변환</b>해야 합니다! <br>
-                    <code class="bg-white/50 px-1">f.write(str(i*i))</code> 처럼 작성해 보세요.
-                </p>
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-amber-500 text-white text-xs px-2 py-1 rounded-full">예제 155</span>
+                                기본적인 파일 쓰기
+                            </h5>
+                        </div>
+                        <div class="relative group bg-[#1d1f21]">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">155.py</span>
+                                <button onclick="copyCode('code-155')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-155" class="language-python">f = open("out.txt", "w")
+
+f.write("hello\n")
+f.write("world\n")
+
+f.close()</code></pre>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white flex flex-col gap-4">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-[11px] font-bold text-blue-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 생성된 파일 (out.txt)
+                                </span>
+                                <p class="code-font text-sm text-slate-700 font-medium leading-relaxed bg-slate-50 p-2 rounded border border-slate-200">hello<br>world</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-amber-500 text-white text-xs px-2 py-1 rounded-full">예제 156</span>
+                                반복문과 사용자 입력을 결합한 쓰기
+                            </h5>
+                        </div>
+                        <div class="relative group bg-[#1d1f21]">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">156.py</span>
+                                <button onclick="copyCode('code-156')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-156" class="language-python">f = open("out.txt", "w")
+
+n = int(input())
+
+for i in range(n):
+  d = int(input())
+  f.write(str(d))
+  f.write("\n")
+
+f.close()</code></pre>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white flex flex-col gap-4">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> 설명 및 결과
+                                </span>
+                                <p class="text-xs text-slate-600 leading-relaxed">숫자를 파일에 쓸 때는 <code class="code-font">str()</code>을 이용해 반드시 문자로 변환해야 오류가 나지 않습니다. 만약 입력으로 3, 그리고 차례로 123, 456, 789를 넣었다면 아래와 같은 파일이 만들어집니다.</p>
+                                <p class="code-font text-sm text-slate-700 font-medium leading-relaxed bg-slate-50 p-2 rounded border border-slate-200 mt-2">123<br>456<br>789</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </section>
 
-        <!-- Part 2: TXT 파일 읽기 -->
-        <section id="txt-read" class="bg-white rounded-[40px] p-8 md:p-14 shadow-xl space-y-10 border-t-8 border-orange-500">
-            <div class="flex items-center gap-5 border-b border-slate-100 pb-8">
-                <div class="bg-orange-500 p-4 rounded-2xl text-white shadow-lg shadow-orange-200"><i data-lucide="book-open"></i></div>
-                <div>
-                    <h2 class="text-3xl font-black text-slate-800 tracking-tight">2. TXT 파일 데이터 불러오기</h2>
-                    <p class="text-slate-500 text-sm mt-1 uppercase tracking-wider font-semibold">Reading from Text Files</p>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200" id="txt-read">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-orange-100 p-3 rounded-2xl">
+                    <i data-lucide="file-search" class="w-8 h-8 text-orange-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">2. 텍스트(TXT) 파일에서 데이터 읽기</h2>
+            </div>
+
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <div class="grammar-box border-l-4 border-orange-500 bg-slate-50 p-4 rounded-r-lg">
+                    <p class="font-medium text-slate-700 mb-2">
+                        파일을 읽어올 때는 모드를 <strong>"r" (Read)</strong>로 지정합니다.
+                    </p>
+                    <ul class="list-disc list-inside text-sm text-slate-600 space-y-1">
+                        <li><code class="code-font font-bold text-orange-600">read()</code> : 파일의 전체 내용을 하나의 긴 문자열로 모두 읽어옵니다.</li>
+                        <li><code class="code-font font-bold text-orange-600">split("\n")</code> : 줄바꿈 문자를 기준으로 문자열을 잘라 리스트(List)로 만들어주면, 한 줄씩 반복 처리하기 매우 좋습니다.</li>
+                    </ul>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="concept-card bg-slate-50 p-6 rounded-3xl">
-                    <h4 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i data-lucide="scan-line" class="w-5 h-5"></i> f.read()</h4>
-                    <p class="text-sm text-slate-600">파일의 전체 내용을 하나의 문자열로 가져옵니다.</p>
-                </div>
-                <div class="concept-card bg-slate-50 p-6 rounded-3xl">
-                    <h4 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i data-lucide="scissors" class="w-5 h-5"></i> .split("\n")</h4>
-                    <p class="text-sm text-slate-600">줄바꿈을 기준으로 문자열을 잘라 리스트로 만듭니다.</p>
-                </div>
-            </div>
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            <div class="space-y-4">
-                <h4 class="font-bold text-slate-700 flex items-center gap-2 italic">
-                    <i data-lucide="code" class="w-5 h-5"></i> 예제: 대문자로 변환하여 출력하기
-                </h4>
-                <div class="bg-slate-900 rounded-2xl p-6 shadow-inner">
-                    <pre class="code-font text-sm leading-relaxed"><code class="text-indigo-300">f = open(<span class="text-emerald-400">"in.txt"</span>, <span class="text-emerald-400">"r"</span>)
-rows = (f.read()).split(<span class="text-emerald-400">"\n"</span>)
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">준비</span>
+                                읽어올 파일 1 (158in.txt)
+                            </h5>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white">
+                            <p class="code-font text-sm text-slate-700 font-medium leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200">hello<br>python<br>world<br>good</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">예제 158</span>
+                                파일을 읽고 줄별로 출력하기
+                            </h5>
+                        </div>
+                        <div class="relative group bg-[#1d1f21]">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">158.py</span>
+                                <button onclick="copyCode('code-158')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-158" class="language-python">f = open("in.txt", "r")
+rows = (f.read()).split("\n")
 f.close()
 
-<span class="text-slate-500"># 리스트를 돌며 대문자로 출력</span>
-<span class="text-amber-400">for</span> row <span class="text-amber-400">in</span> rows:
-    print(row.upper())</code></pre>
+for row in rows:
+  print(row)</code></pre>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white flex flex-col gap-1.5">
+                            <span class="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> 설명
+                            </span>
+                            <p class="text-xs text-slate-600 leading-relaxed">전체 데이터를 읽은 후 <code>\n</code> 단위로 쪼개어 리스트를 만들고 파일을 닫았습니다. 이후 <code>for</code>문을 돌려 리스트 안의 데이터를 한 줄씩 깔끔하게 꺼내 화면에 출력합니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">준비</span>
+                                읽어올 파일 2 (159in.txt)
+                            </h5>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white">
+                            <p class="code-font text-sm text-slate-700 font-medium leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200">2<br>13<br>167<br>1009</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">예제 159</span>
+                                입력받은 줄 수만큼 데이터 읽기
+                            </h5>
+                        </div>
+                        <div class="relative group bg-[#1d1f21]">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">159.py</span>
+                                <button onclick="copyCode('code-159')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-159" class="language-python">f = open("in.txt", "r")
+rows = (f.read()).split("\n")
+f.close()
+
+n = int(input())
+
+for row in rows[:n]:
+  print(int(row))</code></pre>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white flex flex-col gap-1.5">
+                            <span class="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> 설명
+                            </span>
+                            <p class="text-xs text-slate-600 leading-relaxed">리스트 슬라이싱 <code>rows[:n]</code>을 활용하여 위에서부터 원하는 <code>n</code>개의 줄만 꺼내어 반복합니다. 읽어온 글자를 연산 가능한 숫자 <code>int()</code>로 변환하여 출력합니다.</p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
 
-        <!-- Part 3: CSV 파일 처리 -->
-        <section id="csv-handle" class="bg-white rounded-[40px] p-8 md:p-14 shadow-xl space-y-10 border-t-8 border-red-500">
-            <div class="flex items-center gap-5 border-b border-slate-100 pb-8">
-                <div class="bg-red-500 p-4 rounded-2xl text-white shadow-lg shadow-red-200"><i data-lucide="table"></i></div>
-                <div>
-                    <h2 class="text-3xl font-black text-slate-800 tracking-tight">3. CSV 파일 다루기</h2>
-                    <p class="text-slate-500 text-sm mt-1 uppercase tracking-wider font-semibold">Comma Separated Values</p>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200" id="csv-handle">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-red-100 p-3 rounded-2xl">
+                    <i data-lucide="table" class="w-8 h-8 text-red-600"></i>
                 </div>
+                <h2 class="text-2xl font-bold text-slate-800">3. CSV 파일 읽어오기</h2>
             </div>
 
-            <div class="p-6 bg-red-50 rounded-3xl flex gap-6 items-start">
-                <i data-lucide="info" class="text-red-600 w-12 h-12 shrink-0"></i>
-                <div>
-                    <h4 class="font-bold text-red-800 text-xl mb-2">CSV 파일이란?</h4>
-                    <p class="text-red-700 leading-relaxed">
-                        데이터 사이를 <span class="font-bold underline decoration-2 decoration-red-400">쉼표(,)</span>로 구분하여 저장하는 텍스트 파일입니다. 엑셀과 같은 스프레드시트 프로그램과 호환이 매우 잘 됩니다.
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <div class="grammar-box border-l-4 border-red-500 bg-slate-50 p-4 rounded-r-lg">
+                    <p class="font-medium text-slate-700">
+                        <strong>CSV (Comma-Separated Values)</strong>는 각 데이터가 쉼표(,)로 구분된 텍스트 파일입니다.<br>
+                        엑셀이나 공공 데이터 포털 등에서 데이터를 다룰 때 가장 흔하게 쓰이는 데이터 규격입니다.
                     </p>
                 </div>
             </div>
 
-            <div class="space-y-4">
-                <h4 class="font-bold text-slate-700 flex items-center gap-2 italic">
-                    <i data-lucide="calculator" class="w-5 h-5"></i> 예제: 줄별로 합 계산하기
+            <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col mb-8">
+                <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                    <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">개념</span>
+                        CSV 데이터 구조 살펴보기 (162datax.csv 예시)
+                    </h5>
+                </div>
+                <div class="px-5 py-4 flex-grow bg-white grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold mb-2">실제 저장된 형태 (메모장 등)</p>
+                        <p class="code-font text-sm text-slate-700 font-medium leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200">1,5,4,2<br>4,6,9,1<br>0,4,1,2<br>9,5,7,4</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold mb-2">우리가 인식하는 형태 (표)</p>
+                        <table class="custom-table text-sm">
+                            <tbody>
+                                <tr><td>1</td><td>5</td><td>4</td><td>2</td></tr>
+                                <tr><td>4</td><td>6</td><td>9</td><td>1</td></tr>
+                                <tr><td>0</td><td>4</td><td>1</td><td>2</td></tr>
+                                <tr><td>9</td><td>5</td><td>7</td><td>4</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <h4 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-red-500"></i>
+                    CSV 읽기 및 파싱 실습 예제
                 </h4>
-                <div class="bg-slate-900 rounded-2xl p-6 shadow-inner">
-                    <pre class="code-font text-sm leading-relaxed"><code class="text-indigo-300"><span class="text-slate-500"># 한글 깨짐 방지를 위해 encoding 설정</span>
-f = open(<span class="text-emerald-400">"datax.csv"</span>, <span class="text-emerald-400">"r"</span>, encoding=<span class="text-emerald-400">"utf-8-sig"</span>)
-rows = (f.read()).split(<span class="text-emerald-400">"\n"</span>)
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">준비</span>
+                                읽어올 CSV (161data.csv)
+                            </h5>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white">
+                            <p class="code-font text-[11px] text-slate-700 font-medium leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 overflow-x-auto whitespace-pre">alfa,bravo,charlie,delta,echo,foxtrot,golf,hotel
+0.435,0.335,0.11,0.334,0.1355,0.0775,0.0965,7
+0.585,0.45,0.125,0.874,0.3545,0.2075,0.225,6
+...</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">예제 161</span>
+                                CSV 읽고 쉼표 단위로 분리하기
+                            </h5>
+                        </div>
+                        <div class="relative group bg-[#1d1f21]">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">161.py</span>
+                                <button onclick="copyCode('code-161')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-161" class="language-python">f = open("data.csv", "r", encoding="utf-8-sig")
+rows = (f.read()).split("\n")
 f.close()
 
-<span class="text-amber-400">for</span> row <span class="text-amber-400">in</span> rows:
-    values = row.split(<span class="text-emerald-400">","</span>)
-    s = 0
-    <span class="text-amber-400">for</span> value <span class="text-amber-400">in</span> values:
-        s = s + int(value)
-    print(s)</code></pre>
+for row in rows:
+  values = row.split(",")
+  for value in values:
+    print(value, end=" ")
+  print()</code></pre>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white flex flex-col gap-1.5">
+                            <span class="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> 핵심 원리
+                            </span>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                1. <code>read().split('\n')</code>으로 줄 단위로 쪼갭니다.<br>
+                                2. 각 줄(row)을 다시 <code>split(',')</code>을 적용해 셀 단위(values)로 쪼갭니다.<br>
+                                ※ <code>encoding="utf-8-sig"</code>는 한글이나 특수문자가 포함된 CSV 파일을 깨짐 없이 읽어오는 옵션입니다.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- Part 4: CSV 파일 저장 -->
-        <section id="csv-save" class="bg-white rounded-[40px] p-8 md:p-14 shadow-xl space-y-10 border-t-8 border-indigo-500">
-            <div class="flex items-center gap-5 border-b border-slate-100 pb-8">
-                <div class="bg-indigo-600 p-4 rounded-2xl text-white shadow-lg shadow-indigo-200"><i data-lucide="save"></i></div>
-                <div>
-                    <h2 class="text-3xl font-black text-slate-800 tracking-tight">4. 데이터를 CSV로 저장하기</h2>
-                    <p class="text-slate-500 text-sm mt-1 uppercase tracking-wider font-semibold">Exporting Data to CSV</p>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200" id="csv-write">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-rose-100 p-3 rounded-2xl">
+                    <i data-lucide="save" class="w-8 h-8 text-rose-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">4. CSV 파일로 저장하기 (쓰기)</h2>
+            </div>
+
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <div class="grammar-box border-l-4 border-rose-500 bg-slate-50 p-4 rounded-r-lg">
+                    <p class="font-medium text-slate-700">
+                        파이썬 내부에서 연산한 2차원 리스트 형태의 데이터를 엑셀 등에서 열어볼 수 있는 CSV 파일로 저장하려면, 데이터 사이에 쉼표(,)를 끼워 넣고 각 행의 마지막에는 줄바꿈(\n)을 넣어주면 됩니다.
+                    </p>
                 </div>
             </div>
 
-            <p class="text-slate-600">리스트 형태의 데이터를 쉼표와 줄바꿈을 조합하여 파일로 만듭니다.</p>
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            <div class="bg-slate-900 rounded-2xl p-6 shadow-inner">
-                <pre class="code-font text-sm leading-relaxed"><code class="text-indigo-300">rows = [[<span class="text-emerald-400">"num"</span>, <span class="text-emerald-400">"data1"</span>], [1, 79], [2, 83]]
-f = open(<span class="text-emerald-400">"dataoutx.csv"</span>, <span class="text-emerald-400">"w"</span>)
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col md:col-span-2">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-rose-500 text-white text-xs px-2 py-1 rounded-full">예제 163</span>
+                                2차원 리스트를 CSV로 저장하기
+                            </h5>
+                        </div>
+                        <div class="relative group bg-[#1d1f21]">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">163.py</span>
+                                <button onclick="copyCode('code-163')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-163" class="language-python">rows = [["data A","data B","sum","mean"],
+        [1,2,3,1.5],
+        [3,4,7,3.5],
+        [5,6,11,5.5]]
 
-<span class="text-amber-400">for</span> row <span class="text-amber-400">in</span> rows:
-    <span class="text-slate-500"># 마지막 요소 전까지 쉼표로 연결</span>
-    <span class="text-amber-400">for</span> value <span class="text-amber-400">in</span> row[:-1]:
-        f.write(str(value) + <span class="text-emerald-400">","</span>)
-    <span class="text-slate-500"># 마지막 요소 쓰고 줄바꿈</span>
-    f.write(str(row[-1]) + <span class="text-emerald-400">"\n"</span>)
+f = open("dataout.csv", "w")
+
+for row in rows:
+  for value in row[:-1]:
+    f.write(str(value)+",")
+  f.write(str(row[-1])+"\n")
+
 f.close()</code></pre>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> 쓰기 로직 설명
+                                </span>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    <code>row[:-1]</code>을 통해 각 행의 마지막 값을 제외한 모든 값에는 <code>값 + ","</code> 형태로 쉼표를 붙여 기록합니다. 마지막 값 <code>row[-1]</code>에는 쉼표 대신 줄바꿈 <code>"\n"</code>을 붙여 다음 행으로 넘어갈 수 있도록 처리합니다.
+                                </p>
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-[11px] font-bold text-blue-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 생성된 파일 (163dataout.csv)
+                                </span>
+                                <p class="code-font text-xs text-slate-700 font-medium leading-relaxed bg-slate-50 p-2 rounded border border-slate-200">data A,data B,sum,mean<br>1,2,3,1.5<br>3,4,7,3.5<br>5,6,11,5.5</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col md:col-span-2">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200 flex items-center justify-between">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">참고</span>
+                                다양한 응용 출력 결과 예시 (164dataoutx.csv)
+                            </h5>
+                        </div>
+                        <div class="px-5 py-4 flex-grow bg-white flex flex-col md:flex-row gap-4 items-center">
+                            <p class="code-font text-sm text-slate-700 font-medium leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 w-full md:w-1/2">num,data1,data2<br>1,79,73<br>2,83,67<br>3,97,59<br>4,71,89</p>
+                            <p class="text-sm text-slate-600 w-full md:w-1/2 leading-relaxed">이처럼 파이썬을 활용하면 수천, 수만 개의 원본 데이터를 가공한 후 새로운 형식의 표 데이터(CSV)로 자유자재로 재조립하여 엑셀이나 머신러닝에 활용할 수 있습니다.</p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </section>
 
-        <!-- Summary: 요약 정리 -->
-        <section class="bg-slate-900 rounded-[50px] p-10 md:p-20 text-white relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-80 h-80 bg-orange-500 opacity-20 blur-[120px] rounded-full"></div>
-
-            <div class="relative z-10 space-y-12">
-                <div class="text-center space-y-4">
-                    <h2 class="text-4xl font-black">오늘의 핵심 정리 📝</h2>
-                    <p class="text-slate-400">파일 입출력을 마스터하기 위한 세 줄 요약</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="p-8 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all">
-                        <div class="text-orange-400 text-4xl font-black mb-4">TXT</div>
-                        <h4 class="text-xl font-bold mb-2">텍스트 파일</h4>
-                        <p class="text-sm text-slate-400">문자열 위주의 데이터 저장. 줄바꿈(\n) 관리가 핵심!</p>
+        <section class="bg-slate-800 rounded-[32px] p-8 md:p-12 text-white shadow-2xl relative overflow-hidden mt-12">
+            <div class="relative z-10 space-y-6">
+                <h2 class="text-3xl font-black flex items-center gap-3">
+                    <i data-lucide="check-circle-2" class="text-amber-400"></i> 핵심 요약
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 space-y-2">
+                        <h4 class="font-bold text-amber-300">파일 제어의 3단계</h4>
+                        <p class="text-sm text-slate-300 leading-relaxed">항상 <strong>open()</strong> 으로 열고, <strong>read() / write()</strong> 로 작업한 뒤, 마지막에 메모리 누수 방지를 위해 <strong>close()</strong> 로 닫는 습관을 들이세요.</p>
                     </div>
-                    <div class="p-8 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all">
-                        <div class="text-orange-400 text-4xl font-black mb-4">CSV</div>
-                        <h4 class="text-xl font-bold mb-2">쉼표 구분 파일</h4>
-                        <p class="text-sm text-slate-400">표 형식의 데이터 저장. 쉼표(,)로 열을 구분!</p>
+                    <div class="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 space-y-2">
+                        <h4 class="font-bold text-orange-300">데이터 정제 (Parsing)</h4>
+                        <p class="text-sm text-slate-300 leading-relaxed">파일에서 불러온 모든 것은 '문자열'입니다. <strong>split()</strong>을 2번 활용해 줄바꿈과 쉼표 기준으로 자르면 2차원 리스트로 깔끔하게 정리할 수 있습니다.</p>
                     </div>
-                </div>
-
-                <div class="text-center pt-8">
-                    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="px-8 py-3 bg-orange-600 hover:bg-orange-50 rounded-full text-white hover:text-orange-600 font-bold transition-all shadow-lg">
-                        강의 처음으로 돌아가기
-                    </button>
                 </div>
             </div>
         </section>
 
     </main>
 
-    <!-- Sidebar Quick Nav -->
-    <div class="fixed left-8 top-1/2 -translate-y-1/2 hidden xl:flex flex-col gap-6">
-        <div class="h-1 bg-slate-200 w-12 rounded-full mb-4"></div>
-        <a href="#txt-write" class="group flex items-center gap-4">
-            <span class="w-2 h-2 bg-amber-400 rounded-full group-hover:scale-150 transition-all"></span>
-            <span class="text-xs font-bold text-slate-400 group-hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-all">TXT 쓰기</span>
-        </a>
-        <a href="#txt-read" class="group flex items-center gap-4">
-            <span class="w-2 h-2 bg-orange-400 rounded-full group-hover:scale-150 transition-all"></span>
-            <span class="text-xs font-bold text-slate-400 group-hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-all">TXT 읽기</span>
-        </a>
-        <a href="#csv-handle" class="group flex items-center gap-4">
-            <span class="w-2 h-2 bg-red-400 rounded-full group-hover:scale-150 transition-all"></span>
-            <span class="text-xs font-bold text-slate-400 group-hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all">CSV 처리</span>
-        </a>
-        <a href="#csv-save" class="group flex items-center gap-4">
-            <span class="w-2 h-2 bg-indigo-400 rounded-full group-hover:scale-150 transition-all"></span>
-            <span class="text-xs font-bold text-slate-400 group-hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all">CSV 저장</span>
-        </a>
-        <div class="h-1 bg-slate-200 w-12 rounded-full mt-4"></div>
+    <div id="toast" class="copy-toast fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10 z-[100]">
+        <div class="bg-amber-500 p-1 rounded-full"><i data-lucide="check" class="w-3 h-3 text-white"></i></div>
+        <span class="text-sm font-bold text-white">클립보드에 복사되었습니다!</span>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script>
-        lucide.createIcons();
+        window.onload = function() {
+            lucide.createIcons();
+            Prism.highlightAll();
+        };
+
+        function copyCode(elementId) {
+            const codeElement = document.getElementById(elementId);
+            const text = codeElement.textContent || codeElement.innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 2000);
+        }
     </script>
 </body>
 </html>

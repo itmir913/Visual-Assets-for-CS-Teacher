@@ -6,230 +6,463 @@
     <title>2-3-1. 선택 구조 강의노트</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&family=Fira+Code:wght@400;500&display=swap');
         body { font-family: 'Pretendard', sans-serif; scroll-behavior: smooth; }
         .code-font { font-family: 'Fira Code', monospace; }
-        .indent-guide { border-left: 2px dashed #cbd5e1; margin-left: 1.5rem; padding-left: 1rem; }
-        .copy-toast { visibility: hidden; opacity: 0; transition: 0.3s; }
+        .concept-card { transition: transform 0.2s; }
+        .concept-card:hover { transform: translateY(-5px); }
+        .copy-toast { visibility: hidden; opacity: 0; transition: 0.3s; z-index: 9999; }
         .copy-toast.show { visibility: visible; opacity: 1; }
+
+        /* 합자(Ligature) 강제 해제: >=, <=, != 등이 한 문자로 합쳐지는 것을 방지 */
+        .code-font, code, pre, span.token {
+            font-variant-ligatures: none !important;
+            -webkit-font-variant-ligatures: none !important;
+            font-feature-settings: "calt" 0 !important;
+        }
+
+        /* 문법 설명 박스 */
+        .grammar-box { padding-left: 1rem; margin: 1rem 0; }
+
+        /* 코드 박스 스타일 최적화 */
+        pre {
+            margin: 0 !important;
+            border-radius: 0.75rem !important;
+            font-size: 0.9rem !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 pb-20">
 
-    <!-- Hero Section -->
-    <header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16 px-6 shadow-lg">
-        <div class="max-w-4xl mx-auto space-y-4">
-            <div class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold tracking-widest uppercase">Chapter 2. 프로그래밍의 기초</div>
-            <h1 class="text-4xl md:text-5xl font-black tracking-tight leading-tight">2-3-1. 선택 구조<br><span class="text-blue-100 text-3xl md:text-4xl">프로그램에 지능을 불어넣다</span></h1>
-            <p class="text-lg text-blue-50 max-w-2xl font-medium">
-                단순히 위에서 아래로 실행되는 코드를 넘어, 상황에 따라 다른 길을 선택하는 '제어 구조'의 핵심을 배워봅시다.
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16 px-6 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')]"></div>
+        <div class="max-w-4xl mx-auto relative z-10">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold tracking-wider border border-white/30 backdrop-blur-md">Chapter 2. 프로그래밍의 기초</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 flex items-center gap-4">
+                <i data-lucide="split" class="w-10 h-10"></i>
+                2-3-1. 선택 구조
+            </h1>
+            <p class="text-lg text-blue-100 opacity-90 max-w-2xl font-medium leading-relaxed">
+                상황에 따라 다르게 행동하기<br>
+                프로그램이 주어진 조건에 따라 스스로 판단하고 다른 결과를 내도록 만드는 if, else 문의 기초를 배웁니다.
             </p>
         </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-6 -mt-10 space-y-16">
+    <main class="max-w-4xl mx-auto px-6 mt-12 space-y-12">
 
-        <!-- Part 1: 순차 구조 vs 선택 구조 -->
-        <section id="intro" class="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-slate-100 space-y-8">
-            <div class="flex items-center gap-3 border-b border-slate-100 pb-6">
-                <div class="bg-blue-100 p-3 rounded-2xl text-blue-600"><i data-lucide="split"></i></div>
-                <h2 class="text-3xl font-black text-slate-800">1. 선택 구조란 무엇인가?</h2>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-blue-100 p-3 rounded-2xl">
+                    <i data-lucide="check-square" class="w-8 h-8 text-blue-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">1. 단순 <span class="text-blue-600">if</span> 구조</h2>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    <h4 class="font-bold text-slate-500 uppercase text-xs">순차 구조 (Sequential)</h4>
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 relative overflow-hidden">
-                        <div class="absolute right-[-10px] top-[-10px] opacity-10"><i data-lucide="arrow-down" class="w-24 h-24"></i></div>
-                        <p class="text-sm leading-relaxed text-slate-600">작성된 명령어가 위에서 아래로 <strong>순서대로 하나씩</strong> 실행되는 기본 구조입니다.</p>
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <p>
+                    <code class="bg-slate-100 text-blue-600 px-1.5 py-0.5 rounded code-font">if</code>문은 주어진 조건이 <strong class="text-blue-600">참(True)일 때만</strong> 특정 코드를 실행합니다. 조건이 거짓이면 아무 일도 일어나지 않고 넘어갑니다.
+                </p>
+                <div class="grammar-box border-l-4 border-amber-500 bg-amber-50/50 p-5 rounded-r-xl border border-l-amber-500 border-amber-100">
+                    <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600"></i> 파이썬의 핵심: 들여쓰기 (Indentation)
+                    </h4>
+                    <p class="text-sm text-slate-700 mb-4">파이썬에서는 콜론(<code class="text-amber-700 font-bold">:</code>) 뒤에 오는 코드는 반드시 들여쓰기(스페이스 4칸 또는 Tab)를 해야 <code>if</code>문에 속한 것으로 인식합니다.</p>
+                    <div class="text-sm font-bold text-slate-500 bg-white p-4 rounded-xl border border-amber-100 code-font shadow-sm">
+                        if 조건식:<br>
+                        <span class="text-amber-500">----</span>실행할 명령 1 <span class="text-xs text-slate-400 font-normal"># 반드시 들여쓰기 필요</span><br>
+                        <span class="text-amber-500">----</span>실행할 명령 2
                     </div>
                 </div>
-                <div class="space-y-4">
-                    <h4 class="font-bold text-blue-600 uppercase text-xs">선택 구조 (Selection)</h4>
-                    <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100 relative overflow-hidden">
-                        <div class="absolute right-[-10px] top-[-10px] opacity-10 text-blue-600"><i data-lucide="git-branch" class="w-24 h-24"></i></div>
-                        <p class="text-sm leading-relaxed text-slate-600">주어진 <strong>조건이 참(True)인지 거짓(False)인지</strong>에 따라 실행할 명령을 결정하는 구조입니다.</p>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <h4 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-blue-500"></i>
+                    단순 if 실습 예제
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">예제 99_1</span>
+                                기본 if문
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">123 &lt; 456은 참(True)이므로 들여쓰기 된 print("Hello")가 실행됩니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">99_1.py</span>
+                                <button onclick="copyCode('code-99-1')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-99-1" class="language-python">if 123&lt;456:
+  print("Hello")</code></pre>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">예제 99_2</span>
+                                True 조건
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">조건 자리에 직접 True를 적었으므로 안의 코드가 무조건 실행됩니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">99_2.py</span>
+                                <button onclick="copyCode('code-99-2')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-99-2" class="language-python">if True:
+  print("Python")</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">예제 99_3</span>
+                                False 조건
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">조건이 False이므로 내부 코드는 무시되고 아무것도 출력되지 않습니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">99_3.py</span>
+                                <button onclick="copyCode('code-99-3')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-99-3" class="language-python">if False:
+  print("World")</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">예제 100</span>
+                                절댓값 구하기
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">입력된 수 n이 0보다 작을 때(음수)만 부호를 바꿔 양수로 만듭니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">100.py</span>
+                                <button onclick="copyCode('code-100')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-100" class="language-python">n = int(input())
+
+if n&lt;0:
+  n = -n
+
+print(n)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">예제 101</span>
+                                두 수 중 큰 수 출력
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">단순 if문 두 개를 사용하여, a가 크면 a를 출력하고 b가 크면 b를 출력합니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">101.py</span>
+                                <button onclick="copyCode('code-101')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-101" class="language-python">a = int(input())
+b = int(input())
+
+if a&gt;=b:
+  print(a)
+
+if a&lt;b:
+  print(b)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
 
-        <!-- Part 2: if ~ 선택 구조 -->
-        <section id="if-basic" class="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-slate-100 space-y-8">
-            <div class="flex items-center gap-3 border-b border-slate-100 pb-6">
-                <div class="bg-indigo-100 p-3 rounded-2xl text-indigo-600"><i data-lucide="code-2"></i></div>
-                <h2 class="text-3xl font-black text-slate-800">2. if 문: "만약 ~라면?"</h2>
-            </div>
-
-            <div class="space-y-6">
-                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm">1</span>
-                    기본 문법 (if)
-                </h3>
-
-                <div class="bg-slate-900 rounded-2xl p-8 text-indigo-300 relative">
-                    <div class="absolute top-4 right-6 text-xs font-bold text-slate-500">PYTHON SYNTAX</div>
-                    <pre class="code-font text-lg leading-relaxed">
-<span class="text-pink-400">if</span> <span class="text-white">조건식</span><span class="text-yellow-400">:</span>
-    <span class="text-slate-500"># 조건이 참일 때 실행할 코드</span>
-    <span class="text-white">실행문1</span>
-                    </pre>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-indigo-100 p-3 rounded-2xl">
+                    <i data-lucide="git-branch" class="w-8 h-8 text-indigo-600"></i>
                 </div>
-
-                <!-- 문법 상세 설명 -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="p-5 bg-amber-50 rounded-2xl border border-amber-100">
-                        <p class="font-black text-amber-800 mb-1">⚠️ 콜론(:)을 잊지 마세요!</p>
-                        <p class="text-sm text-amber-700">조건식 뒤에는 반드시 콜론을 찍어야 합니다. "이제부터 실행할 블록이 시작된다"는 신호입니다.</p>
-                    </div>
-                    <div class="p-5 bg-blue-50 rounded-2xl border border-blue-100">
-                        <p class="font-black text-blue-800 mb-1">⚠️ 들여쓰기가 생명입니다!</p>
-                        <p class="text-sm text-blue-700">if문에 속한 코드는 반드시 <strong>동일한 간격(보통 공백 4칸)</strong>으로 들여써야 합니다.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Part 3: if ~ else 선택 구조 -->
-        <section id="if-else" class="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-slate-100 space-y-8">
-            <div class="flex items-center gap-3 border-b border-slate-100 pb-6">
-                <div class="bg-pink-100 p-3 rounded-2xl text-pink-600"><i data-lucide="arrow-right-left"></i></div>
-                <h2 class="text-3xl font-black text-slate-800">3. if ~ else 문: "아니면 말고"</h2>
+                <h2 class="text-2xl font-bold text-slate-800">2. <span class="text-indigo-600">if-else</span> 구조</h2>
             </div>
 
-            <p class="text-slate-600 leading-relaxed">
-                조건이 참일 때와 거짓일 때, 각각 <strong>서로 다른 두 갈래 길</strong>을 만들고 싶을 때 사용합니다.
-            </p>
-
-            <div class="bg-slate-900 rounded-2xl p-8 text-pink-300 relative overflow-hidden">
-                <div class="absolute right-0 top-0 h-full w-24 bg-pink-500/5 rotate-12"></div>
-                <pre class="code-font text-lg leading-relaxed">
-<span class="text-pink-400">if</span> <span class="text-white">조건식</span><span class="text-yellow-400">:</span>
-    <span class="text-white">참일 때 실행할 문장</span>
-<span class="text-pink-400">else</span><span class="text-yellow-400">:</span>
-    <span class="text-white">거짓일 때 실행할 문장</span>
-                </pre>
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <p>
+                    <code class="bg-slate-100 text-indigo-600 px-1.5 py-0.5 rounded code-font">else</code>를 사용하면 조건이 <strong>거짓(False)일 때 실행할 코드</strong>를 따로 지정할 수 있습니다. "이거면 이렇게 하고, 아니면 저렇게 해라"라는 논리를 만듭니다.
+                </p>
             </div>
 
-            <!-- 예시 코드 -->
-            <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 bg-slate-100 border-b border-slate-200 font-bold text-slate-700 text-sm">실전 예제: 합격/불합격 판별</div>
-                <div class="p-6">
-                    <pre class="code-font text-sm text-slate-700 bg-white p-4 rounded-xl border border-slate-200">
-score = int(input("점수 입력: "))
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <h4 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-indigo-500"></i>
+                    if-else 실습 예제
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-if score >= 60:
-    print("합격입니다!")
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-indigo-500 text-white text-xs px-2 py-1 rounded-full">예제 102</span>
+                                기본 if-else
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">123 &gt; 456은 거짓이므로 if 안의 코드는 건너뛰고 else 안의 World가 출력됩니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">102.py</span>
+                                <button onclick="copyCode('code-102')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-102" class="language-python">if 123&gt;456:
+  print("Hello")
 else:
-    print("불합격입니다. 다음 기회에..")
-                    </pre>
+  print("World")</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-indigo-500 text-white text-xs px-2 py-1 rounded-full">예제 103</span>
+                                짝수/홀수 판별
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">2로 나눈 나머지(% 연산자)가 0이면 짝수(even), 아니면 홀수(odd)로 판별합니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">103.py</span>
+                                <button onclick="copyCode('code-103')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-103" class="language-python">n = int(input())
+
+if (n%2)==0:
+  print("even")
+else:
+  print("odd")</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-indigo-500 text-white text-xs px-2 py-1 rounded-full">예제 104</span>
+                                두 수의 차이 구하기
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">두 수의 차이를 무조건 양수로 나오게 하기 위해, 큰 수에서 작은 수를 빼도록 구성합니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">104.py</span>
+                                <button onclick="copyCode('code-104')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-104" class="language-python">a = int(input())
+b = int(input())
+
+if a&gt;=b:
+  print(a-b)
+else:
+  print(b-a)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
 
-        <!-- Part 4: 선택 구조의 중첩 및 elif -->
-        <section id="if-nested" class="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-slate-100 space-y-8">
-            <div class="flex items-center gap-3 border-b border-slate-100 pb-6">
-                <div class="bg-amber-100 p-3 rounded-2xl text-amber-600"><i data-lucide="layers"></i></div>
-                <h2 class="text-3xl font-black text-slate-800">4. 다중 선택 (중첩 & elif)</h2>
+        <section class="concept-card bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="bg-purple-100 p-3 rounded-2xl">
+                    <i data-lucide="layers" class="w-8 h-8 text-purple-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">3. 다중 조건과 중첩 <span class="text-purple-600">if</span></h2>
             </div>
 
-            <p class="text-slate-600 leading-relaxed">
-                검사해야 할 조건이 여러 개일 때 유용합니다. PPT의 <strong>중첩 선택 구조</strong>를 더 효율적으로 표현하는 파이썬의 비밀 병기 <code class="text-pink-600 font-bold">elif</code>를 배워봅시다.
-            </p>
+            <div class="space-y-4 text-slate-600 leading-relaxed mb-8">
+                <p>
+                    경우의 수가 3가지 이상일 때는 <code class="bg-slate-100 text-purple-600 px-1.5 py-0.5 rounded code-font">if</code>문 안에 또 다른 <code class="bg-slate-100 text-purple-600 px-1.5 py-0.5 rounded code-font">if</code>문을 넣는 <strong>중첩(Nested) 구조</strong>를 만들거나, 논리 연산자(<code class="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded code-font">and</code>, <code class="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded code-font">or</code>)를 활용하여 여러 개의 독립적인 <code class="bg-slate-100 text-purple-600 px-1.5 py-0.5 rounded code-font">if</code>문을 조합할 수 있습니다.
+                </p>
+            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- 중첩 구조 (어려운 방식) -->
-                <div class="space-y-3">
-                    <span class="text-xs font-black text-slate-400">방식 1: 중첩(Nested) if</span>
-                    <div class="bg-slate-800 p-6 rounded-2xl text-[13px] leading-6">
-                        <pre class="code-font text-slate-300">
-<span class="text-pink-400">if</span> n >= 90:
-    print("A")
-<span class="text-pink-400">else</span>:
-    <span class="text-pink-400">if</span> n >= 80:
-        print("B")
-    <span class="text-pink-400">else</span>:
-        print("C")
-                        </pre>
-                    </div>
-                    <p class="text-[11px] text-slate-400">계속 오른쪽으로 밀려나서 읽기 힘들어져요!</p>
-                </div>
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <h4 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-purple-500"></i>
+                    중첩 및 다중 조건 실습 예제
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                <!-- elif 구조 (쉬운 방식) -->
-                <div class="space-y-3">
-                    <span class="text-xs font-black text-blue-500">방식 2: elif (권장)</span>
-                    <div class="bg-slate-800 p-6 rounded-2xl text-[13px] leading-6">
-                        <pre class="code-font text-slate-300">
-<span class="text-pink-400">if</span> n >= 90:
-    print("A")
-<span class="text-blue-400">elif</span> n >= 80:
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">예제 105</span>
+                                중첩 if로 성적 판별
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">먼저 80 이상인지 검사하여 아니면(else) 그 안에서 다시 60 이상인지를 검사하는 이중 구조입니다. 들여쓰기가 계속 깊어지는 것을 확인하세요.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">105.py</span>
+                                <button onclick="copyCode('code-105')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-105" class="language-python">n = int(input())
+
+if n&gt;=80:
+  print("A")
+else:
+  if n&gt;=60:
     print("B")
-<span class="text-pink-400">else</span>:
-    print("C")
-                        </pre>
+  else:
+    print("C")</code></pre>
+                            </div>
+                        </div>
                     </div>
-                    <p class="text-[11px] text-blue-400">수직으로 정렬되어 훨씬 깔끔하고 보기 좋습니다.</p>
+
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">예제 106</span>
+                                독립된 if문과 and 연산
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">예제 105와 결과는 같습니다. 하지만 중첩 없이 3개의 독립된 if문과 and 연산자를 활용하여 조건을 직관적으로 나열했습니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">106.py</span>
+                                <button onclick="copyCode('code-106')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-106" class="language-python">n = int(input())
+
+if n&gt;=80:
+  print("A")
+
+if n&lt;80 and n&gt;=60:
+  print("B")
+
+if n&lt;60:
+  print("C")</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="p-4 bg-slate-100/50 border-b border-slate-200">
+                            <h5 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">예제 107</span>
+                                세 수 중 가장 큰 수 찾기
+                            </h5>
+                            <p class="text-sm text-slate-600 mt-2">a, b, c 세 개의 수를 입력받아, 먼저 a와 b를 비교하고 그 결과(참/거짓)에 따라 다시 c와 비교하는 깊은 중첩 구조를 보여줍니다.</p>
+                        </div>
+                        <div class="relative group bg-[#1d1f21] flex-grow">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                                <span class="text-xs font-medium text-slate-400 code-font">107.py</span>
+                                <button onclick="copyCode('code-107')" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                                </button>
+                            </div>
+                            <div class="p-4">
+<pre><code id="code-107" class="language-python">a = int(input())
+b = int(input())
+c = int(input())
+
+if a&gt;=b:
+  if a&gt;=c:
+    print(a)
+  else:
+    print(c)
+else:
+  if b&gt;=c:
+    print(b)
+  else:
+    print(c)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
 
-        <!-- Critical Pitfalls -->
-        <section class="bg-rose-50 rounded-[32px] p-8 md:p-12 border border-rose-100 space-y-6">
-            <h3 class="text-2xl font-black text-rose-800 flex items-center gap-3">
-                <i data-lucide="alert-octagon"></i> 시험에 꼭 나오는 오답 유형!
-            </h3>
-
-            <div class="grid grid-cols-1 gap-4">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-rose-100 flex gap-4 items-start">
-                    <div class="bg-rose-100 p-2 rounded-lg text-rose-600 mt-1"><i data-lucide="x-circle" class="w-5 h-5"></i></div>
-                    <div>
-                        <p class="font-bold text-slate-800 mb-1">비교 연산자 '=='와 대입 연산자 '=' 혼동</p>
-                        <p class="text-sm text-slate-600"><code>if a = 10:</code> (X) → <code class="text-emerald-600 font-bold">if a == 10:</code> (O)</p>
-                        <p class="text-[11px] text-rose-500 mt-1">조건식에서는 반드시 '같다'는 의미의 <code>==</code>를 써야 합니다.</p>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-rose-100 flex gap-4 items-start">
-                    <div class="bg-rose-100 p-2 rounded-lg text-rose-600 mt-1"><i data-lucide="indent-increase" class="w-5 h-5"></i></div>
-                    <div>
-                        <p class="font-bold text-slate-800 mb-1">IndentationError: 들여쓰기 오류</p>
-                        <p class="text-sm text-slate-600">파이썬은 들여쓰기 한 칸 차이로 코드가 실행되느냐 에러가 나느냐가 결정됩니다. 탭(Tab)과 스페이스를 섞어 쓰지 마세요!</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Final Summary -->
-        <section class="bg-indigo-900 rounded-[48px] p-8 md:p-16 text-white relative overflow-hidden text-center">
-            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-
-            <div class="relative z-10 max-w-2xl mx-auto space-y-8">
-                <h3 class="text-3xl font-black italic tracking-widest uppercase">Select Your Path</h3>
-                <div class="flex flex-wrap justify-center gap-4">
-                    <div class="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-indigo-100 font-bold">if (만약)</div>
+        <section class="bg-slate-800 rounded-[32px] p-8 md:p-12 text-white shadow-2xl relative overflow-hidden mt-12">
+            <div class="relative z-10 space-y-6">
+                <h2 class="text-3xl font-black flex items-center gap-3">
+                    <i data-lucide="check-circle-2" class="text-blue-400"></i> 핵심 요약
+                </h2>
+                <div class="flex flex-wrap gap-3">
+                    <div class="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-blue-100 font-bold">if (만약에)</div>
                     <div class="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-indigo-100 font-bold">elif (아니면 만약)</div>
-                    <div class="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-indigo-100 font-bold">else (그 외에)</div>
+                    <div class="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-purple-100 font-bold">else (그 외에)</div>
                 </div>
-                <p class="text-indigo-200 text-sm font-medium">선택 구조를 마스터하면 비로소 프로그램다운 프로그램을 만들 수 있습니다.</p>
+                <p class="text-blue-200 text-sm font-medium">선택 구조를 마스터하면 비로소 프로그램다운 프로그램을 만들 수 있습니다.</p>
             </div>
         </section>
 
     </main>
 
-    <!-- Toast Notification -->
     <div id="toast" class="copy-toast fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 z-[100] border border-white/10">
-        <div class="bg-emerald-500 p-1 rounded-full"><i data-lucide="check" class="w-3 h-3 text-white"></i></div>
-        <span class="text-sm font-bold text-white">학습 자료 내용이 복사되었습니다!</span>
+        <div class="bg-blue-500 p-1 rounded-full"><i data-lucide="check" class="w-3 h-3 text-white"></i></div>
+        <span class="text-sm font-bold text-white">코드가 복사되었습니다!</span>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script>
-        lucide.createIcons();
+        window.onload = function() {
+            lucide.createIcons();
+            Prism.highlightAll();
+        };
 
         function copyCode(elementId) {
             const codeElement = document.getElementById(elementId);
-            const text = codeElement.innerText;
+            const text = codeElement.textContent || codeElement.innerText;
             const textarea = document.createElement('textarea');
             textarea.value = text;
             document.body.appendChild(textarea);

@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>N-Queen 실습</title>
+    <title>2-2-1. 탐색 - N-Queen 실습 (D3.js Tree)</title>
+
     <!-- Tailwind CSS & Font Awesome -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
-    <!-- Prism.js CSS (Tomorrow Night Theme) -->
+    <!-- Prism.js CSS (코드 문법 강조) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+
+    <!-- D3.js (트리 시각화용) -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
@@ -39,7 +43,7 @@
         .section-card {
             background-color: white;
             border-radius: 1.5rem;
-            padding: 3rem;
+            padding: 2.5rem;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
             border: 1px solid #f1f5f9;
         }
@@ -51,7 +55,7 @@
             }
         }
 
-        /* N-Queen 특화 스타일 */
+        /* N-Queen 보드 스타일 */
         .chess-board {
             display: grid;
             gap: 0;
@@ -75,10 +79,7 @@
         }
 
         @media (max-width: 640px) {
-            .chess-cell {
-                width: 2.5rem;
-                height: 2.5rem;
-            }
+            .chess-cell { width: 2.5rem; height: 2.5rem; }
         }
 
         .cell-white { background-color: #f8fafc; }
@@ -88,12 +89,9 @@
             background-color: #fecdd3 !important;
             box-shadow: inset 0 0 10px rgba(225, 29, 72, 0.5);
         }
-        .cell-try {
-            background-color: #e0e7ff !important;
-        }
-        .cell-paused {
-            background-color: #fef08a !important; /* 일시정지 시 하이라이트 */
-        }
+        .cell-try { background-color: #fef08a !important; }
+        .cell-place { background-color: #d1fae5 !important; }
+        .cell-paused { background-color: #e2e8f0 !important; }
 
         .queen-icon {
             font-size: 2.2rem;
@@ -113,114 +111,160 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Prism.js 코드 블록 커스텀 스타일 */
-        pre[class*="language-"] {
-            border-radius: 1rem;
-            padding: 1.5rem;
-            font-size: 0.95rem;
-            margin: 0;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        }
-
         /* 슬라이더 커스텀 */
-        input[type=range] {
-            accent-color: #9333ea;
+        input[type=range] { accent-color: #9333ea; }
+
+        /* D3 트리 SVG 텍스트 드래그 방지 */
+        svg text {
+            user-select: none;
+            pointer-events: none;
+            font-family: 'Pretendard', sans-serif;
+            font-weight: 700;
         }
     </style>
 </head>
 <body class="text-slate-800 antialiased">
 
 <!-- Hero Header -->
-<header id="intro" class="hero-gradient text-white py-20 px-6">
+<header class="hero-gradient text-white py-20 px-6">
     <div class="max-w-4xl mx-auto text-center">
             <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full text-sm font-bold mb-5 backdrop-blur-md shadow-sm">
-                인공지능 실습
+                2단원. 지식 표현과 추론
             </span>
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">
-            N-Queen <br class="hidden md:block">실습
+            깊이 우선 탐색(DFS)<br class="hidden md:block"> 상태 공간 트리 시각화
         </h1>
         <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            N-Queen 퍼즐을 통해 가망이 없는 길은 일찍 포기하고 되돌아오는<br class="hidden md:block"> 인공지능의
-            <strong>'백트래킹(Backtracking)'</strong> 기술을 알아봅시다.
+            N-Queen 퍼즐이 해결되는 과정을 통해 <strong>가지치기(Pruning)</strong>와 <strong>백트래킹(Backtracking)</strong> 알고리즘이 트리를 어떻게
+            탐색하는지 전체 구조를 한눈에 확인해 보세요.
         </p>
     </div>
 </header>
 
 <!-- Sticky Navigation -->
-<nav class="sticky-nav px-6 py-4">
-    <div class="max-w-5xl mx-auto flex justify-between items-center">
+<nav class="sticky-nav px-6 py-4 mb-12">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
         <div class="font-black text-lg text-purple-700 tracking-tight flex items-center">
-            <i class="fa-solid fa-chess-queen mr-2"></i> 탐색과 백트래킹
+            <i class="fa-solid fa-network-wired mr-2"></i> DFS Node & Edge Tree
         </div>
-
         <div class="hidden md:flex space-x-8 text-sm font-bold text-slate-500">
-            <a href="#concept" class="hover:text-purple-700 transition">개념 이해</a>
-            <a href="#simulation" class="hover:text-purple-700 transition">N-Queen 실습</a>
-            <a href="#summary" class="hover:text-purple-700 transition">핵심 정리</a>
-            <a href="#misconception" class="hover:text-purple-700 transition">오해와 진실</a>
-            <a href="#quiz" class="hover:text-purple-700 transition">확인 퀴즈</a>
+            <a href="#concept" class="hover:text-indigo-600 transition">개념 이해</a>
+            <a href="#rules" class="hover:text-purple-600 transition">퍼즐 규칙</a>
+            <a href="#simulation" class="hover:text-purple-700 transition">시각화 실습</a>
+            <a href="#summary" class="hover:text-purple-700 transition">코드 원리</a>
         </div>
-
-        <button class="md:hidden text-slate-500 hover:text-purple-700">
-            <i class="fa-solid fa-bars text-xl"></i>
-        </button>
     </div>
 </nav>
 
 <!-- Main Content -->
-<main class="max-w-5xl mx-auto px-6 py-12 space-y-24">
+<main class="max-w-7xl mx-auto px-4 pb-24 space-y-16">
 
-    <!-- 1. 개념 이해 섹션 -->
-    <section id="concept" class="scroll-mt-24">
+    <!-- 1. 개념 이해 섹션: N-Queen과 백트래킹 -->
+    <section id="concept" class="scroll-mt-24 mb-16">
         <div class="text-center space-y-4 mb-10">
-            <h2 class="text-3xl font-black text-slate-900">1단계: 막다른 길 되돌아가기</h2>
+            <h2 class="text-3xl font-black text-slate-900">개념 이해 단계: 백트래킹과 N-Queen</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 md:p-10 shadow-sm border border-slate-200">
+            <div class="flex flex-col md:flex-row gap-8 items-center">
+                <div class="flex-1 space-y-6">
+                    <h3 class="text-2xl font-bold text-slate-800">
+                        <i class="fa-solid fa-route text-indigo-500 mr-2"></i>백트래킹 (Backtracking) 이란?
+                    </h3>
+                    <p class="text-lg text-slate-600 leading-relaxed">
+                        문제를 해결하기 위해 모든 가능성을 탐색하다가, <strong>현재 경로가 정답이 될 수 없다고 판단되면 (유망하지 않으면) 즉시 이전 단계로
+                        되돌아가서(Backtrack)</strong> 다른 경로를 탐색하는 알고리즘 기법입니다.
+                    </p>
+                    <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                        <h4 class="font-bold text-indigo-800 mb-2">💡 핵심 포인트</h4>
+                        <ul class="list-disc list-inside text-indigo-700 space-y-2 text-sm md:text-base">
+                            <li><strong>상태 공간 트리(State Space Tree):</strong> 문제 해결 과정을 트리 형태로 구성하여 탐색합니다.</li>
+                            <li><strong>가지치기(Pruning):</strong> 정답이 될 가능성이 없는 노드는 더 이상 탐색하지 않고 잘라내어 탐색 시간을 대폭 줄입니다.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/3 flex justify-center">
+                    <div class="w-48 h-48 bg-indigo-100 rounded-full flex items-center justify-center shadow-inner relative">
+                        <i class="fa-solid fa-chess-queen text-7xl text-indigo-600 z-10"></i>
+                        <div class="absolute top-4 right-4 text-3xl opacity-50"><i
+                                class="fa-solid fa-xmark text-rose-500"></i></div>
+                        <div class="absolute bottom-4 left-4 text-3xl opacity-50"><i
+                                class="fa-solid fa-arrow-rotate-left text-blue-500"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 1.5 준비 단계: N-Queen 규칙 섹션 -->
+    <section id="rules" class="scroll-mt-24 mb-16">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">준비 단계: N-Queen 규칙 알아보기</h2>
             <div class="w-16 h-1.5 bg-purple-500 mx-auto rounded-full"></div>
         </div>
 
-        <div class="section-card space-y-8">
-            <p class="text-lg text-slate-700 leading-relaxed">
-                여러분, 복잡한 미로를 탐험하고 있다고 상상해 보세요. 길을 따라 걷다가 막다른 골목이 나오면 어떻게 하나요? 벽을 뚫고 갈 수는 없으니, <strong>다시 갈림길로 되돌아가서 다른
-                길을 선택</strong>할 것입니다.
+        <div class="bg-slate-50 rounded-3xl p-8 border border-slate-200 space-y-8">
+            <p class="text-lg text-slate-700 leading-relaxed text-center">
+                체스 게임의 <strong>'여왕(Queen)'</strong>은 가장 강력한 말입니다. N-Queen 퍼즐의 3가지 핵심 규칙을 살펴볼까요?
             </p>
 
-            <div class="bg-purple-50 border-l-4 border-purple-500 p-6 rounded-r-xl">
-                <h3 class="font-bold text-purple-800 text-lg mb-2">💡 백트래킹 (Backtracking)</h3>
-                <p class="text-purple-900 leading-relaxed">
-                    인공지능도 정답을 찾아가는 '탐색' 과정에서 규칙에 어긋나 더 이상 나아갈 수 없는 상태(막다른 길)를 만나면, <strong>이전 단계로 되돌아가서 다른 경우의 수를
-                    탐색</strong>합니다. 이 기법을 '백트래킹'이라고 부릅니다.
-                </p>
-            </div>
-
-            <div class="flex items-start gap-4 p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0 text-xl">
-                    <i class="fa-solid fa-scissors"></i>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <!-- Rule 1: 기본 구성 -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-md">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                    <div class="w-14 h-14 bg-blue-50 shadow-sm text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-chess-board"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-lg">1. 기본 구성</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        가로 N칸, 세로 N칸의 체스판에 <strong>N개의 퀸(Queen)</strong>을 배치해야 합니다. (예: 4x4 판에는 4개의 퀸 배치)
+                    </p>
                 </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-lg mb-1">핵심 기술: 가지치기 (Pruning)</h4>
-                    <p class="text-slate-600">
-                        어떤 길로 가봤자 정답이 없다는 것을 미리 알았다면, 그 길은 아예 시도조차 하지 않고 잘라내 버리는 것을 말합니다. 쓸데없는 나무가지를 잘라내듯, <strong>불필요한
-                        계산을 줄여서 탐색 속도를 엄청나게 빠르게 만들어줍니다.</strong>
+
+                <!-- Rule 2: 퀸의 이동 -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-md">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
+                    <div class="w-14 h-14 bg-rose-50 shadow-sm text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-lg">2. 퀸의 파워</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        퀸은 가로, 세로, 그리고 대각선 방향으로 칸 수에 제한 없이 <strong>끝까지 이동하며 공격</strong>할 수 있습니다.
+                    </p>
+                </div>
+
+                <!-- Rule 3: 최종 목표 -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-md">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+                    <div class="w-14 h-14 bg-green-50 shadow-sm text-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-lg">3. 최종 목표</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        어떤 퀸들도 서로 공격할 수 없도록, 즉 <strong>같은 행, 열, 대각선에 퀸이 겹치지 않게</strong> 모두 안전하게 배치하세요.
                     </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 2. 실습 섹션 (N-Queen) -->
+    <!-- 2. 실습 섹션 (N-Queen + Tree) -->
     <section id="simulation" class="scroll-mt-24">
         <div class="text-center space-y-4 mb-10">
-            <h2 class="text-3xl font-black text-slate-900">2단계: N-Queen 문제 직접 풀어보기</h2>
+            <h2 class="text-3xl font-black text-slate-900">실습 단계: N-Queen 실습하기</h2>
             <div class="w-16 h-1.5 bg-purple-500 mx-auto rounded-full"></div>
         </div>
 
         <div class="section-card">
-            <div class="flex flex-col lg:flex-row gap-10 items-start">
 
-                <!-- 보드 & 컨트롤 영역 -->
-                <div class="flex-1 w-full text-center">
+            <div class="flex flex-col lg:flex-row gap-8 items-stretch">
 
-                    <!-- 옵션 설정 패널 (크기 및 속도) -->
-                    <div class="flex flex-wrap justify-center items-center gap-6 bg-slate-50 px-6 py-4 rounded-2xl shadow-inner mb-6 border border-slate-200">
+                <!-- 왼쪽: 보드 & 컨트롤 영역 (약 45%) -->
+                <div class="w-full lg:w-[45%] flex flex-col items-center">
+
+                    <!-- 옵션 설정 패널 -->
+                    <div class="flex flex-wrap justify-center items-center gap-6 bg-slate-50 px-6 py-4 rounded-2xl shadow-inner mb-6 border border-slate-200 w-full">
                         <!-- 보드 크기 -->
                         <div class="flex items-center gap-2">
                             <label class="font-bold text-slate-700 flex items-center gap-2">
@@ -229,24 +273,20 @@
                             <select id="boardSize"
                                     class="border-2 border-slate-200 rounded-lg px-2 py-1 bg-white text-purple-700 font-black cursor-pointer focus:outline-none focus:border-purple-500"
                                     onchange="initGame()">
-                                <option value="4">4 x 4 (쉬움)</option>
+                                <option value="4">4 x 4 (추천)</option>
                                 <option value="5">5 x 5 (보통)</option>
                                 <option value="6">6 x 6 (어려움)</option>
-                                <option value="8">8 x 8 (매우 어려움)</option>
+                                <option value="8">8 x 8 (트리가 거대해짐)</option>
                             </select>
                         </div>
 
-                        <!-- 구분선 -->
-                        <div class="w-px h-6 bg-slate-300 hidden sm:block"></div>
-
                         <!-- 애니메이션 속도 조절 -->
                         <div class="flex items-center gap-3">
-                            <label class="font-bold text-slate-700 flex items-center gap-2"
-                                   title="AI 탐색 애니메이션의 속도를 조절합니다.">
+                            <label class="font-bold text-slate-700 flex items-center gap-2">
                                 <i class="fa-solid fa-gauge-high text-rose-500"></i> 속도
                             </label>
-                            <input type="range" id="speedSlider" min="0" max="9" value="5"
-                                   class="w-24 sm:w-32 cursor-pointer">
+                            <input type="range" id="speedSlider" min="0" max="9" value="6"
+                                   class="w-24 sm:w-28 cursor-pointer">
                         </div>
                     </div>
 
@@ -255,226 +295,162 @@
                         <!-- JS로 생성됨 -->
                     </div>
 
-                    <!-- 진행 상태 텍스트 -->
-                    <div id="statusText" class="h-6 font-bold text-slate-600 mb-6 transition-colors px-2">
-                        체스판의 칸을 클릭하여 퀸을 배치해 보세요.
-                    </div>
-
                     <!-- 조작 버튼 그룹 -->
-                    <div class="flex flex-col items-center gap-3 h-12">
+                    <div class="flex flex-col items-center gap-2 w-full px-2">
+
+                        <!-- 진행 상태 텍스트 -->
+                        <div id="statusText"
+                             class="h-10 font-bold text-slate-600 mb-0 transition-colors px-2 text-center flex flex-wrap justify-center gap-2 bg-slate-100 rounded-lg border border-slate-200">
+                            <span class="flex-1 min-w-[120px] text-center">크기를 설정하고 시작 버튼을 누르세요.</span>
+                            <span class="flex-[2] min-w-[160px]"></span> <!-- 버튼 그룹 비율 맞춤용 빈 span -->
+                        </div>
 
                         <!-- 1. 기본 상태 버튼 -->
-                        <div id="btnGroupIdle" class="flex flex-wrap justify-center gap-3 w-full">
+                        <div id="btnGroupIdle" class="flex flex-wrap justify-center gap-2 w-full">
                             <button onclick="initGame()"
-                                    class="flex-1 max-w-[140px] px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-all">
-                                <i class="fa-solid fa-rotate-right mr-1"></i>초기화
+                                    class="flex-1 min-w-[120px] px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-all">
+                                <i class="fa-solid fa-rotate-right mr-1"></i> 초기화
                             </button>
                             <button onclick="startAI()"
-                                    class="flex-1 max-w-[200px] px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-md">
-                                <i class="fa-solid fa-robot mr-1"></i>AI 애니메이션 시작
+                                    class="flex-[2] min-w-[160px] px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-md">
+                                <i class="fa-solid fa-robot mr-1"></i> AI 자동 탐색
                             </button>
                         </div>
 
                         <!-- 2. 애니메이션 진행 중 버튼 -->
-                        <div id="btnGroupPlaying" class="flex flex-wrap justify-center gap-3 w-full hidden">
+                        <div id="btnGroupPlaying" class="flex flex-wrap justify-center gap-2 w-full hidden">
                             <button onclick="initGame()"
-                                    class="flex-1 max-w-[140px] px-4 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl transition-all">
-                                <i class="fa-solid fa-stop mr-1"></i>탐색 중지
+                                    class="flex-1 min-w-[120px] px-4 py-3 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl transition-all">
+                                <i class="fa-solid fa-stop mr-1"></i> 중지
                             </button>
                             <button onclick="pauseAI()"
-                                    class="flex-1 max-w-[200px] px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl transition-all shadow-md">
-                                <i class="fa-solid fa-pause mr-1"></i>일시정지
+                                    class="flex-[2] min-w-[160px] px-4 py-3 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl transition-all shadow-md">
+                                <i class="fa-solid fa-pause mr-1"></i> 일시정지
                             </button>
                         </div>
 
                         <!-- 3. 일시정지 상태 버튼 -->
-                        <div id="btnGroupPaused" class="flex flex-wrap justify-center gap-3 w-full hidden">
+                        <div id="btnGroupPaused" class="flex flex-wrap justify-center gap-2 w-full hidden">
                             <button onclick="initGame()"
-                                    class="flex-1 max-w-[140px] px-4 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl transition-all">
-                                <i class="fa-solid fa-stop mr-1"></i>탐색 중지
+                                    class="flex-1 min-w-[100px] px-3 py-3 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl transition-all text-sm">
+                                <i class="fa-solid fa-stop"></i> 중지
                             </button>
                             <button onclick="resumeAI()"
-                                    class="flex-1 max-w-[200px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-md animate-pulse">
-                                <i class="fa-solid fa-play mr-1"></i>다시 시작
+                                    class="flex-1 min-w-[100px] px-3 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-md text-sm">
+                                <i class="fa-solid fa-play"></i> 자동 재생
+                            </button>
+                            <button onclick="stepNextAI()"
+                                    class="flex-[1.5] min-w-[120px] px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 text-sm">
+                                <i class="fa-solid fa-forward-step mr-1"></i> 다음 단계
                             </button>
                         </div>
+                    </div>
 
+                </div>
+
+                <!-- 오른쪽: 상태 공간 트리 (D3.js Tree) 패널 (약 55%) -->
+                <div class="w-full lg:w-[60%] flex flex-col bg-slate-900 rounded-2xl overflow-hidden shadow-xl border-4 border-slate-800 min-h-[450px] flex-1 relative">
+
+                    <!-- 트리 헤더 -->
+                    <div class="bg-slate-800 px-5 py-3 flex justify-between items-center border-b border-slate-700 z-10 relative shadow-md">
+                        <h4 class="text-white font-bold flex items-center gap-2 text-sm md:text-base">
+                            <i class="fa-solid fa-diagram-project text-indigo-400"></i> 상태 공간 트리
+                        </h4>
+                        <div class="flex items-center gap-3">
+                            <!-- 자동 맞춤 토글 버튼 추가 -->
+                            <label class="text-xs flex items-center gap-1.5 text-slate-300 hover:text-white cursor-pointer bg-slate-700/50 px-2 py-1 rounded border border-slate-600 transition">
+                                <input type="checkbox" id="autoFitToggle" checked
+                                       class="accent-indigo-500 cursor-pointer w-3 h-3">
+                                자동 맞춤
+                            </label>
+                            <button onclick="resetZoom(500)" title="현재 화면에 꽉 차게 정렬"
+                                    class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded border border-slate-600 transition">
+                                <i class="fa-solid fa-compress"></i>
+                            </button>
+                            <div class="text-slate-400 text-xs md:text-sm font-mono bg-slate-900 px-3 py-1 rounded-full border border-slate-700">
+                                방문 노드: <span id="nodeCount" class="text-indigo-400 font-bold">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 트리 시각화 영역 (D3 SVG 렌더링 타겟) -->
+                    <div id="dfsTreeContainer" class="flex-1 w-full h-full relative overflow-hidden bg-[#0f172a]">
+                        <div id="treePlaceholder"
+                             class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center space-y-4 pointer-events-none z-10">
+                            <i class="fa-solid fa-seedling text-5xl opacity-30"></i>
+                            <p class="text-sm md:text-base font-medium opacity-60">AI 탐색을 시작하면 이곳에<br>전체 트리 구조가 그려집니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 범례 (Legend) -->
+                    <div class="bg-slate-800 px-3 py-2.5 text-xs text-slate-300 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-slate-700 z-10 relative shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-yellow-300"></span> 탐색 시도</span>
+                        <span class="flex items-center gap-1.5"><span
+                                class="w-3 h-3 rounded-full bg-emerald-400"></span> 배치(안전)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500"></span> 충돌(가지치기)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-500"></span> 백트래킹(후퇴)</span>
                     </div>
                 </div>
 
-                <!-- 설명 영역 -->
-                <div class="flex-1 space-y-6 lg:sticky lg:top-24">
-                    <h3 class="text-xl font-bold text-slate-800 border-b-2 border-slate-100 pb-3">
-                        <i class="fa-regular fa-lightbulb text-purple-500 mr-2"></i>실습 방법 및 규칙
-                    </h3>
-                    <div class="bg-purple-50 p-4 rounded-xl mb-4">
-                        <strong>👑 퀸(Queen)의 움직임:</strong> 체스에서 퀸은 가로, 세로, 대각선 방향으로 장애물이 없다면 끝까지 이동할 수 있는 가장 강력한 말입니다.
-                    </div>
-                    <ul class="space-y-4 text-slate-600">
-                        <li class="flex items-start">
-                            <i class="fa-solid fa-1 text-purple-400 mt-1 mr-3"></i>
-                            <span><strong>목표:</strong> N x N 크기의 체스판에 N개의 퀸을 서로 공격할 수 없도록 안전하게 배치하는 것입니다.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fa-solid fa-2 text-purple-400 mt-1 mr-3"></i>
-                            <span><strong>직접 풀기:</strong> 빈칸을 클릭해 퀸을 놓아보세요. 충돌 시 <strong>빨간색</strong>으로 변합니다.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fa-solid fa-3 text-purple-400 mt-1 mr-3"></i>
-                            <span><strong>AI 애니메이션:</strong> 인공지능이 '백트래킹'으로 정답을 찾는 과정을 봅니다. 속도를 조절하거나 일시정지하며 관찰해 보세요.</span>
-                        </li>
-                    </ul>
-                </div>
+            </div>
 
+            <!-- 실습 안내 및 팁 -->
+            <div class="bg-purple-50 border border-purple-100 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-center max-w-6xl mx-auto mt-8">
+                <div class="shrink-0 w-16 h-16 bg-purple-200 text-purple-600 rounded-full flex items-center justify-center text-3xl shadow-sm">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg text-purple-900 mb-2">선생님을 위한 수업 팁!</h3>
+                    <p class="text-purple-800 leading-relaxed text-sm md:text-base">
+                        우측의 트리는 <strong>마우스로 드래그하여 이동</strong>하거나 <strong>휠을 굴려 확대/축소</strong>할 수 있습니다.<br>
+                        <strong>'자동 맞춤'</strong> 옵션을 켜두면 트리가 커지더라도 전체 화면에 쏙 들어가도록 실시간으로 크기를 조절해 줍니다!
+                    </p>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- 3. 핵심 정리 섹션 -->
-    <section id="summary" class="scroll-mt-24">
+    <section id="summary" class="scroll-mt-24 mb-16">
         <div class="text-center space-y-4 mb-10">
-            <h2 class="text-3xl font-black text-slate-900">3단계: 코드로 보는 백트래킹 원리</h2>
-            <div class="w-16 h-1.5 bg-purple-500 mx-auto rounded-full"></div>
+            <h2 class="text-3xl font-black text-slate-900">마무리 단계: 코드로 보는 원리</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
         </div>
 
         <div class="section-card space-y-6">
-            <p class="text-slate-700">
-                인공지능이 스스로 백트래킹을 수행하도록 파이썬 언어로 작성한 코드의 핵심 구조입니다.
-                <strong>유망하지 않으면 포기하고(return), 이전 상태로 되돌아가는 것</strong>이 핵심입니다.
+            <h2 class="text-2xl font-black text-slate-900 border-b-2 border-slate-100 pb-4 mb-6">
+                <i class="fa-solid fa-code text-indigo-600 mr-2"></i> 코드로 보는 DFS와 백트래킹 원리
+            </h2>
+            <p class="text-slate-700 text-base leading-relaxed">
+                오른쪽 화면에 그려진 트리 구조는 아래 파이썬 코드의 <strong>재귀 호출(Recursive Call)</strong> 흐름과 완전히 일치합니다.<br>
+                함수가 자기 자신을 호출하면 <strong>트리가 아래로(자식 노드) 깊어지고</strong>, 가지치기되어 `return`을 만나면 <strong>위로(부모 노드)
+                되돌아옵니다.</strong>
             </p>
 
-            <!-- Prism.js 적용된 코드 블록 -->
             <div class="relative">
                 <div class="absolute top-0 right-0 bg-[#2d2d2d] border-b border-l border-slate-700 text-slate-400 px-3 py-1 rounded-bl-lg rounded-tr-lg text-xs font-bold z-10">
                     Python
                 </div>
-                <pre><code class="language-python"># 백트래킹을 이용한 N-Queen 탐색 함수
+                <pre><code class="language-python"># DFS(깊이 우선 탐색)를 이용한 N-Queen 백트래킹
 def solve_n_queens(row, n, state):
-    # 1. 목표 달성 확인 (마지막 줄까지 퀸을 다 놓았는지)
     if row == n:
-        print("정답을 찾았습니다!")
-        return True
+        return True # 트리 끝단 도달! 정답을 찾음
 
     for col in range(n):
-        # 2. 가지치기: 현재 위치에 퀸을 놓는 것이 안전한지 검사
+        # 1. 시도 (Try) 및 가지치기(Pruning) 검사
         if is_safe(row, col, state):
-            state[row] = col  # 안전하다면 퀸 배치
+            state[row] = col  # 안전하다면 퀸을 배치 (Place)
 
-            # 3. 다음 줄(row + 1)에 퀸을 놓기 위해 계속 탐색 시도
+            # 2. 다음 줄(depth) 탐색을 위해 재귀 호출 (자식 노드로 이동)
             if solve_n_queens(row + 1, n, state):
                 return True
 
-            # 4. 백트래킹 (되돌아가기)
-            # 위에서 정답을 못 찾고 실패해서 내려왔다면,
-            # 현재 놓았던 퀸을 다시 치우고 다음 칸(col)을 시도함
+            # 3. 백트래킹 (Backtracking)
+            # 자식 노드에서 답을 못 찾고 돌아왔으므로 상태를 복구하고 다른 칸 시도
             state[row] = -1
 
-    return False # 이 경로로는 정답이 없음</code></pre>
-            </div>
-        </div>
-    </section>
-
-    <!-- 4. 오개념 방지 섹션 -->
-    <section id="misconception" class="scroll-mt-24">
-        <div class="text-center space-y-4 mb-10">
-            <h2 class="text-3xl font-black text-slate-900">4단계: 오해와 진실</h2>
-            <div class="w-16 h-1.5 bg-purple-500 mx-auto rounded-full"></div>
-        </div>
-
-        <div class="section-card">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-                <!-- 오개념 -->
-                <div class="space-y-4">
-                    <div class="flex items-center text-rose-500 font-black text-lg">
-                        <i class="fa-solid fa-xmark text-2xl mr-3"></i> 흔히 하는 오해
-                    </div>
-                    <div class="bg-rose-50 p-6 rounded-2xl h-full border border-rose-100">
-                        <p class="text-slate-800 font-medium">
-                            "인공지능은 컴퓨터니까 가능한 모든 경우의 수를 하나하나 다 만들어서 정답인지 확인해 보는 거 아닌가요?"
-                        </p>
-                    </div>
-                </div>
-
-                <!-- 진실 -->
-                <div class="space-y-4">
-                    <div class="flex items-center text-purple-600 font-black text-lg">
-                        <i class="fa-regular fa-lightbulb text-2xl mr-3"></i> 올바른 개념
-                    </div>
-                    <div class="bg-purple-50 p-6 rounded-2xl h-full border border-purple-100">
-                        <p class="text-slate-800 font-medium mb-3">
-                            아닙니다! 모든 경우의 수를 무식하게 다 해보는 것은 '브루트 포스(Brute Force)'라고 합니다.
-                        </p>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            백트래킹은 똑똑하게 탐색합니다. 퀸을 한 줄씩 놓으면서, <strong>방금 놓은 퀸이 규칙에 어긋난다면 그 이후의 줄은 아예 검사하지 않습니다
-                            (가지치기).</strong> 이렇게 불필요한 탐색을 중간에 포기하기 때문에 시간이 크게 절약됩니다.
-                        </p>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </section>
-
-    <!-- 5. 확인 퀴즈 섹션 -->
-    <section id="quiz" class="scroll-mt-24">
-        <div class="text-center space-y-4 mb-10">
-            <h2 class="text-3xl font-black text-slate-900">마무리: 확인 퀴즈</h2>
-            <div class="w-16 h-1.5 bg-purple-500 mx-auto rounded-full"></div>
-            <p class="text-slate-600">오늘 배운 탐색 기법을 확인해 봅시다.</p>
-        </div>
-
-        <div class="space-y-6">
-            <!-- 퀴즈 1 -->
-            <div class="section-card">
-                <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
-                    <span class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3">Q1</span>
-                    <span>탐색을 진행하다가 목표에 도달할 수 없다고 판단되면, 이전 단계의 갈림길로 되돌아가서 다른 경로를 탐색하는 인공지능 기법은 무엇인가요?</span>
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button onclick="checkAnswer(this, true, '정답입니다! 되돌아가기 때문에 Back-tracking이라고 합니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        1. 백트래킹 (Backtracking)
-                    </button>
-                    <button onclick="checkAnswer(this, false, '빅데이터는 대규모 데이터를 분석하는 기술입니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        2. 빅데이터 (Big Data)
-                    </button>
-                    <button onclick="checkAnswer(this, false, '머신러닝은 데이터를 통해 기계를 학습시키는 분야입니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        3. 머신러닝 (Machine Learning)
-                    </button>
-                    <button onclick="checkAnswer(this, false, '브루트 포스는 요령 없이 무작정 모든 것을 다 해보는 방법입니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        4. 브루트 포스 (Brute Force)
-                    </button>
-                </div>
-            </div>
-
-            <!-- 퀴즈 2 -->
-            <div class="section-card">
-                <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
-                    <span class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3">Q2</span>
-                    <span>백트래킹 과정에서 탐색 속도를 높이기 위해, 가망이 없는 경로는 더 이상 깊이 탐색하지 않고 사전에 차단해버리는 기술을 무엇이라고 하나요?</span>
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button onclick="checkAnswer(this, false, '분류는 데이터를 기준에 따라 나누는 것입니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        1. 분류 (Classification)
-                    </button>
-                    <button onclick="checkAnswer(this, false, '군집화는 비슷한 것끼리 묶는 것입니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        2. 군집화 (Clustering)
-                    </button>
-                    <button onclick="checkAnswer(this, true, '정답입니다! 불필요한 나뭇가지를 자르듯 탐색 범위를 줄이는 것을 가지치기라고 합니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        3. 가지치기 (Pruning)
-                    </button>
-                    <button onclick="checkAnswer(this, false, '정렬은 순서대로 나열하는 것입니다.')"
-                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium text-slate-700">
-                        4. 정렬 (Sorting)
-                    </button>
-                </div>
+    return False # 이 노드의 모든 자식 경로에 답이 없음</code></pre>
             </div>
         </div>
     </section>
@@ -482,137 +458,268 @@ def solve_n_queens(row, n, state):
 </main>
 
 <!-- Footer -->
-<footer class="bg-slate-900 py-12 px-6 text-center mt-20">
-    <p class="text-white font-black text-2xl mb-2">Computer Science</p>
-    <p class="text-slate-400 text-sm">&copy; N-Queen 시뮬레이터</p>
+<footer class="bg-slate-900 py-12 px-6 text-center flex flex-col items-center">
+    <p class="text-white font-black text-xl mb-4">CS Learning</p>
+    <p class="text-slate-400 text-sm">&copy; Visual Assets for CS Teacher. Designed for Education.</p>
 </footer>
 
-<!-- Prism.js 스크립트 (구문 강조용) -->
+<!-- Prism.js 스크립트 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 
 <!-- JavaScript 로직 -->
 <script>
     /* =========================================
-       N-Queen 실습 로직
+       1. 상태 관리 및 기본 변수
     ========================================= */
     let N = 4;
-    let boardState = []; // 보드 상태 기록: boardState[row] = col
+    let boardState = [];
 
-    // 애니메이션 및 제어 상태 변수
     let isAnimating = false;
     let isPaused = false;
     let animationTimer = null;
     let moveHistory = [];
     let currentStepIndex = 0;
+    let totalNodesVisited = 0;
 
-    // 슬라이더 값(0~9)에 따른 지연 시간(ms) 매핑 배열 (느림 -> 빠름)
-    const delayMap = [1200, 900, 650, 450, 300, 180, 100, 50, 20, 5];
+    // 슬라이더 값(0~9)에 따른 지연 시간(ms)
+    const delayMap = [2000, 1500, 1000, 700, 400, 200, 100, 50, 20, 0];
 
+    // UI 엘리먼트
     const boardEl = document.getElementById('chessBoard');
     const statusText = document.getElementById('statusText');
+    const nodeCountEl = document.getElementById('nodeCount');
+    const treePlaceholder = document.getElementById('treePlaceholder');
+    const container = document.getElementById('dfsTreeContainer');
 
-    // 게임 및 UI 초기화
+    /* =========================================
+       2. D3.js 트리 시각화 변수 및 초기화
+    ========================================= */
+    let d3Svg, d3G, zoomBehavior, d3Tree;
+    let rootNodeData;
+    let nodeMap = {};
+
+    function initD3Tree() {
+        // 기존 SVG 제거
+        d3.select("#dfsTreeContainer").selectAll("svg").remove();
+
+        d3Svg = d3.select("#dfsTreeContainer").append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .style("cursor", "grab");
+
+        d3G = d3Svg.append("g");
+
+        // 줌 및 패닝 설정
+        zoomBehavior = d3.zoom()
+            .scaleExtent([0.05, 4]) // 매우 큰 트리도 볼 수 있게 축소 범위를 넓힘
+            .on("zoom", (event) => {
+                d3G.attr("transform", event.transform);
+            });
+
+        d3Svg.call(zoomBehavior);
+
+        // 트리 레이아웃 설정 (노드 간 간격 고정 - Auto Fit시 배율로 조절됨)
+        d3Tree = d3.tree().nodeSize([45, 60]);
+
+        // 초기 상태
+        rootNodeData = { id: "root", name: "시작", type: "root", children: [] };
+        nodeMap = { "root": rootNodeData };
+
+        resetZoom(0);
+        updateD3Visuals(0);
+    }
+
+    // 전체 트리를 화면 안에 쏙 들어가게 비율(Scale)과 위치(Pan)를 자동 조정해주는 함수
+    function resetZoom(duration = 500) {
+        if (!d3Svg || !rootNodeData) return;
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 650;
+
+        const root = d3.hierarchy(rootNodeData);
+        d3Tree(root); // 노드들의 x, y 좌표 갱신
+
+        let minX = 0, maxX = 0, maxY = 0;
+
+        // 트리의 최대 넓이와 높이(Bounding Box) 측정
+        root.each(d => {
+            if (d.x < minX) minX = d.x;
+            if (d.x > maxX) maxX = d.x;
+            if (d.y > maxY) maxY = d.y;
+        });
+
+        // 노드가 아직 루트 하나뿐일 때의 기본 화면 위치
+        if (root.descendants().length <= 1) {
+            d3Svg.transition().duration(duration).call(
+                zoomBehavior.transform,
+                d3.zoomIdentity.translate(width / 2, 40).scale(1)
+            );
+            return;
+        }
+
+        const treeWidth = maxX - minX || 1;
+        const treeHeight = maxY || 1;
+
+        // 상하좌우 여백
+        const paddingX = 60;
+        const paddingY = 80;
+
+        // X축, Y축 각각 화면에 맞게 들어갈 배율 계산
+        const scaleX = (width - paddingX * 2) / treeWidth;
+        const scaleY = (height - paddingY * 2) / treeHeight;
+
+        // 더 작은 배율(더 많이 축소해야 하는 배율)을 선택하고, 최대 확대율은 1.2로 제한
+        let scale = Math.min(scaleX, scaleY, 1.2);
+
+        // 트리의 중심 좌표 (X축)
+        const centerX = (minX + maxX) / 2;
+
+        // 트리 중심이 화면 중앙(width/2)에 오도록 이동값 계산
+        const tx = (width / 2) - (centerX * scale);
+        const ty = 40; // 시작점(루트 노드)은 항상 상단 40px에 고정
+
+        d3Svg.transition().duration(duration).call(
+            zoomBehavior.transform,
+            d3.zoomIdentity.translate(tx, ty).scale(scale)
+        );
+    }
+
+    // 트리의 현재 상태를 D3로 그리기
+    function updateD3Visuals(duration = 200) {
+        const root = d3.hierarchy(rootNodeData);
+        d3Tree(root);
+
+        // 간선(Links) 생성기
+        const linkGen = d3.linkVertical()
+            .x(d => d.x)
+            .y(d => d.y);
+
+        const links = d3G.selectAll(".link")
+            .data(root.links(), d => d.target.data.id);
+
+        // 간선 등장 애니메이션
+        links.enter().insert("path", "g")
+            .attr("class", "link")
+            .attr("fill", "none")
+            .attr("stroke", "#475569")
+            .attr("stroke-width", 2)
+            .attr("d", d => linkGen({source: d.source, target: d.source}))
+            .transition().duration(duration)
+            .attr("d", linkGen);
+
+        links.transition().duration(duration)
+            .attr("d", linkGen);
+
+        // 노드(Nodes) 그리기
+        const nodes = d3G.selectAll(".node")
+            .data(root.descendants(), d => d.data.id);
+
+        // 새로운 노드 그룹 생성
+        const nodeEnter = nodes.enter().append("g")
+            .attr("class", "node")
+            .attr("transform", d => `translate(${d.parent ? d.parent.x : d.x},${d.parent ? d.parent.y : d.y})`);
+
+        // 노드 원
+        nodeEnter.append("circle")
+            .attr("r", 14)
+            .attr("fill", d => getNodeColor(d.data.type))
+            .attr("stroke", d => d.data.type === 'solution' ? "#f59e0b" : "#1e293b")
+            .attr("stroke-width", d => d.data.type === 'solution' ? 3 : 2);
+
+        // 텍스트
+        nodeEnter.append("text")
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "middle")
+            .attr("fill", d => getTextColor(d.data.type))
+            .attr("font-size", d => d.data.name === "시작" ? "10px" : "9px")
+            .text(d => d.data.name);
+
+        // 기존 노드와 새 노드 병합 처리
+        const nodeUpdate = nodeEnter.merge(nodes);
+
+        nodeUpdate.transition().duration(duration)
+            .attr("transform", d => `translate(${d.x},${d.y})`);
+
+        nodeUpdate.select("circle")
+            .transition().duration(duration)
+            .attr("fill", d => getNodeColor(d.data.type))
+            .attr("stroke", d => d.data.type === 'solution' ? "#f59e0b" : "#1e293b")
+            .attr("stroke-width", d => d.data.type === 'solution' ? 3 : 2);
+
+        nodeUpdate.select("text")
+            .transition().duration(duration)
+            .attr("fill", d => getTextColor(d.data.type));
+
+        // [추가된 기능] '자동 맞춤'이 켜져 있다면, 트리가 자라날 때마다 전체 화면에 맞게 축소(Fit) 시킵니다.
+        const isAutoFitEnabled = document.getElementById('autoFitToggle').checked;
+        if (isAutoFitEnabled && root.descendants().length > 1) {
+            // 부드럽게 전체화면으로 맞추기
+            resetZoom(duration);
+        }
+    }
+
+    function getNodeColor(type) {
+        if(type === 'root') return '#94a3b8';
+        if(type === 'try') return '#fde047';
+        if(type === 'place') return '#34d399';
+        if(type === 'prune') return '#fb7185';
+        if(type === 'backtrack') return '#64748b';
+        if(type === 'solution') return '#fcd34d';
+        return '#fff';
+    }
+
+    function getTextColor(type) {
+        if(type === 'root') return '#ffffff';
+        if(type === 'try') return '#854d0e';
+        if(type === 'place') return '#064e3b';
+        if(type === 'prune') return '#881337';
+        if(type === 'backtrack') return '#f8fafc';
+        if(type === 'solution') return '#78350f';
+        return '#000';
+    }
+
+
+    /* =========================================
+       3. N-Queen 알고리즘 및 게임 제어 로직
+    ========================================= */
+
     function initGame() {
         clearTimeout(animationTimer);
         isAnimating = false;
         isPaused = false;
         currentStepIndex = 0;
         moveHistory = [];
+        totalNodesVisited = 0;
+        nodeCountEl.innerText = "0";
 
-        // 버튼 UI 초기 상태로 복구
         toggleBtnGroup('idle');
 
-        // 보드 설정
         N = parseInt(document.getElementById('boardSize').value);
         boardState = Array(N).fill(-1);
         boardEl.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
-        boardEl.classList.remove('opacity-70');
 
-        renderBoard();
-        updateStatusText("체스판의 칸을 클릭하여 퀸을 배치해 보세요.");
+        treePlaceholder.classList.remove('hidden');
+
+        initD3Tree();
+        renderBoard(boardState);
+        updateStatusText("크기를 설정하고 [AI 자동 탐색]을 누르세요.");
     }
 
-    // 수동/초기 보드 그리기
-    function renderBoard() {
-        boardEl.innerHTML = '';
-        const conflicts = findConflicts(boardState);
-
-        for (let row = 0; row < N; row++) {
-            for (let col = 0; col < N; col++) {
-                const cell = document.createElement('div');
-                const isWhite = (row + col) % 2 === 0;
-                cell.className = `chess-cell ${isWhite ? 'cell-white' : 'cell-black'}`;
-
-                // 애니메이션 중이 아닐 때만 클릭 허용
-                cell.onclick = () => {
-                    if(!isAnimating && !isPaused) handleCellClick(row, col);
-                };
-
-                if (boardState[row] === col) {
-                    const queen = document.createElement('i');
-                    queen.className = 'fa-solid fa-chess-queen queen-icon';
-
-                    let isConflict = false;
-                    for(let c of conflicts) {
-                        if(c.row === row && c.col === col) isConflict = true;
-                    }
-
-                    if (isConflict) {
-                        cell.classList.add('cell-conflict');
-                        queen.classList.add('queen-conflict');
-                    }
-                    cell.appendChild(queen);
-                }
-                boardEl.appendChild(cell);
-            }
-        }
-
-        // 수동 플레이 시 상태 체크
-        let placedQueensCount = boardState.filter(c => c !== -1).length;
-        if (placedQueensCount === N && !isAnimating) {
-            if (conflicts.length === 0) {
-                updateStatusText("🎉 성공! 모든 퀸이 안전하게 배치되었습니다.", "text-emerald-600");
-                showToast("정답입니다! 훌륭하게 탐색해냈습니다.", "success");
-            } else {
-                updateStatusText("⚠️ 충돌이 발생했습니다. 빨간색 퀸의 위치를 조정하세요.", "text-rose-600");
-            }
-        } else if (!isAnimating) {
-            if(conflicts.length > 0) {
-                updateStatusText("⚠️ 충돌 발생! 서로 공격하는 퀸이 있습니다.", "text-rose-600");
-            } else {
-                updateStatusText(`퀸 배치 중... (${placedQueensCount}/${N})`, "text-slate-600");
-            }
-        }
+    function updateStatusText(msg, colorClass = "text-slate-600 bg-slate-100 border-slate-200") {
+        statusText.className = `h-10 font-bold mb-4 transition-colors px-4 text-center w-full flex items-center justify-center rounded-lg border text-sm md:text-base ${colorClass}`;
+        statusText.innerText = msg;
     }
 
-    // 사용자 클릭 처리
-    function handleCellClick(row, col) {
-        if (boardState[row] === col) {
-            boardState[row] = -1;
-        } else {
-            boardState[row] = col;
-        }
-        renderBoard();
+    function toggleBtnGroup(state) {
+        document.getElementById('btnGroupIdle').classList.add('hidden');
+        document.getElementById('btnGroupPlaying').classList.add('hidden');
+        document.getElementById('btnGroupPaused').classList.add('hidden');
+
+        if (state === 'idle') document.getElementById('btnGroupIdle').classList.remove('hidden');
+        else if (state === 'playing') document.getElementById('btnGroupPlaying').classList.remove('hidden');
+        else if (state === 'paused') document.getElementById('btnGroupPaused').classList.remove('hidden');
     }
 
-    // 충돌 검사 로직 (수동 플레이용)
-    function findConflicts(state) {
-        let conflicts = [];
-        for (let i = 0; i < N; i++) {
-            if (state[i] === -1) continue;
-            for (let j = i + 1; j < N; j++) {
-                if (state[j] === -1) continue;
-                if (state[i] === state[j] || Math.abs(state[i] - state[j]) === Math.abs(i - j)) {
-                    conflicts.push({ row: i, col: state[i] });
-                    conflicts.push({ row: j, col: state[j] });
-                }
-            }
-        }
-        return conflicts;
-    }
-
-    // 특정 위치가 안전한지 검사 (AI 탐색용)
     function isSafeForAI(state, row, col) {
         for (let i = 0; i < row; i++) {
             if (state[i] === col || Math.abs(state[i] - col) === Math.abs(i - row)) {
@@ -622,131 +729,100 @@ def solve_n_queens(row, n, state):
         return true;
     }
 
-    // 상태 텍스트 업데이트 헬퍼
-    function updateStatusText(msg, colorClass = "text-slate-600") {
-        statusText.className = `h-6 font-bold mb-6 transition-colors px-2 ${colorClass}`;
-        statusText.innerText = msg;
-    }
-
-    // 버튼 그룹 토글 (UI 관리)
-    function toggleBtnGroup(state) {
-        document.getElementById('btnGroupIdle').classList.add('hidden');
-        document.getElementById('btnGroupPlaying').classList.add('hidden');
-        document.getElementById('btnGroupPaused').classList.add('hidden');
-
-        if (state === 'idle') {
-            document.getElementById('btnGroupIdle').classList.remove('hidden');
-        } else if (state === 'playing') {
-            document.getElementById('btnGroupPlaying').classList.remove('hidden');
-        } else if (state === 'paused') {
-            document.getElementById('btnGroupPaused').classList.remove('hidden');
-        }
-    }
-
-    /* --- AI 애니메이션 제어 로직 --- */
-
-    // 1. 탐색 기록 생성 및 시작
     function startAI() {
         if (isAnimating) return;
+        initGame();
 
-        initGame(); // 보드 초기화 및 상태 초기화
         isAnimating = true;
-        isPaused = false;
-        currentStepIndex = 0;
-        moveHistory = [];
-
         toggleBtnGroup('playing');
+        treePlaceholder.classList.add('hidden');
 
-        // DFS로 모든 백트래킹 과정을 배열에 기록
         let tempState = Array(N).fill(-1);
-        function dfs(row) {
-            if (row === N) return true; // 정답 찾음
+
+        function dfs(row, currentPath) {
+            if (row === N) {
+                moveHistory.push({ type: 'solution', row: row - 1, col: tempState[row - 1], path: currentPath, state: [...tempState] });
+                return true;
+            }
 
             for (let col = 0; col < N; col++) {
-                moveHistory.push({ type: 'try', row, col, state: [...tempState] });
+                let nextPath = currentPath + "-" + col;
+
+                moveHistory.push({ type: 'try', row, col, state: [...tempState], path: nextPath, parentPath: currentPath });
 
                 if (isSafeForAI(tempState, row, col)) {
                     tempState[row] = col;
-                    moveHistory.push({ type: 'place', row, col, state: [...tempState] });
+                    moveHistory.push({ type: 'place', row, col, state: [...tempState], path: nextPath });
 
-                    if (dfs(row + 1)) return true;
+                    if (dfs(row + 1, nextPath)) return true;
 
                     tempState[row] = -1;
-                    moveHistory.push({ type: 'backtrack', row, col, state: [...tempState] });
+                    moveHistory.push({ type: 'backtrack', row, col, state: [...tempState], path: nextPath });
                 } else {
-                    moveHistory.push({ type: 'prune', row, col, state: [...tempState] });
+                    moveHistory.push({ type: 'prune', row, col, state: [...tempState], path: nextPath });
                 }
             }
             return false;
         }
-        dfs(0);
 
-        updateStatusText("AI가 백트래킹으로 탐색을 시작합니다.", "text-purple-600");
-
-        // 첫 스텝 실행
+        dfs(0, "root");
+        updateStatusText("AI가 깊이 우선 탐색(DFS)을 시작합니다.", "text-purple-700 bg-purple-100 border-purple-200");
         executeNextStep();
     }
 
-    // 2. 애니메이션 스텝 실행 루프
-    function executeNextStep() {
-        if (!isAnimating) return; // 초기화된 상태
-        if (isPaused) return;     // 일시정지된 상태
-
-        // 탐색 완료 시
-        if (currentStepIndex >= moveHistory.length) {
-            isAnimating = false;
-            toggleBtnGroup('idle');
-            updateStatusText("🎉 성공! 탐색이 완료되었습니다.", "text-emerald-600");
-            showToast("AI가 성공적으로 모든 퀸을 배치했습니다.", "success");
-            renderBoard(); // 최종 상태 렌더링
-            return;
-        }
-
-        // 현재 스텝 가져와서 화면에 그리기
-        const step = moveHistory[currentStepIndex];
-        renderAIStep(step);
-
-        currentStepIndex++;
-
-        // 슬라이더 값을 읽어와 딜레이 시간 결정 (실시간 반영)
-        const speedSliderVal = parseInt(document.getElementById('speedSlider').value);
-        const currentDelay = delayMap[speedSliderVal];
-
-        // 다음 스텝 예약
-        animationTimer = setTimeout(executeNextStep, currentDelay);
+    function stepNextAI() {
+        if (!isAnimating || !isPaused) return;
+        executeNextStep(true);
     }
 
-    // 3. 일시정지
     function pauseAI() {
         if (!isAnimating) return;
         isPaused = true;
-        clearTimeout(animationTimer); // 진행 중인 타이머 즉시 취소
-
+        clearTimeout(animationTimer);
         toggleBtnGroup('paused');
-        updateStatusText("⏸️ [일시정지] 관찰 후 '다시 시작'을 누르세요.", "text-amber-600");
-
-        // 현재 활성화 된 칸 강조
-        if (currentStepIndex > 0) {
-            const lastStep = moveHistory[currentStepIndex - 1];
-            renderAIStep(lastStep, true); // paused 파라미터 전달
-        }
+        updateStatusText("⏸️ [일시정지] '다음 단계' 버튼을 눌러 한 칸씩 진행해보세요.", "text-amber-700 bg-amber-100 border-amber-300");
     }
 
-    // 4. 다시 시작
     function resumeAI() {
         if (!isAnimating) return;
         isPaused = false;
-
         toggleBtnGroup('playing');
-        updateStatusText("▶️ [탐색 재개] 애니메이션을 이어서 진행합니다.", "text-purple-600");
-
-        // 딜레이 없이 즉시 다음 스텝 이어서 실행
+        updateStatusText("▶️ 탐색을 자동으로 재개합니다.", "text-purple-700 bg-purple-100 border-purple-200");
         executeNextStep();
     }
 
-    // AI 스텝 렌더링 전용 함수 (DOM 직접 조작)
-    function renderAIStep(step, isCurrentlyPaused = false) {
-        boardState = step.state;
+    function executeNextStep(isManual = false) {
+        if (!isAnimating) return;
+        if (isPaused && !isManual) return;
+
+        if (currentStepIndex >= moveHistory.length) {
+            isAnimating = false;
+            toggleBtnGroup('idle');
+            updateStatusText("🎉 탐색 종료! 정답을 찾았습니다.", "text-emerald-700 bg-emerald-100 border-emerald-300");
+            const lastStep = moveHistory[moveHistory.length - 1];
+            if(lastStep) renderBoard(lastStep.state, null);
+            return;
+        }
+
+        const step = moveHistory[currentStepIndex];
+
+        renderBoard(step.state, step);
+        syncTreeWithStep(step);
+
+        currentStepIndex++;
+
+        const speedSliderVal = parseInt(document.getElementById('speedSlider').value);
+        let currentDelay = delayMap[speedSliderVal];
+
+        if (isManual) {
+            updateStatusText(`[수동 탐색] 단계 ${currentStepIndex} : 상태 트리 확인`, "text-indigo-700 bg-indigo-100 border-indigo-300");
+        } else {
+            if (step.type === 'prune' || step.type === 'backtrack') currentDelay += 100;
+            animationTimer = setTimeout(() => executeNextStep(false), currentDelay);
+        }
+    }
+
+    function renderBoard(stateArray, activeStep = null) {
         boardEl.innerHTML = '';
 
         for (let r = 0; r < N; r++) {
@@ -755,29 +831,30 @@ def solve_n_queens(row, n, state):
                 const isWhite = (r + c) % 2 === 0;
                 cell.className = `chess-cell ${isWhite ? 'cell-white' : 'cell-black'}`;
 
-                // 현재 탐색 중인 칸에 대한 시각적 효과
-                if (step.row === r && step.col === c) {
-                    if (isCurrentlyPaused) {
-                        cell.classList.add('cell-paused'); // 일시정지 시 노란색 하이라이트
-                    } else {
-                        if (step.type === 'try') {
-                            cell.classList.add('cell-try');
-                        } else if (step.type === 'prune') {
-                            cell.classList.add('cell-conflict');
-                            updateStatusText(`✂️ [가지치기] ${step.row + 1}번째 줄은 안되겠군. 포기!`, "text-rose-500");
-                        } else if (step.type === 'backtrack') {
-                            updateStatusText(`🔙 [백트래킹] 다음 줄에서 막혔어! 퀸을 치우고 되돌아간다.`, "text-purple-600");
-                        } else if (step.type === 'place') {
-                            updateStatusText(`✨ 안전하네! ${step.row + 1}번째 줄에 배치완료.`, "text-indigo-600");
-                        }
+                if (activeStep && activeStep.row === r && activeStep.col === c) {
+                    if (activeStep.type === 'try') {
+                        cell.classList.add('cell-try');
+                        if(!isPaused) updateStatusText(`🔍 시도: ${r + 1}행 ${c + 1}열에 퀸 배치를 시도합니다.`, "text-amber-700 bg-amber-50 border-amber-200");
+                    }
+                    else if (activeStep.type === 'place') {
+                        cell.classList.add('cell-place');
+                        if(!isPaused) updateStatusText(`✅ 안전: 충돌이 없어 자식 노드로 이동합니다.`, "text-emerald-700 bg-emerald-50 border-emerald-200");
+                    }
+                    else if (activeStep.type === 'prune') {
+                        cell.classList.add('cell-conflict');
+                        if(!isPaused) updateStatusText(`✂️ 가지치기: 충돌 발생! 이 경로는 더 이상 탐색하지 않습니다.`, "text-rose-700 bg-rose-50 border-rose-200");
+                    }
+                    else if (activeStep.type === 'backtrack') {
+                        cell.classList.add('cell-paused');
+                        if(!isPaused) updateStatusText(`🔙 백트래킹: 답이 없어 이전 상태로 되돌아갑니다.`, "text-slate-700 bg-slate-200 border-slate-300");
                     }
                 }
 
-                if (boardState[r] === c) {
+                if (stateArray[r] === c) {
                     const queen = document.createElement('i');
                     queen.className = 'fa-solid fa-chess-queen queen-icon';
-                    // 가지치기 시 퀸 색상 변경
-                    if (step.type === 'prune' && step.row === r && step.col === c) {
+
+                    if (activeStep && activeStep.type === 'prune' && activeStep.row === r && activeStep.col === c) {
                         queen.classList.add('queen-conflict');
                     }
                     cell.appendChild(queen);
@@ -787,93 +864,48 @@ def solve_n_queens(row, n, state):
         }
     }
 
-    // 초기 화면 렌더링
+    function syncTreeWithStep(step) {
+        const speedSliderVal = parseInt(document.getElementById('speedSlider').value);
+        const isFast = speedSliderVal > 6;
+        const duration = isFast && !isPaused ? 50 : 250;
+
+        if (step.type === 'try') {
+            totalNodesVisited++;
+            nodeCountEl.innerText = totalNodesVisited;
+
+            let newNode = {
+                id: step.path,
+                name: `R${step.row + 1}C${step.col + 1}`,
+                type: 'try',
+                children: []
+            };
+
+            if (nodeMap[step.parentPath]) {
+                nodeMap[step.parentPath].children.push(newNode);
+                nodeMap[step.path] = newNode;
+            }
+        } else {
+            if (nodeMap[step.path]) {
+                nodeMap[step.path].type = step.type;
+            }
+        }
+
+        updateD3Visuals(duration);
+    }
+
     window.onload = () => {
         initGame();
     };
 
-    /* =========================================
-       퀴즈 및 토스트 메시지 로직
-    ========================================= */
-    let currentToast = null;
-
-    function checkAnswer(btn, isCorrect, message) {
-        const container = btn.parentElement;
-        const buttons = container.querySelectorAll('button');
-
-        if (btn.classList.contains('disabled')) return;
-
-        buttons.forEach(b => {
-            b.style.pointerEvents = 'none';
-            if (!b.dataset.label) {
-                b.dataset.label = b.textContent;
+    window.addEventListener('resize', () => {
+        if(d3Svg) {
+            // 창 크기가 변할 때도 자동으로 맞춰줍니다.
+            if(document.getElementById('autoFitToggle').checked) {
+                resetZoom(0);
             }
-            b.classList.remove('border-purple-500', 'bg-purple-50', 'text-purple-700');
-            b.classList.add('opacity-50', 'disabled');
-        });
-
-        btn.classList.remove('opacity-50');
-        btn.classList.add('opacity-100');
-
-        if (isCorrect) {
-            btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
-            btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i>${btn.dataset.label}`;
-        } else {
-            btn.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
-            btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-rose-600"></i>${btn.dataset.label}`;
         }
+    });
 
-        showToast(message, isCorrect ? 'success' : 'error');
-
-        setTimeout(() => {
-            buttons.forEach(b => {
-                b.style.pointerEvents = 'auto';
-                b.classList.remove('border-green-500', 'bg-green-50', 'text-green-700', 'border-rose-500', 'bg-rose-50', 'text-rose-700', 'opacity-50', 'opacity-100', 'disabled');
-                b.innerHTML = b.dataset.label;
-            });
-        }, 3000);
-    }
-
-    function showToast(message, type) {
-        if (currentToast) {
-            currentToast.remove();
-        }
-
-        const toast = document.createElement('div');
-
-        let icon = '';
-        let bgColor = '';
-
-        if(type === 'success') {
-            icon = '<i class="fa-solid fa-face-smile-wink mr-3 text-2xl"></i>';
-            bgColor = 'bg-emerald-600';
-        } else if(type === 'error') {
-            icon = '<i class="fa-solid fa-face-frown mr-3 text-2xl"></i>';
-            bgColor = 'bg-rose-500';
-        } else {
-            icon = '<i class="fa-solid fa-circle-info mr-3 text-2xl"></i>';
-            bgColor = 'bg-slate-800';
-        }
-
-        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-[1000] flex items-center ${bgColor} max-w-sm sm:max-w-lg w-full whitespace-nowrap`;
-        toast.innerHTML = `<div class="shrink-0 flex items-center">${icon}</div><div class="text-sm md:text-base leading-snug">${message}</div>`;
-
-        document.body.appendChild(toast);
-        currentToast = toast;
-
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                toast.classList.remove('translate-y-20', 'opacity-0');
-            }, 10);
-        });
-
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.classList.add('translate-y-20', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }
-        }, 3000);
-    }
 </script>
 </body>
 </html>

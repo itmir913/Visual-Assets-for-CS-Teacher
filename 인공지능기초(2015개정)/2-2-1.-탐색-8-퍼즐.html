@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2-2-1. 탐색 (8-퍼즐 시뮬레이션)</title>
+    <title>8-퍼즐 실습</title>
     <!-- Tailwind CSS & Font Awesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
 
         body {
             font-family: 'Pretendard', sans-serif;
@@ -31,351 +33,719 @@
             border-bottom: 1px solid rgba(226, 232, 240, 0.8);
         }
 
-        /* 퍼즐 타일 스타일 */
+        /* 공통 섹션 카드 스타일 */
+        .section-card {
+            background-color: white;
+            border-radius: 1.5rem;
+            padding: 3rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border: 1px solid #f1f5f9;
+        }
+
+        @media (max-width: 768px) {
+            .section-card {
+                padding: 1.5rem;
+                border-radius: 1rem;
+            }
+        }
+
+        /* 8-퍼즐 실습용 특화 스타일 */
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            background-color: #cbd5e1;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
         .puzzle-tile {
+            width: 80px;
+            height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: 900;
-            border-radius: 0.75rem;
+            background-color: white;
+            color: #4f46e5;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             user-select: none;
-            aspect-ratio: 1 / 1;
         }
 
-        .puzzle-tile.number {
-            background-color: #ffffff;
-            color: #4f46e5;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: 2px solid #e0e7ff;
+        @media (max-width: 640px) {
+            .puzzle-tile {
+                width: 65px;
+                height: 65px;
+                font-size: 1.5rem;
+            }
         }
 
-        .puzzle-tile.number:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            border-color: #818cf8;
+        .puzzle-tile:hover:not(.empty) {
+            transform: scale(0.95);
+            background-color: #e0e7ff;
         }
 
         .puzzle-tile.empty {
-            background-color: #f1f5f9;
-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+            background-color: transparent;
+            box-shadow: none;
             cursor: default;
+            color: transparent;
+        }
+
+        /* 코드 블록 스타일 */
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* 경로 뱃지 애니메이션용 */
+        .path-badge-enter {
+            opacity: 0;
+            transform: scale(0.8) translateY(10px);
+        }
+        .path-badge-enter-active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* 통통 튀는 효과 */
         }
     </style>
 </head>
-<body class="text-slate-800">
+<body class="text-slate-800 antialiased">
+
+<!-- Hero Header -->
+<header id="intro" class="hero-gradient text-white py-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+            <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full text-sm font-bold mb-5 backdrop-blur-md shadow-sm">
+                인공지능 실습
+            </span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">
+            8-퍼즐 <br class="hidden md:block">시뮬레이터
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            우리가 머릿속으로 다음 수를 생각하듯, <br class="hidden md:block">인공지능이 정답을 찾아가는 '탐색' 과정을 8-퍼즐을 통해 경험해 봅시다.
+        </p>
+    </div>
+</header>
 
 <!-- Sticky Navigation -->
-<nav class="sticky-nav px-6 py-4 flex justify-between items-center shadow-sm">
-    <div class="font-bold text-lg text-indigo-700 flex items-center gap-2">
-        <i class="fas fa-brain"></i> 인공지능 기초
-    </div>
-    <div class="text-sm font-semibold text-slate-500">
-        II. 인공지능의 원리와 활용 > 2. 탐색과 추론
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <div class="font-black text-lg text-indigo-600 tracking-tight flex items-center">
+            <i class="fa-solid fa-compass mr-2"></i> 탐색 알고리즘
+        </div>
+
+        <div class="hidden md:flex space-x-8 text-sm font-bold text-slate-500">
+            <a href="#concept" class="hover:text-indigo-600 transition">개념 이해</a>
+            <a href="#simulation" class="hover:text-indigo-600 transition">8-퍼즐 실습</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#misconception" class="hover:text-indigo-600 transition">오해와 진실</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">확인 퀴즈</a>
+        </div>
+
+        <button class="md:hidden text-slate-500 hover:text-indigo-600">
+            <i class="fa-solid fa-bars text-xl"></i>
+        </button>
     </div>
 </nav>
 
-<!-- Hero Section -->
-<header class="hero-gradient text-white py-16 px-6 text-center shadow-lg">
-    <span class="inline-block py-1 px-3 rounded-full bg-white/20 text-white text-sm font-bold tracking-wider mb-4 border border-white/30 backdrop-blur-sm">핵심 개념</span>
-    <h1 class="text-3xl md:text-5xl font-black mb-4 leading-tight">상태공간과 연산자: 8-퍼즐</h1>
-    <p class="text-lg md:text-xl opacity-90 max-w-2xl mx-auto font-medium">
-        인공지능이 문제를 해결하기 위해 '초기 상태'에서 '목표 상태'로 나아가는 과정과, 상태를 변화시키는 '연산자'의 개념을 8-퍼즐을 통해 알아봅시다.
-    </p>
-</header>
+<!-- Main Content -->
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-24">
 
-<main class="max-w-4xl mx-auto py-12 px-6">
-
-    <!-- 이론 학습 섹션 -->
-    <section class="mb-16">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl shadow-sm">
-                <i class="fas fa-book-open"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-900">문제 해결을 위한 기본 개념</h2>
+    <!-- 1. 개념 이해 섹션 -->
+    <section id="concept" class="scroll-mt-24">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">1단계: 탐색이란 무엇일까?</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
         </div>
 
-        <div class="grid md:grid-cols-2 gap-6">
-            <!-- 상태와 상태공간 카드 -->
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                <div class="text-indigo-600 mb-4">
-                    <i class="fas fa-project-diagram text-3xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-slate-800 mb-3">상태(State)와 상태공간</h3>
-                <p class="text-slate-600 leading-relaxed mb-4">
-                    <strong>상태(State)</strong>는 문제 해결 과정 중의 특정 상황을 의미합니다. 문제 해결이 시작되는 <strong>초기 상태</strong>와 도달하고자 하는
-                    <strong>목표 상태</strong>가 있습니다.
+        <div class="section-card space-y-8">
+            <p class="text-lg text-slate-700 leading-relaxed">
+                여러분, 미로 찾기를 하거나 복잡한 퍼즐을 맞출 때 머릿속으로 어떤 생각을 하나요? <br>
+                <strong>"이쪽으로 가면 막히려나? 저쪽으로 가면 정답이 나올까?"</strong> 하며 여러 가지 길을 미리 상상해 봅니다.
+            </p>
+
+            <div class="bg-indigo-50 border-l-4 border-indigo-500 p-6 rounded-r-xl">
+                <h3 class="font-bold text-indigo-800 text-lg mb-2">💡 컴퓨터 과학에서의 '탐색(Search)'</h3>
+                <p class="text-indigo-900 leading-relaxed">
+                    인공지능도 우리와 비슷합니다. 현재 상태에서 목표 상태(정답)로 가기 위해 <strong>가능한 모든 경우의 수를 따져보며 최적의 경로를 찾아내는 과정</strong>을 바로
+                    <strong>'탐색'</strong>이라고 부릅니다.
                 </p>
-                <div class="bg-indigo-50 p-4 rounded-xl text-sm text-indigo-900">
-                    <i class="fas fa-info-circle mr-1"></i> <strong>상태공간(State Space):</strong> 문제 해결 과정에서 나타날 수 있는
-                    <strong>모든 상태들의 집합</strong>을 말합니다.
-                </div>
             </div>
 
-            <!-- 연산자 카드 -->
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                <div class="text-rose-500 mb-4">
-                    <i class="fas fa-exchange-alt text-3xl"></i>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-image"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2">상태 (State)</h4>
+                    <p class="text-sm text-slate-600">퍼즐의 현재 모습이나 미로에서의 현재 내 위치를 의미해요.</p>
                 </div>
-                <h3 class="text-xl font-bold text-slate-800 mb-3">연산자(Operator)</h3>
-                <p class="text-slate-600 leading-relaxed mb-4">
-                    현재의 <strong>상태를 다른 상태로 변화</strong>시키는 규칙이나 행동을 의미합니다. 인공지능은 연산자를 적용하여 목표 상태를 향해 탐색해 나갑니다.
-                </p>
-                <div class="bg-rose-50 p-4 rounded-xl text-sm text-rose-900">
-                    <i class="fas fa-gamepad mr-1"></i> <strong>8-퍼즐의 연산자:</strong> 빈칸을 기준으로 <strong>위(Up), 아래(Down),
-                    왼쪽(Left), 오른쪽(Right)</strong>으로 타일을 이동시키는 4가지 행동입니다.
+                <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                    <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2">연산자 (Operator)</h4>
+                    <p class="text-sm text-slate-600">상태를 변화시키는 행동이에요. (예: 빈칸을 왼쪽으로 이동하기)</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                    <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2">목표 (Goal)</h4>
+                    <p class="text-sm text-slate-600">우리가 최종적으로 도달하고자 하는 정답 상태를 말해요.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 실습: 8-퍼즐 시뮬레이터 -->
-    <section class="mb-16 scroll-mt-24" id="practice">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl shadow-sm">
-                <i class="fas fa-puzzle-piece"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-900">직접 해보는 8-퍼즐 (연산자 적용)</h2>
+    <!-- 2. 실습 섹션 (8-퍼즐) -->
+    <section id="simulation" class="scroll-mt-24">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">2단계: 8-퍼즐 직접 탐색해 보기</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
         </div>
 
-        <div class="bg-white rounded-3xl shadow-lg border border-slate-200 p-8 overflow-hidden relative">
-            <!-- 장식용 배경 도형 -->
-            <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
+        <div class="section-card">
+            <div class="flex flex-col md:flex-row gap-10 items-start">
 
-            <div class="grid md:grid-cols-2 gap-10 items-center relative z-10">
-                <div>
-                    <h3 class="text-xl font-bold text-slate-800 mb-4">목표 상태를 만들어보세요!</h3>
-                    <p class="text-slate-600 mb-4 leading-relaxed">
-                        오른쪽의 퍼즐은 현재 <strong>초기 상태</strong>입니다. 숫자 타일을 클릭하여 빈칸으로 이동시키세요.<br>
-                        타일을 한 번 움직일 때마다 <strong>하나의 연산자가 적용</strong>되어 새로운 상태공간으로 이동하게 됩니다.
-                    </p>
-
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-                        <h4 class="font-bold text-slate-700 text-sm mb-2 text-center">우리가 도달해야 할 [목표 상태]</h4>
-                        <div class="grid grid-cols-3 gap-1 w-24 mx-auto opacity-70">
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                1
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                2
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                3
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                4
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                5
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                6
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                7
-                            </div>
-                            <div class="w-full aspect-square bg-white border border-slate-300 rounded flex items-center justify-center text-xs font-bold text-slate-500">
-                                8
-                            </div>
-                            <div class="w-full aspect-square bg-slate-200 border border-slate-200 rounded"></div>
-                        </div>
+                <!-- 퍼즐 & 컨트롤 영역 -->
+                <div class="flex-1 w-full text-center">
+                    <div class="mb-4 text-slate-600 font-bold">
+                        <i class="fa-solid fa-shoe-prints mr-2"></i>이동 횟수: <span id="moveCount"
+                                                                                 class="text-indigo-600 text-2xl">0</span>
                     </div>
 
-                    <div class="flex items-center justify-between bg-indigo-50 px-5 py-3 rounded-xl border border-indigo-100">
-                        <span class="font-bold text-indigo-900">연산자 적용 횟수:</span>
-                        <span id="move-count" class="text-2xl font-black text-indigo-600">0</span>
+                    <!-- 퍼즐 보드 -->
+                    <div id="puzzleBoard" class="puzzle-grid mb-6">
+                        <!-- JS로 타일이 생성됩니다 -->
+                    </div>
+
+                    <!-- 조작 버튼 -->
+                    <div class="flex justify-center gap-4 mb-6">
+                        <button onclick="shufflePuzzle()"
+                                class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all shadow-md">
+                            <i class="fa-solid fa-shuffle mr-2"></i>문제 섞기
+                        </button>
+                        <button onclick="solvePuzzleAI()" id="aiBtn"
+                                class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-md">
+                            <i class="fa-solid fa-robot mr-2"></i>AI가 풀기
+                        </button>
+                    </div>
+
+                    <!-- AI 탐색 경로 시각화 영역 (초기엔 숨김) -->
+                    <div id="aiPathContainer"
+                         class="hidden opacity-0 transition-opacity duration-500 bg-indigo-50 rounded-xl p-5 border border-indigo-100 text-left">
+                        <div class="flex items-center text-indigo-800 font-bold mb-3">
+                            <i class="fa-solid fa-route mr-2"></i> AI가 찾은 최적의 이동 경로
+                        </div>
+                        <!-- 뱃지들이 들어갈 공간 -->
+                        <div id="pathSteps" class="flex flex-wrap items-center gap-2">
+                        </div>
                     </div>
                 </div>
 
-                <!-- 8-퍼즐 보드 -->
-                <div class="flex flex-col items-center">
-                    <div class="bg-slate-200 p-3 rounded-2xl shadow-inner mb-4">
-                        <div id="puzzle-board" class="grid grid-cols-3 gap-2 w-64 h-64">
-                            <!-- JavaScript를 통해 타일이 생성됩니다 -->
-                        </div>
+                <!-- 설명 영역 -->
+                <div class="flex-1 space-y-6 md:sticky md:top-24">
+                    <h3 class="text-xl font-bold text-slate-800 border-b-2 border-slate-100 pb-3">
+                        <i class="fa-solid fa-gamepad text-indigo-500 mr-2"></i>실습 방법
+                    </h3>
+                    <ul class="space-y-4 text-slate-600">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-3"></i>
+                            <span><strong>목표 상태:</strong> 숫자 1부터 8까지 순서대로 정렬하고, 마지막을 빈칸으로 만드는 것입니다.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-3"></i>
+                            <span><strong>직접 풀기:</strong> 빈칸 주변의 숫자를 클릭하여 상하좌우로 이동시켜 보세요. 인간의 탐색 과정을 경험할 수 있습니다.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-3"></i>
+                            <span><strong>AI가 풀기:</strong> 버튼을 누르면 인공지능이 너비 우선 탐색(BFS) 방식으로 최단 경로를 계산하여 자동으로 움직입니다. 아래쪽에 AI의 <strong>'탐색 경로'</strong>가 표시됩니다.</span>
+                        </li>
+                    </ul>
+                    <div class="bg-rose-50 text-rose-700 p-4 rounded-xl text-sm mt-4">
+                        <strong>※ 주의:</strong> 너무 많이 섞으면 인공지능이 경로를 계산하는 데 웹 브라우저가 잠시 멈출 수 있습니다. (실습에서는 가볍게 15번 내외로 섞이도록
+                        설정되어 있습니다.)
                     </div>
-                    <button onclick="shufflePuzzle()"
-                            class="px-6 py-2.5 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600 transition-all focus:outline-none flex items-center gap-2">
-                        <i class="fas fa-random"></i> 다시 섞기
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. 핵심 정리 & 예제 섹션 -->
+    <section id="summary" class="scroll-mt-24">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">3단계: 핵심 원리 및 코드로 이해하기</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-slate-700">
+                인공지능은 퍼즐의 타일을 직접 만질 수 없습니다. 대신 <strong>숫자 데이터</strong>를 사용하여 현재 퍼즐의 '상태'를 기억하고 연산합니다.
+                가장 대표적인 방법은 <strong>2차원 리스트(배열)</strong>를 사용하는 것입니다.
+            </p>
+
+            <div class="relative">
+                <div class="absolute top-0 right-0 bg-slate-800 text-slate-400 px-3 py-1 rounded-bl-lg rounded-tr-lg text-xs font-bold">
+                    Python
+                </div>
+                <pre><code class="language-python"># 8-퍼즐의 상태를 파이썬 2차원 리스트로 표현하기
+# 0은 빈칸을 의미합니다!
+
+initial_state = [
+    [1, 2, 3],
+    [4, 0, 5],  # 정중앙에 빈칸(0)이 있는 상태
+    [7, 8, 6]
+]
+
+# 연산자: 빈칸(0)의 위치를 기준으로 상, 하, 좌, 우 위치값 변경
+# 목표 상태인지 확인:
+goal_state = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 0]
+]
+
+if initial_state == goal_state:
+    print("퍼즐을 완성했습니다!")
+else:
+    print("계속 탐색하세요.")</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. 오개념 방지 섹션 -->
+    <section id="misconception" class="scroll-mt-24">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">4단계: 오해와 진실</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                <!-- 오개념 1 -->
+                <div class="space-y-4">
+                    <div class="flex items-center text-rose-500 font-black text-lg">
+                        <i class="fa-solid fa-xmark text-2xl mr-3"></i> 학생들이 흔히 하는 오해
+                    </div>
+                    <div class="bg-rose-50 p-6 rounded-2xl h-full border border-rose-100">
+                        <p class="text-slate-800 font-medium">
+                            "인공지능은 퍼즐을 보면 직감적으로 한 번에 딱! 정답을 알아내는 거 아닌가요?"
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 진실 1 -->
+                <div class="space-y-4">
+                    <div class="flex items-center text-indigo-600 font-black text-lg">
+                        <i class="fa-regular fa-lightbulb text-2xl mr-3"></i> 올바른 개념
+                    </div>
+                    <div class="bg-indigo-50 p-6 rounded-2xl h-full border border-indigo-100">
+                        <p class="text-slate-800 font-medium mb-3">
+                            아닙니다! 인공지능에게 사람과 같은 '직감'은 없습니다.
+                        </p>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            인공지능은 빈칸을 위로 움직였을 때의 상태, 아래로 움직였을 때의 상태를 마치 나뭇가지가 뻗어나가듯 <strong>'탐색 트리(Search
+                            Tree)'</strong>로 미리 그려보고, 그중 정답으로 가는 길을 찾는 매우 체계적인 연산을 수행합니다.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. 확인 퀴즈 섹션 -->
+    <section id="quiz" class="scroll-mt-24">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">마무리: 확인 퀴즈</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-slate-600">오늘 배운 핵심 개념을 확인해 봅시다.</p>
+        </div>
+
+        <div class="space-y-6">
+            <!-- 퀴즈 1 -->
+            <div class="section-card">
+                <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                    <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3">Q1</span>
+                    <span>8-퍼즐에서 빈칸을 움직여 퍼즐 타일의 배치가 바뀌는 것을 인공지능 분야에서는 무엇이 변화했다고 말하나요?</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="checkAnswer(this, false, '퍼즐의 규칙을 의미합니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        1. 연산자 (Operator)
+                    </button>
+                    <button onclick="checkAnswer(this, true, '정답입니다! 타일의 현재 배치를 상태라고 합니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        2. 상태 (State)
+                    </button>
+                    <button onclick="checkAnswer(this, false, '최종적으로 도달해야 할 정답 모습입니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        3. 목표 (Goal)
+                    </button>
+                    <button onclick="checkAnswer(this, false, '이전 단계로 되돌아가는 것을 의미합니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        4. 백트래킹 (Backtracking)
+                    </button>
+                </div>
+            </div>
+
+            <!-- 퀴즈 2 -->
+            <div class="section-card">
+                <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                    <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3">Q2</span>
+                    <span>현재 상태에서 목표 상태(정답)로 가기 위해 연산자를 이용해 가능한 여러 경로를 체계적으로 찾아 나서는 과정을 무엇이라고 하나요?</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="checkAnswer(this, false, '단순히 데이터를 보관하는 방법입니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        1. 저장 (Save)
+                    </button>
+                    <button onclick="checkAnswer(this, false, '결과를 화면에 보여주는 것입니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        2. 출력 (Output)
+                    </button>
+                    <button onclick="checkAnswer(this, true, '정답입니다! 인공지능 문제 해결의 핵심인 탐색입니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        3. 탐색 (Search)
+                    </button>
+                    <button onclick="checkAnswer(this, false, '새로운 규칙을 스스로 만들어내는 과정입니다.')"
+                            class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700">
+                        4. 학습 (Learning)
                     </button>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 확인 문제 섹션 (기존 코드 재사용) -->
-    <section>
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl shadow-sm">
-                <i class="fas fa-pen"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-900">확인 문제</h2>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-            <h3 class="font-bold text-lg mb-4">Q1. 문제 해결 과정에서 나타날 수 있는 모든 상태들의 집합을 무엇이라고 합니까?</h3>
-            <div class="space-y-3">
-                <button onclick="checkAnswer(this, false, '오답입니다. 연산자는 상태를 변화시키는 규칙입니다.')"
-                        class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 hover:border-indigo-200 hover:bg-white transition-all font-medium text-slate-700">
-                    1. 연산자 (Operator)
-                </button>
-                <button onclick="checkAnswer(this, true, '정답입니다! 훌륭합니다.')"
-                        class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 hover:border-indigo-200 hover:bg-white transition-all font-medium text-slate-700">
-                    2. 상태공간 (State Space)
-                </button>
-                <button onclick="checkAnswer(this, false, '오답입니다. 목표 상태는 최종적으로 도달해야 할 하나의 상태입니다.')"
-                        class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 hover:border-indigo-200 hover:bg-white transition-all font-medium text-slate-700">
-                    3. 목표 상태 (Goal State)
-                </button>
-            </div>
-        </div>
-    </section>
-
 </main>
 
+<!-- Footer -->
 <footer class="bg-slate-900 py-12 px-6 text-center mt-20">
-    <p class="text-white font-black text-2xl mb-2">인공지능 기초</p>
-    <p class="text-slate-400 text-sm">8-퍼즐 시뮬레이터</p>
+    <p class="text-white font-black text-2xl mb-2">Computer Science</p>
+    <p class="text-slate-400 text-sm">&copy; 8-퍼즐 시뮬레이터</p>
 </footer>
 
+<!-- JavaScript 로직 -->
 <script>
-    // --- 8-퍼즐 로직 ---
+    /* =========================================
+       8-퍼즐 실습 로직
+    ========================================= */
     const GOAL_STATE = [1, 2, 3, 4, 5, 6, 7, 8, 0];
-    // 학습을 위해 너무 어렵지 않은 초기 상태 설정 (목표에서 몇 번 섞은 상태)
-    let currentState = [1, 2, 3, 4, 0, 5, 7, 8, 6];
+    let currentState = [...GOAL_STATE];
     let moveCount = 0;
-    const boardElement = document.getElementById('puzzle-board');
-    const countElement = document.getElementById('move-count');
+    let isAnimating = false;
 
-    function initPuzzle() {
-        renderBoard();
-    }
+    const boardEl = document.getElementById('puzzleBoard');
+    const countEl = document.getElementById('moveCount');
+    const pathContainer = document.getElementById('aiPathContainer');
+    const pathStepsEl = document.getElementById('pathSteps');
 
+    // 초기 보드 그리기
     function renderBoard() {
-        boardElement.innerHTML = '';
-        currentState.forEach((value, index) => {
+        boardEl.innerHTML = '';
+        currentState.forEach((num, index) => {
             const tile = document.createElement('div');
-            if (value === 0) {
-                tile.className = 'puzzle-tile empty';
-            } else {
-                tile.className = 'puzzle-tile number';
-                tile.innerText = value;
-                tile.onclick = () => moveTile(index);
-            }
-            boardElement.appendChild(tile);
+            tile.className = `puzzle-tile ${num === 0 ? 'empty' : ''}`;
+            tile.innerText = num === 0 ? '' : num;
+            tile.onclick = () => handleTileClick(index);
+            boardEl.appendChild(tile);
         });
-        countElement.innerText = moveCount;
+        countEl.innerText = moveCount;
+
+        // 정답 확인
+        if(moveCount > 0 && JSON.stringify(currentState) === JSON.stringify(GOAL_STATE) && !isAnimating) {
+            setTimeout(() => showToast('🎉 퍼즐을 완성했습니다!', 'success'), 100);
+        }
     }
 
-    function moveTile(index) {
-        const blankIndex = currentState.indexOf(0);
-        const row = Math.floor(index / 3);
-        const col = index % 3;
-        const blankRow = Math.floor(blankIndex / 3);
-        const blankCol = Math.floor(blankIndex % 3);
+    // 사용자가 직접 클릭 시 경로 UI 숨기기
+    function hidePathUI() {
+        if(!pathContainer.classList.contains('hidden')) {
+            pathContainer.classList.add('opacity-0');
+            setTimeout(() => {
+                pathContainer.classList.add('hidden');
+                pathStepsEl.innerHTML = '';
+            }, 500);
+        }
+    }
 
-        // 상하좌우 인접한지 확인 (거리가 1이어야 함)
-        const isAdjacent = Math.abs(row - blankRow) + Math.abs(col - blankCol) === 1;
+    // 타일 클릭 (이동) 처리
+    function handleTileClick(index) {
+        if (isAnimating) return; // AI 푸는 중 조작 방지
 
-        if (isAdjacent) {
-            // 타일 위치 교환
-            [currentState[index], currentState[blankIndex]] = [currentState[blankIndex], currentState[index]];
+        const emptyIndex = currentState.indexOf(0);
+        const validMoves = getValidMoves(emptyIndex);
+
+        if (validMoves.includes(index)) {
+            hidePathUI(); // 수동 조작 시 경로 UI 가리기
+
+            [currentState[emptyIndex], currentState[index]] = [currentState[index], currentState[emptyIndex]];
             moveCount++;
             renderBoard();
-            checkWin();
         }
     }
 
-    function checkWin() {
-        if (JSON.stringify(currentState) === JSON.stringify(GOAL_STATE)) {
-            setTimeout(() => {
-                showToast(`축하합니다! ${moveCount}번의 연산자 적용으로 목표 상태에 도달했습니다! 🎉`, 'success');
-            }, 100);
-        }
+    // 현재 빈칸 위치에서 이동 가능한 인덱스 목록 반환
+    function getValidMoves(emptyIndex) {
+        const moves = [];
+        const row = Math.floor(emptyIndex / 3);
+        const col = emptyIndex % 3;
+
+        if (row > 0) moves.push(emptyIndex - 3); // 상
+        if (row < 2) moves.push(emptyIndex + 3); // 하
+        if (col > 0) moves.push(emptyIndex - 1); // 좌
+        if (col < 2) moves.push(emptyIndex + 1); // 우
+
+        return moves;
     }
 
+    // 문제 섞기
     function shufflePuzzle() {
-        // 풀 수 있는 퍼즐을 만들기 위해, 목표상태에서 무작위 합법적 이동을 여러번 수행
-        currentState = [...GOAL_STATE];
-        let blankIdx = 8;
-        for(let i=0; i<30; i++) {
-            const row = Math.floor(blankIdx / 3);
-            const col = blankIdx % 3;
-            const neighbors = [];
-            if (row > 0) neighbors.push(blankIdx - 3); // 상
-            if (row < 2) neighbors.push(blankIdx + 3); // 하
-            if (col > 0) neighbors.push(blankIdx - 1); // 좌
-            if (col < 2) neighbors.push(blankIdx + 1); // 우
+        if (isAnimating) return;
 
-            const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-            [currentState[blankIdx], currentState[randomNeighbor]] = [currentState[randomNeighbor], currentState[blankIdx]];
-            blankIdx = randomNeighbor;
+        hidePathUI(); // 섞을 때 경로 UI 가리기
+
+        let shuffleSteps = 15;
+        for(let i=0; i<shuffleSteps; i++) {
+            const emptyIndex = currentState.indexOf(0);
+            const validMoves = getValidMoves(emptyIndex);
+            const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+
+            [currentState[emptyIndex], currentState[randomMove]] = [currentState[randomMove], currentState[emptyIndex]];
         }
         moveCount = 0;
         renderBoard();
-        showToast('퍼즐을 새로운 상태공간으로 섞었습니다.', 'error');
+        showToast('퍼즐이 섞였습니다. 직접 탐색해 보세요!', 'info');
     }
 
-    // 초기화 실행
-    initPuzzle();
+    // 아주 간단한 BFS 경로 탐색 (AI가 풀기)
+    async function solvePuzzleAI() {
+        if (isAnimating) return;
+        if (JSON.stringify(currentState) === JSON.stringify(GOAL_STATE)) {
+            showToast('이미 정답 상태입니다.', 'info');
+            return;
+        }
 
+        isAnimating = true;
+        document.getElementById('aiBtn').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>탐색 중...';
 
-    // --- 퀴즈 및 Toast 알림 로직 (기존 코드 재사용) ---
+        // UI 초기화
+        pathStepsEl.innerHTML = '';
+        pathContainer.classList.remove('hidden');
+        setTimeout(() => pathContainer.classList.remove('opacity-0'), 50);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // BFS 알고리즘
+        const queue = [{ state: [...currentState], path: [] }];
+        const visited = new Set();
+        visited.add(currentState.join(''));
+
+        let solutionPath = null;
+
+        while(queue.length > 0) {
+            const current = queue.shift();
+
+            if(current.state.join('') === GOAL_STATE.join('')) {
+                solutionPath = current.path;
+                break;
+            }
+
+            const emptyIdx = current.state.indexOf(0);
+            const nextMoves = getValidMoves(emptyIdx);
+
+            for(let nextIdx of nextMoves) {
+                const newState = [...current.state];
+                [newState[emptyIdx], newState[nextIdx]] = [newState[nextIdx], newState[emptyIdx]];
+                const stateStr = newState.join('');
+
+                if(!visited.has(stateStr)) {
+                    visited.add(stateStr);
+                    queue.push({
+                        state: newState,
+                        path: [...current.path, nextIdx]
+                    });
+                }
+            }
+
+            if(visited.size > 15000) break; // 안전 장치
+        }
+
+        if(solutionPath) {
+            document.getElementById('aiBtn').innerHTML = '<i class="fa-solid fa-robot mr-2"></i>길 찾기 완료!';
+            showToast(`인공지능이 ${solutionPath.length}번의 이동 경로를 찾았습니다.`, 'success');
+
+            // 찾은 경로대로 하나씩 애니메이션 진행
+            for(let i=0; i<solutionPath.length; i++) {
+                const targetIdx = solutionPath[i];
+                const movingTileNumber = currentState[targetIdx]; // 이동할 실제 타일 번호
+
+                // 화살표 추가 (첫 번째 요소가 아닐 때만)
+                if (i > 0) {
+                    const arrow = document.createElement('i');
+                    arrow.className = 'fa-solid fa-angle-right text-indigo-300 text-sm path-badge-enter';
+                    pathStepsEl.appendChild(arrow);
+                    requestAnimationFrame(() => arrow.classList.add('path-badge-enter-active'));
+                }
+
+                // 경로 뱃지 추가
+                const stepBadge = document.createElement('span');
+                stepBadge.className = 'px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-sm font-bold shadow-sm flex items-center path-badge-enter';
+                stepBadge.innerHTML = `<span class="bg-indigo-100 text-indigo-500 w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] mr-2">${i+1}</span> 타일 ${movingTileNumber}`;
+
+                pathStepsEl.appendChild(stepBadge);
+
+                // 뱃지 통통 튀는 애니메이션 실행
+                requestAnimationFrame(() => {
+                    stepBadge.classList.add('path-badge-enter-active');
+                });
+
+                // 타일 이동 애니메이션 대기
+                await new Promise(resolve => setTimeout(resolve, 500));
+                handleTileMoveBypass(targetIdx);
+            }
+
+            // 마지막 도착 표시
+            setTimeout(() => {
+                const finalArrow = document.createElement('i');
+                finalArrow.className = 'fa-solid fa-angle-right text-indigo-300 text-sm path-badge-enter';
+                pathStepsEl.appendChild(finalArrow);
+
+                const finishBadge = document.createElement('span');
+                finishBadge.className = 'px-3 py-1.5 bg-green-500 text-white border border-green-600 rounded-lg text-sm font-bold shadow-sm path-badge-enter';
+                finishBadge.innerHTML = `<i class="fa-solid fa-flag-checkered mr-1"></i> 완성`;
+                pathStepsEl.appendChild(finishBadge);
+
+                requestAnimationFrame(() => {
+                    finalArrow.classList.add('path-badge-enter-active');
+                    finishBadge.classList.add('path-badge-enter-active');
+                });
+            }, 300);
+
+        } else {
+            showToast('경로를 찾는 데 실패했거나 시간이 초과되었습니다.', 'error');
+            hidePathUI();
+        }
+
+        isAnimating = false;
+        document.getElementById('aiBtn').innerHTML = '<i class="fa-solid fa-robot mr-2"></i>AI가 풀기';
+    }
+
+    // 애니메이션 도중 강제 이동을 위한 바이패스 함수
+    function handleTileMoveBypass(index) {
+        const emptyIndex = currentState.indexOf(0);
+        [currentState[emptyIndex], currentState[index]] = [currentState[index], currentState[emptyIndex]];
+        moveCount++;
+        renderBoard();
+    }
+
+    // 초기화
+    window.onload = () => {
+        renderBoard();
+    };
+
+    /* =========================================
+       퀴즈 및 토스트 메시지 로직 (템플릿 기반)
+    ========================================= */
+    let currentToast = null;
+
     function checkAnswer(btn, isCorrect, message) {
         const container = btn.parentElement;
         const buttons = container.querySelectorAll('button');
 
-        // 모든 버튼 스타일 초기화
+        if (btn.classList.contains('disabled')) return;
+
         buttons.forEach(b => {
-            b.classList.remove('bg-indigo-50', 'text-indigo-700', 'bg-rose-50', 'border-indigo-500', 'border-rose-500', 'font-bold');
-            b.classList.add('bg-slate-50', 'text-slate-700', 'border-slate-100');
+            b.style.pointerEvents = 'none';
+            if (!b.dataset.label) {
+                b.dataset.label = b.textContent;
+            }
+            b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-700');
+            b.classList.add('opacity-50', 'disabled');
         });
 
-        // 클릭한 버튼 스타일 변경
-        btn.classList.remove('bg-slate-50', 'border-slate-100');
+        btn.classList.remove('opacity-50');
+        btn.classList.add('opacity-100');
+
         if (isCorrect) {
-            btn.classList.add('bg-indigo-50', 'text-indigo-700', 'border-indigo-500', 'font-bold');
+            btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+            btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i>${btn.dataset.label}`;
         } else {
-            btn.classList.add('bg-rose-50', 'text-rose-700', 'border-rose-500', 'font-bold');
+            btn.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
+            btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-rose-600"></i>${btn.dataset.label}`;
         }
+
         showToast(message, isCorrect ? 'success' : 'error');
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.style.pointerEvents = 'auto';
+                b.classList.remove('border-green-500', 'bg-green-50', 'text-green-700', 'border-rose-500', 'bg-rose-50', 'text-rose-700', 'opacity-50', 'opacity-100', 'disabled');
+                b.innerHTML = b.dataset.label;
+            });
+        }, 3000);
     }
 
     function showToast(message, type) {
-        // 기존 토스트 제거
-        const existingToasts = document.querySelectorAll('.toast-message');
-        existingToasts.forEach(t => t.remove());
+        if (currentToast) {
+            currentToast.remove();
+        }
 
         const toast = document.createElement('div');
-        toast.className = `toast-message fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 transform translate-y-0 z-[1000] flex items-center gap-3 ${type === 'success' ? 'bg-indigo-600' : 'bg-slate-800'}`;
 
-        const icon = document.createElement('i');
-        icon.className = type === 'success' ? 'fas fa-check-circle text-xl' : 'fas fa-exclamation-circle text-xl text-rose-400';
+        let icon = '';
+        let bgColor = '';
 
-        const textSpan = document.createElement('span');
-        textSpan.innerText = message;
+        if(type === 'success') {
+            icon = '<i class="fa-solid fa-face-smile-wink mr-3 text-2xl"></i>';
+            bgColor = 'bg-indigo-600';
+        } else if(type === 'error') {
+            icon = '<i class="fa-solid fa-face-frown mr-3 text-2xl"></i>';
+            bgColor = 'bg-rose-500';
+        } else {
+            icon = '<i class="fa-solid fa-circle-info mr-3 text-2xl"></i>';
+            bgColor = 'bg-slate-800';
+        }
 
-        toast.appendChild(icon);
-        toast.appendChild(textSpan);
+        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-[1000] flex items-center ${bgColor} max-w-sm sm:max-w-lg w-full whitespace-nowrap`;
+        toast.innerHTML = `<div class="shrink-0 flex items-center">${icon}</div><div class="text-sm md:text-base leading-snug">${message}</div>`;
+
         document.body.appendChild(toast);
+        currentToast = toast;
 
-        // 애니메이션 등장
-        toast.style.opacity = '0';
-        toast.style.transform = 'translate(-50%, 20px)';
-        setTimeout(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translate(-50%, 0)';
-        }, 10);
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                toast.classList.remove('translate-y-20', 'opacity-0');
+            }, 10);
+        });
 
-        // 3초 후 사라짐
         setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translate(-50%, 20px)';
-            setTimeout(() => toast.remove(), 300);
+            if (toast.parentNode) {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }
         }, 3000);
     }
 </script>
+<!-- 3. Prism.js 스크립트 추가 (body 태그 닫기 직전에 넣는 것이 좋습니다) -->
+<!-- Prism 코어 스크립트 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<!-- 파이썬 언어 지원 스크립트 (기본 js에 python이 안들어있는 경우가 있어 추가해줍니다) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 </body>
 </html>

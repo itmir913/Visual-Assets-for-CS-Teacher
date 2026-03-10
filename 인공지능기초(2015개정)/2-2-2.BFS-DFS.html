@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>단원 번호. 단원명 - 학습 자료 템플릿</title>
-    <!-- Tailwind CSS & Font Awesome -->
+    <title>알고리즘 시각화 - BFS & DFS (Grid / Tree)</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Vis.js for Tree Visualization -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
@@ -15,147 +16,119 @@
 
         body {
             font-family: 'Pretendard', sans-serif;
-            scroll-behavior: smooth;
             background-color: #f8fafc;
+            color: #1e293b;
         }
 
-        /* Hero 배경 그라데이션 */
         .hero-gradient {
             background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         }
 
-        /* 스크롤 시 상단 고정 네비게이션 */
-        .sticky-nav {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.85);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        /* --- Grid Search 관련 스타일 --- */
+        #grid-container{
+            display:grid;
+            gap:2px;
+            background:#e2e8f0;
+            border:2px solid #cbd5e1;
+            border-radius:.5rem;
+            padding:2px;
+            max-width:500px;
+            margin:auto;
         }
 
-        /* 2D Grid 스타일 */
-        #grid-container {
-            display: grid;
-            gap: 2px;
-            background-color: #e2e8f0;
-            border: 2px solid #cbd5e1;
-            border-radius: 0.5rem;
-            padding: 2px;
-            user-select: none; /* 드래그 방지 */
-            max-width: 500px;
-            margin: 0 auto;
+        .grid-cell{
+            aspect-ratio:1;
+            background:white;
+            border-radius:.25rem;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:.8rem;
         }
+        .grid-cell:hover { background-color: #f1f5f9; }
 
-        .grid-cell {
-            width: 100%;
-            aspect-ratio: 1;
-            background-color: white;
-            border-radius: 0.25rem;
-            cursor: pointer;
-            transition: transform 0.2s ease, background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-            color: rgba(0,0,0,0.3);
-        }
+        .cell-wall{background:#475569!important;}
+        .cell-start{background:#10b981!important;color:white;font-weight:bold;}
+        .cell-end{background:#ef4444!important;color:white;font-weight:bold;}
 
-        .grid-cell:hover { transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 10;}
-
-        /* 셀 상태 색상 */
-        .cell-wall { background-color: #475569 !important; border-color: #334155; transform: scale(0.95); }
-        .cell-start { background-color: #10b981 !important; color: white !important; font-weight: bold; }
-        .cell-end { background-color: #ef4444 !important; color: white !important; font-weight: bold; }
-
-        /* 애니메이션 효과 */
-        .cell-discovered {
-            background-color: #bae6fd !important;
-            animation: pop 0.3s ease-out forwards;
-        }
-        .cell-visited {
-            background-color: #3b82f6 !important;
-            animation: pop 0.3s ease-out forwards;
-        }
-        .cell-path {
-            background-color: #f59e0b !important;
-            animation: pathPop 0.4s ease-out forwards;
-            box-shadow: 0 0 10px #fbbf24;
-            z-index: 5;
-        }
+        .cell-discovered{background:#bae6fd!important;}
+        .cell-visited{background:#3b82f6!important;}
+        .cell-path{background:#f59e0b!important;}
 
         @keyframes pop {
-            0% { transform: scale(0.5); border-radius: 50%; }
+            0% { transform: scale(0.3); border-radius: 50%; }
             50% { transform: scale(1.1); }
-            100% { transform: scale(1); border-radius: 0.25rem; }
+            100% { transform: scale(1); border-radius: 0; }
         }
 
-        @keyframes pathPop {
-            0% { transform: scale(0.5); background-color: #fcd34d; }
-            50% { transform: scale(1.2); background-color: #f59e0b; }
-            100% { transform: scale(1); background-color: #f59e0b; }
+        /* --- Tree Search 관련 스타일 --- */
+        .tree-network {
+            width:100%;
+            height:100%;
+            background-color: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
         }
 
-        /* Tree Network 컨테이너 */
-        #tree-network {
-            width: 100%;
-            height: 100%;
-            min-height: 500px;
-            background-color: #ffffff;
-            border-radius: 0.5rem;
+        .control-panel {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
 
-        /* 툴바 활성화 상태 */
-        .tool-active {
-            background-color: #4f46e5 !important;
-            color: white !important;
-            border-color: #4f46e5 !important;
-            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.1);
+        .radio-btn-label input:checked + div {
+            border-color: #6366f1;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            font-weight: bold;
         }
 
-        /* 커스텀 스크롤바 (트리 영역용) */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .toast {
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translate(-50%, -20px);
+        }
     </style>
 </head>
-<body class="text-slate-800 flex flex-col min-h-screen">
+<body class="antialiased pb-20">
 
-    <!-- Navigation -->
-    <nav class="sticky-nav py-4 px-6 shadow-sm flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                <i class="fa-solid fa-robot text-xl"></i>
-            </div>
-            <div>
-                <h2 class="font-bold text-slate-800 leading-tight">II. 인공지능의 원리와 활용</h2>
-                <p class="text-xs text-slate-500 font-medium">탐색 알고리즘 시각화 실습</p>
-            </div>
-        </div>
-        <button onclick="window.scrollTo(0,0)" class="text-slate-400 hover:text-indigo-600 transition-colors">
-            <i class="fa-solid fa-arrow-up"></i>
+<!-- Header Section -->
+<header class="hero-gradient text-white py-12 px-6 text-center shadow-lg">
+    <h1 class="text-4xl font-black mb-4 tracking-tight"><i class="fa-solid fa-route mr-3"></i>무정보 탐색 알고리즘 시각화</h1>
+    <p class="text-lg font-medium text-indigo-100 max-w-2xl mx-auto">
+        2차원 공간(Grid)과 트리 구조(Tree)에서 BFS(너비 우선 탐색)와 DFS(깊이 우선 탐색)가 어떻게 동작하는지 비교하며 학습해 보세요.
+    </p>
+</header>
+
+<!-- Navigation Tabs -->
+<div class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
+    <div class="max-w-6xl mx-auto flex justify-center">
+        <button onclick="switchTab('grid')" id="tab-grid"
+                class="px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors">
+            <i class="fa-solid fa-table-cells mr-2"></i>2D 공간 탐색 (Grid)
         </button>
-    </nav>
+        <button onclick="switchTab('tree')" id="tab-tree"
+                class="px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors">
+            <i class="fa-solid fa-network-wired mr-2"></i>트리 탐색 (Tree)
+        </button>
+    </div>
+</div>
 
-    <!-- Hero Section -->
-    <header class="hero-gradient text-white pt-12 pb-10 px-4 shadow-lg text-center">
-        <div class="max-w-5xl mx-auto">
-            <span class="bg-white/20 px-4 py-1.5 rounded-full text-sm font-bold tracking-wider uppercase mb-4 inline-block backdrop-blur-sm shadow-sm">
-                AI Search Algorithms
-            </span>
-            <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight drop-shadow-md">
-                무정보 탐색 (BFS / DFS)
-            </h1>
-            <p class="text-lg text-indigo-100 font-medium max-w-2xl mx-auto">
-                2차원 평면에서의 탐색 과정과, 그것이 어떻게 트리(Tree) 구조로 확장되는지 직관적으로 확인해보세요.
-            </p>
-        </div>
-    </header>
+<!-- Main Content Area -->
+<main class="max-w-6xl mx-auto mt-8 px-4">
 
-    <!-- Main Content -->
-    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full flex flex-col gap-6">
-
+    <!-- ========================================== -->
+    <!-- SECTION 1: GRID SEARCH                     -->
+    <!-- ========================================== -->
+    <section id="grid-search-section" class="space-y-6 block">
         <!-- Control Panel -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col lg:flex-row gap-6 justify-between items-stretch">
 
@@ -165,16 +138,24 @@
                     <i class="fa-solid fa-pen-ruler text-indigo-500"></i> 맵 편집 도구
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 h-full">
-                    <button id="tool-start" class="tool-btn bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2" data-tool="start">
+                    <button id="tool-start"
+                            class="tool-btn bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2"
+                            data-tool="start">
                         <i class="fa-solid fa-location-dot text-emerald-500 text-lg mb-1"></i> 시작점
                     </button>
-                    <button id="tool-end" class="tool-btn bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2" data-tool="end">
+                    <button id="tool-end"
+                            class="tool-btn bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2"
+                            data-tool="end">
                         <i class="fa-solid fa-flag text-rose-500 text-lg mb-1"></i> 도착점
                     </button>
-                    <button id="tool-wall" class="tool-btn tool-active bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2" data-tool="wall">
+                    <button id="tool-wall"
+                            class="tool-btn tool-active bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2"
+                            data-tool="wall">
                         <i class="fa-solid fa-cubes text-slate-500 text-lg mb-1"></i> 벽(장애물)
                     </button>
-                    <button id="tool-eraser" class="tool-btn bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2" data-tool="eraser">
+                    <button id="tool-eraser"
+                            class="tool-btn bg-slate-50 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all flex flex-col items-center justify-center py-2"
+                            data-tool="eraser">
                         <i class="fa-solid fa-eraser text-slate-400 text-lg mb-1"></i> 지우개
                     </button>
                 </div>
@@ -186,13 +167,15 @@
                     <i class="fa-solid fa-sliders text-indigo-500"></i> 탐색 설정
                 </div>
                 <div class="flex flex-col gap-4 h-full justify-center">
-                    <select id="algo-select" class="bg-indigo-50/50 border border-indigo-100 text-indigo-900 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-3 font-bold transition-all shadow-sm outline-none cursor-pointer">
+                    <select id="algo-select"
+                            class="bg-indigo-50/50 border border-indigo-100 text-indigo-900 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-3 font-bold transition-all shadow-sm outline-none cursor-pointer">
                         <option value="bfs">너비 우선 탐색 (BFS)</option>
                         <option value="dfs">깊이 우선 탐색 (DFS)</option>
                     </select>
                     <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <i class="fa-solid fa-turtle text-slate-400"></i>
-                        <input type="range" id="speed-slider" min="10" max="1000" value="300" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        <input type="range" id="speed-slider" min="10" max="1000" value="300"
+                               class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
                         <i class="fa-solid fa-rabbit text-slate-400"></i>
                     </div>
                 </div>
@@ -204,20 +187,25 @@
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-gamepad text-indigo-500"></i> 실행 제어
                     </div>
-                    <span id="status-text" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold transition-colors">
+                    <span id="status-text"
+                          class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold transition-colors">
                         대기 중
                     </span>
                 </div>
                 <div class="flex gap-2 h-full items-end">
-                    <button id="btn-step" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl py-3 px-2 shadow-sm transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex flex-col items-center justify-center gap-1">
+                    <button id="btn-step"
+                            class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl py-3 px-2 shadow-sm transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex flex-col items-center justify-center gap-1">
                         <i class="fa-solid fa-forward-step text-lg"></i>
                         <span class="text-xs">단계 진행</span>
                     </button>
-                    <button id="btn-play" class="flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-3 px-2 shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex flex-col items-center justify-center gap-1">
+                    <button id="btn-play"
+                            class="flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-3 px-2 shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex flex-col items-center justify-center gap-1">
                         <i class="fa-solid fa-play text-lg"></i>
                         <span class="text-xs">자동 실행</span>
                     </button>
-                    <button id="btn-reset" class="w-16 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl py-3 shadow-sm transition-all flex flex-col items-center justify-center gap-1" title="초기화">
+                    <button id="btn-reset"
+                            class="w-16 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl py-3 shadow-sm transition-all flex flex-col items-center justify-center gap-1"
+                            title="초기화">
                         <i class="fa-solid fa-arrow-rotate-right text-lg"></i>
                         <span class="text-xs">리셋</span>
                     </button>
@@ -232,17 +220,19 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                        <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center"><i class="fa-solid fa-chess-board"></i></span>
+                        <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center"><i
+                                class="fa-solid fa-chess-board"></i></span>
                         2D 평면 공간
                     </h2>
                     <div class="flex gap-3 text-xs font-bold text-slate-500">
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500"></span>시작</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-3 h-3 rounded bg-emerald-500"></span>시작</span>
                         <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-rose-500"></span>도착</span>
                         <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-600"></span>벽</span>
                         <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-500"></span>방문</span>
                     </div>
                 </div>
-                <div id="grid-container" class="flex-grow w-full aspect-square">
+                <div id="grid-container" class="flex-grow w-full">
                     <!-- Grid cells will be generated here -->
                 </div>
             </div>
@@ -251,29 +241,164 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                        <span class="bg-purple-100 text-purple-600 w-8 h-8 rounded-lg flex items-center justify-center"><i class="fa-solid fa-network-wired"></i></span>
+                        <span class="bg-purple-100 text-purple-600 w-8 h-8 rounded-lg flex items-center justify-center"><i
+                                class="fa-solid fa-network-wired"></i></span>
                         탐색 트리 구조
                     </h2>
-                    <button onclick="network.fit()" class="text-xs font-bold text-slate-400 hover:text-indigo-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
+                    <button onclick="if(network) network.fit()"
+                            class="text-xs font-bold text-slate-400 hover:text-indigo-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
                         <i class="fa-solid fa-compress mr-1"></i>화면 맞춤
                     </button>
                 </div>
-                <div class="flex-grow border-2 border-slate-100 rounded-xl overflow-hidden relative min-h-[350px] md:min-h-[500px]">
-                    <div id="tree-network" class="absolute inset-0">
+                <div class="flex-grow border-2 border-slate-100 rounded-xl overflow-hidden relative min-h-[450px]">
+                    <div id="tree-network-for-grid" class="absolute inset-0 tree-network">
                         <!-- Vis.js Network will be rendered here -->
                     </div>
                 </div>
             </div>
         </div>
-    </main>
+    </section>
 
-    <!-- Footer -->
-    <footer class="bg-slate-800 text-slate-400 py-6 text-center mt-auto">
-        <p class="text-sm">II. 인공지능의 원리와 활용 - 무정보 탐색(BFS/DFS) 시각화 도구</p>
-    </footer>
 
-    <script>
-        // --- 1. 전역 설정 및 상태 변수 ---
+    <!-- ========================================== -->
+    <!-- SECTION 2: TREE SEARCH                     -->
+    <!-- ========================================== -->
+    <section id="tree-search-section" class="space-y-6 hidden">
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
+            <!-- Tree Controls -->
+            <div class="lg:col-span-1 control-panel flex flex-col gap-6 min-h-full">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">1. 환경 설정</h3>
+
+                    <!-- 추가된 최대 깊이 / 최대 자식 수 입력 폼 -->
+                    <div class="flex gap-3 mb-3">
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-gray-700 mb-1">최대 깊이 (Depth)</label>
+                            <input type="number" id="tree-max-depth" value="4" min="2" max="6"
+                                   class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white text-sm">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-gray-700 mb-1">최대 자식 수 (Children)</label>
+                            <input type="number" id="tree-max-children" value="2" min="1" max="4"
+                                   class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white text-sm">
+                        </div>
+                    </div>
+
+                    <button onclick="generateRandomTree()"
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-bold transition shadow-sm flex justify-center items-center gap-2 mb-2">
+                        <i class="fa-solid fa-sitemap"></i> 생성 및 초기화
+                    </button>
+                    <p class="text-xs text-blue-600 font-bold text-center mt-2 bg-blue-50 py-2 rounded">
+                        💡 트리의 노드를 클릭하여 <br>목표(Goal)로 지정할 수 있습니다.
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">2. 탐색 설정</h3>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">알고리즘 선택</label>
+                    <select id="tree-algo"
+                            class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white mb-4">
+                        <option value="bfs">BFS (너비 우선 탐색)</option>
+                        <option value="dfs">DFS (깊이 우선 탐색)</option>
+                    </select>
+
+                    <label class="block text-sm font-medium text-gray-700 mb-1">탐색 속도 (자동 실행 시)</label>
+                    <input type="range" id="tree-speed" min="100" max="1500" value="500"
+                           class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                           style="direction: rtl;">
+                    <div class="flex justify-between text-xs text-gray-500 mt-1"><span>느림</span><span>빠름</span></div>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">3. 실행 컨트롤</h3>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button id="btn-tree-play" onclick="toggleTreeAutoPlay()"
+                                class="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold transition shadow-md flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-play"></i> 자동 실행
+                        </button>
+                        <button id="btn-tree-step" onclick="stepTreeSearchManually()"
+                                class="bg-teal-500 hover:bg-teal-600 text-white py-2 rounded-lg font-bold transition shadow-sm flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-forward-step"></i> 다음 단계
+                        </button>
+                        <button onclick="resetTreeSearch()"
+                                class="bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg font-bold transition shadow-sm flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-rotate-right"></i> 초기화
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tree Canvas -->
+            <div class="lg:col-span-3 control-panel flex flex-col">
+                <div class="mb-4 w-full flex justify-between items-center text-sm font-medium text-gray-600">
+                    <div class="flex gap-4">
+                        <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#eab308] rounded-full"></div>현재 탐색 노드</span>
+                        <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#ef4444] rounded-full"></div>목표 노드</span>
+                        <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#94a3b8] rounded-full"></div>탐색 완료 노드</span>
+                    </div>
+                    <div id="tree-status" class="text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full">대기 중
+                    </div>
+                </div>
+                <div id="tree-network-for-tree" class="tree-network flex-grow"></div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- Toast Notification -->
+<div id="toast"
+     class="toast fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl text-white font-bold shadow-2xl z-50 bg-gray-800">
+    메시지
+</div>
+
+<!-- ========================================== -->
+<!-- JAVASCRIPT LOGIC                           -->
+<!-- ========================================== -->
+<script>
+    // --- 탭 전환 로직 ---
+    function switchTab(tabName) {
+        const gridSec = document.getElementById('grid-search-section');
+        const treeSec = document.getElementById('tree-search-section');
+        const gridTab = document.getElementById('tab-grid');
+        const treeTab = document.getElementById('tab-tree');
+
+        // 실행 중인 애니메이션 정지
+        if(typeof isGridPlaying !== "undefined" && isGridPlaying) toggleGridAutoPlay();
+        if(typeof isTreePlaying !== "undefined" && isTreePlaying) toggleTreeAutoPlay();
+
+        if (tabName === 'grid') {
+            gridSec.classList.remove('hidden'); gridSec.classList.add('block');
+            treeSec.classList.remove('block'); treeSec.classList.add('hidden');
+
+            gridTab.className = "px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors";
+            treeTab.className = "px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors";
+        } else {
+            treeSec.classList.remove('hidden'); treeSec.classList.add('block');
+            gridSec.classList.remove('block'); gridSec.classList.add('hidden');
+
+            treeTab.className = "px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors";
+            gridTab.className = "px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors";
+
+            // 처음 탭 열 때 트리 생성
+            if (!treeNetwork) generateRandomTree();
+        }
+    }
+
+    // --- 공통 유틸리티 ---
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        toast.innerText = message;
+        toast.className = `toast fixed bottom-10 left-1/2 px-6 py-3 rounded-xl text-white font-bold shadow-xl z-50 transform transition-all ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-gray-800'}`;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // ==========================================
+    // GRID SEARCH LOGIC
+    // ==========================================
+    // --- 1. 전역 설정 및 상태 변수 ---
         const ROWS = 10;
         const COLS = 10;
         const gridContainer = document.getElementById('grid-container');
@@ -288,7 +413,7 @@
         let isDrawing = false;
 
         // 탐색 상태
-        let isRunning = false;
+        let isGridPlaying = false;
         let isAutoPlaying = false;
         let searchGenerator = null;
         let playInterval = null;
@@ -310,7 +435,7 @@
         const iconPath = '<i class="fa-solid fa-star text-white text-sm opacity-80"></i>';
 
         // --- 2. 초기화 및 이벤트 바인딩 ---
-        function init() {
+        function initGrid() {
             createGrid();
             initTreeNetwork();
             bindEvents();
@@ -350,7 +475,7 @@
         }
 
         function initTreeNetwork() {
-            const container = document.getElementById('tree-network');
+            const container = document.getElementById('tree-network-for-grid');
             const data = { nodes: nodes, edges: edges };
             const options = {
                 layout: {
@@ -399,7 +524,7 @@
                 // 전체 맵 초기화 원할 경우 아래 주석 해제
                 // createGrid(); updateGridVisuals();
             });
-            btnPlay.addEventListener('click', toggleAutoPlay);
+            btnPlay.addEventListener('click', toggleGridAutoPlay);
             btnStep.addEventListener('click', stepForward);
             document.getElementById('algo-select').addEventListener('change', resetSearch);
         }
@@ -419,7 +544,7 @@
         // 탐색 시각화 흔적만 지우기 (벽/시작/도착은 유지)
         function clearSearchVisuals() {
             stopAutoPlay();
-            isRunning = false;
+            isGridPlaying = false;
             searchGenerator = null;
             for(let r=0; r<ROWS; r++) {
                 for(let c=0; c<COLS; c++) {
@@ -432,8 +557,8 @@
                     }
                 }
             }
-            nodes.clear();
-            edges.clear();
+            nodes.remove(nodes.getIds());
+            edges.remove(edges.getIds());
             setStatus("대기 중", "bg-slate-100 text-slate-600");
         }
 
@@ -596,7 +721,7 @@
             clearSearchVisuals();
             const algo = document.getElementById('algo-select').value;
             searchGenerator = createSearchGenerator(algo);
-            isRunning = true;
+            isGridPlaying = true;
             setStatus("탐색 중...", "bg-indigo-100 text-indigo-700");
         }
 
@@ -607,7 +732,7 @@
 
             if (result.done) {
                 stopAutoPlay();
-                isRunning = false;
+                isGridPlaying = false;
                 if (result.value) {
                     setStatus("목표 도달! 경로 완성", "bg-emerald-100 text-emerald-700");
                 } else {
@@ -668,14 +793,14 @@
             processStep();
         }
 
-        function toggleAutoPlay() {
+        function toggleGridAutoPlay() {
             if (isAutoPlaying) stopAutoPlay();
             else startAutoPlay();
         }
 
         function startAutoPlay() {
             if (!searchGenerator) prepareSearch();
-            if (!isRunning) return;
+            if (!isGridPlaying) return;
 
             isAutoPlaying = true;
             btnPlay.innerHTML = `<i class="fa-solid fa-pause text-lg"></i><span class="text-xs">일시 정지</span>`;
@@ -683,7 +808,7 @@
             btnPlay.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
 
             function loop() {
-                if (isAutoPlaying && isRunning) {
+                if (isAutoPlaying && isGridPlaying) {
                     const hasNext = processStep();
                     if (hasNext) {
                         // 실시간으로 슬라이더 값을 읽어와 속도 반영
@@ -709,9 +834,277 @@
             network.fit();
         }
 
-        // 시작
-        window.onload = init;
 
-    </script>
+    // ==========================================
+    // TREE SEARCH LOGIC
+    // ==========================================
+    let treeNetwork = null;
+    let treeData = { nodes: new vis.DataSet(), edges: new vis.DataSet() };
+    let treeAdjList = {};
+    let treeGoalNode = null;
+
+    let treeSearchState = null;
+    let isTreePlaying = false;
+    let treePlayInterval = null;
+
+    const networkOptions = {
+        layout: {
+            hierarchical: {
+                direction: 'UD',
+                sortMethod: 'directed',
+                levelSeparation: 80,
+                nodeSpacing: 100
+            }
+        },
+        physics: false,
+        interaction: { dragNodes: false, zoomView: true, dragView: true },
+        nodes: {
+            shape: 'circle', // 'dot'에서 'circle'로 변경하여 내부에 번호가 보이게 설정
+            margin: 10,      // 여백 확보
+            font: { size: 16, color: '#ffffff', face: 'Pretendard'},
+            borderWidth: 2,
+            color: { background: '#6366f1', border: '#4f46e5' },
+            shadow: true
+        },
+        edges: {
+            width: 2,
+            color: '#cbd5e1',
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 }
+        }
+    };
+
+    function generateRandomTree() {
+        resetTreeSearch();
+
+        // 사용자 입력값 읽어오기 및 클램핑(안전장치)
+        let depthInput = parseInt(document.getElementById('tree-max-depth').value) || 4;
+        let childrenInput = parseInt(document.getElementById('tree-max-children').value) || 2;
+
+        // 브라우저 멈춤 방지용 한계 설정
+        const maxDepth = Math.min(Math.max(depthInput, 2), 6);
+        const maxChildren = Math.min(Math.max(childrenInput, 1), 4);
+
+        document.getElementById('tree-max-depth').value = maxDepth;
+        document.getElementById('tree-max-children').value = maxChildren;
+
+        treeData.nodes.clear();
+        treeData.edges.clear();
+        treeAdjList = {};
+
+        let currentId = 1;
+
+        treeData.nodes.add({ id: 1, label: '1', level: 0 });
+        treeAdjList[1] = [];
+
+        function buildNode(parentId, depth) {
+            if (depth >= maxDepth) return;
+
+            // 설정된 최대 자식 수 내에서 랜덤하게 생성 (최소 1개는 무조건 생성되게 하여 트리가 도중에 멈추지 않도록 함)
+            const numChildren = Math.floor(Math.random() * maxChildren) + 1;
+
+            for (let i = 0; i < numChildren; i++) {
+                currentId++;
+                const newId = currentId;
+
+                treeData.nodes.add({ id: newId, label: String(newId), level: depth });
+                treeData.edges.add({ from: parentId, to: newId });
+
+                if(!treeAdjList[parentId]) treeAdjList[parentId] = [];
+                treeAdjList[parentId].push(newId);
+                treeAdjList[newId] = [];
+
+                buildNode(newId, depth + 1);
+            }
+        }
+
+        buildNode(1, 1);
+
+        const container = document.getElementById('tree-network-for-tree');
+        if(!treeNetwork) {
+            treeNetwork = new vis.Network(container, treeData, networkOptions);
+
+            // 클릭 이벤트 바인딩 (목표 노드 설정)
+            treeNetwork.on("click", function (params) {
+                if (params.nodes.length > 0) {
+                    setTreeGoalNode(params.nodes[0]);
+                }
+            });
+        } else {
+            treeNetwork.setData(treeData);
+        }
+
+        treeNetwork.fit({ animation: true });
+
+        // 생성 시 랜덤 목표 노드 배정 (루트 제외)
+        const allNodes = treeData.nodes.getIds();
+        if(allNodes.length > 1) {
+            const randomTarget = allNodes[Math.floor(Math.random() * (allNodes.length - 1)) + 1];
+            setTreeGoalNode(randomTarget);
+        }
+    }
+
+    // 클릭하거나 초기화 시 목표 노드를 설정하는 함수
+    function setTreeGoalNode(nodeId) {
+        if (treeSearchState && treeSearchState.status !== 'finished') {
+            showToast("탐색이 진행 중일 때는 목표를 변경할 수 없습니다.", "error");
+            return;
+        }
+
+        // 기존 목표 노드가 있었다면 기본 파란색으로 원복
+        if (treeGoalNode !== null) {
+            treeData.nodes.update({
+                id: treeGoalNode,
+                color: { background: '#6366f1', border: '#4f46e5' }
+            });
+        }
+
+        treeGoalNode = nodeId;
+
+        // 새로운 목표 노드를 빨간색으로 강조
+        treeData.nodes.update({
+            id: nodeId,
+            color: { background: '#ef4444', border: '#b91c1c' }
+        });
+        showToast(`노드 [${nodeId}]번이 목표로 지정되었습니다.`, 'success');
+    }
+
+    function initTreeSearch() {
+        const algo = document.getElementById('tree-algo').value;
+        treeSearchState = {
+            algo: algo,
+            dataStructure: [1],
+            visited: new Set([1]),
+            status: 'running',
+            currentNode: null
+        };
+        document.getElementById('tree-status').innerText = `${algo.toUpperCase()} 탐색 중...`;
+
+        // 모든 노드 색상 초기화 (목표 노드 제외)
+        const nodesToUpdate = treeData.nodes.get().map(n => {
+            if(n.id === treeGoalNode) return { id: n.id, color: { background: '#ef4444', border: '#b91c1c' } };
+            return { id: n.id, color: { background: '#6366f1', border: '#4f46e5' } };
+        });
+        treeData.nodes.update(nodesToUpdate);
+    }
+
+    function stepTreeCore() {
+        if (!treeSearchState) initTreeSearch();
+        if (treeSearchState.status !== 'running') return false;
+
+        const st = treeSearchState;
+
+        // 이전 노드를 방문 완료(회색) 처리 (단, 이전 노드가 목표 노드였다면 색상 유지)
+        if (st.currentNode !== null && st.currentNode !== treeGoalNode) {
+            treeData.nodes.update({
+                id: st.currentNode,
+                color: { background: '#94a3b8', border: '#64748b' } // 회색
+            });
+        }
+
+        if (st.dataStructure.length === 0) {
+            st.status = 'finished';
+            document.getElementById('tree-status').innerText = '목표 노드를 찾지 못했습니다.';
+            showToast('탐색 가능한 모든 노드를 확인했습니다.', 'error');
+            return false;
+        }
+
+        // 노드 추출
+        const current = st.algo === 'bfs' ? st.dataStructure.shift() : st.dataStructure.pop();
+        st.currentNode = current;
+
+        // 현재 탐색 노드가 목표 노드인지 확인
+        if (current === treeGoalNode) {
+            st.status = 'finished';
+            document.getElementById('tree-status').innerText = '목표 탐색 완료!';
+
+            // 목표 노드를 찾으면 초록색으로 강조
+            treeData.nodes.update({
+                id: current,
+                color: { background: '#22c55e', border: '#16a34a' }
+            });
+            showToast(`목표 노드 [${current}]번을 성공적으로 찾았습니다!`, 'success');
+            return false; // 탐색 종료
+        }
+
+        // 일반 노드일 경우 현재 탐색 중임을 표시 (노란색)
+        treeData.nodes.update({
+            id: current,
+            color: { background: '#eab308', border: '#ca8a04' }
+        });
+
+        // 자식 노드 추가
+        const children = treeAdjList[current] || [];
+        const insertOrder = st.algo === 'dfs' ? [...children].reverse() : children;
+
+        for (let child of insertOrder) {
+            if (!st.visited.has(child)) {
+                st.visited.add(child);
+                st.dataStructure.push(child);
+            }
+        }
+
+        return true;
+    }
+
+    function stepTreeSearchManually() {
+        if(isTreePlaying) toggleTreeAutoPlay();
+        if(treeSearchState && treeSearchState.status === 'finished') {
+            showToast('탐색이 이미 완료되었습니다. 초기화 후 다시 실행하세요.');
+            return;
+        }
+        stepTreeCore();
+    }
+
+    function toggleTreeAutoPlay() {
+        const btn = document.getElementById('btn-tree-play');
+
+        if (isTreePlaying) {
+            isTreePlaying = false;
+            clearTimeout(treePlayInterval);
+            btn.innerHTML = `<i class="fa-solid fa-play"></i> 자동 실행`;
+            btn.classList.replace('bg-rose-500', 'bg-indigo-600');
+            btn.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-700');
+        } else {
+            if(treeSearchState && treeSearchState.status === 'finished') resetTreeSearch();
+
+            isTreePlaying = true;
+            btn.innerHTML = `<i class="fa-solid fa-pause"></i> 일시 정지`;
+            btn.classList.replace('bg-indigo-600', 'bg-rose-500');
+            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
+
+            function loop() {
+                if (isTreePlaying) {
+                    const hasNext = stepTreeCore();
+                    if (hasNext) {
+                        const speed = document.getElementById('tree-speed').max - document.getElementById('tree-speed').value + 100;
+                        treePlayInterval = setTimeout(loop, speed);
+                    } else {
+                        toggleTreeAutoPlay();
+                    }
+                }
+            }
+            loop();
+        }
+    }
+
+    function resetTreeSearch() {
+        if(isTreePlaying) toggleTreeAutoPlay();
+        treeSearchState = null;
+        document.getElementById('tree-status').innerText = '대기 중';
+
+        // 노드 색상 원상복구 (목표 노드는 빨간색 유지)
+        const nodesToUpdate = treeData.nodes.get().map(n => {
+            if(n.id === treeGoalNode) return { id: n.id, color: { background: '#ef4444', border: '#b91c1c' } };
+            return { id: n.id, color: { background: '#6366f1', border: '#4f46e5' } };
+        });
+        treeData.nodes.update(nodesToUpdate);
+    }
+
+    // --- 초기화 ---
+    window.onload = () => {
+        initGrid();
+    };
+
+</script>
 </body>
 </html>

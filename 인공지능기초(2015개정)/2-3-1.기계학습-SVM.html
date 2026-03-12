@@ -200,15 +200,29 @@
                     <canvas id="svmCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
                 </div>
 
-                <div class="flex gap-3 justify-center w-full">
-                    <button id="btnRandomData"
-                            class="flex-1 px-6 py-3 text-lg bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm whitespace-nowrap">
-                        <i class="fa-solid fa-braille mr-2 text-rose-500"></i>랜덤 데이터 생성
-                    </button>
-                    <button id="btnClearData"
-                            class="flex-1 px-6 py-3 text-lg bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm whitespace-nowrap">
-                        <i class="fa-solid fa-eraser mr-2"></i>모두 지우기
-                    </button>
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col lg:flex-row gap-5 items-center justify-between mt-1">
+                    <div class="flex-1 w-full flex flex-col gap-2 px-2">
+                        <div class="flex justify-between items-center">
+                            <label class="font-bold text-slate-600 text-sm flex items-center">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center mr-2 text-slate-400"></i>데이터 퍼짐
+                                정도
+                            </label>
+                            <span class="text-xs font-bold text-slate-400"><span id="spreadLabel" class="text-rose-600">적당함</span> (응집 ↔ 분산)</span>
+                        </div>
+                        <input type="range" id="spreadSlider" min="50" max="450" value="250"
+                               class="w-full accent-rose-500 cursor-pointer">
+                    </div>
+
+                    <div class="flex gap-3 w-full lg:w-auto shrink-0">
+                        <button id="btnRandomData"
+                                class="flex-1 px-6 py-3 text-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl transition-all border-2 border-rose-200 shadow-sm flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
+                        </button>
+                        <button id="btnClearData"
+                                class="flex-1 px-6 py-3 text-lg bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-eraser mr-2"></i>지우기
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -247,9 +261,13 @@
 
                 <div class="bg-rose-50/80 p-5 rounded-2xl border-2 border-rose-100 shadow-sm flex flex-col gap-4">
                     <div class="bg-white p-4 rounded-xl border border-rose-100 shadow-sm">
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="font-bold text-slate-700 text-lg">C (규제 파라미터)</label>
-                            <span id="cValueDisplay" class="font-black text-rose-600 text-3xl">1.0</span>
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="font-bold text-slate-700 text-lg mb-1">C (규제 파라미터)</label>
+                            <div class="flex flex-col items-end">
+                                <span id="cValueDisplay"
+                                      class="font-black text-rose-600 text-3xl leading-none mb-1">50</span>
+                                <span id="cMarginLabel" class="text-sm font-bold text-rose-400">표준 마진</span>
+                            </div>
                         </div>
                         <input type="range" id="cSlider" min="0" max="100" value="50"
                                class="w-full accent-rose-600 mb-2 cursor-pointer">
@@ -318,18 +336,21 @@
             this.points = [];
         }
 
-        generateRandom(width, height) {
+        // 데이터 퍼짐 정도 슬라이더 값을 인자로 받도록 수정
+        generateRandom(width, height, spreadRadius = 250) {
             this.clear();
             const cx1 = width * 0.3, cy1 = height * 0.3;
             const cx2 = width * 0.7, cy2 = height * 0.7;
-            for (let i = 0; i < 20; i++) {
+
+            // 클래스당 30개씩 생성
+            for (let i = 0; i < 30; i++) {
                 // Class A
-                let px1 = Math.max(20, Math.min(width - 20, cx1 + (Math.random() - 0.5) * 150));
-                let py1 = Math.max(20, Math.min(height - 20, cy1 + (Math.random() - 0.5) * 150));
+                let px1 = Math.max(20, Math.min(width - 20, cx1 + (Math.random() - 0.5) * spreadRadius));
+                let py1 = Math.max(20, Math.min(height - 20, cy1 + (Math.random() - 0.5) * spreadRadius));
                 this.addPoint(px1, py1, CLASS_A);
                 // Class B
-                let px2 = Math.max(20, Math.min(width - 20, cx2 + (Math.random() - 0.5) * 150));
-                let py2 = Math.max(20, Math.min(height - 20, cy2 + (Math.random() - 0.5) * 150));
+                let px2 = Math.max(20, Math.min(width - 20, cx2 + (Math.random() - 0.5) * spreadRadius));
+                let py2 = Math.max(20, Math.min(height - 20, cy2 + (Math.random() - 0.5) * spreadRadius));
                 this.addPoint(px2, py2, CLASS_B);
             }
         }
@@ -373,7 +394,7 @@
                 for (let p of normPoints) {
                     t++;
                     let eta = 1.0 / (lambda * t);
-                    let margin = p.y * (this.w[0] * p.x1 + this.w[1] * p.x2 + this.thisb || this.b);
+                    let margin = p.y * (this.w[0] * p.x1 + this.w[1] * p.x2 + this.b);
 
                     if (margin < 1) {
                         this.w[0] = (1 - eta * lambda) * this.w[0] + eta * p.y * p.x1;
@@ -465,8 +486,6 @@
                 // Margin 영역을 채우는 시각적 효과
                 this.ctx.globalAlpha = 0.1;
                 this.ctx.fillStyle = '#64748b';
-                // (Note: To strictly fill polygon, we'd need exact intersections.
-                // For simplicity & elegance, we draw thick lines or just rely on boundary lines)
                 this.ctx.globalAlpha = 1.0;
 
                 // 마진 선 (-1, +1)
@@ -515,8 +534,14 @@
     const btnClear = document.getElementById('btnClearData');
     const btnTrain = document.getElementById('btnTrain');
     const btnResetAlg = document.getElementById('btnResetAlg');
+
     const sliderC = document.getElementById('cSlider');
     const labelC = document.getElementById('cValueDisplay');
+    const labelCMargin = document.getElementById('cMarginLabel'); // 규제 파라미터 상태 라벨
+
+    const spreadSlider = document.getElementById('spreadSlider');
+    const spreadLabel = document.getElementById('spreadLabel');
+
     const toolBtns = document.querySelectorAll('.tool-btn');
 
     let activeTool = CLASS_A;
@@ -578,23 +603,45 @@
         updateFlowUI('IDLE', '데이터가 추가되었습니다. 두 클래스 데이터가 모두 있다면 Train을 누르세요.', 'fa-check');
     });
 
+    // C 파라미터 슬라이더 조절 이벤트
     sliderC.addEventListener('input', (e) => {
-        // C 값을 단순 수치 말고 Hard/Soft 의미 부여하여 라벨 업데이트
         let val = parseInt(e.target.value);
-        let text = val;
-        if (val < 30) text += " (Soft Margin)";
-        else if (val > 70) text += " (Hard Margin)";
-        labelC.innerText = text;
+
+        // 숫자 부분만 업데이트
+        labelC.innerText = val;
+
+        // 마진 상태 라벨 텍스트와 색상만 별도로 업데이트
+        if (val < 30) {
+            labelCMargin.innerText = "소프트 마진 (Soft)";
+            labelCMargin.className = "text-sm font-bold text-blue-500";
+        } else if (val > 70) {
+            labelCMargin.innerText = "하드 마진 (Hard)";
+            labelCMargin.className = "text-sm font-bold text-rose-500";
+        } else {
+            labelCMargin.innerText = "표준 마진";
+            labelCMargin.className = "text-sm font-bold text-rose-400";
+        }
 
         // 만약 이미 학습되었다면 실시간 렌더링 업데이트
         if (phase === 'DONE') {
             svm.train(dataManager.points, canvas.width, canvas.height, val);
-            updateFlowUI('DONE', 'C값이 변경되어 결정 경계와 마진이 갱신되었습니다.', 'fa-bolt', 'bg-emerald-50', 'text-emerald-800');
+            updateFlowUI('DONE', 'C값이 변경되어 결정 경계와 마진이 실시간 갱신되었습니다.', 'fa-bolt', 'bg-emerald-50', 'text-emerald-800');
         }
     });
 
+    // 데이터 퍼짐 정도 슬라이더 텍스트 업데이트
+    spreadSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        if (val < 150) spreadLabel.innerText = "조밀함";
+        else if (val < 280) spreadLabel.innerText = "적당함";
+        else if (val < 380) spreadLabel.innerText = "넓게 흩어짐";
+        else spreadLabel.innerText = "매우 넓게 흩어짐 (혼합됨)";
+    });
+
+    // 랜덤 데이터 생성 이벤트
     btnRandom.addEventListener('click', () => {
-        dataManager.generateRandom(canvas.width, canvas.height);
+        const spreadValue = parseInt(spreadSlider.value);
+        dataManager.generateRandom(canvas.width, canvas.height, spreadValue);
         resetSimulation();
         updateFlowUI('IDLE', '무작위 데이터가 생성되었습니다. Train 버튼을 눌러 학습을 시작하세요.', 'fa-bullseye');
     });

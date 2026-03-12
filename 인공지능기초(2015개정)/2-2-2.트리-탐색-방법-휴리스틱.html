@@ -6,6 +6,11 @@
     <title>휴리스틱 탐색 알고리즘 - 학습 자료 템플릿</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
 
@@ -74,6 +79,29 @@
             pointer-events: none;
         }
 
+        /* --- 맵 편집 툴 버튼 (Hover 충돌 해결) --- */
+        .tool-btn {
+            transition: all 0.2s ease;
+        }
+
+        .tool-btn:not(.tool-active):hover {
+            background-color: #f1f5f9 !important; /* Tailwind slate-100 */
+        }
+
+        .tool-btn.tool-active {
+            background-color: #0d9488 !important; /* Tailwind teal-600 */
+            border-color: #0f766e !important; /* Tailwind teal-700 */
+            color: white !important;
+        }
+
+        .tool-btn.tool-active:hover {
+            background-color: #0f766e !important; /* Hover 시 약간 더 어둡게 */
+        }
+
+        .tool-btn.tool-active i {
+            color: white !important;
+        }
+
         /* --- Grid Search 관련 커스텀 스타일 --- */
         #grid-container {
             display: grid;
@@ -102,12 +130,12 @@
             background-color: #f8fafc;
         }
 
-        /* 셀 내부 텍스트 레이아웃 */
+        /* 셀 내부 텍스트 레이아웃 (크기 소폭 상향) */
         .cell-g {
             position: absolute;
             top: 2px;
             left: 4px;
-            font-size: 0.65rem;
+            font-size: 0.75rem;
             color: #64748b;
             font-weight: bold;
         }
@@ -116,18 +144,18 @@
             position: absolute;
             top: 2px;
             right: 4px;
-            font-size: 0.65rem;
+            font-size: 0.75rem;
             color: #64748b;
             font-weight: bold;
         }
 
         .cell-f {
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             color: #1e293b;
         }
 
         .cell-h-only {
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             color: #8b5cf6;
         }
 
@@ -140,11 +168,13 @@
         .cell-start {
             background: #10b981 !important;
             color: white !important;
+            font-size: 1.5rem;
         }
 
         .cell-end {
             background: #f43f5e !important;
             color: white !important;
+            font-size: 1.5rem;
         }
 
         /* Open Set (탐색 후보) */
@@ -180,12 +210,6 @@
             color: rgba(255, 255, 255, 0.9);
         }
 
-        .tool-btn.tool-active {
-            background: #4f46e5;
-            border-color: #4338ca;
-            color: white;
-        }
-
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -208,13 +232,13 @@
 
 <header class="hero-gradient text-white py-32 px-6" id="intro">
     <div class="max-w-4xl mx-auto text-center">
-        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-md">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-md text-sm md:text-base">
             Focus: Heuristic Search
         </span>
         <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
             목표를 향한 똑똑한 탐색,<br>휴리스틱 알고리즘
         </h1>
-        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+        <p class="text-xl md:text-2xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
             무작정 길을 찾는 것이 아니라, <strong>'목표까지의 예상 거리(Heuristic)'</strong>를 계산하여 최적의 경로를 찾아내는 알고리즘의 동작 원리를 눈으로 확인해보세요.
         </p>
     </div>
@@ -226,9 +250,9 @@
             <div class="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-white">
                 <i class="fa-solid fa-map-location-dot"></i>
             </div>
-            <span class="font-black text-xl tracking-tight text-slate-800">탐색 알고리즘 실습</span>
+            <span class="font-black text-2xl tracking-tight text-slate-800">탐색 알고리즘 실습</span>
         </div>
-        <div class="hidden md:flex space-x-8 font-bold text-slate-500">
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-lg">
             <a class="hover:text-teal-600 transition" href="#intro">도입</a>
             <a class="hover:text-teal-600 transition" href="#concept">핵심개념</a>
             <a class="hover:text-teal-600 transition" href="#activity">시뮬레이터</a>
@@ -237,49 +261,50 @@
     </div>
 </nav>
 
-<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+<main class="max-w-7xl mx-auto px-6 py-20 space-y-24">
 
-    <section class="scroll-mt-24 space-y-12" id="concept">
+    <section class="scroll-mt-24 space-y-12 max-w-6xl mx-auto" id="concept">
         <div class="text-center space-y-4">
-            <h2 class="text-3xl font-black text-slate-900">휴리스틱과 탐색 평가 함수</h2>
+            <span class="text-teal-600 font-bold tracking-widest uppercase text-base">Core Concept</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">휴리스틱과 탐색 평가 함수</h2>
             <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
-            <p class="text-slate-600 font-medium">탐색 과정에서 어떤 노드를 먼저 방문할지 결정하는 기준을 알아봅니다.</p>
+            <p class="text-slate-600 text-lg font-medium">탐색 과정에서 어떤 노드를 먼저 방문할지 결정하는 기준을 알아봅니다.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="section-card transform transition hover:-translate-y-2">
-                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="section-card transform transition hover:-translate-y-2 border border-slate-200 shadow-lg">
+                <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner">
                     <i class="fa-solid fa-lightbulb text-xl"></i>
                 </div>
-                <h3 class="text-xl font-bold mb-3">휴리스틱 함수 $h(n)$</h3>
-                <p class="text-slate-600 leading-relaxed text-sm">
+                <h3 class="text-2xl font-black mb-3">휴리스틱 함수 $h(n)$</h3>
+                <p class="text-slate-600 leading-relaxed text-base break-keep">
                     현재 노드 $n$에서 목표 노드까지의 <strong>추정 비용(예상 거리)</strong>입니다. 이 실습에서는 가로/세로 이동 거리만 합산하는 맨해튼 거리(Manhattan
                     Distance)를 사용합니다.
                 </p>
             </div>
 
-            <div class="section-card transform transition hover:-translate-y-2 border-2 border-transparent hover:border-purple-200">
-                <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-6">
+            <div class="section-card transform transition hover:-translate-y-2 border-2 border-transparent hover:border-purple-300 shadow-lg">
+                <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner">
                     <i class="fa-solid fa-forward-fast text-xl"></i>
                 </div>
-                <h3 class="text-xl font-bold mb-3">Greedy Best-First</h3>
-                <div class="bg-slate-50 p-2 rounded mb-3 text-center font-bold text-purple-700 font-mono">
+                <h3 class="text-2xl font-black mb-3 text-slate-800">Greedy Best-First</h3>
+                <div class="bg-purple-50 p-3 rounded-lg mb-4 text-center font-bold text-purple-700 text-lg">
                     $f(n) = h(n)$
                 </div>
-                <p class="text-slate-600 leading-relaxed text-sm">
+                <p class="text-slate-600 leading-relaxed text-base break-keep">
                     지금 당장 목표에 <strong>가장 가까워 보이는 노드</strong>만 우선적으로 탐색합니다. 속도는 빠르지만, 장애물에 막혔을 때 최단 경로를 보장하지 못합니다.
                 </p>
             </div>
 
-            <div class="section-card transform transition hover:-translate-y-2 border-2 border-transparent hover:border-blue-200">
-                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
+            <div class="section-card transform transition hover:-translate-y-2 border-2 border-transparent hover:border-blue-300 shadow-lg">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner">
                     <i class="fa-solid fa-route text-xl"></i>
                 </div>
-                <h3 class="text-xl font-bold mb-3">A* Search (에이 스타)</h3>
-                <div class="bg-slate-50 p-2 rounded mb-3 text-center font-bold text-blue-700 font-mono">
+                <h3 class="text-2xl font-black mb-3 text-slate-800">A* Search (에이 스타)</h3>
+                <div class="bg-blue-50 p-3 rounded-lg mb-4 text-center font-bold text-blue-700 text-lg">
                     $f(n) = g(n) + h(n)$
                 </div>
-                <p class="text-slate-600 leading-relaxed text-sm">
+                <p class="text-slate-600 leading-relaxed text-base break-keep">
                     시작점부터의 <strong>실제 이동 비용 $g(n)$</strong>과 목표까지의 <strong>예상 비용 $h(n)$</strong>을 합산하여 평가합니다. 항상 최단 경로를
                     보장하는 강력한 알고리즘입니다.
                 </p>
@@ -287,82 +312,92 @@
         </div>
     </section>
 
-    <section class="scroll-mt-24" id="activity">
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col lg:flex-row gap-6">
+    <section class="scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg"
+             id="activity">
+        <div class="mb-8 space-y-2 text-center md:text-left">
+            <span class="text-teal-600 font-bold tracking-widest uppercase text-base">Interactive Simulator</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">휴리스틱 탐색 시뮬레이터</h2>
+            <p class="text-slate-600 text-lg">직접 맵을 만들고, 알고리즘별 경로 탐색 과정을 관찰해 보세요.</p>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-8">
 
             <div class="lg:w-1/3 flex flex-col gap-6">
 
-                <div class="space-y-3">
-                    <div class="flex items-center gap-2 text-slate-700 font-bold">
-                        <i class="fa-solid fa-microchip text-teal-500"></i> 알고리즘 선택
+                <div class="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <div class="flex items-center gap-2 text-slate-800 font-black text-lg">
+                        <i class="fa-solid fa-microchip text-teal-600"></i> 알고리즘 선택
                     </div>
                     <select id="algo-select"
-                            class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-3 font-bold shadow-sm outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">
+                            class="w-full bg-white border-2 border-slate-300 text-slate-800 rounded-xl p-3 font-bold text-lg shadow-sm outline-none focus:border-teal-500 cursor-pointer transition-colors">
                         <option value="astar">A* Search (최단 경로 보장)</option>
                         <option value="greedy">Greedy Best-First (빠른 탐색)</option>
                     </select>
                 </div>
 
-                <div class="space-y-3 border-t border-slate-100 pt-5">
-                    <div class="flex items-center gap-2 text-slate-700 font-bold">
-                        <i class="fa-solid fa-pen-ruler text-teal-500"></i> 맵 편집 (클릭/드래그)
+                <div class="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <div class="flex items-center gap-2 text-slate-800 font-black text-lg">
+                        <i class="fa-solid fa-pen-ruler text-teal-600"></i> 맵 편집 (클릭/드래그)
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button class="tool-btn bg-slate-50 border border-slate-200 rounded-xl py-2 font-bold text-sm text-slate-600 hover:bg-slate-100 transition"
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="tool-btn bg-white border-2 border-slate-200 rounded-xl py-3 font-bold text-base text-slate-600 shadow-sm"
                                 data-tool="start">
-                            <i class="fa-solid fa-location-dot text-emerald-500 mr-1"></i> 시작점
+                            <i class="fa-solid fa-location-dot text-emerald-500 mr-2 text-lg"></i> 시작점
                         </button>
-                        <button class="tool-btn bg-slate-50 border border-slate-200 rounded-xl py-2 font-bold text-sm text-slate-600 hover:bg-slate-100 transition"
+                        <button class="tool-btn bg-white border-2 border-slate-200 rounded-xl py-3 font-bold text-base text-slate-600 shadow-sm"
                                 data-tool="end">
-                            <i class="fa-solid fa-flag text-rose-500 mr-1"></i> 목표점
+                            <i class="fa-solid fa-flag text-rose-500 mr-2 text-lg"></i> 목표점
                         </button>
-                        <button class="tool-btn tool-active bg-slate-50 border border-slate-200 rounded-xl py-2 font-bold text-sm text-slate-600 hover:bg-slate-100 transition"
+                        <button class="tool-btn tool-active bg-white border-2 border-slate-200 rounded-xl py-3 font-bold text-base text-slate-600 shadow-sm"
                                 data-tool="wall">
-                            <i class="fa-solid fa-cubes text-slate-500 mr-1"></i> 장애물
+                            <i class="fa-solid fa-cubes text-slate-500 mr-2 text-lg"></i> 장애물
                         </button>
-                        <button class="tool-btn bg-slate-50 border border-slate-200 rounded-xl py-2 font-bold text-sm text-slate-600 hover:bg-slate-100 transition"
+                        <button class="tool-btn bg-white border-2 border-slate-200 rounded-xl py-3 font-bold text-base text-slate-600 shadow-sm"
                                 data-tool="eraser">
-                            <i class="fa-solid fa-eraser text-slate-400 mr-1"></i> 지우개
+                            <i class="fa-solid fa-eraser text-slate-400 mr-2 text-lg"></i> 지우개
                         </button>
                     </div>
                     <button id="btn-clear-map"
-                            class="w-full py-2 bg-white text-slate-500 border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50 transition">
-                        맵 전체 초기화
+                            class="w-full mt-2 py-3 bg-white text-slate-600 border-2 border-slate-200 rounded-xl font-bold text-base hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-sm">
+                        <i class="fa-solid fa-trash-can mr-2"></i> 맵 전체 초기화
                     </button>
                 </div>
 
-                <div class="space-y-3 border-t border-slate-100 pt-5">
-                    <div class="flex items-center justify-between text-slate-700 font-bold">
+                <div class="space-y-3 bg-teal-50/50 p-5 rounded-2xl border-2 border-teal-100 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-800 font-black text-lg">
                         <span class="flex items-center gap-2"><i
-                                class="fa-solid fa-play text-teal-500"></i> 시뮬레이션 제어</span>
+                                class="fa-solid fa-play text-teal-600"></i> 시뮬레이션 제어</span>
                         <span id="status-badge"
-                              class="px-2.5 py-1 text-xs bg-slate-100 text-slate-500 rounded-full font-bold">대기 중</span>
+                              class="px-3 py-1.5 text-sm bg-slate-200 text-slate-600 rounded-md font-bold">대기 중</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-3 mt-2">
                         <button id="btn-step"
-                                class="bg-teal-50 text-teal-700 border border-teal-200 font-bold rounded-xl py-3 hover:bg-teal-100 transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-forward-step"></i> Step
+                                class="bg-teal-100 text-teal-800 border-2 border-teal-200 font-black rounded-xl py-4 hover:bg-teal-200 transition-colors flex items-center justify-center gap-2 text-lg shadow-sm">
+                            <i class="fa-solid fa-shoe-prints"></i> Step
                         </button>
                         <button id="btn-run"
-                                class="bg-teal-600 text-white font-bold rounded-xl py-3 shadow-md hover:bg-teal-700 transition flex items-center justify-center gap-2">
+                                class="bg-teal-600 text-white font-black rounded-xl py-4 hover:bg-teal-700 transition-transform transform hover:scale-105 shadow-md flex items-center justify-center gap-2 text-lg">
                             <i class="fa-solid fa-play"></i> Run
                         </button>
                     </div>
                     <button id="btn-reset"
-                            class="w-full bg-slate-800 text-white font-bold rounded-xl py-3 hover:bg-slate-900 transition flex items-center justify-center gap-2">
+                            class="w-full mt-2 bg-slate-800 text-white font-bold rounded-xl py-4 hover:bg-slate-900 transition-colors flex items-center justify-center gap-2 text-lg shadow-md">
                         <i class="fa-solid fa-rotate-left"></i> 탐색 상태 초기화
                     </button>
                 </div>
 
-                <div class="bg-slate-50 rounded-xl p-4 text-sm font-bold text-slate-600 space-y-2 border border-slate-200 mt-auto">
+                <div class="bg-slate-50 rounded-xl p-5 text-base font-bold text-slate-700 space-y-3 border border-slate-200 mt-auto shadow-sm">
                     <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-[#d9f99d]"></span> Open Set (후보)</span>
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-[#bae6fd]"></span> Closed Set (완료)</span>
+                        <span class="flex items-center gap-3"><span
+                                class="w-4 h-4 rounded-md bg-[#d9f99d] border border-[#bef264]"></span> Open Set (후보)</span>
+                        <span class="flex items-center gap-3"><span
+                                class="w-4 h-4 rounded-md bg-[#bae6fd] border border-[#7dd3fc]"></span> Closed Set (완료)</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-[#fde047]"></span> 현재 탐색 노드</span>
-                        <span class="flex items-center gap-2"><span
-                                class="w-3 h-3 rounded bg-[#f59e0b]"></span> 최종 경로</span>
+                        <span class="flex items-center gap-3"><span
+                                class="w-4 h-4 rounded-md bg-[#fde047] border border-[#eab308]"></span> 현재 탐색 노드</span>
+                        <span class="flex items-center gap-3"><span
+                                class="w-4 h-4 rounded-md bg-[#f59e0b] border border-[#d97706]"></span> 최종 경로</span>
                     </div>
                 </div>
 
@@ -370,49 +405,51 @@
 
             <div class="lg:w-2/3 flex flex-col">
                 <div id="value-explain"
-                     class="mb-4 bg-blue-50 text-blue-800 px-4 py-2 rounded-lg text-sm font-bold flex justify-between items-center border border-blue-200">
+                     class="mb-5 bg-blue-50 text-blue-800 px-6 py-4 rounded-xl text-base font-bold flex justify-between items-center border border-blue-200 shadow-sm transition-colors duration-300">
                     <span>좌상단: 실제 비용 $g(n)$</span>
-                    <span class="text-base text-blue-900">중앙: 평가값 $f(n)$</span>
+                    <span class="text-xl text-blue-900 font-black">중앙: 평가값 $f(n)$</span>
                     <span>우상단: 예상 비용 $h(n)$</span>
                 </div>
 
-                <div id="grid-container" class="w-full flex-grow">
+                <div id="grid-container" class="w-full flex-grow shadow-inner">
                 </div>
             </div>
 
         </div>
     </section>
 
-    <section class="scroll-mt-24 space-y-12" id="quiz">
+    <section class="scroll-mt-24 space-y-12 max-w-4xl mx-auto" id="quiz">
         <div class="text-center">
-            <h2 class="text-3xl font-black">학습 내용 확인하기</h2>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">학습 내용 확인하기</h2>
             <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full mt-4"></div>
         </div>
 
-        <div class="max-w-3xl mx-auto space-y-8">
+        <div class="space-y-8">
             <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                <p class="text-xl font-bold mb-6">Q1. 장애물이 복잡하게 얽혀있을 때, 항상 최단 경로를 보장하는 탐색 알고리즘은 무엇인가요?</p>
+                <p class="text-xl md:text-2xl font-bold mb-6 text-slate-800 leading-snug">Q1. 장애물이 복잡하게 얽혀있을 때, 항상 최단
+                    경로를 보장하는 탐색 알고리즘은 무엇인가요?</p>
                 <div class="grid grid-cols-1 gap-4">
-                    <button class="quiz-btn"
+                    <button class="quiz-btn text-lg"
                             onclick="checkAnswer(this, false, 'Greedy는 목표를 향해 가장 빠르게 직진하려 하지만 장애물에 갇히면 돌아가므로 최단 경로를 보장하지 않습니다.')">
                         A. Greedy Best-First Search
                     </button>
-                    <button class="quiz-btn"
-                            onclick="checkAnswer(this, true, '정답입니다! A* 알고리즘은 실제 이동 비용(g)과 예상 비용(h)을 모두 고려하여 최단 경로를 보장합니다.')">
+                    <button class="quiz-btn text-lg"
+                            onclick="checkAnswer(this, true, '정답입니다! A* 알고리즘은 실제 이동 비용과 예상 비용을 모두 고려하여 최단 경로를 보장합니다.')">
                         B. A* Search
                     </button>
                 </div>
             </div>
 
             <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                <p class="text-xl font-bold mb-6">Q2. A* 알고리즘의 평가 함수인 $f(n) = g(n) + h(n)$ 에서 **$g(n)$**이 의미하는 것은
-                    무엇인가요?</p>
+                <p class="text-xl md:text-2xl font-bold mb-6 text-slate-800 leading-snug">Q2. A* 알고리즘의 평가 함수인 $f(n) =
+                    g(n) + h(n)$ 에서 <strong>$g(n)$</strong>이 의미하는 것은 무엇인가요?</p>
                 <div class="grid grid-cols-1 gap-4">
-                    <button class="quiz-btn" onclick="checkAnswer(this, true, '정답입니다! g(n)은 이미 걸어온 실제 거리를 의미합니다.')">A.
-                        시작점부터 현재 노드까지의 실제 이동 비용
+                    <button class="quiz-btn text-lg"
+                            onclick="checkAnswer(this, true, '정답입니다! g(n)은 이미 걸어온 실제 거리를 의미합니다.')">A. 시작점부터 현재 노드까지의 실제
+                        이동 비용
                     </button>
-                    <button class="quiz-btn" onclick="checkAnswer(this, false, '이것은 휴리스틱 함수인 h(n)에 대한 설명입니다.')">B. 현재
-                        노드에서 목표 노드까지의 예상 이동 비용
+                    <button class="quiz-btn text-lg" onclick="checkAnswer(this, false, '이것은 휴리스틱 함수인 h(n)에 대한 설명입니다.')">
+                        B. 현재 노드에서 목표 노드까지의 예상 이동 비용
                     </button>
                 </div>
             </div>
@@ -422,6 +459,20 @@
 </main>
 
 <script>
+    // KaTeX 설정
+    const katexConfig = {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false
+    };
+
+    // 문서 로드 시 수식 렌더링
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, katexConfig);
+    });
+
     // --- UI 퀴즈 로직 ---
     function checkAnswer(btn, isCorrect, message) {
         const container = btn.parentElement;
@@ -449,7 +500,7 @@
 
     function showToast(message, type) {
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 z-[1000] ${type === 'success' ? 'bg-teal-600' : 'bg-rose-500'}`;
+        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 z-[1000] text-lg ${type === 'success' ? 'bg-teal-600' : 'bg-rose-500'}`;
         toast.innerText = message;
         document.body.appendChild(toast);
         setTimeout(() => toast.classList.remove('translate-y-20'), 10);
@@ -533,12 +584,15 @@
 
     function updateExplainUI() {
         if (algoSelect.value === 'astar') {
-            valueExplain.className = "mb-4 bg-blue-50 text-blue-800 px-4 py-2 rounded-lg text-sm font-bold flex justify-between items-center border border-blue-200";
-            valueExplain.innerHTML = `<span>좌상단: 비용 $g(n)$</span><span class="text-base text-blue-900">중앙: 평가값 $f(n)$</span><span>우상단: 휴리스틱 $h(n)$</span>`;
+            valueExplain.className = "mb-5 bg-blue-50 text-blue-800 px-6 py-4 rounded-xl text-base font-bold flex justify-between items-center border border-blue-200 shadow-sm transition-colors duration-300";
+            valueExplain.innerHTML = `<span>좌상단: 실제 비용 $g(n)$</span><span class="text-xl text-blue-900 font-black">중앙: 평가값 $f(n)$</span><span>우상단: 예상 비용 $h(n)$</span>`;
         } else {
-            valueExplain.className = "mb-4 bg-purple-50 text-purple-800 px-4 py-2 rounded-lg text-sm font-bold flex justify-center items-center border border-purple-200";
-            valueExplain.innerHTML = `<span class="text-base">오로지 휴리스틱 $h(n)$ 만으로 평가합니다.</span>`;
+            valueExplain.className = "mb-5 bg-purple-50 text-purple-800 px-6 py-4 rounded-xl text-base font-bold flex justify-center items-center border border-purple-200 shadow-sm transition-colors duration-300";
+            valueExplain.innerHTML = `<span class="text-xl text-purple-900 font-black">오로지 휴리스틱 $h(n)$ 만으로 평가합니다.</span>`;
         }
+
+        // 동적으로 변경된 내용 안의 수식을 다시 렌더링
+        renderMathInElement(valueExplain, katexConfig);
     }
 
     function bindControls() {
@@ -573,7 +627,7 @@
     }
 
     function applyTool(cell) {
-        resetSearchVisuals();
+        resetSearchVisuals(); // 탐색 결과 초기화
         const r = parseInt(cell.dataset.r);
         const c = parseInt(cell.dataset.c);
 
@@ -581,13 +635,18 @@
         const isEnd = (r === endNode.r && c === endNode.c);
 
         if (currentTool === 'start' && !isEnd) {
+            // 이전 시작점 위치의 아이콘을 명시적으로 제거할 필요 없이
+            // updateGridVisuals에서 일괄 처리하도록 좌표만 갱신
             startNode = {r, c};
             gridState[r][c] = 0;
         } else if (currentTool === 'end' && !isStart) {
             endNode = {r, c};
             gridState[r][c] = 0;
-        } else if (currentTool === 'wall' && !isStart && !isEnd) gridState[r][c] = 1;
-        else if (currentTool === 'eraser' && !isStart && !isEnd) gridState[r][c] = 0;
+        } else if (currentTool === 'wall' && !isStart && !isEnd) {
+            gridState[r][c] = 1;
+        } else if (currentTool === 'eraser' && !isStart && !isEnd) {
+            gridState[r][c] = 0;
+        }
 
         updateGridVisuals();
     }
@@ -606,25 +665,26 @@
         }
         updateGridVisuals(); // 시작, 끝 아이콘 복구
         statusBadge.innerText = "대기 중";
-        statusBadge.className = "px-2.5 py-1 text-xs bg-slate-100 text-slate-500 rounded-full font-bold";
+        statusBadge.className = "px-3 py-1.5 text-sm bg-slate-200 text-slate-600 rounded-md font-bold";
     }
 
     function updateGridVisuals() {
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
                 const cell = gridDOM[r][c];
-                // 기본 초기화
+
+                // [수정 포인트] 우선 모든 셀의 아이콘과 기본 클래스를 초기화합니다.
+                cell.innerHTML = '';
                 cell.className = 'grid-cell';
 
                 if (r === startNode.r && c === startNode.c) {
                     cell.classList.add('cell-start');
-                    cell.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
+                    cell.innerHTML = '<i class="fa-solid fa-location-dot drop-shadow-md"></i>';
                 } else if (r === endNode.r && c === endNode.c) {
                     cell.classList.add('cell-end');
-                    cell.innerHTML = '<i class="fa-solid fa-flag"></i>';
+                    cell.innerHTML = '<i class="fa-solid fa-flag drop-shadow-md"></i>';
                 } else if (gridState[r][c] === 1) {
                     cell.classList.add('cell-wall');
-                    cell.innerHTML = '';
                 }
             }
         }
@@ -744,7 +804,7 @@
             resetSearchVisuals();
             searchGenerator = createSearchGenerator(algoSelect.value);
             statusBadge.innerText = "탐색 진행 중...";
-            statusBadge.className = "px-2.5 py-1 text-xs bg-teal-100 text-teal-700 rounded-full font-bold";
+            statusBadge.className = "px-3 py-1.5 text-sm bg-teal-100 text-teal-800 rounded-md font-bold";
         }
 
         const result = searchGenerator.next();
@@ -752,10 +812,10 @@
             if (isPlaying) togglePlay();
             if (result.value) {
                 statusBadge.innerText = "목표 도달 성공!";
-                statusBadge.className = "px-2.5 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full font-bold";
+                statusBadge.className = "px-3 py-1.5 text-sm bg-emerald-100 text-emerald-800 rounded-md font-bold";
             } else {
                 statusBadge.innerText = "경로 찾기 실패";
-                statusBadge.className = "px-2.5 py-1 text-xs bg-rose-100 text-rose-700 rounded-full font-bold";
+                statusBadge.className = "px-3 py-1.5 text-sm bg-rose-100 text-rose-800 rounded-md font-bold";
             }
             return;
         }

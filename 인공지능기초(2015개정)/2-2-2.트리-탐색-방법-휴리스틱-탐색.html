@@ -535,30 +535,27 @@
                 if (params.nodes.length > 0) {
                     let clickedNodeId = params.nodes[0];
 
-                    // 시작 노드는 목표 노드로 변경 불가
                     if (clickedNodeId === this.startNode) {
                         this.setStatus('⚠️ 시작 노드는 목표 노드로 지정할 수 없습니다.');
+                        this.network.unselectAll();
                         return;
                     }
 
-                    // 탐색 중이거나 완료된 상태라면 화면을 초기화
-                    this.resetSearch();
-
-                    // 기존 목표 노드의 h값을 다시 랜덤 부여하고 상태를 기본(default)으로 되돌림
                     let oldGoal = this.goalNode;
+
+                    // 1. 내부 목표 노드 변수를 새로운 클릭 노드로 가장 먼저 변경
+                    this.goalNode = clickedNodeId;
+
+                    // 2. 휴리스틱(h) 값 업데이트 (새 목표는 0, 옛날 목표는 랜덤)
+                    this.nodeDataMap.get(this.goalNode).h = 0;
                     if (oldGoal && oldGoal !== clickedNodeId) {
                         this.nodeDataMap.get(oldGoal).h = Math.floor(Math.random() * 20) + 1;
-                        this.updateNodeStyle(oldGoal, 'default');
                     }
 
-                    // 새 목표 노드 설정 및 h값을 0으로 고정
-                    this.goalNode = clickedNodeId;
-                    this.nodeDataMap.get(this.goalNode).h = 0;
-                    this.updateNodeStyle(this.goalNode, 'goal');
+                    // 3. 변수가 교체된 상태에서 화면을 전체 초기화 (이 안에서 라벨이 일괄 교체됨)
+                    this.resetSearch();
 
                     this.setStatus(`노드 ${this.goalNode}이(가) 새로운 목표(Goal)로 설정되었습니다.`);
-
-                    // 🔥 핵심 추가: 클릭 직후 선택 상태를 강제로 즉시 해제
                     this.network.unselectAll();
                 }
             });

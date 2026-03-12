@@ -800,6 +800,7 @@
     }
 
     function stepSearch() {
+        // 1. 제너레이터가 없으면 새로 생성 (Run 버튼을 처음 눌렀을 때)
         if (!searchGenerator) {
             resetSearchVisuals();
             searchGenerator = createSearchGenerator(algoSelect.value);
@@ -808,8 +809,11 @@
         }
 
         const result = searchGenerator.next();
+
+        // 2. 탐색이 끝났을 때 처리
         if (result.done) {
-            if (isPlaying) togglePlay();
+            if (isPlaying) togglePlay(); // 자동 재생 중이었다면 정지
+
             if (result.value) {
                 statusBadge.innerText = "목표 도달 성공!";
                 statusBadge.className = "px-3 py-1.5 text-sm bg-emerald-100 text-emerald-800 rounded-md font-bold";
@@ -820,25 +824,22 @@
             return;
         }
 
+        // 3. 탐색 단계 시각화
         const action = result.value;
         const cell = gridDOM[action.node.r][action.node.c];
         const isAStar = algoSelect.value === 'astar';
 
-        // 현재 Current Node 스타일 제거 후 복구
-        document.querySelectorAll('.cell-current').forEach(el => {
-            el.classList.remove('cell-current');
-            el.classList.add('cell-closed');
-        });
-
         if (action.type === 'current') {
+            // 이전의 '현재 노드' 스타일을 모두 제거하고 '방문 완료'로 변경
+            document.querySelectorAll('.cell-current').forEach(el => {
+                el.classList.remove('cell-current');
+                el.classList.add('cell-closed');
+            });
             cell.classList.remove('cell-open');
             cell.classList.add('cell-current');
         } else if (action.type === 'open') {
             cell.classList.add('cell-open');
             renderCellValues(cell, action.g, action.h, action.f, isAStar);
-        } else if (action.type === 'closed') {
-            cell.classList.remove('cell-current');
-            cell.classList.add('cell-closed');
         } else if (action.type === 'path') {
             cell.classList.remove('cell-open', 'cell-closed', 'cell-current');
             cell.classList.add('cell-path');
@@ -848,17 +849,25 @@
     function togglePlay() {
         const btnRun = document.getElementById('btn-run');
         if (isPlaying) {
+            // 정지 로직
             isPlaying = false;
             clearInterval(playInterval);
+            playInterval = null;
             btnRun.innerHTML = `<i class="fa-solid fa-play"></i> Run`;
             btnRun.classList.replace('bg-rose-500', 'bg-teal-600');
             btnRun.classList.replace('hover:bg-rose-600', 'hover:bg-teal-700');
         } else {
+            // 실행 로직
             isPlaying = true;
             btnRun.innerHTML = `<i class="fa-solid fa-pause"></i> Pause`;
             btnRun.classList.replace('bg-teal-600', 'bg-rose-500');
             btnRun.classList.replace('hover:bg-teal-700', 'hover:bg-rose-600');
-            playInterval = setInterval(stepSearch, 100); // 속도 제어
+
+            // [중요] 누르자마자 첫 번째 단계를 즉시 실행
+            stepSearch();
+
+            // 이후 인터벌 실행
+            playInterval = setInterval(stepSearch, 100);
         }
     }
 

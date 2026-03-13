@@ -228,16 +228,23 @@
                 <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
                     <div class="flex flex-wrap gap-2">
                         <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
-                                onclick="uiController.loadExample(1)">📚 공부시간 vs 점수
+                                onclick="uiController.loadExample(1)">
+                            <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 vs 시험 점수
                         </button>
+
                         <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
-                                onclick="uiController.loadExample(2)">☁️ 구름 양 vs 강수량
+                                onclick="uiController.loadExample(2)">
+                            <i class="fa-solid fa-temperature-high mr-1"></i> 기온 vs 아이스크림 판매
                         </button>
+
                         <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
-                                onclick="uiController.loadExample(3)">🏃 운동시간 vs 칼로리
+                                onclick="uiController.loadExample(3)">
+                            <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 vs 게임 점수
                         </button>
+
                         <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
-                                onclick="uiController.loadExample(4)">📢 광고비 vs 판매량
+                                onclick="uiController.loadExample(4)">
+                            <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 vs WiFi 속도
                         </button>
                     </div>
                     <p id="exampleDesc" class="mt-3 text-sm text-blue-600 font-medium h-5 text-center"></p>
@@ -453,12 +460,42 @@
             this.model = new RegressionModel();
             this.renderer = new CanvasRenderer('regressionCanvas');
             this.animationId = null;
+
+            // type으로 매개변수 통일, count 변수 추가(예: 50개)
+            function generateData(type, count = 50) {
+                const data = [];
+
+                for (let i = 1; i <= count; i++) {
+                    let x = i;
+                    let y = 0;
+
+                    switch (type) {
+                        case 1:
+                            y = 5 * x + 50 + (Math.random() * 100 - 50);
+                            break;
+                        case 2:
+                            y = 1.5 * x - 300 + (Math.random() * 60 - 30);
+                            break;
+                        case 3:
+                            y = 12 * x + 100 + (Math.random() * 300 - 50);
+                            break;
+                        case 4:
+                            y = 300 / x + (Math.random() * 70 - 7.5);
+                            break;
+                    }
+
+                    data.push({x: Number(x.toFixed(2)), y: Number(y.toFixed(2))});
+                }
+                return data;
+            }
+
             this.examples = {
-                1: {desc: "공부 시간이 늘어나면 점수가 높아집니다.", data: [{x: 1, y: 40}, {x: 2, y: 55}, {x: 3, y: 60}, {x: 5, y: 85}]},
-                2: {desc: "구름 양과 강수량의 상관관계", data: [{x: 10, y: 2}, {x: 30, y: 8}, {x: 50, y: 20}]},
-                3: {desc: "운동 시간과 소모 칼로리", data: [{x: 30, y: 150}, {x: 60, y: 350}, {x: 90, y: 500}]},
-                4: {desc: "광고비와 제품 판매량", data: [{x: 100, y: 500}, {x: 300, y: 1300}, {x: 500, y: 2000}]}
+                1: {desc: "밤샘 공부 시간이 늘어나면 시험 점수가 올라갑니다.", data: generateData(1)},
+                2: {desc: "기온이 높아질수록 아이스크림 판매량이 증가합니다.", data: generateData(2)},
+                3: {desc: "게임 연습 시간이 늘어날수록 게임 점수가 올라갑니다.", data: generateData(3)},
+                4: {desc: "공유기에서 멀어질수록 WiFi 속도가 느려집니다.", data: generateData(4)}
             };
+
             this.bindEvents();
             this.updateUI();
         }
@@ -510,17 +547,52 @@
             document.getElementById('btnReset').addEventListener('click', () => this.enableTraining() || this.updateUI());
             document.getElementById('btnClearData').addEventListener('click', () => {
                 this.dataManager.clear();
+                document.getElementById('exampleDesc').innerText = "";
                 this.enableTraining();
                 this.updateUI();
             });
             document.getElementById('btnRandomData').addEventListener('click', () => {
                 this.dataManager.clear();
-                for (let i = 0; i < 10; i++) {
-                    let x = i * 10;
-                    this.dataManager.addPoint(x, x * 1.2 + Math.random() * 20);
+                // 가우시안 노이즈 생성 함수 (정규 분포에 가까운 랜덤값)
+                const getNoise = (intensity) => (Math.random() + Math.random() + Math.random() - 1.5) * intensity;
+
+                if (Math.random() < 0.6) {
+                    // 1. 선형 패턴: 키와 몸무게, 혹은 공부 시간과 성적 같은 관계
+                    for (let i = 0; i < 100; i++) {
+                        let x = Math.random() * 80 + 10; // 10 ~ 90 사이 분포
+
+                        // y = ax + b + noise (상관관계가 뚜렷하지만 흩뿌려짐)
+                        // 노이즈 강도를 25 정도로 조절해 적당한 산점도 형성
+                        let y = 0.7 * x + 20 + getNoise(25);
+
+                        this.dataManager.addPoint(Number(x.toFixed(2)), Number(y.toFixed(2)));
+                    }
+
+                    // 데이터의 '현실성'을 위해 관계를 벗어나는 이상치(Outlier) 5개 추가
+                    for (let i = 0; i < 5; i++) {
+                        this.dataManager.addPoint(Math.random() * 100, Math.random() * 100);
+                    }
+
+                } else {
+                    // 2. 반비례 패턴: 기온과 뜨거운 음료 판매량, 혹은 자동차 속도와 도착 시간
+                    for (let i = 0; i < 100; i++) {
+                        let x = Math.random() * 85 + 5; // 5 ~ 90 사이 분포 (0 근처 분산 방지)
+
+                        // y = k / x + b + noise
+                        // x가 작을 때 y가 급격히 커지는 곡선 패턴
+                        let y = 400 / (x + 5) + 10 + getNoise(8);
+
+                        this.dataManager.addPoint(Number(x.toFixed(2)), Number(y.toFixed(2)));
+                    }
+
+                    // 곡선 패턴에서의 노이즈 추가 (데이터 끝부분 보정)
+                    for (let i = 0; i < 5; i++) {
+                        this.dataManager.addPoint(Math.random() * 100, Math.random() * 20);
+                    }
                 }
                 this.enableTraining();
                 this.updateUI();
+                document.getElementById('exampleDesc').innerText = "랜덤 데이터가 생성되었습니다. 학습을 시작해보세요.";
             });
 
             document.getElementById('btnAddCoord').addEventListener('click', () => {

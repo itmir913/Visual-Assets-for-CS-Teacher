@@ -177,31 +177,32 @@
             <div class="w-full lg:w-[60%] flex flex-col gap-4">
                 <div class="relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
                      style="aspect-ratio: 4/3;">
-                    <canvas id="regressionCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                    <canvas id="regressionCanvas"
+                            class="absolute top-0 left-0 w-full h-full cursor-crosshair touch-none"></canvas>
 
-                    <div class="absolute left-2 top-2 text-xs font-bold text-emerald-600 bg-white/80 px-2 py-1 rounded">
+                    <div class="absolute left-2 top-2 text-xs font-bold text-emerald-600 bg-white/80 px-2 py-1 rounded shadow-sm pointer-events-none">
                         클래스 1
                     </div>
-                    <div class="absolute left-2 bottom-2 text-xs font-bold text-rose-600 bg-white/80 px-2 py-1 rounded">
+                    <div class="absolute left-2 bottom-2 text-xs font-bold text-rose-600 bg-white/80 px-2 py-1 rounded shadow-sm pointer-events-none">
                         클래스 0
                     </div>
                 </div>
 
                 <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
                     <div class="flex flex-wrap gap-2">
-                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50"
+                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 transition"
                                 onclick="uiController.loadExample(1)">
                             <i class="fa-solid fa-book mr-1"></i> 공부 시간 vs 합격/불합격
                         </button>
 
-                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50"
+                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 transition"
                                 onclick="uiController.loadExample(2)">
-                            <i class="fa-solid fa-temperature-full mr-1"></i> 온도 vs 에어컨 가동여부
+                            <i class="fa-solid fa-temperature-full mr-1"></i> 온도 vs 에어컨 작동
                         </button>
 
-                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50"
+                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 transition"
                                 onclick="uiController.loadExample(3)">
-                            <i class="fa-solid fa-virus mr-1"></i> 바이러스 수치 vs 양성판정
+                            <i class="fa-solid fa-virus mr-1"></i> 바이러스 수치 vs 양성
                         </button>
                     </div>
                     <p id="exampleDesc" class="mt-3 text-sm text-indigo-600 font-medium h-5 text-center"></p>
@@ -209,7 +210,7 @@
                 <div class="flex gap-3 mt-auto">
                     <button id="btnRandomData"
                             class="flex-1 px-4 py-3 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200 transition-colors">
-                        랜덤 데이터
+                        랜덤 데이터 추가
                     </button>
                     <button id="btnClearData"
                             class="flex-1 px-4 py-3 text-sm bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl border border-slate-200 transition-colors">
@@ -225,8 +226,7 @@
                     <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-600 shadow-inner mb-4 flex flex-col gap-1">
                         <span id="zEquationDisplay"
                               class="math-font text-sm text-slate-400 transition-all">z = ax + b</span>
-                        <span id="equationDisplay"
-                              class="math-font text-lg md:text-xl font-black text-purple-400">P(y=1) = σ(z)</span>
+                        <span id="equationDisplay" class="math-font text-lg md:text-xl font-black text-purple-400">P(y=1) = σ(z)</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mb-2">
                         <button id="btnTrain"
@@ -287,10 +287,13 @@
             if (this.points.length === 0) return {minX: 0, maxX: 100, minY: -0.2, maxY: 1.2};
             let minX = Math.min(...this.points.map(p => p.x));
             let maxX = Math.max(...this.points.map(p => p.x));
-            if (minX === maxX) {
+
+            // 데이터 범위가 동일할 경우의 방어 코드 개선
+            if (Math.abs(maxX - minX) < 0.0001) {
                 minX -= 10;
                 maxX += 10;
             }
+
             let padX = (maxX - minX) * 0.1;
             return {minX: minX - padX, maxX: maxX + padX, minY: -0.2, maxY: 1.2};
         }
@@ -304,7 +307,7 @@
             this.learningRate = 1.0;
             this.isTraining = false;
             this.hasStarted = false;
-            this.predictData = null; // 예측 결과 저장용
+            this.predictData = null;
         }
 
         init() {
@@ -348,7 +351,6 @@
         constructor(canvasId) {
             this.canvas = document.getElementById(canvasId);
             this.ctx = this.canvas.getContext('2d');
-            // 디자인 일관성을 위한 패딩 설정
             this.padding = {top: 40, right: 50, bottom: 40, left: 50};
             this.resize();
             window.addEventListener('resize', () => this.resize());
@@ -356,21 +358,34 @@
 
         resize() {
             const rect = this.canvas.parentElement.getBoundingClientRect();
-            this.canvas.width = rect.width;
-            this.canvas.height = rect.height;
+            // 디바이스 픽셀 비율 대응 (Retina Display 선명도 보정)
+            const dpr = window.devicePixelRatio || 1;
+
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+
+            // CSS 크기는 고정
+            this.canvas.style.width = `${rect.width}px`;
+            this.canvas.style.height = `${rect.height}px`;
+
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            this.logicalWidth = rect.width;
+            this.logicalHeight = rect.height;
         }
 
         pixelToData(px, py, bounds) {
-            const innerW = this.canvas.width - this.padding.left - this.padding.right;
-            const innerH = this.canvas.height - this.padding.top - this.padding.bottom;
+            const innerW = this.logicalWidth - this.padding.left - this.padding.right;
+            const innerH = this.logicalHeight - this.padding.top - this.padding.bottom;
 
             const x = bounds.minX + ((px - this.padding.left) / innerW) * (bounds.maxX - bounds.minX);
-            const y = bounds.minY + ((this.canvas.height - this.padding.bottom - py) / innerH) * (bounds.maxY - bounds.minY);
+            const y = bounds.minY + ((this.logicalHeight - this.padding.bottom - py) / innerH) * (bounds.maxY - bounds.minY);
             return {x, y};
         }
 
         render(dataManager, model) {
-            const {width: w, height: h} = this.canvas;
+            const w = this.logicalWidth;
+            const h = this.logicalHeight;
             const ctx = this.ctx;
             const bounds = dataManager.getBounds();
             const p = this.padding;
@@ -384,20 +399,19 @@
             const getY = (val) => (h - p.bottom) - ((val - bounds.minY) / (bounds.maxY - bounds.minY)) * innerH;
 
             // --- [1. X축 눈금 및 라벨] ---
-            // --- [안전하게 개선된 Step 계산] ---
-            const rangeX = bounds.maxX - bounds.minX || 1; // 0 나누기 방지
+            const rangeX = bounds.maxX - bounds.minX || 1;
             const targetTickCount = 7;
             let rawStep = rangeX / targetTickCount;
 
-            let step;
-            if (rawStep <= 1) step = 1; // 데이터 범위가 좁을 땐 1단위로
-            else if (rawStep <= 5) step = 5;
-            else if (rawStep <= 10) step = 10;
-            else step = Math.floor(rawStep / 10) * 10;
+            // 눈금 간격 계산 개선 (너무 좁아지는 현상 방지)
+            let step = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            if (rawStep / step >= 5) step *= 5;
+            else if (rawStep / step >= 2) step *= 2;
+
+            if (step < 0.1) step = 0.1; // 최소 step 제한
 
             const startX = Math.ceil(bounds.minX / step) * step;
 
-            // 눈금 스타일 초기화
             ctx.font = '11px Pretendard';
             ctx.fillStyle = '#94a3b8';
             ctx.textAlign = 'center';
@@ -410,7 +424,10 @@
                 ctx.moveTo(px, p.top);
                 ctx.lineTo(px, h - p.bottom);
                 ctx.stroke();
-                ctx.fillText(Math.round(xVal).toString(), px, h - p.bottom + 20);
+
+                // 소수점 처리 방어
+                let label = (step < 1) ? xVal.toFixed(1) : Math.round(xVal).toString();
+                ctx.fillText(label, px, h - p.bottom + 20);
             }
 
             // --- [2. 가로 가이드라인 (Y=0, Y=1)] ---
@@ -424,35 +441,38 @@
                 ctx.stroke();
             });
 
+            // 클리핑 영역 설정: 예측선이나 그래프가 UI 패널 밖으로 삐져나가는 것을 방지
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(p.left, p.top, innerW, innerH);
+            ctx.clip();
+
             // --- [3. 결정 경계선] ---
             if (dataManager.points.length > 0 && model.hasStarted && model.w !== 0) {
                 let boundary_nx = -model.b / model.w;
                 let boundary_x = bounds.minX + boundary_nx * (bounds.maxX - bounds.minX);
                 let px = p.left + (boundary_nx * innerW);
 
-                if (px >= p.left && px <= w - p.right) {
-                    ctx.beginPath();
-                    ctx.setLineDash([6, 6]);
-                    ctx.moveTo(px, p.top);
-                    ctx.lineTo(px, h - p.bottom);
-                    ctx.strokeStyle = '#f59e0b';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.setLineDash([6, 6]);
+                ctx.moveTo(px, p.top);
+                ctx.lineTo(px, h - p.bottom);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-                    ctx.fillStyle = '#d97706';
-                    ctx.font = 'bold 12px Pretendard';
-                    // 경계선이 오른쪽에 너무 붙으면 텍스트를 왼쪽에 그림
-                    ctx.textAlign = px > w - 100 ? 'right' : 'left';
-                    const textX = px > w - 100 ? px - 10 : px + 10;
-                    ctx.fillText(`경계: x = ${boundary_x.toFixed(1)}`, textX, h / 2);
-                }
+                ctx.fillStyle = '#d97706';
+                ctx.font = 'bold 12px Pretendard';
+                ctx.textAlign = px > w - 100 ? 'right' : 'left';
+                const textX = px > w - 100 ? px - 10 : px + 10;
+                ctx.fillText(`경계: x = ${boundary_x.toFixed(1)}`, textX, h / 2);
             }
 
             // --- [4. 시그모이드 곡선] ---
             if (dataManager.points.length > 0 && model.hasStarted) {
                 ctx.beginPath();
-                ctx.lineJoin = 'round'; // 곡선을 부드럽게
+                ctx.lineJoin = 'round';
                 for (let px = p.left; px <= w - p.right; px += 2) {
                     const nx = (px - p.left) / innerW;
                     const z = model.w * nx + model.b;
@@ -467,23 +487,11 @@
                 ctx.stroke();
             }
 
-            // --- [5. 데이터 포인트] ---
-            for (let p_data of dataManager.points) {
-                const px = getX(p_data.x);
-                const py = getY(p_data.y);
-                ctx.beginPath();
-                ctx.arc(px, py, 6, 0, Math.PI * 2);
-                ctx.fillStyle = p_data.y === 1 ? '#10b981' : '#f43f5e';
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-
-            // --- [6. 예측 데이터] ---
+            // --- [5. 예측 데이터 (점선 및 마커)] ---
             if (model.predictData) {
                 const px = getX(model.predictData.x);
                 const py = getY(model.predictData.p);
+
                 ctx.beginPath();
                 ctx.setLineDash([3, 3]);
                 ctx.strokeStyle = '#a855f7';
@@ -501,10 +509,27 @@
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                ctx.textAlign = 'left';
+                ctx.textAlign = px > w - 60 ? 'right' : 'left';
+                const textOffset = px > w - 60 ? -10 : 10;
                 ctx.fillStyle = '#9333ea';
                 ctx.font = 'bold 13px Pretendard';
-                ctx.fillText(`${(model.predictData.p * 100).toFixed(1)}%`, px + 10, py - 8);
+                ctx.fillText(`${(model.predictData.p * 100).toFixed(1)}%`, px + textOffset, py - 8);
+            }
+
+            // 클리핑 해제
+            ctx.restore();
+
+            // --- [6. 데이터 포인트 (클리핑 밖에서도 반점 짤림 방지를 위해 마지막에 그림)] ---
+            for (let p_data of dataManager.points) {
+                const px = getX(p_data.x);
+                const py = getY(p_data.y);
+                ctx.beginPath();
+                ctx.arc(px, py, 6, 0, Math.PI * 2);
+                ctx.fillStyle = p_data.y === 1 ? '#10b981' : '#f43f5e';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
             }
         }
     }
@@ -550,7 +575,7 @@
             this.model.isTraining = false;
             this.model.hasStarted = false;
             this.model.predictData = null; // 예측 상태 초기화
-            cancelAnimationFrame(this.animationId);
+            if (this.animationId) cancelAnimationFrame(this.animationId);
 
             const btn = document.getElementById('btnTrain');
             btn.disabled = false;
@@ -559,10 +584,30 @@
             btn.classList.add('bg-indigo-500');
             document.getElementById('btnPause').disabled = false;
 
-            // 예측 패널 비활성화
+            // 예측 패널 초기화 및 비활성화
             document.getElementById('predictPanel').classList.add('opacity-50', 'pointer-events-none');
             document.getElementById('predictResult').innerHTML = "";
             document.getElementById('predictInputX').value = "";
+        }
+
+        executePredict() {
+            const inputX = parseFloat(document.getElementById('predictInputX').value);
+            if (isNaN(inputX)) return alert("예측할 올바른 x값을 입력해주세요.");
+
+            const b = this.dataManager.getBounds();
+            const nx = (inputX - b.minX) / (b.maxX - b.minX);
+            const z = this.model.w * nx + this.model.b;
+            const p = this.model.sigmoid(z);
+
+            this.model.predictData = {x: inputX, p: p};
+
+            const resultDiv = document.getElementById('predictResult');
+            const isClass1 = p >= 0.5;
+            const resultText = isClass1 ? '클래스 1' : '클래스 0';
+            const resultColor = isClass1 ? 'text-emerald-400' : 'text-rose-400';
+
+            resultDiv.innerHTML = `확률: ${(p * 100).toFixed(1)}% ➔ <span class="${resultColor} font-black">${resultText}</span>`;
+            this.updateUI();
         }
 
         bindEvents() {
@@ -584,7 +629,7 @@
                 if (!this.model.hasStarted) this.model.init();
                 this.model.hasStarted = true;
                 this.model.isTraining = true;
-                this.model.predictData = null; // 학습 시작시 예측 그래픽 제거
+                this.model.predictData = null;
 
                 const btn = document.getElementById('btnTrain');
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>학습 중...';
@@ -596,14 +641,18 @@
 
             document.getElementById('btnPause').addEventListener('click', () => {
                 this.model.isTraining = false;
-                cancelAnimationFrame(this.animationId);
+                if (this.animationId) cancelAnimationFrame(this.animationId);
                 const btn = document.getElementById('btnTrain');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 재개';
                 btn.classList.replace('bg-indigo-700', 'bg-indigo-500');
             });
 
-            document.getElementById('btnReset').addEventListener('click', () => this.enableTraining() || this.updateUI());
+            document.getElementById('btnReset').addEventListener('click', () => {
+                this.enableTraining();
+                this.updateUI();
+            });
+
             document.getElementById('btnClearData').addEventListener('click', () => {
                 this.dataManager.clear();
                 document.getElementById('exampleDesc').innerText = "";
@@ -612,37 +661,27 @@
             });
 
             document.getElementById('btnRandomData').addEventListener('click', () => {
-                this.dataManager.clear();
-                const count = 40;
+                const count = 20;
                 for (let i = 0; i < count; i++) {
                     let y = Math.random() > 0.5 ? 1 : 0;
-                    let x = y === 1 ? 50 + (Math.random() + Math.random()) * 25 : (Math.random() + Math.random()) * 25;
+                    // 현재 바운드 범위를 참조하여 자연스럽게 난수 생성
+                    let b = this.dataManager.getBounds();
+                    let range = b.maxX - b.minX;
+                    if (range === 0) range = 100;
+                    let xOffset = y === 1 ? range * 0.4 : 0;
+                    let x = b.minX + xOffset + (Math.random() + Math.random()) * (range * 0.3);
+
                     this.dataManager.addPoint(Number(x.toFixed(2)), y);
                 }
                 this.enableTraining();
                 this.updateUI();
-                document.getElementById('exampleDesc').innerText = "랜덤 두 그룹 데이터가 생성되었습니다. 학습을 시작해보세요.";
+                document.getElementById('exampleDesc').innerText = "랜덤 두 그룹 데이터가 추가되었습니다.";
             });
 
-            // [개선 포인트] 예측하기 버튼 이벤트
-            document.getElementById('btnPredict').addEventListener('click', () => {
-                const inputX = parseFloat(document.getElementById('predictInputX').value);
-                if (isNaN(inputX)) return alert("예측할 x값을 입력해주세요.");
-
-                const b = this.dataManager.getBounds();
-                const nx = (inputX - b.minX) / (b.maxX - b.minX);
-                const z = this.model.w * nx + this.model.b;
-                const p = this.model.sigmoid(z);
-
-                this.model.predictData = {x: inputX, p: p};
-
-                const resultDiv = document.getElementById('predictResult');
-                const isClass1 = p >= 0.5;
-                const resultText = isClass1 ? '클래스 1' : '클래스 0';
-                const resultColor = isClass1 ? 'text-emerald-400' : 'text-rose-400';
-
-                resultDiv.innerHTML = `확률: ${(p * 100).toFixed(1)}% ➔ <span class="${resultColor} font-black">${resultText}</span>`;
-                this.updateUI();
+            // 예측 실행 이벤트 (클릭 및 엔터 키)
+            document.getElementById('btnPredict').addEventListener('click', () => this.executePredict());
+            document.getElementById('predictInputX').addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') this.executePredict();
             });
 
             window.addEventListener('resize', () => {
@@ -685,7 +724,7 @@
                 btn.disabled = true;
                 document.getElementById('btnPause').disabled = true;
 
-                // [개선 포인트] 예측 패널 활성화
+                // 예측 패널 활성화
                 document.getElementById('predictPanel').classList.remove('opacity-50', 'pointer-events-none');
             } else {
                 this.animationId = requestAnimationFrame(() => this.loop());
@@ -706,7 +745,6 @@
                 const rw = this.model.w / rX;
                 const rb = -this.model.w * b.minX / rX + this.model.b;
 
-                // [개선 포인트] z 수식 실시간 업데이트
                 const sign = rb >= 0 ? '+' : '-';
                 zEq.innerText = `z = ${rw.toFixed(2)}x ${sign} ${Math.abs(rb).toFixed(2)}`;
                 eDisp.innerHTML = `P(y=1) = &sigma;(z)`;

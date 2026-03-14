@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로지스틱 회귀 모델 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .math-font {
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: -0.5px;
+        }
+
+        /* 비활성화 버튼 스타일 */
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        /* 버튼 상태 및 Hover 스타일 재정의 */
+        #btnTrain {
+            transition: all 0.2s ease;
+        }
+
+        /* 1. 기본 상태 (학습 가능) */
+        #btnTrain.state-ready:hover {
+            background-color: #4f46e5; /* 더 진한 보라/파랑 */
+        }
+
+        /* 2. 학습 중 또는 완료 상태 (비활성화) */
+        #btnTrain:disabled {
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+            opacity: 0.8;
+        }
+
+        /* 학습 완료 상태 전용 (Emerald) */
+        #btnTrain.state-complete {
+            background-color: #10b981 !important;
+            color: white !important;
+        }
+
+        #btnTrain.state-complete:disabled {
+            opacity: 1;
+        }
+
+        /* 학습 중 상태 전용 (Indigo) */
+        #btnTrain.state-loading {
+            background-color: #3730a3 !important;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header id="intro" class="hero-gradient text-white py-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-md text-sm md:text-base">인공지능 실습</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">합격일까 불합격일까?<br>Logistic Regression</h1>
+        <p class="text-xl md:text-2xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            데이터를 0과 1 두 가지 그룹으로 분류하려면 어떻게 해야 할까요? 선형회귀를 확장하여 확률을 계산하는 로지스틱 회귀와 시그모이드(Sigmoid) 함수를 체험해 봅니다.
+        </p>
+    </div>
+</header>
+
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"><i
+                    class="fa-solid fa-chart-pie"></i></div>
+            <span class="font-black text-2xl tracking-tight text-slate-800">로지스틱 회귀</span>
+        </div>
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-lg">
+            <a href="#intro" class="hover:text-indigo-600 transition">도입</a>
+            <a href="#concept" class="hover:text-indigo-600 transition">개념설명</a>
+            <a href="#activity" class="hover:text-indigo-600 transition">시뮬레이터</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <section id="concept" class="scroll-mt-24 space-y-12 max-w-6xl mx-auto">
+        <div class="text-center space-y-4">
+            <span class="text-indigo-600 font-bold tracking-widest uppercase text-base">Core Mechanism</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">연속된 숫자에서 '확률'로 변환하다</h2>
+            <p class="text-slate-600 text-lg font-medium">선형회귀의 계산 결과를 S자 모양의 함수에 넣어 0%~100% 사이의 확률로 바꿉니다.</p>
+        </div>
+
+        <div class="relative grid grid-cols-1 md:grid-cols-4 gap-6 mt-12">
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-14 h-14 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-2xl">
+                    <i class="fa-solid fa-check-double"></i>
+                </div>
+                <span class="px-3 py-1 bg-slate-50 text-slate-600 font-bold rounded-full text-sm mb-3">Step 1</span>
+                <h3 class="text-xl font-black mb-2 text-slate-800">분류 데이터 표시</h3>
+                <p class="text-slate-600 text-sm leading-relaxed break-keep">예/아니오, 합격/불합격처럼 결과가 1 또는 0으로 나뉜 데이터를
+                    준비합니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-2xl">
+                    <i class="fa-solid fa-calculator"></i>
+                </div>
+                <span class="px-3 py-1 bg-blue-50 text-blue-600 font-bold rounded-full text-sm mb-3">Step 2</span>
+                <h3 class="text-xl font-black mb-2 text-slate-800">선형 식 계산 (z)</h3>
+                <p class="text-slate-600 text-sm leading-relaxed break-keep">기존 선형회귀처럼 데이터의 특징에 가중치를 곱해 수치(z = ax + b)를
+                    계산합니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-2xl">
+                    <i class="fa-solid fa-wave-square"></i>
+                </div>
+                <span class="px-3 py-1 bg-purple-50 text-purple-600 font-bold rounded-full text-sm mb-3">Step 3</span>
+                <h3 class="text-xl font-black mb-2 text-slate-800">시그모이드 적용</h3>
+                <p class="text-slate-600 text-sm leading-relaxed break-keep">계산된 무한한 수치(z)를 시그모이드 함수에 통과시켜 0과 1 사이의
+                    '확률'로 압축합니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-2xl">
+                    <i class="fa-solid fa-grip-lines-vertical"></i>
+                </div>
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-600 font-bold rounded-full text-sm mb-3">Step 4</span>
+                <h3 class="text-xl font-black mb-2 text-slate-800">결정 경계 탐색</h3>
+                <p class="text-slate-600 text-sm leading-relaxed break-keep">확률이 0.5(50%)가 되는 지점을 기준으로 두 그룹을 가장 잘 나누는
+                    경계선을 찾습니다.</p>
+            </div>
+        </div>
+
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-col md:flex-row gap-6 mt-8">
+            <div class="flex-1">
+                <h4 class="font-bold text-indigo-800 mb-2"><i class="fa-solid fa-lightbulb text-yellow-500 mr-2"></i>핵심
+                    정리
+                </h4>
+                <ul class="list-disc list-inside text-indigo-900 space-y-1 text-sm">
+                    <li>분류 문제에 선형회귀 선을 그대로 그으면 결과가 0 아래나 1 위로 벗어납니다.</li>
+                    <li><strong>시그모이드(Sigmoid) 함수</strong>는 어떤 값이든 0~1 (0%~100%)로 변환해주는 마법의 S자 곡선입니다.</li>
+                </ul>
+            </div>
+            <div class="flex-1">
+                <h4 class="font-bold text-rose-800 mb-2"><i
+                        class="fa-solid fa-triangle-exclamation text-rose-500 mr-2"></i>주의할 점 (오개념 방지)</h4>
+                <ul class="list-disc list-inside text-rose-900 space-y-1 text-sm">
+                    <li>이름은 '회귀(Regression)'지만, 실제로는 <strong>분류(Classification)</strong> 모델입니다.</li>
+                    <li>1이 될 확률이 0.5보다 크면 1(합격), 작으면 0(불합격)으로 예측합니다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section id="activity"
+             class="max-w-7xl scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg">
+        <div class="mb-8 space-y-2 text-center md:text-left">
+            <span class="text-indigo-600 font-bold tracking-widest uppercase text-base">Interactive Simulator</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">로지스틱 회귀 분류 시뮬레이터</h2>
+            <p class="text-slate-600 text-lg">캔버스의 위쪽을 클릭하면 '1(합격)', 아래쪽을 클릭하면 '0(불합격)' 데이터가 추가됩니다.</p>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-6 items-stretch">
+            <div class="w-full lg:w-[60%] flex flex-col gap-4">
+                <div class="relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
+                     style="aspect-ratio: 4/3;">
+                    <canvas id="regressionCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+
+                    <div class="absolute left-2 top-2 text-xs font-bold text-emerald-600 bg-white/80 px-2 py-1 rounded">
+                        클래스 1 (y=1)
+                    </div>
+                    <div class="absolute left-2 bottom-2 text-xs font-bold text-rose-600 bg-white/80 px-2 py-1 rounded">
+                        클래스 0 (y=0)
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
+                    <div class="flex flex-wrap gap-2">
+                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50"
+                                onclick="uiController.loadExample(1)">
+                            <i class="fa-solid fa-book mr-1"></i> 공부 시간 vs 합격/불합격
+                        </button>
+
+                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50"
+                                onclick="uiController.loadExample(2)">
+                            <i class="fa-solid fa-temperature-full mr-1"></i> 온도 vs 에어컨 가동여부
+                        </button>
+
+                        <button class="flex-1 min-w-[120px] px-3 py-2 text-sm bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50"
+                                onclick="uiController.loadExample(3)">
+                            <i class="fa-solid fa-virus mr-1"></i> 바이러스 수치 vs 양성판정
+                        </button>
+                    </div>
+                    <p id="exampleDesc" class="mt-3 text-sm text-indigo-600 font-medium h-5 text-center"></p>
+                </div>
+            </div>
+
+            <div class="w-full lg:w-[40%] flex flex-col gap-5">
+                <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white">
+                    <p class="font-black text-slate-300 text-sm flex items-center uppercase tracking-widest mb-3"><i
+                            class="fa-solid fa-calculator mr-2"></i>Sigmoid Model</p>
+                    <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-600 shadow-inner mb-4 flex flex-col gap-1">
+                        <span class="math-font text-sm text-slate-400">z = ax + b</span>
+                        <span id="equationDisplay"
+                              class="math-font text-lg md:text-xl font-black text-purple-400">P(y=1) = σ(z)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-2">
+                        <button id="btnTrain"
+                                class="col-span-2 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg">
+                            <i class="fa-solid fa-play mr-2"></i>학습 시작
+                        </button>
+                        <button id="btnPause"
+                                class="py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center">
+                            <i class="fa-solid fa-pause mr-2"></i>일시정지
+                        </button>
+                        <button id="btnReset"
+                                class="py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center">
+                            <i class="fa-solid fa-rotate-right mr-2"></i>초기화
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 flex-1 flex flex-col justify-center gap-3">
+                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-slate-500 text-xs">가중치 (a)</span>
+                        <span id="valSlope" class="font-black text-slate-800 math-font">0.000</span>
+                    </div>
+                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-slate-500 text-xs">편향 (b)</span>
+                        <span id="valIntercept" class="font-black text-slate-800 math-font">0.000</span>
+                    </div>
+                    <div class="bg-white px-4 py-3 rounded-xl border border-rose-200 shadow-sm flex justify-between items-center"
+                         title="Binary Cross Entropy Loss">
+                        <span class="font-bold text-rose-500 text-xs">Loss (로그손실)</span>
+                        <span id="valLoss" class="font-black text-rose-600 math-font">0.000</span>
+                    </div>
+                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-slate-500 text-xs">Epoch (반복)</span>
+                        <span id="valEpoch" class="font-black text-slate-800 math-font">0</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mt-auto">
+                    <button id="btnRandomData"
+                            class="flex-1 px-4 py-3 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200">
+                        랜덤 데이터
+                    </button>
+                    <button id="btnClearData"
+                            class="flex-1 px-4 py-3 text-sm bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl border border-slate-200">
+                        모두 지우기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    class DataManager {
+        constructor() {
+            this.points = [];
+        }
+
+        addPoint(x, y) {
+            // 로지스틱 회귀에서는 y값을 0 또는 1로만 제한합니다.
+            let classY = y >= 0.5 ? 1 : 0;
+            this.points.push({x: parseFloat(x), y: classY});
+        }
+
+        clear() {
+            this.points = [];
+        }
+
+        setPoints(pointsArray) {
+            this.points = [...pointsArray];
+        }
+
+        getBounds() {
+            if (this.points.length === 0) return {minX: 0, maxX: 100, minY: -0.2, maxY: 1.2};
+            let minX = Math.min(...this.points.map(p => p.x));
+            let maxX = Math.max(...this.points.map(p => p.x));
+            if (minX === maxX) {
+                minX -= 10;
+                maxX += 10;
+            }
+            let padX = (maxX - minX) * 0.1;
+            // 로지스틱은 항상 Y가 0과 1이므로 시각적 여백을 위해 고정값 반환
+            return {minX: minX - padX, maxX: maxX + padX, minY: -0.2, maxY: 1.2};
+        }
+    }
+
+    class RegressionModel {
+        constructor() {
+            this.w = 0;
+            this.b = 0;
+            this.epoch = 0;
+            this.learningRate = 1.0; // 시그모이드는 기울기가 작아질 수 있어 학습률을 높게 설정
+            this.isTraining = false;
+            this.hasStarted = false;
+        }
+
+        init() {
+            this.w = Math.random() * 2 - 1;
+            this.b = Math.random() * 2 - 1;
+            this.epoch = 0;
+        }
+
+        sigmoid(z) {
+            // 오버플로우 방지
+            if (z > 20) return 0.999999;
+            if (z < -20) return 0.000001;
+            return 1 / (1 + Math.exp(-z));
+        }
+
+        trainStep(normalizedPoints) {
+            if (normalizedPoints.length === 0) return false;
+            let dw = 0, db = 0, N = normalizedPoints.length;
+
+            for (let p of normalizedPoints) {
+                let z = this.w * p.x + this.b;
+                let pred = this.sigmoid(z);
+
+                // Binary Cross Entropy 의 그래디언트
+                dw += (pred - p.y) * p.x;
+                db += (pred - p.y);
+            }
+
+            dw = dw / N;
+            db = db / N;
+
+            if (Math.abs(dw) < 0.0001 && Math.abs(db) < 0.0001) return true;
+
+            this.w -= this.learningRate * dw;
+            this.b -= this.learningRate * db;
+            this.epoch++;
+            return false;
+        }
+    }
+
+    class CanvasRenderer {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+        }
+
+        resize() {
+            const rect = this.canvas.parentElement.getBoundingClientRect();
+            this.canvas.width = rect.width;
+            this.canvas.height = rect.height;
+        }
+
+        pixelToData(px, py, bounds) {
+            const x = bounds.minX + (px / this.canvas.width) * (bounds.maxX - bounds.minX);
+            const y = bounds.minY + ((this.canvas.height - py) / this.canvas.height) * (bounds.maxY - bounds.minY);
+            return {x, y};
+        }
+
+        render(dataManager, model) {
+            const w = this.canvas.width, h = this.canvas.height, ctx = this.ctx;
+            const bounds = dataManager.getBounds();
+            ctx.clearRect(0, 0, w, h);
+
+            const normalize = (val, min, max) => (val - min) / (max - min);
+
+            // 1. 기준선 (Y=0, Y=1 가이드라인)
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            let py0 = h - (normalize(0, bounds.minY, bounds.maxY) * h);
+            let py1 = h - (normalize(1, bounds.minY, bounds.maxY) * h);
+
+            ctx.beginPath();
+            ctx.moveTo(0, py0);
+            ctx.lineTo(w, py0);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, py1);
+            ctx.lineTo(w, py1);
+            ctx.stroke();
+
+            // 2. 결정 경계선 (Decision Boundary: P=0.5 -> wx+b = 0 -> x = -b/w) 그리기
+            if (dataManager.points.length > 0 && model.hasStarted && model.w !== 0) {
+                let boundary_nx = -model.b / model.w;
+                let boundary_x = boundary_nx * (bounds.maxX - bounds.minX) + bounds.minX;
+
+                let px = boundary_nx * w; // 정규화된 x를 화면 픽셀로 변환
+
+                if (px >= 0 && px <= w) {
+                    ctx.beginPath();
+                    ctx.moveTo(px, 0);
+                    ctx.lineTo(px, h);
+                    ctx.strokeStyle = '#f59e0b'; // 주황색 경계선
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 8]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // 경계선 라벨
+                    ctx.fillStyle = '#d97706';
+                    ctx.font = 'bold 12px Pretendard';
+                    ctx.fillText('확률 50% (경계)', px + 10, h / 2);
+                }
+            }
+
+            // 3. 시그모이드 곡선 그리기
+            if (dataManager.points.length > 0 && model.hasStarted) {
+                ctx.beginPath();
+                for (let px = 0; px <= w; px += 2) {
+                    let nx = px / w; // 정규화된 x
+                    let z = model.w * nx + model.b;
+                    let pred_y = model.sigmoid(z);
+
+                    let py = h - (normalize(pred_y, bounds.minY, bounds.maxY) * h);
+
+                    if (px === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.strokeStyle = '#8b5cf6'; // 보라색 곡선
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+
+            // 4. 데이터 포인트 그리기
+            for (let p of dataManager.points) {
+                let px = normalize(p.x, bounds.minX, bounds.maxX) * w;
+                let py = h - (normalize(p.y, bounds.minY, bounds.maxY) * h);
+
+                ctx.beginPath();
+                ctx.arc(px, py, 7, 0, Math.PI * 2);
+
+                // 클래스 1은 초록색, 클래스 0은 빨간색으로 구분
+                ctx.fillStyle = p.y === 1 ? '#10b981' : '#f43f5e';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+    }
+
+    class UIController {
+        constructor() {
+            this.dataManager = new DataManager();
+            this.model = new RegressionModel();
+            this.renderer = new CanvasRenderer('regressionCanvas');
+            this.animationId = null;
+            this.lastWidth = window.innerWidth;
+
+            function generateClassificationData(type, count = 50) {
+                const data = [];
+                for (let i = 0; i < count; i++) {
+                    let x, y;
+                    if (type === 1) { // 공부 시간 vs 합격
+                        y = Math.random() > 0.5 ? 1 : 0;
+                        // 합격자는 공부시간이 많고, 불합격자는 적도록 노이즈 추가
+                        x = y === 1 ? 40 + Math.random() * 50 : Math.random() * 50;
+                    } else if (type === 2) { // 온도 vs 에어컨 (특정 온도 이상이면 켬)
+                        y = Math.random() > 0.5 ? 1 : 0;
+                        x = y === 1 ? 25 + Math.random() * 15 : 10 + Math.random() * 16;
+                    } else { // 바이러스 수치 vs 양성판정 (겹치는 구간이 큼)
+                        y = Math.random() > 0.5 ? 1 : 0;
+                        x = y === 1 ? 30 + Math.random() * 60 : Math.random() * 60;
+                    }
+                    data.push({x: Number(x.toFixed(1)), y});
+                }
+                return data;
+            }
+
+            this.examples = {
+                1: {desc: "공부를 많이 할수록 '합격(1)' 확률이 높아집니다.", data: generateClassificationData(1)},
+                2: {desc: "온도가 일정 수준을 넘으면 '에어컨(1)'을 켭니다.", data: generateClassificationData(2)},
+                3: {desc: "바이러스 수치가 높을수록 '양성(1)' 판정을 받습니다.", data: generateClassificationData(3)}
+            };
+
+            this.bindEvents();
+            this.updateUI();
+        }
+
+        enableTraining() {
+            this.model.isTraining = false;
+            this.model.hasStarted = false;
+            cancelAnimationFrame(this.animationId);
+            const btn = document.getElementById('btnTrain');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 시작';
+            btn.classList.remove('bg-emerald-500', 'bg-indigo-700', 'state-complete');
+            btn.classList.add('bg-indigo-500');
+            document.getElementById('btnPause').disabled = false;
+        }
+
+        bindEvents() {
+            this.renderer.canvas.addEventListener('pointerdown', (e) => {
+                const rect = this.renderer.canvas.getBoundingClientRect();
+                const yPixel = e.clientY - rect.top;
+
+                // 클릭한 X 좌표의 데이터 값 계산
+                const p = this.renderer.pixelToData(e.clientX - rect.left, yPixel, this.dataManager.getBounds());
+
+                // 직관적인 인터랙션: 캔버스 위쪽 절반 클릭 시 y=1, 아래쪽 절반 클릭 시 y=0
+                const yClass = yPixel < rect.height / 2 ? 1 : 0;
+
+                this.dataManager.addPoint(p.x, yClass);
+                this.enableTraining();
+                this.updateUI();
+            });
+
+            document.getElementById('btnTrain').addEventListener('click', () => {
+                let classes = new Set(this.dataManager.points.map(p => p.y));
+                if (classes.size < 2) return alert('클래스 0과 1 데이터가 모두 1개 이상씩 필요합니다.');
+
+                if (!this.model.hasStarted) this.model.init();
+                this.model.hasStarted = true;
+                this.model.isTraining = true;
+
+                const btn = document.getElementById('btnTrain');
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>학습 중...';
+                btn.classList.replace('bg-indigo-500', 'bg-indigo-700');
+                btn.disabled = true;
+
+                this.loop();
+            });
+
+            document.getElementById('btnPause').addEventListener('click', () => {
+                this.model.isTraining = false;
+                cancelAnimationFrame(this.animationId);
+                const btn = document.getElementById('btnTrain');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 재개';
+                btn.classList.replace('bg-indigo-700', 'bg-indigo-500');
+            });
+
+            document.getElementById('btnReset').addEventListener('click', () => this.enableTraining() || this.updateUI());
+            document.getElementById('btnClearData').addEventListener('click', () => {
+                this.dataManager.clear();
+                document.getElementById('exampleDesc').innerText = "";
+                this.enableTraining();
+                this.updateUI();
+            });
+
+            document.getElementById('btnRandomData').addEventListener('click', () => {
+                this.dataManager.clear();
+                const count = 40;
+                for (let i = 0; i < count; i++) {
+                    let y = Math.random() > 0.5 ? 1 : 0;
+                    // X 좌표를 Y값에 따라 좌우로 분리 (노이즈 포함)
+                    let x = y === 1 ? 50 + (Math.random() + Math.random()) * 25 : (Math.random() + Math.random()) * 25;
+                    this.dataManager.addPoint(Number(x.toFixed(2)), y);
+                }
+                this.enableTraining();
+                this.updateUI();
+                document.getElementById('exampleDesc').innerText = "랜덤 두 그룹 데이터가 생성되었습니다. 학습을 시작해보세요.";
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth !== this.lastWidth) {
+                    this.renderer.resize();
+                    this.lastWidth = window.innerWidth;
+                }
+                this.updateUI();
+            });
+        }
+
+        loadExample(id) {
+            this.dataManager.setPoints(this.examples[id].data);
+            document.getElementById('exampleDesc').innerText = this.examples[id].desc;
+            this.enableTraining();
+            this.updateUI();
+        }
+
+        loop() {
+            if (!this.model.isTraining) return;
+            // 학습용 데이터 정규화 (X만 정규화, Y는 0,1 그대로)
+            const normData = this.dataManager.points.map(p => {
+                const b = this.dataManager.getBounds();
+                return {x: (p.x - b.minX) / (b.maxX - b.minX), y: p.y};
+            });
+
+            let isConverged = false;
+            // 로지스틱은 학습이 상대적으로 느리므로 반복 횟수를 높입니다.
+            for (let i = 0; i < 20; i++) {
+                if (this.model.trainStep(normData)) {
+                    isConverged = true;
+                    break;
+                }
+            }
+            this.updateUI();
+
+            if (isConverged || this.model.epoch > 3000) {
+                this.model.isTraining = false;
+                const btn = document.getElementById('btnTrain');
+                btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>경계선 탐색 완료';
+                btn.classList.add('state-complete');
+                btn.disabled = true;
+                document.getElementById('btnPause').disabled = true;
+            } else {
+                this.animationId = requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        updateUI() {
+            this.renderer.render(this.dataManager, this.model);
+            const s = document.getElementById('valSlope'),
+                i = document.getElementById('valIntercept'),
+                l = document.getElementById('valLoss'),
+                e = document.getElementById('valEpoch');
+
+            if (this.dataManager.points.length === 0 || !this.model.hasStarted) {
+                s.innerText = i.innerText = l.innerText = "0.000";
+                e.innerText = "0";
+            } else {
+                // 수식을 화면용 수치로 변환 (정규화 스케일을 복원하여 대략적 표시)
+                const b = this.dataManager.getBounds();
+                const rX = b.maxX - b.minX;
+                const rw = this.model.w / rX;
+                const rb = -this.model.w * b.minX / rX + this.model.b;
+
+                s.innerText = rw.toFixed(3);
+                i.innerText = rb.toFixed(3);
+
+                // BCE Loss 계산
+                let loss = 0;
+                this.dataManager.points.forEach(p => {
+                    let nx = (p.x - b.minX) / rX;
+                    let z = this.model.w * nx + this.model.b;
+                    let pred = this.model.sigmoid(z);
+                    // 로그 0 방지를 위한 클리핑
+                    pred = Math.max(0.0001, Math.min(0.9999, pred));
+                    loss += -(p.y * Math.log(pred) + (1 - p.y) * Math.log(1 - pred));
+                });
+                l.innerText = (loss / this.dataManager.points.length).toFixed(3);
+                e.innerText = this.model.epoch;
+            }
+        }
+    }
+
+    window.onload = () => {
+        window.uiController = new UIController();
+        uiController.loadExample(1);
+    };
+</script>
+</body>
+</html>

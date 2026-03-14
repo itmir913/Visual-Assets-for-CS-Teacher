@@ -280,6 +280,20 @@
                         </label>
                     </div>
 
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="speedSlider" class="text-base font-medium text-slate-300">자동 실행 속도</label>
+                            <span id="speedDisplay"
+                                  class="bg-emerald-500/20 text-emerald-400 font-bold px-2 py-1 rounded text-sm">보통</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="1" max="100" value="65"
+                               class="w-full accent-emerald-500 cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-400 mt-2 font-medium px-1">
+                            <span>느림</span>
+                            <span>빠름</span>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3 mt-auto">
                         <button id="btnStep"
                                 class="py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all shadow-md flex justify-center items-center active:scale-95">
@@ -448,6 +462,7 @@
             this.ctx = this.canvas.getContext('2d');
             this.runInterval = null;
             this.isRunning = false;
+            this.runDelay = 50; // 기본 속도 50ms
 
             this.showTrueProb = false;
             this.showBest = true;
@@ -503,6 +518,34 @@
                 document.getElementById('epsilonDisplay').innerText = `${Math.round(e.target.value * 100)}%`;
             });
 
+            // 자동 실행 속도 조절 이벤트 추가
+            const speedSlider = document.getElementById('speedSlider');
+            const speedDisplay = document.getElementById('speedDisplay');
+
+            const updateSpeed = () => {
+                const val = parseInt(speedSlider.value);
+                // 지수적 스케일링: 1 -> 1000ms, 100 -> 10ms
+                const normalized = (val - 1) / 99;
+                this.runDelay = Math.max(10, Math.floor(1000 * Math.pow(0.01, normalized)));
+
+                if (val < 30) speedDisplay.innerText = '느림';
+                else if (val > 80) speedDisplay.innerText = '빠름';
+                else speedDisplay.innerText = '보통';
+
+                // 이미 실행 중이라면 즉시 인터벌 재시작하여 속도 반영
+                if (this.isRunning) {
+                    clearInterval(this.runInterval);
+                    this.runInterval = setInterval(() => {
+                        const epsilon = parseFloat(document.getElementById('epsilonSlider').value);
+                        const action = this.env.chooseAction(epsilon);
+                        this.step(action, true);
+                    }, this.runDelay);
+                }
+            };
+
+            speedSlider.addEventListener('input', updateSpeed);
+            updateSpeed(); // 초기 지연 시간 설정 호출
+
             document.getElementById('btnStep').addEventListener('click', () => {
                 const epsilon = parseFloat(document.getElementById('epsilonSlider').value);
                 const action = this.env.chooseAction(epsilon);
@@ -520,11 +563,12 @@
                     btn.classList.replace('hover:bg-orange-600', 'hover:bg-rose-600');
                     document.getElementById('btnStep').disabled = true;
 
+                    // 사용자가 설정한 runDelay를 사용
                     this.runInterval = setInterval(() => {
                         const epsilon = parseFloat(document.getElementById('epsilonSlider').value);
                         const action = this.env.chooseAction(epsilon);
                         this.step(action, true);
-                    }, 50);
+                    }, this.runDelay);
                 }
             });
 

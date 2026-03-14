@@ -173,21 +173,21 @@
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-start gap-3">
-                            <div class="text-2xl mt-1">💨</div>
+                            <div class="text-3xl mt-1">💨</div>
                             <div>
                                 <span class="font-bold text-blue-600">바람 (Breeze)</span>
                                 <p class="text-base text-slate-600 mt-1">바람이 불면 주변 상하좌우 칸 중 어딘가에 함정(🕳️)이 존재합니다.</p>
                             </div>
                         </div>
                         <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-start gap-3">
-                            <div class="text-2xl mt-1">🤢</div>
+                            <div class="text-3xl mt-1">🤢</div>
                             <div>
                                 <span class="font-bold text-rose-600">냄새 (Stench)</span>
                                 <p class="text-base text-slate-600 mt-1">악취가 나면 주변 상하좌우 칸 중 어딘가에 몬스터(👹)가 존재합니다.</p>
                             </div>
                         </div>
                         <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-start gap-3">
-                            <div class="text-2xl mt-1">💰</div>
+                            <div class="text-3xl mt-1">💰</div>
                             <div>
                                 <span class="font-bold text-amber-500">반짝임 (Glitter)</span>
                                 <p class="text-base text-slate-600 mt-1">현재 칸에 목표물인 금(Gold)이 있습니다. 주워야(Grab) 합니다!</p>
@@ -442,9 +442,9 @@
         container.style.gridTemplateRows = `repeat(${SIZE}, minmax(0, 1fr))`;
         container.innerHTML = '';
 
-        const iconTextSize = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
+        // 1. 셀 전체 아이콘 크기 통일 (Tailwind 클래스 활용)
+        const iconSizeClass = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
         const coordTextSize = SIZE <= 5 ? 'text-[0.7rem]' : 'text-[0.5rem]';
-        const sensorStyle = SIZE <= 5 ? 'font-size: 1.2rem;' : 'font-size: 0.9rem;';
 
         for (let y = SIZE - 1; y >= 0; y--) {
             for (let x = 0; x < SIZE; x++) {
@@ -453,13 +453,11 @@
                 const isSafe = agent.safe.has(k) && !isVisited;
                 const isRisk = (agent.possiblePit.has(k) || agent.possibleWumpus.has(k)) && !isVisited;
 
-                let bg = 'bg-slate-200'; // 기본: 미탐색 지역
+                let bg = 'bg-slate-200';
                 let border = 'border-slate-300';
                 let shadow = '';
 
-                // --- [스타일 결정 로직: 우선순위 중요] ---
-
-                // 1순위: 에이전트가 현재 위치한 칸 (사망/성공 여부 체크)
+                // 스타일 결정 (사용자님 의도 유지: 방문 노드 인디고 테두리)
                 if (agent.x === x && agent.y === y) {
                     if (agent.isDead) {
                         bg = 'bg-rose-300'; // 사망: 레드
@@ -493,7 +491,8 @@
                 }
 
                 const cell = document.createElement('div');
-                cell.className = `cell-transition rounded-2xl flex flex-col items-center justify-center border-2 ${iconTextSize} relative ${bg} ${border} ${shadow}`;
+                // 2. leading-none을 추가하여 아이콘 위아래 여백을 제거하고 정중앙 정렬 강화
+                cell.className = `cell-transition rounded-2xl flex items-center justify-center border-2 ${iconSizeClass} leading-none relative ${bg} ${border} ${shadow}`;
                 cell.innerHTML = `<span class="absolute top-1 left-2 font-bold text-slate-400 ${coordTextSize}">${x},${y}</span>`;
 
                 let contentHTML = '';
@@ -519,8 +518,11 @@
                         let s = '';
                         if (p.breeze) s += '💨';
                         if (p.stench) s += '🤢';
-                        let multiClass = (p.breeze && p.stench) ? 'whitespace-nowrap text-[0.6em] tracking-tighter' : '';
-                        contentHTML = `<div class="sensor-icon text-center ${multiClass}" style="${sensorStyle}">${s}</div>`;
+
+                        // 3. 센서 아이콘도 부모의 iconSizeClass를 그대로 따르도록 div로 감쌈
+                        // 센서가 2개일 때만 글자 크기를 살짝 줄여서 사각형 안에 가두기
+                        let multiClass = (p.breeze && p.stench) ? 'scale-90 tracking-tighter' : '';
+                        contentHTML = `<div class="${multiClass} flex items-center justify-center">${s}</div>`;
                     }
                 } else if (showHidden) {
                     // 치트 모드: 안 가본 곳 흐리게 표시
@@ -530,6 +532,8 @@
                 }
 
                 const contentSpan = document.createElement('span');
+                // 4. h-full flex 아이콘이 셀 안에서 꽉 차게 배치되도록 설정
+                contentSpan.className = "flex items-center justify-center";
                 contentSpan.innerHTML = contentHTML;
                 cell.appendChild(contentSpan);
                 container.appendChild(cell);

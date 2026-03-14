@@ -451,19 +451,16 @@
             this.totalEpisodes = 0;
         }
 
-        // 벽을 랜덤하게 생성하되 목적지로 가는 경로가 존재하는지 확인
         generateValidMaze() {
             let valid = false;
             while (!valid) {
                 this.walls = [];
-                // 밀도는 약 25% 정도로 설정
                 const numWalls = Math.floor(this.cols * this.rows * 0.25);
 
                 for (let i = 0; i < numWalls; i++) {
                     const wx = Math.floor(Math.random() * this.cols);
                     const wy = Math.floor(Math.random() * this.rows);
 
-                    // 출발점과 도착점은 벽이 될 수 없음
                     if ((wx === this.start.x && wy === this.start.y) ||
                         (wx === this.goal.x && wy === this.goal.y)) {
                         continue;
@@ -477,7 +474,6 @@
             }
         }
 
-        // 목적지 도달 가능 여부를 확인하는 BFS 알고리즘
         isPathExists() {
             const queue = [{x: this.start.x, y: this.start.y}];
             const visited = new Set([`${this.start.x},${this.start.y}`]);
@@ -514,7 +510,6 @@
             return this.walls.some(w => w.x === x && w.y === y);
         }
 
-        // Actions: 0:Up, 1:Right, 2:Down, 3:Left
         step(action) {
             let nx = this.agentPos.x;
             let ny = this.agentPos.y;
@@ -524,13 +519,11 @@
             if (action === 2) ny += 1;
             if (action === 3) nx -= 1;
 
-            // Collision with boundaries
             if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) {
                 nx = this.agentPos.x;
                 ny = this.agentPos.y;
             }
 
-            // Collision with walls
             if (this.isWall(nx, ny)) {
                 nx = this.agentPos.x;
                 ny = this.agentPos.y;
@@ -539,10 +532,9 @@
             this.agentPos = {x: nx, y: ny};
             this.stepCount++;
 
-            let reward = -0.1; // Default step penalty
+            let reward = -0.1;
             let done = false;
 
-            // Reached Goal
             if (nx === this.goal.x && ny === this.goal.y) {
                 reward = 10.0;
                 done = true;
@@ -561,7 +553,6 @@
         }
 
         reset() {
-            // Q-table: [y][x][action]
             this.qTable = Array(this.env.rows).fill(0).map(() =>
                 Array(this.env.cols).fill(0).map(() => [0, 0, 0, 0])
             );
@@ -582,18 +573,16 @@
             for (let i = 0; i < 4; i++) {
                 if (qs[i] === maxQ) bestActions.push(i);
             }
-            // Break ties randomly
             return bestActions[Math.floor(Math.random() * bestActions.length)];
         }
 
         chooseAction(x, y, epsilon) {
             if (Math.random() < epsilon) {
-                return Math.floor(Math.random() * 4); // Exploration
+                return Math.floor(Math.random() * 4);
             }
-            return this.getBestAction(x, y); // Exploitation
+            return this.getBestAction(x, y);
         }
 
-        // Q-learning Update Rule: Q(s,a) = Q(s,a) + alpha * [r + gamma * maxQ(s',a') - Q(s,a)]
         learn(x, y, action, reward, nx, ny, done, alpha, gamma) {
             const currentQ = this.qTable[y][x][action];
             let maxNextQ = 0;
@@ -610,11 +599,12 @@
             this.agent = new QAgent(this.env);
 
             this.runInterval = null;
+            this.delayTimeout = null; // 수정: setTimeout 관리를 위한 변수 추가
             this.isRunning = false;
-            this.history = []; // For graphing: {episode, totalReward}
-            this.waitingForReset = false; // 목적지 도달 후 1턴 대기 플래그
+            this.isDelaying = false;
+            this.history = [];
+            this.waitingForReset = false;
 
-            // Visual Settings
             this.showHeatmap = true;
             this.showPolicy = true;
 
@@ -634,19 +624,15 @@
 
         initDOM() {
             const container = document.getElementById('gridContainer');
-            // 에이전트를 제외하고 깔끔하게 초기화
             container.innerHTML = '<div id="agent">🤖</div>';
 
-            // CSS Grid 설정 동적 적용
             container.style.gridTemplateColumns = `repeat(${this.env.cols}, 1fr)`;
             container.style.gridTemplateRows = `repeat(${this.env.rows}, 1fr)`;
 
             const agentDiv = document.getElementById('agent');
-            // 격자 크기에 맞춰 에이전트 크기 유동적 조절
             agentDiv.style.width = `${100 / this.env.cols}%`;
             agentDiv.style.height = `${100 / this.env.rows}%`;
 
-            // 크기에 따른 글꼴 크기 설정
             const fontSize = this.env.cols >= 7 ? '0.55rem' : (this.env.cols >= 6 ? '0.65rem' : '0.75rem');
             const arrowSize = this.env.cols >= 7 ? '1rem' : (this.env.cols >= 6 ? '1.3rem' : '2rem');
             const flagSize = this.env.cols >= 7 ? 'text-lg' : (this.env.cols >= 6 ? 'text-xl' : 'text-3xl');
@@ -665,7 +651,6 @@
                     } else if (x === this.env.goal.x && y === this.env.goal.y) {
                         cell.innerHTML = `<span class="${flagSize} z-10 drop-shadow-md">🚩</span>`;
                     } else {
-                        // Regular cell elements
                         cell.innerHTML = `
                             <i class="fa-solid fa-arrow-up policy-arrow hidden" data-dir="0" style="font-size: ${arrowSize}"></i>
                             <i class="fa-solid fa-arrow-right policy-arrow hidden" data-dir="1" style="font-size: ${arrowSize}"></i>
@@ -680,14 +665,12 @@
             this.updateAgentPosition();
         }
 
-        // 실행 속도(딜레이) 계산 함수
         getDelay() {
             const speed = parseInt(document.getElementById('speedSlider').value, 10);
-            return Math.max(10, 505 - (speed * 5)); // 속도 100 = 5ms, 속도 1 = 500ms
+            return Math.max(10, 505 - (speed * 5));
         }
 
         bindEvents() {
-            // Sliders
             const bindSlider = (id, displayId, suffix = '') => {
                 document.getElementById(id).addEventListener('input', (e) => {
                     let val = e.target.value;
@@ -699,10 +682,10 @@
             bindSlider('alphaSlider', 'alphaDisplay');
             bindSlider('gammaSlider', 'gammaDisplay');
 
-            // 속도 조절 슬라이더 이벤트
             document.getElementById('speedSlider').addEventListener('input', (e) => {
                 document.getElementById('speedDisplay').innerText = `속도: ${e.target.value}`;
-                if (this.isRunning) {
+                // 수정: Delay 중일 때는 새로운 Interval을 생성하지 않도록 방어 (다중 루프 방지)
+                if (this.isRunning && !this.isDelaying) {
                     clearInterval(this.runInterval);
                     this.runInterval = setInterval(() => {
                         this.step(true);
@@ -710,13 +693,10 @@
                 }
             });
 
-            // 격자 크기 변경 이벤트
-            document.getElementById('gridSizeSelect').addEventListener('change', (e) => {
-                // 크기 변경 시 초기화 버튼을 누른 것과 동일하게 처리
+            document.getElementById('gridSizeSelect').addEventListener('change', () => {
                 document.getElementById('btnReset').click();
             });
 
-            // Toggles
             document.getElementById('showHeatmapToggle').addEventListener('change', (e) => {
                 this.showHeatmap = e.target.checked;
                 this.updateGridVisuals();
@@ -726,7 +706,6 @@
                 this.updateGridVisuals();
             });
 
-            // Buttons
             document.getElementById('btnStep').addEventListener('click', () => this.step());
 
             document.getElementById('btnRun').addEventListener('click', () => {
@@ -740,20 +719,31 @@
                     btn.classList.replace('hover:bg-blue-600', 'hover:bg-rose-600');
                     document.getElementById('btnStep').disabled = true;
 
-                    this.runInterval = setInterval(() => {
-                        this.step(true);
-                    }, this.getDelay());
+                    // 만약 Delay 대기 상태가 아닐 때만 인터벌 실행
+                    if (!this.isDelaying) {
+                        this.runInterval = setInterval(() => {
+                            this.step(true);
+                        }, this.getDelay());
+                    }
                 }
             });
 
             document.getElementById('btnReset').addEventListener('click', () => {
                 this.pause();
+
+                // 수정: 대기 중 리셋 시 꼬임 방지를 위해 Timeout 강제 해제 및 플래그 초기화
+                if (this.delayTimeout) {
+                    clearTimeout(this.delayTimeout);
+                    this.delayTimeout = null;
+                }
+                this.isDelaying = false;
+
                 const currentSize = parseInt(document.getElementById('gridSizeSelect').value);
-                this.env = new GridWorldEnvironment(currentSize); // 맵을 아예 새롭게 재생성 (벽 랜덤 배치)
+                this.env = new GridWorldEnvironment(currentSize);
                 this.agent = new QAgent(this.env);
                 this.history = [];
                 this.waitingForReset = false;
-                this.initDOM(); // UI 다시 그리기
+                this.initDOM();
                 this.updateUI();
                 this.drawGraph();
             });
@@ -770,22 +760,19 @@
         }
 
         step(isAuto = false) {
-            // 강제 대기 시간(300ms) 동안에는 버튼을 눌러도 중복 실행되지 않도록 방지
             if (this.isDelaying) return;
 
-            // 목적지에 도착해서 한 턴을 기다리고 있던 상태라면, 환경 리셋 후 출발점으로 텔레포트
             if (this.waitingForReset) {
                 this.history.push({
                     episode: this.env.totalEpisodes,
                     reward: this.env.episodeReward
                 });
-                if (this.history.length > 150) this.history.shift(); // Keep last 150
+                if (this.history.length > 150) this.history.shift();
                 this.env.reset();
                 this.waitingForReset = false;
 
-                // true를 전달하여 뿅! 하고 나타나는 텔레포트 효과 실행
                 this.updateUI(true);
-                return; // 리셋만 하고 이번 턴 종료 (출발점에서 대기)
+                return;
             }
 
             const epsilon = parseFloat(document.getElementById('epsilonSlider').value);
@@ -795,37 +782,29 @@
             const currX = this.env.agentPos.x;
             const currY = this.env.agentPos.y;
 
-            // 1. Choose Action
             const action = this.agent.chooseAction(currX, currY, epsilon);
-
-            // 2. Take Action
             const {nx, ny, reward, done} = this.env.step(action);
 
-            // 3. Learn
             this.agent.learn(currX, currY, action, reward, nx, ny, done, alpha, gamma);
 
-            // 목적지 도착 시 처리
             if (done) {
                 this.waitingForReset = true;
-                this.updateUI(false); // 깃발에 도착한 모습 렌더링
+                this.updateUI(false);
 
-                // 자동 실행 중일 경우 300ms 동안 깃발에서 대기
                 if (isAuto) {
                     this.isDelaying = true;
-                    clearInterval(this.runInterval); // 기존 자동 실행 타이머 일시정지
+                    clearInterval(this.runInterval);
 
-                    setTimeout(() => {
+                    // 수정: delayTimeout 변수에 할당하여 언제든 취소 가능하도록 구조 개선
+                    this.delayTimeout = setTimeout(() => {
                         this.isDelaying = false;
-                        // 대기하는 동안 사용자가 '일시정지'나 '초기화'를 누르지 않았다면 계속 진행
                         if (this.isRunning) {
-                            this.step(true); // 출발점으로 텔레포트하는 스텝 실행
-
-                            // 텔레포트 후 기존 속도대로 자동 실행 타이머 다시 시작
+                            this.step(true);
                             this.runInterval = setInterval(() => {
                                 this.step(true);
                             }, this.getDelay());
                         }
-                    }, 300); // ★ 대기 시간 조절: 300ms
+                    }, 300);
                 }
                 return;
             }
@@ -841,12 +820,14 @@
             const y = this.env.agentPos.y;
 
             if (isReset) {
-                // 텔레포트 효과: 애니메이션 끄고 좌표 즉시 이동 & 즉시 나타나기
+                // 수정: 브라우저 렌더링 최적화(Batching)로 인한 잔상 애니메이션 방지 - 강제 Reflow 유도
                 agentDiv.style.transition = 'none';
-                agentDiv.style.opacity = '1'; // 0에서 1로 바로 변경
+                agentDiv.style.opacity = '1';
+
+                void agentDiv.offsetWidth; // Force Reflow (핵심 수정 사항)
+
                 agentDiv.style.transform = `translate(${x * 100}%, ${y * 100}%)`;
             } else {
-                // 일반 이동 애니메이션
                 agentDiv.style.transition = 'transform 0.15s ease-out, opacity 0.3s ease-in';
                 agentDiv.style.transform = `translate(${x * 100}%, ${y * 100}%)`;
                 agentDiv.style.opacity = '1';
@@ -862,15 +843,13 @@
                     const maxQ = this.agent.getMaxQ(x, y);
                     const bestAction = this.agent.getBestAction(x, y);
 
-                    // Heatmap
                     if (this.showHeatmap) {
-                        // Max value is around 10. Map roughly -2 to 10.
                         if (maxQ > 0) {
                             const intensity = Math.min(1.0, maxQ / 10.0);
-                            cell.style.backgroundColor = `rgba(59, 130, 246, ${intensity * 0.7})`; // Blue
+                            cell.style.backgroundColor = `rgba(59, 130, 246, ${intensity * 0.7})`;
                         } else if (maxQ < 0) {
                             const intensity = Math.min(1.0, Math.abs(maxQ) / 2.0);
-                            cell.style.backgroundColor = `rgba(244, 63, 94, ${intensity * 0.5})`; // Rose
+                            cell.style.backgroundColor = `rgba(244, 63, 94, ${intensity * 0.5})`;
                         } else {
                             cell.style.backgroundColor = 'transparent';
                         }
@@ -878,18 +857,15 @@
                         cell.style.backgroundColor = 'transparent';
                     }
 
-                    // Value text
                     const vText = cell.querySelector('.v-text');
                     if (vText) {
                         vText.innerText = maxQ.toFixed(1);
                         vText.style.display = this.showHeatmap ? 'block' : 'none';
                     }
 
-                    // Policy Arrows
                     const arrows = cell.querySelectorAll('.policy-arrow');
                     arrows.forEach(a => a.classList.add('hidden'));
 
-                    // Only show arrows if state has some learned value or Q > 0
                     if (this.showPolicy && (maxQ !== 0 || this.agent.getQValues(x, y).some(v => v !== 0))) {
                         arrows[bestAction].classList.remove('hidden');
                     }
@@ -901,7 +877,6 @@
             document.getElementById('stepCount').innerText = this.env.stepCount;
             document.getElementById('episodeCount').innerText = this.env.totalEpisodes;
 
-            // 위치 업데이트 시 리셋 여부 전달
             this.updateAgentPosition(isReset);
             this.updateGridVisuals();
 
@@ -933,10 +908,8 @@
             const innerW = w - padding.left - padding.right;
             const innerH = h - padding.top - padding.bottom;
 
-            // Find Min/Max Reward for Y axis
             let minR = Math.min(...this.history.map(d => d.reward), -5);
             let maxR = Math.max(...this.history.map(d => d.reward), 10);
-            // Add padding to graph height
             const rangeR = maxR - minR;
 
             ctx.strokeStyle = '#e2e8f0';
@@ -946,7 +919,6 @@
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
 
-            // Y Axis Guidelines
             for (let i = 0; i <= 4; i++) {
                 let yVal = minR + (rangeR * (i / 4));
                 let yPos = padding.top + innerH - ((yVal - minR) / rangeR * innerH);
@@ -959,7 +931,6 @@
                 ctx.fillText(yVal.toFixed(0), padding.left - 5, yPos);
             }
 
-            // Zero line
             if (minR < 0 && maxR > 0) {
                 let zeroY = padding.top + innerH - ((0 - minR) / rangeR * innerH);
                 ctx.beginPath();
@@ -970,7 +941,6 @@
                 ctx.stroke();
             }
 
-            // X Axis Labels
             let minEp = this.history[0].episode;
             let maxEp = this.history[this.history.length - 1].episode;
             let rangeEp = Math.max(10, maxEp - minEp);
@@ -980,7 +950,6 @@
             ctx.fillText(minEp.toString(), padding.left, h - padding.bottom + 5);
             ctx.fillText(maxEp.toString(), padding.left + innerW, h - padding.bottom + 5);
 
-            // Draw line graph
             ctx.beginPath();
             ctx.lineJoin = 'round';
             for (let i = 0; i < this.history.length; i++) {
@@ -992,11 +961,10 @@
                 else ctx.lineTo(xPos, yPos);
             }
 
-            ctx.strokeStyle = '#3b82f6'; // Blue
+            ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Gradient fill under the line
             ctx.lineTo(padding.left + innerW, padding.top + innerH);
             ctx.lineTo(padding.left, padding.top + innerH);
             ctx.closePath();
@@ -1009,7 +977,6 @@
         }
     }
 
-    // Initialize application when DOM is ready
     window.onload = () => {
         window.gridWorldController = new GridWorldUI();
     };

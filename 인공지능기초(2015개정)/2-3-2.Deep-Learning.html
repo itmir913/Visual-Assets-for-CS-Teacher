@@ -196,13 +196,19 @@
                         <input type="range" id="lrSlider" min="0.001" max="1.1" step="0.001" value="0.050"
                                class="w-full">
                     </div>
-                    <div class="flex gap-3 mt-auto">
+                    <div class="flex gap-2 mt-auto">
                         <button id="btnGdStep"
-                                class="flex-1 py-3 bg-blue-500 hover:bg-blue-600 font-bold rounded-lg transition-colors text-lg shadow-md">
-                            1 Step 진행
+                                class="flex-1 py-3 bg-blue-500 hover:bg-blue-600 font-bold text-white rounded-lg transition-colors text-base shadow-md">
+                            1 Step
                         </button>
+
+                        <button id="btnGdAuto"
+                                class="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 font-bold text-white rounded-lg transition-colors text-base shadow-md">
+                            <i class="fa-solid fa-play mr-1"></i> Auto
+                        </button>
+
                         <button id="btnGdReset"
-                                class="py-3 px-5 bg-slate-600 hover:bg-slate-500 font-bold rounded-lg transition-colors shadow-md"
+                                class="py-3 px-4 bg-slate-600 hover:bg-slate-500 font-bold text-white rounded-lg transition-colors shadow-md"
                                 title="초기화">
                             <i class="fa-solid fa-rotate-right"></i>
                         </button>
@@ -452,6 +458,8 @@
         isSuccess: false,
         isFailed: false,
         isAnimating: false,
+        isAuto: false,
+        autoTimer: null,
 
         // 사용할 함수 모음
         currentFunc: 'quad',
@@ -481,6 +489,7 @@
             });
             document.getElementById('btnGdStep').addEventListener('click', () => this.step());
             document.getElementById('btnGdReset').addEventListener('click', () => this.reset());
+            document.getElementById('btnGdAuto').addEventListener('click', () => this.toggleAuto());
             document.getElementById('funcSelect').addEventListener('change', (e) => {
                 this.currentFunc = e.target.value;
                 this.reset();
@@ -512,6 +521,10 @@
         reset() {
             if (this.animId) cancelAnimationFrame(this.animId);
             if (this.blinkAnimId) cancelAnimationFrame(this.blinkAnimId);
+
+            this.isAuto = false;
+            if (this.autoTimer) clearTimeout(this.autoTimer);
+            this.updateAutoUI();
 
             this.w = parseFloat((Math.random() * 10 - 5).toFixed(2)); // -5 ~ 5
             this.history = [this.w];
@@ -563,6 +576,67 @@
 
             // 값 즉시 변경 대신 애니메이션 적용
             this.animateTransition(this.w, nextW);
+        },
+
+        // [새로 추가] Auto 모드 켜기/끄기
+        toggleAuto() {
+            this.isAuto = !this.isAuto;
+            this.updateAutoUI(); // UI 상태 변경 (1 Step 비활성화 등)
+
+            if (this.isAuto) {
+                this.autoStep(); // 자동 실행 시작
+            } else {
+                if (this.autoTimer) clearTimeout(this.autoTimer); // 일시 정지
+            }
+        },
+
+        // [새로 추가] 자동으로 Step을 반복 실행하는 로직
+        autoStep() {
+            if (!this.isAuto) return;
+
+            // 공이 이동하는 애니메이션 중이면 끝나길 기다렸다가 다시 시도 (0.1초 후)
+            if (this.isAnimating) {
+                this.autoTimer = setTimeout(() => this.autoStep(), 100);
+                return;
+            }
+
+            // 최적점에 도달했거나(성공), 발산해 버렸다면(실패) 자동 재생 즉시 종료
+            if (this.isSuccess || this.isFailed) {
+                this.isAuto = false;
+                this.updateAutoUI();
+                return;
+            }
+
+            this.step(); // 1 Step 실행
+
+            // 애니메이션이 끝나고 약간의 틈을 준 뒤 다음 Step 실행 (300ms 간격)
+            this.autoTimer = setTimeout(() => this.autoStep(), 300);
+        },
+
+        // [새로 추가] Auto 상태에 맞춰 버튼 모양과 활성화 여부 변경
+        updateAutoUI() {
+            const btnStep = document.getElementById('btnGdStep');
+            const btnAuto = document.getElementById('btnGdAuto');
+
+            if (!btnStep || !btnAuto) return;
+
+            if (this.isAuto) {
+                // Auto 활성화 시: 1 Step 버튼 끄기, Auto 버튼을 '정지' 빨간색으로 변경
+                btnStep.disabled = true;
+                btnStep.classList.add('opacity-50', 'cursor-not-allowed');
+
+                btnAuto.innerHTML = '<i class="fa-solid fa-pause mr-1"></i> 정지';
+                btnAuto.classList.replace('bg-indigo-500', 'bg-rose-500');
+                btnAuto.classList.replace('hover:bg-indigo-600', 'hover:bg-rose-600');
+            } else {
+                // Auto 비활성화 시: 1 Step 버튼 켜기, Auto 버튼 원래대로 복구
+                btnStep.disabled = false;
+                btnStep.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                btnAuto.innerHTML = '<i class="fa-solid fa-play mr-1"></i> Auto';
+                btnAuto.classList.replace('bg-rose-500', 'bg-indigo-500');
+                btnAuto.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-600');
+            }
         },
 
         animateTransition(startW, endW) {

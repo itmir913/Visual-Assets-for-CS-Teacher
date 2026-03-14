@@ -86,9 +86,11 @@
 
         .policy-arrow {
             position: absolute;
-            font-size: 1.25rem;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.5);
+            font-size: 2rem; /* 크기 대폭 확대 */
+            color: #fbbf24; /* 밝은 노란색으로 변경 */
+            /* 진한 검은색 외곽선 및 강한 그림자 효과 추가 */
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0px 0px 8px rgba(0, 0, 0, 0.8);
+            z-index: 15;
             transition: all 0.2s;
         }
 
@@ -251,6 +253,27 @@
             </div>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl shadow-sm">
+                <h4 class="font-bold text-rose-700 mb-2 text-sm md:text-base"><i class="fa-solid fa-compass mr-1"></i>탐험
+                    확률 (&epsilon; - 엡실론)</h4>
+                <p class="text-slate-600 text-xs md:text-sm break-keep">현재 아는 가장 좋은 길 대신, 모험심을 발휘해 무작위로 새로운 길을 탐색해 볼
+                    확률입니다.</p>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-2xl shadow-sm">
+                <h4 class="font-bold text-blue-700 mb-2 text-sm md:text-base"><i class="fa-solid fa-brain mr-1"></i>학습률
+                    (&alpha; - 알파)</h4>
+                <p class="text-slate-600 text-xs md:text-sm break-keep">이동 후 얻은 새로운 보상 정보를 기존에 알고 있던 가치(Q-Value)에 얼마나
+                    강하게 덮어쓸지 결정합니다.</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl shadow-sm">
+                <h4 class="font-bold text-amber-700 mb-2 text-sm md:text-base"><i class="fa-solid fa-forward mr-1"></i>할인율
+                    (&gamma; - 감마)</h4>
+                <p class="text-slate-600 text-xs md:text-sm break-keep">당장 눈앞의 보상보다 목적지 도착이라는 '미래의 기대 보상'을 얼마나 중요하게 여길지
+                    결정합니다.</p>
+            </div>
+        </div>
+
         <div class="flex flex-col lg:flex-row gap-6 items-stretch">
 
             <div class="w-full lg:w-[35%] flex flex-col gap-5">
@@ -268,7 +291,6 @@
                         </div>
                         <input type="range" id="epsilonSlider" min="0" max="1" step="0.05" value="0.3"
                                class="w-full accent-rose-500 cursor-pointer">
-                        <p class="text-xs text-slate-400 mt-1">새로운 길을 탐색할 확률 (모험심)</p>
                     </div>
 
                     <div class="mb-4">
@@ -279,7 +301,6 @@
                         </div>
                         <input type="range" id="alphaSlider" min="0" max="1" step="0.05" value="0.1"
                                class="w-full accent-blue-500 cursor-pointer">
-                        <p class="text-xs text-slate-400 mt-1">새로운 정보를 얼마나 빠르게 받아들일지 결정</p>
                     </div>
 
                     <div class="mb-6">
@@ -290,7 +311,6 @@
                         </div>
                         <input type="range" id="gammaSlider" min="0" max="1" step="0.05" value="0.9"
                                class="w-full accent-amber-500 cursor-pointer">
-                        <p class="text-xs text-slate-400 mt-1">미래의 보상을 얼마나 중요하게 여길지 결정</p>
                     </div>
 
                     <hr class="border-slate-600 mb-6">
@@ -299,7 +319,7 @@
                         <i class="fa-solid fa-eye mr-2"></i>시각화 옵션
                     </p>
 
-                    <div class="flex flex-col gap-3 mb-6">
+                    <div class="flex flex-col gap-3 mb-4">
                         <label class="flex items-center cursor-pointer">
                             <div class="relative">
                                 <input type="checkbox" id="showHeatmapToggle" class="sr-only toggle-checkbox" checked>
@@ -317,6 +337,16 @@
                             </div>
                             <span class="ml-3 text-sm font-medium text-amber-300">Policy 화살표 (최적 행동 방향)</span>
                         </label>
+                    </div>
+
+                    <div class="mb-6 mt-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="speedSlider" class="text-sm font-bold text-slate-300">자동 실행 속도</label>
+                            <span id="speedDisplay"
+                                  class="bg-emerald-500/20 text-emerald-400 font-black px-2 py-0.5 rounded text-sm">속도: 90</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="1" max="100" step="1" value="90"
+                               class="w-full accent-emerald-500 cursor-pointer">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 mt-auto">
@@ -573,6 +603,12 @@
             this.updateAgentPosition();
         }
 
+        // 실행 속도(딜레이) 계산 함수
+        getDelay() {
+            const speed = parseInt(document.getElementById('speedSlider').value, 10);
+            return Math.max(10, 505 - (speed * 5)); // 속도 100 = 5ms, 속도 1 = 500ms
+        }
+
         bindEvents() {
             // Sliders
             const bindSlider = (id, displayId, suffix = '') => {
@@ -585,6 +621,17 @@
             bindSlider('epsilonSlider', 'epsilonDisplay', '%');
             bindSlider('alphaSlider', 'alphaDisplay');
             bindSlider('gammaSlider', 'gammaDisplay');
+
+            // 속도 조절 슬라이더 이벤트
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                document.getElementById('speedDisplay').innerText = `속도: ${e.target.value}`;
+                if (this.isRunning) {
+                    clearInterval(this.runInterval);
+                    this.runInterval = setInterval(() => {
+                        this.step(true);
+                    }, this.getDelay());
+                }
+            });
 
             // Toggles
             document.getElementById('showHeatmapToggle').addEventListener('change', (e) => {
@@ -610,10 +657,9 @@
                     btn.classList.replace('hover:bg-blue-600', 'hover:bg-rose-600');
                     document.getElementById('btnStep').disabled = true;
 
-                    // Fast execution loop
                     this.runInterval = setInterval(() => {
                         this.step(true);
-                    }, 30); // 30ms per step
+                    }, this.getDelay());
                 }
             });
 

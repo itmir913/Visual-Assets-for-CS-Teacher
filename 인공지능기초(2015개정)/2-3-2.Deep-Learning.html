@@ -283,6 +283,21 @@
                     <div class="bg-white border border-slate-400 p-5 rounded-xl flex-1 flex flex-col shadow-sm">
                         <div class="space-y-4 mb-4">
                             <div>
+                                <label class="text-base font-bold text-slate-700 block mb-2">입력 노드 (Input Nodes)
+                                    수</label>
+                                <div class="flex items-center gap-3">
+                                    <button onclick="changeInputNodes(-1)"
+                                            class="w-8 h-8 rounded-full bg-slate-100 border border-slate-400 text-slate-600 hover:bg-slate-200 font-bold flex items-center justify-center">
+                                        -
+                                    </button>
+                                    <span id="inputNodesDisplay" class="w-8 text-center font-black text-lg">2</span>
+                                    <button onclick="changeInputNodes(1)"
+                                            class="w-8 h-8 rounded-full bg-slate-100 border border-slate-400 text-slate-600 hover:bg-slate-200 font-bold flex items-center justify-center">
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
                                 <label class="text-base font-bold text-slate-700 block mb-2">은닉층 (Hidden Layers)
                                     수</label>
                                 <div class="flex items-center gap-3">
@@ -1009,6 +1024,7 @@
     ========================================================= */
     let nnLayers = 2;
     let nnNeurons = 4;
+    let nnInputNodes = 2; // 입력 노드 변수
 
     function changeLayer(d) {
         nnLayers = Math.max(1, Math.min(5, nnLayers + d));
@@ -1019,6 +1035,14 @@
     function changeNeuron(d) {
         nnNeurons = Math.max(2, Math.min(8, nnNeurons + d));
         document.getElementById('neuronCountDisplay').innerText = nnNeurons;
+        nnSim.draw();
+    }
+
+    function changeInputNodes(delta) {
+        // [수정] 입력 노드 범위 제한 및 변수 업데이트
+        nnInputNodes = Math.max(2, Math.min(8, nnInputNodes + delta));
+        // [수정] id에 맞는 display와 변수 참조 (nnNeurons -> nnInputNodes)
+        document.getElementById('inputNodesDisplay').innerText = nnInputNodes;
         nnSim.draw();
     }
 
@@ -1034,7 +1058,8 @@
             this.resize();
             document.getElementById('btnForward').addEventListener('click', () => this.animateForward());
             window.addEventListener('resize', () => {
-                if (document.getElementById('tab1').classList.contains('active')) this.resize();
+                // 탭이 활성화된 상태에서만 리사이즈 (성능 최적화)
+                if (document.getElementById('tab2').classList.contains('active')) this.resize();
             });
         },
 
@@ -1046,9 +1071,10 @@
         },
 
         getNodes() {
-            let structure = [2];
+            // [개선] 동적으로 변하는 입력-은닉-출력 구조 생성
+            let structure = [nnInputNodes];
             for (let i = 0; i < nnLayers; i++) structure.push(nnNeurons);
-            structure.push(1);
+            structure.push(1); // 출력 노드는 1개로 고정
 
             let w = this.logicalWidth;
             let h = this.logicalHeight;
@@ -1076,6 +1102,7 @@
             if (this.logicalWidth === 0 || this.logicalHeight === 0) return;
             ctx.clearRect(0, 0, this.logicalWidth, this.logicalHeight);
 
+            // 1. 가중치 연결선 그리기
             ctx.lineWidth = 1.5;
             for (let n1 of nodes) {
                 for (let n2 of nodes) {
@@ -1089,6 +1116,7 @@
                 }
             }
 
+            // 2. 흐르는 파티클(데이터) 그리기
             for (let p of this.particles) {
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
@@ -1099,13 +1127,20 @@
             }
             ctx.shadowBlur = 0;
 
+            // 3. 노드 그리기
+            const totalLayers = nnLayers + 2; // 입력(1) + 은닉(nnLayers) + 출력(1)
             for (let n of nodes) {
                 ctx.beginPath();
                 ctx.arc(n.x, n.y, 12, 0, Math.PI * 2);
 
-                if (n.layer === 0) ctx.fillStyle = '#3b82f6';
-                else if (n.layer === nnLayers + 1) ctx.fillStyle = '#10b981';
-                else ctx.fillStyle = '#6366f1';
+                // [개선] 레이어 역할에 따른 색상 구분
+                if (n.layer === 0) {
+                    ctx.fillStyle = '#3b82f6'; // 입력: 파랑
+                } else if (n.layer === totalLayers - 1) {
+                    ctx.fillStyle = '#10b981'; // 출력: 초록
+                } else {
+                    ctx.fillStyle = '#6366f1'; // 은닉: 인디고
+                }
 
                 ctx.fill();
                 ctx.strokeStyle = '#1e293b';
@@ -1125,7 +1160,7 @@
                         this.particles.push({
                             sx: n1.x, sy: n1.y,
                             ex: n2.x, ey: n2.y,
-                            progress: -n1.layer * 0.4
+                            progress: -n1.layer * 0.8 // 순차적 흐름 효과
                         });
                     }
                 }
@@ -1135,7 +1170,7 @@
                 let allDone = true;
                 for (let p of this.particles) {
                     if (p.progress < 1.0) {
-                        p.progress += 0.02;
+                        p.progress += 0.025;
                         allDone = false;
                     }
                     let prog = Math.max(0, p.progress);

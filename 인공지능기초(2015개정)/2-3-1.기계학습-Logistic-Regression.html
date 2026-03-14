@@ -170,7 +170,7 @@
         <div class="mb-8 space-y-2 text-center md:text-left">
             <span class="text-indigo-600 font-bold tracking-widest uppercase text-base">Interactive Simulator</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-800">로지스틱 회귀 분류 시뮬레이터</h2>
-            <p class="text-slate-600 text-lg">캔버스의 위쪽을 클릭하면 '1(합격)', 아래쪽을 클릭하면 '0(불합격)' 데이터가 추가됩니다.</p>
+            <p class="text-slate-600 text-lg">캔버스의 위쪽을 클릭하면 '클래스 1', 아래쪽을 클릭하면 '클래스 0' 데이터가 추가됩니다.</p>
         </div>
 
         <div class="flex flex-col lg:flex-row gap-6 items-stretch">
@@ -180,10 +180,10 @@
                     <canvas id="regressionCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
 
                     <div class="absolute left-2 top-2 text-xs font-bold text-emerald-600 bg-white/80 px-2 py-1 rounded">
-                        클래스 1 (합격 등)
+                        클래스 1
                     </div>
                     <div class="absolute left-2 bottom-2 text-xs font-bold text-rose-600 bg-white/80 px-2 py-1 rounded">
-                        클래스 0 (불합격 등)
+                        클래스 0
                     </div>
                 </div>
 
@@ -347,6 +347,8 @@
         constructor(canvasId) {
             this.canvas = document.getElementById(canvasId);
             this.ctx = this.canvas.getContext('2d');
+            // 디자인 일관성을 위한 패딩 설정
+            this.padding = {top: 40, right: 50, bottom: 40, left: 50};
             this.resize();
             window.addEventListener('resize', () => this.resize());
         }
@@ -358,105 +360,138 @@
         }
 
         pixelToData(px, py, bounds) {
-            const x = bounds.minX + (px / this.canvas.width) * (bounds.maxX - bounds.minX);
-            const y = bounds.minY + ((this.canvas.height - py) / this.canvas.height) * (bounds.maxY - bounds.minY);
+            const innerW = this.canvas.width - this.padding.left - this.padding.right;
+            const innerH = this.canvas.height - this.padding.top - this.padding.bottom;
+
+            const x = bounds.minX + ((px - this.padding.left) / innerW) * (bounds.maxX - bounds.minX);
+            const y = bounds.minY + ((this.canvas.height - this.padding.bottom - py) / innerH) * (bounds.maxY - bounds.minY);
             return {x, y};
         }
 
         render(dataManager, model) {
-            const w = this.canvas.width, h = this.canvas.height, ctx = this.ctx;
+            const {width: w, height: h} = this.canvas;
+            const ctx = this.ctx;
             const bounds = dataManager.getBounds();
+            const p = this.padding;
+
+            const innerW = w - p.left - p.right;
+            const innerH = h - p.top - p.bottom;
+
             ctx.clearRect(0, 0, w, h);
 
-            const normalize = (val, min, max) => (val - min) / (max - min);
+            const getX = (val) => p.left + ((val - bounds.minX) / (bounds.maxX - bounds.minX)) * innerW;
+            const getY = (val) => (h - p.bottom) - ((val - bounds.minY) / (bounds.maxY - bounds.minY)) * innerH;
 
-            // 1. 기준선 (Y=0, Y=1 가이드라인)
-            ctx.strokeStyle = '#e2e8f0';
+            // --- [1. X축 눈금 및 라벨] ---
+            // --- [안전하게 개선된 Step 계산] ---
+            const rangeX = bounds.maxX - bounds.minX || 1; // 0 나누기 방지
+            const targetTickCount = 7;
+            let rawStep = rangeX / targetTickCount;
+
+            let step;
+            if (rawStep <= 1) step = 1; // 데이터 범위가 좁을 땐 1단위로
+            else if (rawStep <= 5) step = 5;
+            else if (rawStep <= 10) step = 10;
+            else step = Math.floor(rawStep / 10) * 10;
+
+            const startX = Math.ceil(bounds.minX / step) * step;
+
+            // 눈금 스타일 초기화
+            ctx.font = '11px Pretendard';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#f1f5f9';
             ctx.lineWidth = 1;
-            let py0 = h - (normalize(0, bounds.minY, bounds.maxY) * h);
-            let py1 = h - (normalize(1, bounds.minY, bounds.maxY) * h);
 
-            ctx.beginPath();
-            ctx.moveTo(0, py0);
-            ctx.lineTo(w, py0);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(0, py1);
-            ctx.lineTo(w, py1);
-            ctx.stroke();
+            for (let xVal = startX; xVal <= bounds.maxX; xVal += step) {
+                const px = getX(xVal);
+                ctx.beginPath();
+                ctx.moveTo(px, p.top);
+                ctx.lineTo(px, h - p.bottom);
+                ctx.stroke();
+                ctx.fillText(Math.round(xVal).toString(), px, h - p.bottom + 20);
+            }
 
-            // 2. 결정 경계선 (Decision Boundary: P=0.5)
+            // --- [2. 가로 가이드라인 (Y=0, Y=1)] ---
+            ctx.strokeStyle = '#e2e8f0';
+            const py0 = getY(0);
+            const py1 = getY(1);
+            [py0, py1].forEach(py => {
+                ctx.beginPath();
+                ctx.moveTo(p.left, py);
+                ctx.lineTo(w - p.right, py);
+                ctx.stroke();
+            });
+
+            // --- [3. 결정 경계선] ---
             if (dataManager.points.length > 0 && model.hasStarted && model.w !== 0) {
                 let boundary_nx = -model.b / model.w;
-                let boundary_x = boundary_nx * (bounds.maxX - bounds.minX) + bounds.minX;
-                let px = boundary_nx * w;
+                let boundary_x = bounds.minX + boundary_nx * (bounds.maxX - bounds.minX);
+                let px = p.left + (boundary_nx * innerW);
 
-                if (px >= 0 && px <= w) {
+                if (px >= p.left && px <= w - p.right) {
                     ctx.beginPath();
-                    ctx.moveTo(px, 0);
-                    ctx.lineTo(px, h);
+                    ctx.setLineDash([6, 6]);
+                    ctx.moveTo(px, p.top);
+                    ctx.lineTo(px, h - p.bottom);
                     ctx.strokeStyle = '#f59e0b';
                     ctx.lineWidth = 2;
-                    ctx.setLineDash([8, 8]);
                     ctx.stroke();
                     ctx.setLineDash([]);
 
                     ctx.fillStyle = '#d97706';
                     ctx.font = 'bold 12px Pretendard';
-                    ctx.fillText('확률 50% (경계)', px + 10, h / 2);
-                    // [개선 포인트] 경계를 가르는 정확한 X값 시각화
-                    ctx.fillText(`기준값: x = ${boundary_x.toFixed(1)}`, px + 10, h / 2 + 16);
+                    // 경계선이 오른쪽에 너무 붙으면 텍스트를 왼쪽에 그림
+                    ctx.textAlign = px > w - 100 ? 'right' : 'left';
+                    const textX = px > w - 100 ? px - 10 : px + 10;
+                    ctx.fillText(`경계: x = ${boundary_x.toFixed(1)}`, textX, h / 2);
                 }
             }
 
-            // 3. 시그모이드 곡선 그리기
+            // --- [4. 시그모이드 곡선] ---
             if (dataManager.points.length > 0 && model.hasStarted) {
                 ctx.beginPath();
-                for (let px = 0; px <= w; px += 2) {
-                    let nx = px / w;
-                    let z = model.w * nx + model.b;
-                    let pred_y = model.sigmoid(z);
-                    let py = h - (normalize(pred_y, bounds.minY, bounds.maxY) * h);
+                ctx.lineJoin = 'round'; // 곡선을 부드럽게
+                for (let px = p.left; px <= w - p.right; px += 2) {
+                    const nx = (px - p.left) / innerW;
+                    const z = model.w * nx + model.b;
+                    const pred_y = model.sigmoid(z);
+                    const py = getY(pred_y);
 
-                    if (px === 0) ctx.moveTo(px, py);
+                    if (px === p.left) ctx.moveTo(px, py);
                     else ctx.lineTo(px, py);
                 }
                 ctx.strokeStyle = '#8b5cf6';
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 3;
                 ctx.stroke();
             }
 
-            // 4. 데이터 포인트 그리기
-            for (let p of dataManager.points) {
-                let px = normalize(p.x, bounds.minX, bounds.maxX) * w;
-                let py = h - (normalize(p.y, bounds.minY, bounds.maxY) * h);
-
+            // --- [5. 데이터 포인트] ---
+            for (let p_data of dataManager.points) {
+                const px = getX(p_data.x);
+                const py = getY(p_data.y);
                 ctx.beginPath();
-                ctx.arc(px, py, 7, 0, Math.PI * 2);
-                ctx.fillStyle = p.y === 1 ? '#10b981' : '#f43f5e';
+                ctx.arc(px, py, 6, 0, Math.PI * 2);
+                ctx.fillStyle = p_data.y === 1 ? '#10b981' : '#f43f5e';
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 2;
                 ctx.stroke();
             }
 
-            // 5. [개선 포인트] 예측 데이터 시각화
+            // --- [6. 예측 데이터] ---
             if (model.predictData) {
-                let nx = (model.predictData.x - bounds.minX) / (bounds.maxX - bounds.minX);
-                let px = nx * w;
-                let py = h - (normalize(model.predictData.p, bounds.minY, bounds.maxY) * h);
-
-                // 예측 안내선 그리기
+                const px = getX(model.predictData.x);
+                const py = getY(model.predictData.p);
                 ctx.beginPath();
-                ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = '#a855f7'; // 보라색 선
-                ctx.moveTo(px, py0); // 바닥에서부터
-                ctx.lineTo(px, py); // 곡선까지
-                ctx.lineTo(0, py); // 곡선에서 Y축까지
+                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = '#a855f7';
+                ctx.moveTo(px, py0);
+                ctx.lineTo(px, py);
+                ctx.lineTo(p.left, py);
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // 예측 포인트 그리기 (깜빡이는 느낌을 주기 위해 테두리를 두껍게)
                 ctx.beginPath();
                 ctx.arc(px, py, 8, 0, Math.PI * 2);
                 ctx.fillStyle = '#a855f7';
@@ -465,10 +500,10 @@
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // 예측 확률 텍스트 렌더링
+                ctx.textAlign = 'left';
                 ctx.fillStyle = '#9333ea';
-                ctx.font = 'bold 14px Pretendard';
-                ctx.fillText(`예측: ${(model.predictData.p * 100).toFixed(1)}%`, px + 12, py - 10);
+                ctx.font = 'bold 13px Pretendard';
+                ctx.fillText(`${(model.predictData.p * 100).toFixed(1)}%`, px + 10, py - 8);
             }
         }
     }
@@ -602,7 +637,7 @@
 
                 const resultDiv = document.getElementById('predictResult');
                 const isClass1 = p >= 0.5;
-                const resultText = isClass1 ? '클래스 1 (합격 등)' : '클래스 0 (불합격 등)';
+                const resultText = isClass1 ? '클래스 1' : '클래스 0';
                 const resultColor = isClass1 ? 'text-emerald-400' : 'text-rose-400';
 
                 resultDiv.innerHTML = `확률: ${(p * 100).toFixed(1)}% ➔ <span class="${resultColor} font-black">${resultText}</span>`;

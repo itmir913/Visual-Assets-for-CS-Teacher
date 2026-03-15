@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>데이터 편향성과 공정성</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        /* Hero 배경 그라데이션 */
+        .hero-gradient {
+            background: linear-gradient(135deg, #f43f5e 0%, #4f46e5 100%);
+        }
+
+        /* 스크롤 시 특정 위치부터 상단 고정되는 네비게이션 */
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.25s ease;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .quiz-btn.correct:hover,
+        .quiz-btn.wrong:hover {
+            background: inherit;
+            border-color: inherit;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+<header class="hero-gradient text-white py-32 px-6 relative overflow-hidden" id="intro">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-scale-unbalanced absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-database absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-md border border-white/30">Chapter 04.</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight"> 데이터 편향성과 공정성 </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            인공지능의 판단은 항상 객관적이고 공정할까요? <br>
+            차별과 편견을 학습한 AI의 사례를 살펴보고, <strong>'공정한 인공지능'</strong>을 만들기 위한 방법을 알아봅시다!
+        </p>
+    </div>
+</header>
+
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-scale-balanced text-lg"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 편향성과 공정성</span>
+        </div>
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500">
+            <a class="hover:text-rose-500 transition" href="#intro">도입</a>
+            <a class="hover:text-rose-500 transition" href="#concept">편향성이란?</a>
+            <a class="hover:text-rose-500 transition" href="#cases">AI 차별 사례</a>
+            <a class="hover:text-rose-500 transition" href="#misconception">오해와 진실</a>
+            <a class="hover:text-rose-500 transition" href="#solution">해결 방안</a>
+            <a class="hover:text-rose-500 transition" href="#quiz">확인질문</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section class="scroll-mt-24 space-y-8" id="concept">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">인공지능의 뼈아픈 실수, 어디서 비롯될까?</h2>
+            <div class="w-20 h-1.5 bg-rose-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card">
+            <p class="text-lg text-slate-700 leading-relaxed mb-8">
+                우리는 보통 컴퓨터나 인공지능이 계산한 결과가 사람보다 <strong>훨씬 객관적이고 공정할 것</strong>이라고 믿습니다. 하지만 대입 합격자 선발이나 대출 심사처럼 중요한 결정을
+                인공지능에게 무조건 맡겨도 될까요? 정답은 <strong>'그렇지 않다'</strong>입니다.
+            </p>
+
+            <div class="bg-indigo-50 p-8 rounded-3xl border border-indigo-200 flex flex-col md:flex-row items-center gap-8 shadow-sm">
+                <div class="w-full md:w-1/3 flex justify-center">
+                    <div class="w-32 h-32 bg-indigo-600 rounded-full flex items-center justify-center text-white text-5xl shadow-lg relative">
+                        <i class="fa-solid fa-filter"></i>
+                        <div class="absolute -top-2 -right-2 bg-rose-500 text-white text-base font-bold px-3 py-1 rounded-full shadow-md animate-bounce">
+                            Error!
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 space-y-4">
+                    <h3 class="text-2xl font-black text-indigo-900">데이터 편향성 (Data Bias)</h3>
+                    <p class="text-lg text-indigo-800 leading-relaxed">
+                        기계학습 모델을 학습시키는 데 사용하는 데이터가 <span class="font-bold bg-amber-200 px-1 rounded">인간이나 사회 문화가 가지는 편견과 오류를 그대로 포함한 상태</span>를
+                        말합니다.
+                    </p>
+                    <div class="bg-white p-4 rounded-xl border border-indigo-100 text-slate-600 shadow-inner">
+                        <i class="fa-solid fa-quote-left text-indigo-300 mr-2"></i>
+                        <strong>편향된 데이터의 입력이 편향된 데이터의 출력을 발생시킨다.</strong>
+                        <i class="fa-solid fa-quote-right text-indigo-300 ml-2"></i>
+                        <p class="mt-2 text-base">인공지능은 마치 스펀지와 같아서, 우리가 건네주는 데이터 속의 차별과 편견마저도 '학습해야 할 규칙'으로 받아들입니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-slate-100 p-6 rounded-2xl border border-slate-200">
+                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                    <i class="fa-solid fa-robot text-slate-500 mr-2"></i> 사례: 하루 만에 서비스가 종료된 챗봇 '테이(Tay)'
+                </h4>
+                <p class="text-slate-600">
+                    M사가 개발한 대화형 인공지능 챗봇 테이는 대화하며 스스로 학습하도록 설계되었습니다. 하지만 일부 악의적인 사용자들이 인종차별적이고 혐오스러운 표현을 반복해서 학습시켰고, 테이는
+                    결국 <strong>사회적 약자에 대한 혐오 발언을 쏟아내며</strong> 단 하루 만에 운영을 중단하게 되었습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 space-y-12" id="cases">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 편향을 초래하는 4가지 요인</h2>
+            <div class="w-20 h-1.5 bg-rose-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">인공지능이 스스로 편향된 시스템을 만들게 된 대표적인 사례들을 통해 그 원인을 알아봅시다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div class="section-card border-t-4 border-t-rose-500 transition-transform">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-briefcase"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">1. 데이터 선정 과정의 사회적 차별</h3>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
+                    <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-magnifying-glass mr-1"></i>
+                        아마존(Amazon)의 AI 채용 시스템</p>
+                    <p class="text-base text-slate-600">이력서를 검토하는 AI가 <strong>'여성'이라는 단어가 포함된 지원자(예: 여성 체스 동아리)의 점수를
+                        감점</strong>하는 차별적인 행동을 보였습니다.</p>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed">
+                    <strong>원인:</strong> IT 업계에 남성 직원의 비중이 압도적으로 높았던 과거 10년 치의 이력서 데이터를 AI가 그대로 학습했기 때문입니다. AI는 '남성일수록
+                    합격률이 높다'는 잘못된 규칙을 스스로 만들어냈습니다.
+                </p>
+            </div>
+
+            <div class="section-card border-t-4 border-t-amber-500 transition-transform">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">2. 인간이 쌓아 온 역사적·암묵적 편향</h3>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
+                    <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-magnifying-glass mr-1"></i>
+                        구글(Google)의 이미지 번역 및 검색</p>
+                    <p class="text-base text-slate-600">성별이 명시되지 않은 '의사(Doctor)'를 남성으로, '간호사(Nurse)'를 여성으로 번역하거나 검색 결과로
+                        압도적으로 많이 보여주었습니다.</p>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed">
+                    <strong>원인:</strong> 인류가 오랜 시간 동안 축적해 온 수많은 문서와 이미지 속에 녹아 있는 <strong>'성역할에 대한 고정관념과 암묵적 편견'</strong>이
+                    데이터에 스며들어 있었기 때문입니다.
+                </p>
+            </div>
+
+            <div class="section-card border-t-4 border-t-blue-500 transition-transform">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-face-viewfinder"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">3. 데이터 양의 불균형</h3>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
+                    <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-magnifying-glass mr-1"></i> 서양권의 얼굴
+                        인식 시스템 오류</p>
+                    <p class="text-base text-slate-600">백인 남성의 얼굴은 아주 정확하게 인식하지만, <strong>아시아인, 흑인, 또는 여성의 얼굴은 제대로 인식하지
+                        못하거나 오류</strong>를 일으켰습니다.</p>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed">
+                    <strong>원인:</strong> 시스템을 학습시킬 때 백인 남성의 사진 데이터가 압도적으로 많이 사용되었고, 인종별·성별로 <strong>데이터의 양을 비슷하게 맞추는(균형
+                    조정) 작업을 하지 않았기 때문</strong>입니다.
+                </p>
+            </div>
+
+            <div class="section-card border-t-4 border-t-emerald-500 transition-transform">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-gavel"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">4. 오래되거나 불완전한 데이터</h3>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
+                    <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-magnifying-glass mr-1"></i>
+                        컴파스(COMPAS) 범죄 위험 예측</p>
+                    <p class="text-base text-slate-600">비슷한 범죄 이력을 가졌음에도, <strong>백인보다 흑인이나 빈민촌 거주자를 재범 고위험군으로 더 많이
+                        분류</strong>했습니다.</p>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed">
+                    <strong>원인:</strong> 과거에 흑인과 백인의 범죄 발생 및 검거 비율이 달랐던 시대의 <strong>오래되고 불완전한 재소자 데이터</strong>를 기반으로
+                    학습하여, 현재 상황에 맞지 않는 인종 차별적 결과를 낳았습니다.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="scroll-mt-24" id="misconception">
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-8 rounded-r-3xl flex flex-col md:flex-row gap-6 items-start shadow-sm">
+            <div class="text-amber-500 text-4xl mt-1 shrink-0">
+                <i class="fa-solid fa-lightbulb"></i>
+            </div>
+            <div>
+                <h3 class="font-black text-amber-900 text-xl mb-3"> 모든 데이터 편향성이 무조건 나쁜 것일까? </h3>
+                <p class="text-amber-900 leading-relaxed mb-4">
+                    일반적으로 편향성은 차별을 낳기 때문에 부정적입니다. 하지만 <strong>때로는 의도적인 데이터 편향성이 도움이 될 때</strong>도 있습니다!
+                </p>
+                <div class="bg-white p-4 rounded-xl border border-amber-200">
+                    <p class="text-slate-700 text-base leading-relaxed">
+                        <span class="font-bold text-amber-700">마케팅과 추천 시스템 사례:</span><br>
+                        만약 '18세~25세 젊은 여성'을 대상으로 하는 패션 쇼핑몰이라면 어떨까요? 세상 모든 사람의 중립적인 취향 데이터보다, 딱 <strong>그 연령대 여성들의 편향된 소비
+                        데이터</strong>로 인공지능을 학습시키는 것이 고객들에게 훨씬 더 매력적이고 정확한 옷을 추천할 수 있습니다.
+                    </p>
+                </div>
+                <p class="mt-4 text-base font-bold text-amber-800">
+                    👉 즉, 편향성이 사회적 차별이나 불이익을 만들 때는 치명적이지만, 특정 목적(타겟 마케팅 등)을 달성하기 위한 도구로 쓰일 때는 유리할 수 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 space-y-8" id="solution">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">공정한 AI를 만들기 위한 우리의 노력</h2>
+            <div class="w-20 h-1.5 bg-rose-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">완벽하게 공정한 AI를 만드는 것은 불가능에 가깝지만, 끊임없이 백신을 업데이트하듯 계속해서 노력해야
+                합니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <div class="flex flex-col md:flex-row gap-6 items-center">
+                <div class="w-16 h-16 shrink-0 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl font-black">
+                    1
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">편향 없는 학습 데이터 구축 (데이터 정제)</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        좋은 요리를 위해 신선한 재료가 필요하듯, 공정한 AI를 위해서는 <strong>좋은 데이터</strong>가 필수입니다. 수집된 데이터에 차별이나 편견이 없는지 살피고,
+                        남녀·인종 등 <strong>데이터의 비율을 비슷하게 맞추며 선별, 정제, 검증 과정</strong>을 거쳐야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <div class="flex flex-col md:flex-row gap-6 items-center">
+                <div class="w-16 h-16 shrink-0 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl font-black">
+                    2
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">공정한 알고리즘 설계</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        데이터 자체가 공정해도, 그것을 처리하는 과정(알고리즘)에 개발자의 인위적인 조작이나 잠재적 편견이 들어갈 수 있습니다. 따라서 사회적 차별이 일어나지 않도록
+                        <strong>알고리즘을 투명하고 공정하게 설계하는 전문가의 윤리 의식</strong>이 필요합니다.
+                    </p>
+                </div>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <div class="flex flex-col md:flex-row gap-6 items-center">
+                <div class="w-16 h-16 shrink-0 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl font-black">
+                    3
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">기계학습 공정성에 대한 사회적 인식</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        "인공지능의 결정은 무조건 맞다"는 생각을 버려야 합니다. <strong>기계적 예측이 항상 객관적인 진실을 말하지는 않습니다.</strong> 인공지능 시스템이 제대로
+                        작동하는지, 사회적 약자를 차별하고 있지는 않은지 <strong>비판적인 시각으로 감시하는 사회적 관심</strong>이 무엇보다 중요합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24" id="quiz">
+
+        <div class="text-center mb-10">
+            <span class="inline-block bg-teal-100 text-teal-700 px-4 py-1.5 rounded-full font-bold tracking-wider mb-4"> CHECK-UP </span>
+            <h2 class="text-3xl font-black">스스로 점검하기</h2>
+            <p class="text-slate-500 mt-2">오늘 배운 데이터 편향성의 개념과 해결 방법을 점검해 봅시다!</p>
+        </div>
+
+        <div class="space-y-8">
+            <div class="bg-slate-50 rounded-2xl p-6 md:p-8 border border-slate-300">
+                <h3 class="font-bold text-xl mb-6 text-slate-800 leading-relaxed">
+                    <span class="text-rose-500 mr-2 bg-rose-100 px-3 py-1 rounded-lg">Q1</span> 다음 중 인공지능의 <strong>'데이터
+                    편향성'</strong>에 대한 설명으로 가장 올바른 것은 무엇인가요?
+                </h3>
+                <div class="grid grid-cols-1 gap-4">
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '인공지능은 입력된 데이터에 따라 매우 주관적이고 차별적인 결과를 낼 수 있습니다.')">
+                        1. 기계가 처리하기 때문에 사람과 달리 언제나 100% 객관적이고 공정한 상태를 유지한다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, true, '정답입니다! 인간의 편견이나 사회적 불평등이 담긴 데이터를 그대로 학습했을 때 발생하는 문제입니다.')">
+                        2. 기계학습 모델을 학습시키는 데이터가 인간이나 사회 문화가 가지는 편견과 오류를 그대로 포함한 상태이다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '데이터 편향은 데이터가 너무 적어서 생기기도 하지만, 편향된 데이터가 아무리 많아도 똑같이 발생합니다.')">
+                        3. 단순히 컴퓨터의 성능이 부족하여 계산 오류가 발생한 상태를 의미한다.
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-6 md:p-8 border border-slate-300">
+                <h3 class="font-bold text-xl mb-6 text-slate-800 leading-relaxed">
+                    <span class="text-rose-500 mr-2 bg-rose-100 px-3 py-1 rounded-lg">Q2</span> 아마존의 AI 채용 시스템이 <strong>남성을
+                    우대하고 여성을 차별</strong>하는 판단을 내린 근본적인 원인은 무엇이었을까요?
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '개발자가 일부러 그렇게 프로그래밍한 것이 아니라, 데이터가 원인이었습니다.')">
+                        1. 개발자가 인위적으로 남성만 뽑으라고 명령어를 입력했기 때문이다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, true, '정답입니다! 과거 IT 업계의 남성 위주 이력서 데이터가 AI에게 잘못된 기준을 학습시켰습니다.')">
+                        2. IT 업계의 남성 비중이 높았던 과거의 편향된 이력서 데이터를 그대로 학습했기 때문이다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '데이터의 양이 너무 적은 것이 아니라, 데이터의 성별 비율이 심하게 불균형했던 것입니다.')">
+                        3. 남녀에 상관없이 제출된 전체 이력서의 양이 너무 부족했기 때문이다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '오래된 데이터도 문제일 수 있지만, 아마존 사례의 핵심은 특정 집단에 치우친 데이터 선정 편향입니다.')">
+                        4. 최근 데이터가 아닌 오래된 데이터만으로 평가를 진행했기 때문이다.
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-6 md:p-8 border border-slate-300">
+                <h3 class="font-bold text-xl mb-6 text-slate-800 leading-relaxed">
+                    <span class="text-rose-500 mr-2 bg-rose-100 px-3 py-1 rounded-lg">Q3</span> 공정한 인공지능을 만들기 위해 우리가 가져야
+                    할 태도로 <strong>적절하지 않은 것</strong>은 무엇인가요?
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '올바른 태도입니다. 데이터의 비율을 고르게 맞추는 등 정제 과정이 필요합니다.')">
+                        1. 편향 없는 학습 데이터를 구축하기 위해 데이터를 분석하고 꼼꼼히 관리한다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '올바른 태도입니다. 알고리즘 개발 과정의 투명성과 윤리가 필요합니다.')">
+                        2. 알고리즘 자체에 잠재적 편견이 들어가지 않도록 공정하게 설계한다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, true, '정답입니다! 인공지능의 결정 안에도 차별이 숨어있을 수 있으므로 항상 비판적인 시각으로 살펴보아야 합니다.')">
+                        3. 인공지능은 컴퓨터의 계산이므로 항상 객관적일 것이라 믿고 그 결정을 100% 전적으로 수용한다.
+                    </button>
+                    <button class="quiz-btn"
+                            onclick="checkAnswer(this, false, '올바른 태도입니다. 기계학습의 한계를 알고 감시하는 노력이 필요합니다.')">
+                        4. 기계학습 결과가 제대로 작동하고 있는지 비판적인 시각을 가지고 지속적으로 살펴본다.
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-slate-900 py-12 px-6 text-center mt-20">
+    <p class="text-white font-black text-2xl mb-2">인공지능 기초</p>
+    <p class="text-slate-400">데이터 편향성과 공정성</p>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+
+        const container = btn.parentElement;
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => {
+            if (!b.dataset.label) {
+                b.dataset.label = b.textContent;
+            }
+            b.classList.remove('correct', 'wrong');
+            b.classList.add('disabled');
+        });
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>${btn.dataset.label}`;
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2"></i>${btn.dataset.label}`;
+        }
+
+        showToast(message, isCorrect ? 'success' : 'error');
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('correct', 'wrong', 'disabled');
+                b.innerHTML = b.dataset.label;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existingToasts = document.querySelectorAll('.toast-message');
+        existingToasts.forEach(t => t.remove());
+
+        const toast = document.createElement('div');
+        const icon = type === 'success' ? '<i class="fa-solid fa-circle-check mr-2 text-xl"></i>' : '<i class="fa-solid fa-circle-xmark mr-2 text-xl"></i>';
+
+        toast.className = `toast-message fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 opacity-0 z-[1000] flex items-center ${type === 'success' ? 'bg-indigo-600' : 'bg-rose-600'}`;
+        toast.innerHTML = `${icon} <span>${message}</span>`;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+</script>
+</body>
+</html>

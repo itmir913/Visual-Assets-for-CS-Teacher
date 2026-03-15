@@ -522,12 +522,12 @@
             const b = dataManager.getBounds();
             const stats = dataManager.getStats();
 
-            // X1 Canvas (x1 vs y, holding x2 at mean)
+            // X1 Canvas (x1 vs y, x2는 평균으로 고정)
             this._drawPartialPlot(this.ctx1, this.canvas1.width, this.canvas1.height,
                 dataManager.points, b.minX1, b.maxX1, b.minY, b.maxY,
                 'x1', '#3b82f6', model.hasStarted, realWeights, stats.meanX2, 'w1');
 
-            // X2 Canvas (x2 vs y, holding x1 at mean)
+            // X2 Canvas (x2 vs y, x1은 평균으로 고정)
             this._drawPartialPlot(this.ctx2, this.canvas2.width, this.canvas2.height,
                 dataManager.points, b.minX2, b.maxX2, b.minY, b.maxY,
                 'x2', '#a855f7', model.hasStarted, realWeights, stats.meanX1, 'w2');
@@ -537,23 +537,24 @@
             const mapX = (val) => ((val - minX) / (maxX - minX)) * w;
             const mapY = (val) => h - (((val - minY) / (maxY - minY)) * h);
 
-            // 데이터 점 그리기
+            // 데이터 점 및 오차선 그리기
             points.forEach(p => {
                 let px = mapX(p[xKey]);
                 let py = mapY(p.y);
 
-                // 에러 선 그리기 (예측선이 있을 때)
+                // 오차 선 그리기 (예측선이 있을 때)
                 if (hasStarted && rw) {
+                    // 💡 [수정된 부분] 실제 p.x2가 아닌 meanOtherX를 사용하여 오차선이 녹색 회귀선에 정확히 닿도록 수정
                     let predY = (weightKey === 'w1')
-                        ? (rw.w1 * p.x1 + rw.w2 * p.x2 + rw.b)
-                        : (rw.w1 * p.x1 + rw.w2 * p.x2 + rw.b);
+                        ? (rw.w1 * p.x1 + rw.w2 * meanOtherX + rw.b)
+                        : (rw.w1 * meanOtherX + rw.w2 * p.x2 + rw.b);
                     let predPy = mapY(predY);
 
                     ctx.beginPath();
                     ctx.moveTo(px, py);
                     ctx.lineTo(px, predPy);
-                    ctx.strokeStyle = 'rgba(225, 29, 72, 0.3)';
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(225, 29, 72, 0.4)'; // 오차선 색상 약간 더 진하게
+                    ctx.lineWidth = 1.5;
                     ctx.stroke();
                 }
 

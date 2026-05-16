@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 시각화</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #059669 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .quiz-btn.correct:hover,
+        .quiz-btn.wrong:hover {
+            background: inherit;
+            border-color: inherit;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 막대그래프 */
+        .bar-group {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .bar {
+            border-radius: 4px 4px 0 0;
+            transition: opacity 0.2s;
+            position: relative;
+        }
+
+        .bar:hover {
+            opacity: 0.8;
+        }
+
+        /* 산점도 점 */
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-chart-bar absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chart-line absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-md border border-white/30 text-base">
+            Chapter 03.
+        </span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터 시각화
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            데이터를 <strong>그래프와 차트</strong>로 시각화하면<br>
+            숨어 있는 의미를 쉽게 발견하고<br>
+            기계학습에 필요한 <strong>핵심 속성</strong>을 찾을 수 있습니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-cyan-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 list-decimal list-inside text-base font-medium text-slate-800">
+                    <li>데이터를 다양한 형태로 시각화할 수 있다.</li>
+                    <li>데이터 시각화를 통해 데이터가 가지는 의미를 해석할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-cyan-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chart-bar text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 시각화</span>
+        </div>
+        <div class="hidden md:flex space-x-6 font-bold text-slate-500 text-base">
+            <a href="#viz-concept" class="hover:text-cyan-600 transition">시각화란?</a>
+            <a href="#bar-line" class="hover:text-cyan-600 transition">막대·선그래프</a>
+            <a href="#scatter" class="hover:text-cyan-600 transition">산점도</a>
+            <a href="#iris-viz" class="hover:text-cyan-600 transition">붓꽃 시각화</a>
+            <a href="#feature-stats" class="hover:text-cyan-600 transition">특성 통계표</a>
+            <a href="#orange" class="hover:text-cyan-600 transition">오렌지 실습</a>
+            <a href="#quiz" class="hover:text-cyan-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 데이터 시각화란? ===== -->
+    <section id="viz-concept" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터를 어떻게 시각화할까?</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터를 시각화하여 나타내는 방법은 막대, 선, 점 등 다양합니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 시각화 정의 -->
+            <div class="bg-cyan-50 border border-cyan-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-cyan-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-eye"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-cyan-900 mb-2">데이터 시각화(Data Visualization)란?</h3>
+                        <p class="text-base text-cyan-800 leading-relaxed">
+                            일상생활에서 발생하는 수많은 데이터는 수집한 형태만으로 전체를 파악하기 어려운 경우가 많습니다.
+                            이런 데이터를 <strong>막대, 선, 점 등 다양한 형태로 시각화</strong>하면 그 의미를 쉽게 파악할 수 있고
+                            <strong>숨어 있는 정보</strong>도 쉽게 찾을 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 핵심 요소 카드 3개 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-5">
+                    <i class="fa-solid fa-star text-cyan-600 mr-2"></i>핵심 요소
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 text-center">
+                        <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-800 mb-2">데이터 시각화</h4>
+                        <p class="text-base text-slate-600 leading-relaxed">데이터가 가지는 의미를 그래프 등으로 표현하여 해석하는 방법</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 text-center">
+                        <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-800 mb-2">시각화 방법</h4>
+                        <p class="text-base text-slate-600 leading-relaxed">막대, 선, 점(산점도), 워드 클라우드 등 목적에 맞는 다양한 형태
+                            활용</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 text-center">
+                        <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-800 mb-2">시각화의 활용</h4>
+                        <p class="text-base text-slate-600 leading-relaxed">기계학습에 필요한 <strong>핵심 속성</strong>을 파악하는 데
+                            유용하게 활용</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 포인트 강조 -->
+            <div class="bg-amber-50 border-l-4 border-amber-400 rounded-xl p-5">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-lightbulb text-amber-500 text-xl mt-0.5 shrink-0"></i>
+                    <p class="text-base text-amber-800 leading-relaxed">
+                        <strong>데이터의 양이 많을수록</strong> 시각화를 통해 의미 있는 정보를 더 잘 파악할 수 있습니다.
+                        날씨 데이터는 기상 자료 개방 포털(data.kma.go.kr)에서 다운로드할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 막대그래프와 선그래프 ===== -->
+    <section id="bar-line" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">막대그래프와 선그래프</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">목적에 따라 막대그래프와 선그래프를 구분하여 사용합니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 두 그래프 비교 카드 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 막대그래프 -->
+                <div class="bg-blue-50 rounded-2xl p-6 border border-blue-300">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-chart-bar"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-blue-900">막대그래프</h3>
+                            <p class="text-base text-blue-600">Bar Chart</p>
+                        </div>
+                    </div>
+                    <p class="text-base text-blue-800 leading-relaxed mb-4">
+                        <strong>상대적인 크기를 비교</strong>하여 알아보기에 적합합니다.<br>
+                        항목 간 값의 차이를 막대 높이로 한눈에 비교할 수 있습니다.
+                    </p>
+                    <div class="bg-white rounded-xl p-3 border border-blue-100">
+                        <p class="font-bold text-base text-blue-700 mb-1">활용 예시</p>
+                        <p class="text-base text-blue-600">서울과 제주의 <strong>월별 강수량</strong> 비교</p>
+                    </div>
+                </div>
+
+                <!-- 선그래프 -->
+                <div class="bg-emerald-50 rounded-2xl p-6 border border-emerald-300">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-emerald-900">선그래프</h3>
+                            <p class="text-base text-emerald-600">Line Chart</p>
+                        </div>
+                    </div>
+                    <p class="text-base text-emerald-800 leading-relaxed mb-4">
+                        데이터의 <strong>시간에 따른 변화 추이</strong>를 파악하거나 예측할 때 유용합니다.<br>
+                        시간 흐름에 따른 값의 증가·감소를 직관적으로 확인합니다.
+                    </p>
+                    <div class="bg-white rounded-xl p-3 border border-emerald-100">
+                        <p class="font-bold text-base text-emerald-700 mb-1">활용 예시</p>
+                        <p class="text-base text-emerald-600">코로나 <strong>확진자 수 변화</strong> 추이 파악</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 막대그래프 예시 (서울/제주 강수량) -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">
+                    <i class="fa-solid fa-cloud-rain text-blue-500 mr-2"></i>예시: 서울·제주 지역의 월별 강수량 (2020년)
+                </h3>
+                <p class="text-base text-slate-500 mb-5">서울은 <strong>8월</strong>에, 제주는 <strong>9월</strong>에 강수량이 가장 많았음을
+                    막대그래프로 쉽게 확인할 수 있습니다.</p>
+
+                <!-- 시각화된 막대그래프 (CSS) -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 overflow-x-auto">
+                    <p class="text-base font-bold text-slate-700 mb-4 text-center">월별 강수량 (단위: mm)</p>
+                    <div class="min-w-[560px]">
+                        <!-- 범례 -->
+                        <div class="flex items-center gap-6 mb-4 justify-center">
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 rounded bg-blue-500"></div>
+                                <span class="text-base font-bold text-slate-700">서울</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 rounded bg-orange-400"></div>
+                                <span class="text-base font-bold text-slate-700">제주</span>
+                            </div>
+                        </div>
+                        <!-- 그래프 영역 -->
+                        <div class="flex items-end gap-2 h-48 border-b-2 border-slate-300 pb-1 pl-2">
+                            <!-- 월별 데이터: 서울, 제주 (단위 mm, 최대치 400mm 기준) -->
+                            <!-- Jan -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:15%;" title="서울 60mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:29%;" title="제주 116mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">1월</span>
+                            </div>
+                            <!-- Feb -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:13%;" title="서울 53mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:7%;" title="제주 29mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">2월</span>
+                            </div>
+                            <!-- Mar -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:4%;" title="서울 16mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:20%;" title="제주 81mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">3월</span>
+                            </div>
+                            <!-- Apr -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:4%;" title="서울 17mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:21%;" title="제주 82mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">4월</span>
+                            </div>
+                            <!-- May -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:28%;" title="서울 112mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:5%;" title="제주 20mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">5월</span>
+                            </div>
+                            <!-- Jun -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:35%;" title="서울 140mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:56%;" title="제주 225mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">6월</span>
+                            </div>
+                            <!-- Jul -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:68%;" title="서울 270mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:46%;" title="제주 184mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">7월</span>
+                            </div>
+                            <!-- Aug ★ 서울 최다 -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-600 w-4 ring-2 ring-blue-300" style="height:100%;"
+                                         title="서울 400mm (최다)"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:35%;" title="제주 140mm"></div>
+                                </div>
+                                <span class="text-base font-bold text-blue-600 mt-1">8월★</span>
+                            </div>
+                            <!-- Sep ★ 제주 최다 -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:45%;" title="서울 181mm"></div>
+                                    <div class="bar bg-orange-500 w-4 ring-2 ring-orange-300" style="height:100%;"
+                                         title="제주 400mm (최다)"></div>
+                                </div>
+                                <span class="text-base font-bold text-orange-500 mt-1">9월★</span>
+                            </div>
+                            <!-- Oct -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:13%;" title="서울 51mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:3%;" title="제주 13mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">10월</span>
+                            </div>
+                            <!-- Nov -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:30%;" title="서울 120mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:7%;" title="제주 28mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">11월</span>
+                            </div>
+                            <!-- Dec -->
+                            <div class="flex flex-col items-center gap-0.5 flex-1">
+                                <div class="flex items-end gap-0.5 h-40">
+                                    <div class="bar bg-blue-500 w-4" style="height:1%;" title="서울 4mm"></div>
+                                    <div class="bar bg-orange-400 w-4" style="height:7%;" title="제주 29mm"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">12월</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-base text-slate-500 text-center mt-3">★ 표시는 각 지역 강수량 최다 월</p>
+                </div>
+            </div>
+
+            <!-- 선그래프 예시 (코로나 확진자) -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">
+                    <i class="fa-solid fa-virus text-rose-500 mr-2"></i>예시: 코로나 확진자 수 변화 (2020년 11월 ~ 2021년 2월)
+                </h3>
+                <p class="text-base text-slate-500 mb-5">선그래프로 나타내면 <strong>2020년 12월</strong>에 확진자가 급격히 증가한 것을 한눈에 확인할
+                    수 있습니다.</p>
+
+                <!-- 선그래프 SVG -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 overflow-x-auto">
+                    <p class="text-base font-bold text-slate-700 mb-4 text-center">코로나 일별 확진자 수 추이 (개념도)</p>
+                    <div class="min-w-[480px]">
+                        <svg viewBox="0 0 480 200" class="w-full" aria-label="코로나 확진자 수 변화 선그래프 개념도">
+                            <!-- 격자선 -->
+                            <line x1="50" y1="20" x2="50" y2="170" stroke="#e2e8f0" stroke-width="1"/>
+                            <line x1="50" y1="170" x2="460" y2="170" stroke="#e2e8f0" stroke-width="1"/>
+                            <line x1="50" y1="120" x2="460" y2="120" stroke="#f1f5f9" stroke-width="1"
+                                  stroke-dasharray="4"/>
+                            <line x1="50" y1="70" x2="460" y2="70" stroke="#f1f5f9" stroke-width="1"
+                                  stroke-dasharray="4"/>
+                            <!-- y축 레이블 -->
+                            <text x="44" y="174" text-anchor="end" font-size="11" fill="#94a3b8">0</text>
+                            <text x="44" y="124" text-anchor="end" font-size="11" fill="#94a3b8">500</text>
+                            <text x="44" y="74" text-anchor="end" font-size="11" fill="#94a3b8">1000</text>
+                            <text x="44" y="24" text-anchor="end" font-size="11" fill="#94a3b8">1500</text>
+                            <!-- x축 레이블 -->
+                            <text x="90" y="186" text-anchor="middle" font-size="12" fill="#64748b">11월</text>
+                            <text x="185" y="186" text-anchor="middle" font-size="12" fill="#64748b">12월</text>
+                            <text x="290" y="186" text-anchor="middle" font-size="12" fill="#64748b">1월</text>
+                            <text x="400" y="186" text-anchor="middle" font-size="12" fill="#64748b">2월</text>
+                            <!-- 선그래프: 완만 증가 → 12월 급증 → 감소 -->
+                            <polyline
+                                    points="70,155 90,148 110,140 130,130 150,118 170,108 190,68 210,38 230,28 250,40 270,55 290,68 310,75 330,82 350,88 360,93 380,98 400,100 420,102 440,105"
+                                    fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linejoin="round"/>
+                            <!-- 12월 급증 표시 -->
+                            <line x1="185" y1="20" x2="185" y2="165" stroke="#f43f5e" stroke-width="1"
+                                  stroke-dasharray="4" opacity="0.5"/>
+                            <text x="200" y="32" font-size="11" fill="#f43f5e" font-weight="bold">12월 급증</text>
+                            <circle cx="220" cy="34" r="4" fill="#f43f5e" opacity="0.8"/>
+                        </svg>
+                        <p class="text-base text-slate-500 text-center mt-2">※ 위 그래프는 교과서 그림 Ⅲ-6의 개념을 재현한 것입니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 비교 요약 -->
+            <div class="bg-slate-800 rounded-2xl p-6 text-white">
+                <h3 class="text-xl font-bold text-center mb-5 text-white">
+                    <i class="fa-solid fa-scale-balanced text-cyan-400 mr-2"></i>어떤 그래프를 선택할까?
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="bg-blue-700 rounded-xl p-4">
+                        <p class="font-bold text-base text-blue-200 mb-2"><i class="fa-solid fa-chart-bar mr-2"></i>막대그래프
+                            선택 기준</p>
+                        <ul class="space-y-1 text-base text-blue-100">
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-blue-300 mt-0.5 shrink-0"></i><span>항목 간 크기를 <strong>비교</strong>할 때</span>
+                            </li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-blue-300 mt-0.5 shrink-0"></i><span>범주별 값의 차이를 강조할 때</span>
+                            </li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-blue-300 mt-0.5 shrink-0"></i><span>예) 지역별·월별 강수량 비교</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-emerald-700 rounded-xl p-4">
+                        <p class="font-bold text-base text-emerald-200 mb-2"><i class="fa-solid fa-chart-line mr-2"></i>선그래프
+                            선택 기준</p>
+                        <ul class="space-y-1 text-base text-emerald-100">
+                            <li class="flex gap-2"><i
+                                    class="fa-solid fa-check text-emerald-300 mt-0.5 shrink-0"></i><span>시간에 따른 <strong>변화 추이</strong>를 볼 때</span>
+                            </li>
+                            <li class="flex gap-2"><i
+                                    class="fa-solid fa-check text-emerald-300 mt-0.5 shrink-0"></i><span>미래 값을 예측하고자 할 때</span>
+                            </li>
+                            <li class="flex gap-2"><i
+                                    class="fa-solid fa-check text-emerald-300 mt-0.5 shrink-0"></i><span>예) 코로나 확진자 수 변화 추이</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 산점도 ===== -->
+    <section id="scatter" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">산점도 (Scatter Plot)</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터 속성 간의 <strong>관계(상관관계)</strong>를 시각화하는 대표적인 방법입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 산점도 정의 -->
+            <div class="bg-emerald-50 border border-emerald-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-circle-dot"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-emerald-900 mb-2">산점도란?</h3>
+                        <p class="text-base text-emerald-800 leading-relaxed">
+                            <strong>x축과 y축 두 값이 만나는 위치에 점을 표시</strong>하여 두 축 간의 관계를 나타내는 방법입니다.
+                            강도와 <strong>이상치(outlier)</strong> 등을 확인할 수 있으며, 기계학습에서
+                            <strong>독립 변수와 종속 변수의 관계</strong>를 파악하는 데 적절합니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 이상치 용어 설명 -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-base text-slate-800 mb-1">이상치(outlier)란?</p>
+                        <p class="text-base text-slate-600 leading-relaxed">관측된 데이터의 범위에서 많이 벗어난 <strong>아주 작은 값이나 아주 큰
+                            값</strong>을 말합니다. 산점도에서 대부분의 점과 멀리 떨어진 점이 이상치입니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 과목별 성적과 등급 산점도 예시 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">
+                    <i class="fa-solid fa-graduation-cap text-emerald-600 mr-2"></i>예시: 과목별 성적과 등급의 산점도
+                </h3>
+                <p class="text-base text-slate-500 mb-5">국어 성적과 영어 성적이 각각 전체 등급과 어떤 상관관계를 갖는지 산점도로 비교합니다.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- (a) 국어 성적 산점도 -->
+                    <div class="bg-blue-50 rounded-2xl p-5 border border-blue-200">
+                        <p class="font-bold text-base text-blue-800 mb-3 text-center">(a) 국어 성적 × 등급</p>
+                        <div class="relative bg-white rounded-xl overflow-hidden border border-blue-100"
+                             style="height: 180px;">
+                            <svg viewBox="0 0 200 160" class="w-full h-full" aria-label="국어 성적과 등급의 산점도 — 높은 상관관계">
+                                <!-- 축 -->
+                                <line x1="30" y1="10" x2="30" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+                                <line x1="30" y1="140" x2="190" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+                                <text x="110" y="155" text-anchor="middle" font-size="10" fill="#64748b">국어 성적 →</text>
+                                <text x="12" y="80" text-anchor="middle" font-size="10" fill="#64748b"
+                                      transform="rotate(-90 12 80)">등급 →
+                                </text>
+                                <!-- 점들: 우상향 뚜렷한 패턴 (높은 상관) -->
+                                <circle cx="40" cy="130" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="50" cy="122" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="60" cy="115" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="68" cy="108" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="78" cy="100" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="88" cy="94" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="98" cy="85" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="108" cy="78" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="120" cy="70" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="130" cy="62" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="140" cy="54" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="150" cy="46" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="162" cy="38" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="172" cy="30" r="4" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="55" cy="118" r="4" fill="#3b82f6" opacity="0.6"/>
+                                <circle cx="95" cy="90" r="4" fill="#3b82f6" opacity="0.6"/>
+                                <circle cx="135" cy="58" r="4" fill="#3b82f6" opacity="0.6"/>
+                                <!-- 추세선 -->
+                                <line x1="36" y1="133" x2="176" y2="26" stroke="#3b82f6" stroke-width="1.5"
+                                      stroke-dasharray="4" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="mt-3 bg-blue-100 rounded-xl p-3">
+                            <p class="text-base text-blue-800"><i
+                                    class="fa-solid fa-circle-check text-blue-600 mr-1"></i> <strong>상관관계 높음</strong> —
+                                국어 성적이 높을수록 등급이 우수한 편. 이상치가 적어 선형 패턴이 뚜렷합니다.</p>
+                        </div>
+                    </div>
+
+                    <!-- (b) 영어 성적 산점도 -->
+                    <div class="bg-rose-50 rounded-2xl p-5 border border-rose-200">
+                        <p class="font-bold text-base text-rose-800 mb-3 text-center">(b) 영어 성적 × 등급</p>
+                        <div class="relative bg-white rounded-xl overflow-hidden border border-rose-100"
+                             style="height: 180px;">
+                            <svg viewBox="0 0 200 160" class="w-full h-full"
+                                 aria-label="영어 성적과 등급의 산점도 — 낮은 상관관계, 이상치 존재">
+                                <!-- 축 -->
+                                <line x1="30" y1="10" x2="30" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+                                <line x1="30" y1="140" x2="190" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+                                <text x="110" y="155" text-anchor="middle" font-size="10" fill="#64748b">영어 성적 →</text>
+                                <text x="12" y="80" text-anchor="middle" font-size="10" fill="#64748b"
+                                      transform="rotate(-90 12 80)">등급 →
+                                </text>
+                                <!-- 점들: 분산된 패턴 (낮은 상관) -->
+                                <circle cx="42" cy="125" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="55" cy="110" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="70" cy="100" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="85" cy="118" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="98" cy="80" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="112" cy="65" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="125" cy="90" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="140" cy="55" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="155" cy="72" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="168" cy="40" r="4" fill="#f43f5e" opacity="0.7"/>
+                                <circle cx="60" cy="45" r="4" fill="#f43f5e" opacity="0.6"/>
+                                <circle cx="75" cy="35" r="4" fill="#f43f5e" opacity="0.6"/>
+                                <!-- 이상치 강조 (등급 높은데 영어 낮음) -->
+                                <circle cx="44" cy="32" r="5" fill="#f43f5e" stroke="#ef4444" stroke-width="2"
+                                        opacity="0.9"/>
+                                <circle cx="58" cy="25" r="5" fill="#f43f5e" stroke="#ef4444" stroke-width="2"
+                                        opacity="0.9"/>
+                                <text x="70" y="28" font-size="9" fill="#ef4444" font-weight="bold">이상치</text>
+                                <line x1="62" y1="26" x2="80" y2="26" stroke="#ef4444" stroke-width="1"/>
+                            </svg>
+                        </div>
+                        <div class="mt-3 bg-rose-100 rounded-xl p-3">
+                            <p class="text-base text-rose-800"><i
+                                    class="fa-solid fa-circle-xmark text-rose-600 mr-1"></i> <strong>상관관계 낮음</strong> —
+                                전체 등급은 높은데 영어 성적이 낮은 <strong>이상치</strong>가 존재. 국어보다 상관 정도가 낮습니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-cyan-50 border border-cyan-300 rounded-2xl p-5 mt-5">
+                    <div class="flex items-start gap-3">
+                        <i class="fa-solid fa-lightbulb text-cyan-600 text-xl mt-0.5 shrink-0"></i>
+                        <p class="text-base text-cyan-800 leading-relaxed">
+                            <strong>핵심 해석:</strong> 국어 성적이 등급과 더 높은 상관관계를 보이므로, 등급을 예측하는 데 <strong>국어 성적이 더 많은 영향을 미치는
+                            속성(독립 변수)</strong>임을 알 수 있습니다.
+                            산점도는 기계학습에서 핵심 속성을 찾는 데 매우 유용합니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 워드 클라우드 언급 -->
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-cloud"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">그 외의 시각화 — 워드 클라우드</h3>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>워드 클라우드(Word Cloud)</strong>를 이용하면 SNS 댓글이나 긴 텍스트 데이터 속에 포함된
+                            <strong>주요 의미</strong>를 한눈에 파악할 수 있습니다. 자주 등장하는 단어일수록 크게 표시됩니다.
+                        </p>
+                        <p class="text-base text-slate-500 mt-2">예) 수능 필적 확인 문구 워드 클라우드 → 수험생에 대한 응원 메시지 파악</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 붓꽃 데이터 시각화 ===== -->
+    <section id="iris-viz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 시각화로 속성의 역할을 알 수 있을까?</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터 시각화를 통해 기계학습에 <strong>많은 영향을 미치는 속성</strong>을 파악할 수
+                있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 개요 설명 -->
+            <div class="bg-teal-50 border border-teal-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-teal-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-seedling"></i>
+                    </div>
+                    <p class="text-base text-teal-800 leading-relaxed">
+                        붓꽃 데이터에서 꽃받침과 꽃잎의 속성으로 산점도를 나타내면
+                        <strong>어떤 속성이 붓꽃의 품종을 더 잘 구분</strong>할 수 있는지를 눈으로 확인할 수 있습니다.
+                        오렌지 프로그램을 이용하여 붓꽃의 <strong>네 가지 속성을 조합한 6가지 산점도</strong>를 살펴봅시다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 품종 범례 -->
+            <div class="flex flex-wrap items-center gap-4 justify-center">
+                <span class="font-bold text-base text-slate-600">품종 범례:</span>
+                <span class="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-base font-bold">
+                    <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>Iris-setosa
+                </span>
+                <span class="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-800 rounded-full text-base font-bold">
+                    <span class="w-3 h-3 rounded-full bg-orange-500 inline-block"></span>Iris-versicolor
+                </span>
+                <span class="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full text-base font-bold">
+                    <span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span>Iris-virginica
+                </span>
+            </div>
+
+            <!-- 6가지 산점도 조합 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- (a) 꽃받침 길이×너비 — 구분 어려움 -->
+                <div class="rounded-2xl border-2 border-red-200 bg-red-50 overflow-hidden">
+                    <div class="bg-red-100 px-5 py-3 flex items-center justify-between">
+                        <div>
+                            <span class="font-black text-base text-red-800">(a) 꽃받침 길이 × 꽃받침 너비</span>
+                        </div>
+                        <span class="inline-block px-3 py-1 bg-red-200 text-red-700 rounded-full text-base font-bold">구분 어려움</span>
+                    </div>
+                    <div class="p-5">
+                        <div class="bg-white rounded-xl border border-red-100 overflow-hidden" style="height:150px;">
+                            <svg viewBox="0 0 200 130" class="w-full h-full">
+                                <line x1="20" y1="10" x2="20" y2="120" stroke="#e2e8f0" stroke-width="1"/>
+                                <line x1="20" y1="120" x2="190" y2="120" stroke="#e2e8f0" stroke-width="1"/>
+                                <!-- 세 품종이 섞인 패턴 -->
+                                <circle cx="80" cy="40" r="5" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="70" cy="55" r="5" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="90" cy="35" r="5" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="60" cy="50" r="5" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="75" cy="45" r="5" fill="#3b82f6" opacity="0.6"/>
+                                <circle cx="100" cy="60" r="5" fill="#f97316" opacity="0.7"/>
+                                <circle cx="115" cy="70" r="5" fill="#f97316" opacity="0.7"/>
+                                <circle cx="95" cy="50" r="5" fill="#f97316" opacity="0.7"/>
+                                <circle cx="85" cy="65" r="5" fill="#f97316" opacity="0.7"/>
+                                <circle cx="105" cy="45" r="5" fill="#f97316" opacity="0.6"/>
+                                <circle cx="130" cy="55" r="5" fill="#22c55e" opacity="0.7"/>
+                                <circle cx="145" cy="65" r="5" fill="#22c55e" opacity="0.7"/>
+                                <circle cx="120" cy="70" r="5" fill="#22c55e" opacity="0.7"/>
+                                <circle cx="140" cy="50" r="5" fill="#22c55e" opacity="0.7"/>
+                                <circle cx="110" cy="80" r="5" fill="#22c55e" opacity="0.6"/>
+                                <!-- 경계 불명확 표시 -->
+                                <text x="100" y="105" text-anchor="middle" font-size="10" fill="#ef4444"
+                                      font-weight="bold">세 품종이 겹침
+                                </text>
+                            </svg>
+                        </div>
+                        <p class="text-base text-red-700 mt-3 leading-relaxed">꽃받침 속성만으로는 세 가지 붓꽃 품종이 <strong>분명하게 구분되지
+                            않습니다.</strong></p>
+                    </div>
+                </div>
+
+                <!-- (b) 꽃잎 길이×너비 — 구분 잘 됨 -->
+                <div class="rounded-2xl border-2 border-emerald-300 bg-emerald-50 overflow-hidden">
+                    <div class="bg-emerald-100 px-5 py-3 flex items-center justify-between">
+                        <div>
+                            <span class="font-black text-base text-emerald-800">(b) 꽃잎 길이 × 꽃잎 너비</span>
+                        </div>
+                        <span class="inline-block px-3 py-1 bg-emerald-200 text-emerald-700 rounded-full text-base font-bold">구분 잘 됨 ★</span>
+                    </div>
+                    <div class="p-5">
+                        <div class="bg-white rounded-xl border border-emerald-100 overflow-hidden"
+                             style="height:150px;">
+                            <svg viewBox="0 0 200 130" class="w-full h-full">
+                                <line x1="20" y1="10" x2="20" y2="120" stroke="#e2e8f0" stroke-width="1"/>
+                                <line x1="20" y1="120" x2="190" y2="120" stroke="#e2e8f0" stroke-width="1"/>
+                                <!-- 세 품종이 명확히 분리된 패턴 -->
+                                <circle cx="35" cy="110" r="5" fill="#3b82f6" opacity="0.8"/>
+                                <circle cx="45" cy="105" r="5" fill="#3b82f6" opacity="0.8"/>
+                                <circle cx="40" cy="112" r="5" fill="#3b82f6" opacity="0.8"/>
+                                <circle cx="50" cy="108" r="5" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="38" cy="100" r="5" fill="#3b82f6" opacity="0.7"/>
+                                <circle cx="105" cy="70" r="5" fill="#f97316" opacity="0.8"/>
+                                <circle cx="120" cy="65" r="5" fill="#f97316" opacity="0.8"/>
+                                <circle cx="110" cy="75" r="5" fill="#f97316" opacity="0.8"/>
+                                <circle cx="100" cy="60" r="5" fill="#f97316" opacity="0.7"/>
+                                <circle cx="115" cy="80" r="5" fill="#f97316" opacity="0.7"/>
+                                <circle cx="160" cy="30" r="5" fill="#22c55e" opacity="0.8"/>
+                                <circle cx="150" cy="35" r="5" fill="#22c55e" opacity="0.8"/>
+                                <circle cx="165" cy="25" r="5" fill="#22c55e" opacity="0.8"/>
+                                <circle cx="155" cy="40" r="5" fill="#22c55e" opacity="0.7"/>
+                                <circle cx="145" cy="30" r="5" fill="#22c55e" opacity="0.7"/>
+                                <!-- 명확 분리 표시 -->
+                                <text x="100" y="105" text-anchor="middle" font-size="10" fill="#059669"
+                                      font-weight="bold">품종 명확히 분리!
+                                </text>
+                            </svg>
+                        </div>
+                        <p class="text-base text-emerald-700 mt-3 leading-relaxed">꽃잎 속성으로 시각화하면 붓꽃 품종이 <strong>뚜렷하게
+                            구분됩니다.</strong></p>
+                    </div>
+                </div>
+
+                <!-- (c)~(f) 조합 카드들 -->
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    <div class="bg-slate-100 px-5 py-3">
+                        <span class="font-black text-base text-slate-700">(c) 꽃받침 너비 × 꽃잎 너비</span>
+                    </div>
+                    <div class="p-5">
+                        <p class="text-base text-slate-600 leading-relaxed">꽃잎 너비를 한 축으로 사용하면 품종 구분이 어느 정도 가능합니다.
+                            <strong>꽃받침도 품종 구분에 영향</strong>을 미치는 속성임을 확인할 수 있습니다.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    <div class="bg-slate-100 px-5 py-3">
+                        <span class="font-black text-base text-slate-700">(d) 꽃잎 길이 × 꽃받침 길이</span>
+                    </div>
+                    <div class="p-5">
+                        <p class="text-base text-slate-600 leading-relaxed">꽃잎 길이를 포함한 조합에서도 품종 구분이 가능합니다. <strong>꽃잎
+                            길이</strong>가 분류에 중요한 역할을 합니다.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    <div class="bg-slate-100 px-5 py-3">
+                        <span class="font-black text-base text-slate-700">(e) 꽃잎 길이 × 꽃받침 너비</span>
+                    </div>
+                    <div class="p-5">
+                        <p class="text-base text-slate-600 leading-relaxed">꽃잎 길이와 꽃받침 너비의 조합으로도 붓꽃 품종을 구분할 수 있어, 꽃받침도
+                            분류에 기여함을 알 수 있습니다.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    <div class="bg-slate-100 px-5 py-3">
+                        <span class="font-black text-base text-slate-700">(f) 꽃받침 길이 × 꽃잎 너비</span>
+                    </div>
+                    <div class="p-5">
+                        <p class="text-base text-slate-600 leading-relaxed">꽃잎 너비를 포함하면 품종 구분이 나타납니다. 꽃잎과 꽃받침 <strong>속성의
+                            조합</strong>으로 시각화하면 품종 구분이 가능합니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 핵심 결론 -->
+            <div class="bg-slate-800 rounded-2xl p-6 text-white">
+                <h3 class="text-xl font-bold mb-4 text-center">
+                    <i class="fa-solid fa-flag-checkered text-cyan-400 mr-2"></i>산점도 분석 결론
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-emerald-700 rounded-xl p-4">
+                        <p class="font-bold text-base text-emerald-200 mb-2"><i class="fa-solid fa-star mr-1"></i> 더 중요한
+                            속성</p>
+                        <p class="text-base text-emerald-100">꽃잎 길이(PetalLengthCm)와 꽃잎 너비(PetalWidthCm)가 붓꽃 품종 분류에
+                            <strong>더 중요한 속성</strong>입니다.</p>
+                    </div>
+                    <div class="bg-teal-700 rounded-xl p-4">
+                        <p class="font-bold text-base text-teal-200 mb-2"><i class="fa-solid fa-plus mr-1"></i> 꽃받침도 유효
+                        </p>
+                        <p class="text-base text-teal-100">꽃잎뿐만 아니라 <strong>꽃받침도</strong> 품종을 구분하는 데 영향을 미치는 속성입니다. 조합에
+                            따라 품종 구분이 가능합니다.</p>
+                    </div>
+                </div>
+                <p class="text-center text-base text-slate-300 mt-4">데이터를 시각화하면 기계학습에 영향을 미치는 <strong
+                        class="text-white">핵심 속성</strong>을 추출할 수 있습니다.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 특성 통계표 ===== -->
+    <section id="feature-stats" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">특성 통계표</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">속성값의 분포를 <strong>히스토그램</strong>으로 나타내어 품종 구분 능력을 확인합니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 특성 통계표 설명 -->
+            <div class="bg-purple-50 border border-purple-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-purple-900 mb-2">특성 통계표(Feature Statistics)란?</h3>
+                        <p class="text-base text-purple-800 leading-relaxed">
+                            값의 분포를 시각적으로 확인할 수 있도록 속성값의 점수 분포를 <strong>막대 모양의 히스토그램</strong>으로 나타냅니다.
+                            오렌지 프로그램의 '분포(Distribution)' 기능에서 확인할 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 히스토그램 vs 막대그래프 차이 -->
+            <div class="bg-amber-50 border-l-4 border-amber-400 rounded-xl p-5">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xl mt-0.5 shrink-0"></i>
+                    <div>
+                        <p class="font-bold text-base text-slate-800 mb-1">히스토그램(Histogram)이란?</p>
+                        <p class="text-base text-slate-600 leading-relaxed">데이터의 빈도를 직사각형 모양의 막대그래프로 나타낸 것으로, 데이터의 빈도가
+                            높을수록 막대의 높이가 높아집니다. 주로 <strong>데이터의 분포를 표현</strong>할 때 사용됩니다. 일반 막대그래프와 달리 막대 사이에 <strong>공백이
+                                없습니다.</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PetalLength 특성 통계표 예시 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-4">
+                    <i class="fa-solid fa-table text-purple-600 mr-2"></i>예시: PetalLength(꽃잎 길이) 특성 통계표
+                </h3>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[560px]">
+                        <thead>
+                        <tr>
+                            <th>속성명</th>
+                            <th>중간값 (Center)</th>
+                            <th>편차 (Duration)</th>
+                            <th>최솟값 (Min)</th>
+                            <th>최댓값 (Max)</th>
+                            <th>결측치 (Missing)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><strong>PetalLength</strong><br><span class="text-slate-500">(꽃잎 길이)</span></td>
+                            <td class="font-bold text-purple-700">3.759</td>
+                            <td>0.468</td>
+                            <td class="text-blue-600 font-bold">1.0</td>
+                            <td class="text-orange-600 font-bold">6.9</td>
+                            <td><span
+                                    class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-base font-bold">0 (0%)</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 히스토그램 시각화 (CSS) -->
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                <p class="text-base font-bold text-slate-700 mb-4 text-center">PetalLength 분포 히스토그램 (품종별 색상)</p>
+                <div class="overflow-x-auto">
+                    <div class="min-w-[480px]">
+                        <!-- 범례 -->
+                        <div class="flex items-center gap-5 mb-4 justify-center flex-wrap">
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 rounded bg-blue-500"></div>
+                                <span class="text-base text-slate-700">Iris-setosa (1.0~2.0)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 rounded bg-orange-400"></div>
+                                <span class="text-base text-slate-700">Iris-versicolor (2.5~5.5)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 rounded bg-green-500"></div>
+                                <span class="text-base text-slate-700">Iris-virginica (4.5~6.9)</span>
+                            </div>
+                        </div>
+                        <div class="flex items-end gap-1 border-b-2 border-slate-300 pb-1" style="height:140px;">
+                            <!-- 구간: 1.0~1.59 (setosa 많음) -->
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-blue-500 w-full rounded-t" style="height:90%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">1.0</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-blue-500 w-full rounded-t" style="height:60%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">1.6</span>
+                            </div>
+                            <!-- 공백 구간 (약 2.0~2.5) -->
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-slate-200 w-full rounded-t" style="height:2%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">2.2</span>
+                            </div>
+                            <!-- versicolor 구간 -->
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-orange-400 w-full rounded-t" style="height:30%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">2.8</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-orange-400 w-full rounded-t" style="height:65%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">3.4</span>
+                            </div>
+                            <!-- 혼합 구간 (3.95~4.54) -->
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end items-stretch" style="height:120px;">
+                                    <div class="bg-green-400 w-full rounded-t" style="height:25%;"></div>
+                                    <div class="bg-orange-400 w-full" style="height:45%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">4.0</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end items-stretch" style="height:120px;">
+                                    <div class="bg-green-500 w-full rounded-t" style="height:50%;"></div>
+                                    <div class="bg-orange-400 w-full" style="height:30%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">4.5</span>
+                            </div>
+                            <!-- virginica 구간 -->
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-green-500 w-full rounded-t" style="height:80%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">5.1</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-green-500 w-full rounded-t" style="height:55%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">5.7</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-green-500 w-full rounded-t" style="height:20%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">6.3</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-full flex flex-col justify-end" style="height:120px;">
+                                    <div class="bg-green-500 w-full rounded-t" style="height:5%;"></div>
+                                </div>
+                                <span class="text-base text-slate-500 mt-1">6.9</span>
+                            </div>
+                        </div>
+                        <p class="text-base text-slate-500 text-center mt-3">가로축: 꽃잎 길이 범위 | 세로축: 해당 범위에 속하는 데이터 빈도</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 해석 -->
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-slate-800">
+                    <i class="fa-solid fa-magnifying-glass text-purple-600 mr-2"></i>특성 통계표 해석
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="bg-blue-50 rounded-2xl p-5 border border-blue-200">
+                        <p class="font-bold text-base text-blue-800 mb-2">꽃잎 길이로 품종 구분하기 쉬운 이유</p>
+                        <ul class="space-y-2 text-base text-blue-700">
+                            <li class="flex gap-2"><i
+                                    class="fa-solid fa-arrow-right text-blue-400 mt-1 shrink-0"></i><span>Iris-setosa: 꽃잎 길이 <strong>가장 짧음</strong> (1.0~2.0cm)</span>
+                            </li>
+                            <li class="flex gap-2"><i
+                                    class="fa-solid fa-arrow-right text-blue-400 mt-1 shrink-0"></i><span>Iris-versicolor: <strong>중간</strong> (3.0~5.0cm)</span>
+                            </li>
+                            <li class="flex gap-2"><i
+                                    class="fa-solid fa-arrow-right text-blue-400 mt-1 shrink-0"></i><span>Iris-virginica: <strong>가장 긺</strong> (4.5~6.9cm)</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-rose-50 rounded-2xl p-5 border border-rose-200">
+                        <p class="font-bold text-base text-rose-800 mb-2">주의: 약간 겹치는 구간 존재</p>
+                        <p class="text-base text-rose-700 leading-relaxed">
+                            3.95~4.54 cm 구간에는 <strong>Iris-versicolor와 Iris-virginica가 약간 섞여</strong> 있어 이 구간에서는 꽃잎
+                            길이만으로 완벽하게 구분하기 어렵습니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                    <p class="font-bold text-base text-slate-700 mb-2">결측치(Missing Value)란?</p>
+                    <p class="text-base text-slate-600 leading-relaxed">데이터에서 <strong>누락된 값</strong>을 말합니다. 특성 통계표에서 결측치
+                        0(0%)은 해당 속성에 누락된 데이터가 없다는 의미입니다. 결측치가 있으면 기계학습 전 처리가 필요합니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 오렌지 실습 ===== -->
+    <section id="orange" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">오렌지 프로그램으로 실습하기</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto"><strong>오렌지(Orange)</strong>는 기계학습 및 데이터 시각화에 유용한 도구로,
+                코딩 없이 데이터를 분석할 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 오렌지 프로그램 특징 -->
+            <div class="bg-orange-50 border border-orange-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-orange-500 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-circle-nodes"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-orange-900 mb-2">오렌지 프로그램이란?</h3>
+                        <p class="text-base text-orange-800 leading-relaxed">
+                            초보자뿐 아니라 전문 데이터 과학자에게도 훌륭한 데이터 마이닝 도구입니다.
+                            <strong>위젯(Widget)</strong>이라는 구성 요소를 <strong>워크플로(Workflow)</strong>에 연결하는 방식으로
+                            복잡한 데이터 분석을 간단하게 구성할 수 있습니다.
+                            사용자는 코딩 대신 <strong>데이터 분석에 집중</strong>할 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4단계 실습 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-5">
+                    <i class="fa-solid fa-list-ol text-orange-500 mr-2"></i>붓꽃 데이터 시각화 실습 4단계
+                </h3>
+                <div class="space-y-4">
+                    <!-- Step 1 -->
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0 mt-0.5">
+                            1
+                        </div>
+                        <div class="flex-1 bg-orange-50 rounded-2xl p-5 border border-orange-200">
+                            <p class="font-bold text-base text-orange-800 mb-2">오렌지 프로그램 설치</p>
+                            <p class="text-base text-orange-700 leading-relaxed">오렌지(orangedatamining.com) 웹 사이트에서 프로그램을
+                                다운로드하여 설치합니다.</p>
+                        </div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0 mt-0.5">
+                            2
+                        </div>
+                        <div class="flex-1 bg-orange-50 rounded-2xl p-5 border border-orange-200">
+                            <p class="font-bold text-base text-orange-800 mb-2">File 위젯으로 데이터 불러오기</p>
+                            <p class="text-base text-orange-700 leading-relaxed">Data 목록에서 <strong>File 위젯</strong>을
+                                캔버스에 드래그하여, 캐글에서 다운로드한 붓꽃 데이터 파일(Iris.csv)을 불러옵니다.</p>
+                        </div>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0 mt-0.5">
+                            3
+                        </div>
+                        <div class="flex-1 bg-orange-50 rounded-2xl p-5 border border-orange-200">
+                            <p class="font-bold text-base text-orange-800 mb-3">속성 역할 설정</p>
+                            <p class="text-base text-orange-700 leading-relaxed mb-3">File 위젯을 더블 클릭하여 각 속성의 역할을
+                                설정합니다.</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-base font-bold">
+                                    <i class="fa-solid fa-arrow-right-to-bracket"></i> feature: 꽃받침·꽃잎 길이/너비
+                                </span>
+                                <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full text-base font-bold">
+                                    <i class="fa-solid fa-bullseye"></i> target: Species(품종)
+                                </span>
+                                <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-base font-bold">
+                                    <i class="fa-solid fa-tag"></i> meta: Id(일련번호)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0 mt-0.5">
+                            4
+                        </div>
+                        <div class="flex-1 bg-orange-50 rounded-2xl p-5 border border-orange-200">
+                            <p class="font-bold text-base text-orange-800 mb-2">Data Table로 데이터 확인 후 Scatter Plot 연결</p>
+                            <p class="text-base text-orange-700 leading-relaxed">Data Table 위젯으로 속성값을 확인한 뒤, <strong>Scatter
+                                Plot 위젯</strong>을 연결하여 x축·y축 속성을 선택하고 품종별로 다른 색으로 시각화합니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 속성 역할표 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-4">
+                    <i class="fa-solid fa-table text-orange-500 mr-2"></i>오렌지에서 데이터 속성의 역할
+                </h3>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>역할</th>
+                            <th>영문명</th>
+                            <th>설명</th>
+                            <th>붓꽃 데이터 예시</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><span
+                                    class="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-base font-bold">속성</span>
+                            </td>
+                            <td class="font-bold text-blue-700">feature</td>
+                            <td>예측하는 값에 영향을 주는 <strong>독립 변수</strong>의 값</td>
+                            <td>꽃받침·꽃잎 길이/너비</td>
+                        </tr>
+                        <tr>
+                            <td><span
+                                    class="inline-block px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-base font-bold">목표</span>
+                            </td>
+                            <td class="font-bold text-amber-700">target</td>
+                            <td><strong>종속 변수</strong>로서 예측하고자 하는 결괏값에 영향을 주는 속성</td>
+                            <td>Species (품종)</td>
+                        </tr>
+                        <tr>
+                            <td><span
+                                    class="inline-block px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-base font-bold">메타</span>
+                            </td>
+                            <td class="font-bold text-slate-600">meta</td>
+                            <td>예측에 직접 영향을 주지는 않지만 데이터를 구성하는 데 필요한 값</td>
+                            <td>Id (일련번호)</td>
+                        </tr>
+                        <tr>
+                            <td><span
+                                    class="inline-block px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-base font-bold">무시</span>
+                            </td>
+                            <td class="font-bold text-rose-600">skip</td>
+                            <td>데이터를 예측하는 데 상관 없는 값을 처리할 때 사용. 데이터 테이블에서 <strong>보이지 않음</strong></td>
+                            <td>—</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-500 mt-3">
+                    <i class="fa-solid fa-circle-info mr-1 text-cyan-500"></i>
+                    일련번호는 <strong>meta</strong>로 설정하면 데이터 테이블에서도 확인할 수 있습니다. <strong>skip</strong>으로 설정하면 테이블에서 사라집니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리 ===== -->
+    <section class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-cyan-600 to-emerald-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-cyan-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">데이터 속성은 무엇이고, 데이터 시각화는 기계학습에 어떻게 활용될까?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-emerald-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        데이터 속성은 <strong class="text-cyan-200">다른 데이터와 구별 가능한 성질</strong>이며, 데이터의 속성을 시각화함으로써
+                        기계학습에 필요한 <strong class="text-cyan-200">핵심 속성을 쉽게 찾을 수 있습니다.</strong>
+                        즉, <strong class="text-emerald-200">종속 변수에 영향을 주는 독립 변수</strong>를 찾는 데 유용하게 활용됩니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-chart-bar text-cyan-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">막대·선그래프</p>
+                    <p class="text-base text-cyan-100">비교(막대)와 추이(선)를 목적에 맞게 선택</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-circle-dot text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">산점도</p>
+                    <p class="text-base text-cyan-100">속성 간 관계·상관관계 파악, 핵심 독립 변수 발견</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-chart-column text-teal-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">특성 통계표</p>
+                    <p class="text-base text-cyan-100">히스토그램으로 속성값 분포와 품종 구분력 확인</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="section-card border-t-4 border-cyan-500">
+                <div class="w-12 h-12 bg-cyan-100 text-cyan-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">시각화 방법</h3>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-cyan-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>막대그래프</strong>: 상대적 크기 비교</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-cyan-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>선그래프</strong>: 시간에 따른 변화 추이</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-cyan-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>산점도</strong>: 속성 간 관계·상관관계</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-cyan-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>워드 클라우드</strong>: 텍스트 핵심 의미</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">붓꽃 데이터 시각화</h3>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>꽃잎</strong>(PetalLength/Width) → 품종 구분에 더 유리</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>꽃받침</strong>도 품종 구분에 영향</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>특성 통계표로 분포 추가 분석</span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">시각화와 기계학습</h3>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>시각화 → <strong>핵심 속성(독립 변수)</strong> 발견</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>상관관계 높은 속성 → 기계학습에 더 유리</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>오렌지 프로그램으로 시각화 실습 가능</span></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-cyan-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>선그래프</strong>를 사용하기에 가장 적합한 경우는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지역별 인구수 비교는 항목 간 크기 비교이므로 막대그래프가 더 적합합니다.')">
+                    ① 지역별 인구수를 비교할 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 시간에 따른 변화 추이를 파악하고 예측할 때는 선그래프가 유용합니다.')">
+                    ② 연도별 기온 변화 추이를 파악할 때
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '속성 간 관계(상관관계)를 시각화할 때는 산점도가 대표적인 방법입니다.')">
+                    ③ 두 속성 간의 상관관계를 파악할 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '텍스트 데이터에서 자주 등장하는 단어를 시각화할 때는 워드 클라우드를 사용합니다.')">
+                    ④ SNS 게시글의 주요 단어를 시각화할 때
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>산점도(Scatter Plot)</strong>에 대한 설명으로 옳은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '시간에 따른 변화 추이를 파악할 때 적합한 그래프는 선그래프입니다.')">
+                    ① 시간에 따른 데이터 변화 추이를 파악하는 데 가장 적합하다.
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 산점도는 x축과 y축 두 값이 만나는 위치에 점을 표시하여 두 속성 간의 관계와 상관관계를 나타냅니다.')">
+                    ② x축과 y축 두 값이 만나는 위치에 점을 표시하여 속성 간 관계를 나타낸다.
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '전체적인 비율을 파악할 때는 원 그래프(파이 차트)가 적합합니다.')">
+                    ③ 전체에서 각 항목이 차지하는 비율을 파악하는 데 적합하다.
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '산점도에서는 이상치(outlier)를 발견할 수 있습니다.')">
+                    ④ 산점도에서는 이상치를 확인할 수 없다.
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    붓꽃 데이터의 산점도를 통해 확인한 결과, 붓꽃 품종 구분에 <strong>더 중요한 속성</strong>은 무엇인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '꽃받침 길이와 꽃받침 너비로 시각화하면 세 가지 품종이 분명하게 구분되지 않습니다.')">
+                    ① 꽃받침 길이(SepalLengthCm)와 꽃받침 너비(SepalWidthCm)
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 꽃잎 길이와 꽃잎 너비로 시각화하면 세 가지 붓꽃 품종이 더 뚜렷하게 구분됩니다.')">
+                    ② 꽃잎 길이(PetalLengthCm)와 꽃잎 너비(PetalWidthCm)
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '붓꽃의 Id(일련번호)는 기계학습에 영향을 미치지 않는 속성입니다.')">
+                    ③ Id(일련번호)와 Species(품종)
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '꽃받침 너비와 꽃잎 길이의 조합도 활용할 수 있지만, 꽃잎의 두 속성이 가장 뚜렷하게 품종을 구분합니다.')">
+                    ④ 꽃받침 너비(SepalWidthCm)와 꽃잎 길이(PetalLengthCm)
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-cyan-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    오렌지 프로그램에서 기계학습 모델이 <strong>예측해야 하는 종속 변수</strong>에 해당하는 속성 역할은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'feature(속성)는 예측하는 값에 영향을 주는 독립 변수입니다.')">
+                    ① feature (속성)
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! target은 종속 변수로서 예측하고자 하는 결괏값에 해당하는 속성입니다.')">
+                    ② target (목표)
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'meta(메타)는 예측에 직접 영향을 주지 않지만 데이터 구성에 필요한 값입니다.')">
+                    ③ meta (메타)
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'skip(무시)은 데이터 예측에 상관없는 값을 처리할 때 사용합니다.')">
+                    ④ skip (무시)
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="bg-slate-900 text-white py-12 px-6 mt-12">
+    <div class="max-w-6xl mx-auto text-center">
+        <p class="text-base text-slate-400">인공지능기초 · 3단원 데이터와 기계학습</p>
+        <p class="font-bold text-base text-slate-300 mt-1">1-2. 데이터 시각화</p>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

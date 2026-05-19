@@ -2,845 +2,645 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>파이썬 프로젝트: 파이(π)값 근사하기</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect">
-    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Poppins:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap"
-          rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-
-    <!-- ✅ [수정] polyfill.io 제거 — MathJax 3는 자체 폴리필 내장 -->
-    <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
         :root {
-            --primary-color: #e91e63;
-            --secondary-color: #880e4f;
-            --accent-color: #ffeb3b;
-            --bg-light: #fff5f8;
-            --text-main: #2d3436;
-            --code-bg: #1e1e1e;
-            --white: #ffffff;
-            /* ✅ 추가: 검증용 컬러 */
-            --fix-bg: #fce4ec;
-            --fix-border: #e91e63;
-            --ok-bg: #e8f5e9;
-            --ok-border: #43a047;
-            --trace-bg: #e3f2fd;
-            --trace-border: #1976d2;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html {
-            scroll-behavior: smooth;
+            --page-bg: #f1f5f9;
+            --card-radius: 1.25rem;
         }
 
         body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: var(--bg-light);
-            color: var(--text-main);
-            line-height: 1.8;
-            overflow-x: hidden;
+            font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--page-bg);
         }
 
-        .hero {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: var(--white);
-            padding: 80px 20px;
-            text-align: center;
+        .concept-card {
+            border-radius: var(--card-radius);
+            transition: box-shadow 0.25s, transform 0.25s;
         }
 
-        .hero h1 {
-            font-family: 'Poppins', 'Noto Sans KR';
-            font-size: clamp(1.8rem, 5vw, 3rem);
-            margin-bottom: 15px;
+        .concept-card:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.10);
+            transform: translateY(-2px);
         }
 
-        .breadcrumb {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 20px;
-            border-radius: 30px;
-            font-size: 0.9rem;
-            margin-bottom: 25px;
+        .copy-toast {
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
         }
 
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 50px 20px;
+        .copy-toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        section {
-            background: var(--white);
-            border-radius: 20px;
-            padding: 40px;
-            margin-bottom: 40px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        pre[class*="language-"] {
+            margin: 0 !important;
+            border-radius: 0 !important;
+            font-size: 0.875rem !important;
         }
 
-        h2 {
-            font-size: 1.8rem;
-            color: var(--secondary-color);
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        h3 {
-            margin-bottom: 12px;
-        }
-
-        .bridge-box {
-            background: #fce4ec;
-            border-left: 6px solid var(--primary-color);
-            padding: 25px;
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
             border-radius: 12px;
-            margin-bottom: 40px;
-        }
-
-        /* 시뮬레이션 비주얼 (기존 유지) */
-        .simulation-container {
-            text-align: center;
-            padding: 20px;
-            background: #fff;
-            border: 2px solid #eee;
-            border-radius: 15px;
-            margin: 20px 0;
-        }
-
-        .geometry-box {
-            width: 200px;
-            height: 200px;
-            border: 2px solid #333;
-            margin: 0 auto;
-            position: relative;
-            background: #fff;
-        }
-
-        .quarter-circle {
-            width: 200px;
-            height: 200px;
-            border-bottom-left-radius: 100%;
-            background: rgba(233, 30, 99, 0.15);
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            border-right: 2px solid var(--primary-color);
-            border-top: 2px solid var(--primary-color);
-        }
-
-        /* 코드 블록 */
-        .code-container {
-            background: var(--code-bg);
-            color: #d4d4d4;
-            padding: 25px;
-            border-radius: 12px;
-            font-family: 'Fira Code', monospace;
-            position: relative;
-            margin: 20px 0;
-            overflow-x: auto;
-            font-size: 0.95rem;
-            line-height: 1.9;
-        }
-
-        .code-header {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: #333;
-            color: #aaa;
-            padding: 4px 12px;
-            font-size: 0.8rem;
-            border-bottom-left-radius: 8px;
-        }
-
-        .keyword {
-            color: #569cd6;
-        }
-
-        .function {
-            color: #dcdcaa;
-        }
-
-        .string {
-            color: #ce9178;
-        }
-
-        .comment {
-            color: #6a9955;
-            font-style: italic;
-        }
-
-        .number {
-            color: #b5cea8;
-        }
-
-        .code-added {
-            background: rgba(76, 175, 80, 0.18);
-            border-radius: 3px;
-        }
-
-        /* 카드 */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
-        }
-
-        .card {
-            border: 2px solid #f1f5f9;
-            padding: 25px;
-            border-radius: 15px;
-            transition: 0.3s;
-        }
-
-        /* 강조 박스 */
-        .caution {
-            background: #fff5f5;
-            border-left: 5px solid #d32f2f;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-        }
-
-        .info-box {
-            background: #e8f5e9;
-            border-left: 5px solid #4caf50;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-        }
-
-        /* ✅ 추가: 검증 박스 */
-        .fix-box {
-            background: var(--fix-bg);
-            border-left: 5px solid var(--fix-border);
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-        }
-
-        .fix-label {
-            display: inline-block;
-            background: var(--fix-border);
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 2px 10px;
-            border-radius: 20px;
-            margin-bottom: 8px;
-        }
-
-        .ok-box {
-            background: var(--ok-bg);
-            border-left: 5px solid var(--ok-border);
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-        }
-
-        .ok-label {
-            display: inline-block;
-            background: var(--ok-border);
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 2px 10px;
-            border-radius: 20px;
-            margin-bottom: 8px;
-        }
-
-        .trace-box {
-            background: var(--trace-bg);
-            border-left: 5px solid var(--trace-border);
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-        }
-
-        /* ✅ 추가: 인라인 하이라이트 */
-        .hl {
-            font-weight: 700;
-            background: #fef08a;
-            padding: 1px 6px;
-            border-radius: 4px;
-            color: #1a1a1a;
-            font-family: 'Fira Code', monospace;
-            font-size: 0.92em;
-        }
-
-        /* ✅ 추가: 점 판별 시각화 표 */
-        .point-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'Fira Code', monospace;
-            font-size: 0.9rem;
-            margin: 14px 0;
-        }
-
-        .point-table th {
-            background: var(--secondary-color);
-            color: white;
-            padding: 9px 12px;
-            text-align: center;
-        }
-
-        .point-table td {
-            border: 1px solid #f8bbd0;
-            padding: 9px 12px;
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        .point-table .row-in {
-            background: #fce4ec;
-        }
-
-        .point-table .row-out {
-            background: #e3f2fd;
-        }
-
-        /* ✅ 추가: 수렴 표 */
-        .conv-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'Fira Code', monospace;
-            font-size: 0.9rem;
-            margin: 14px 0;
-        }
-
-        .conv-table th {
-            background: var(--secondary-color);
-            color: white;
-            padding: 9px 12px;
-            text-align: center;
-        }
-
-        .conv-table td {
-            border: 1px solid #f8bbd0;
-            padding: 9px 12px;
-            text-align: center;
-        }
-
-        .conv-table tr:nth-child(even) {
-            background: #fff5f8;
-        }
-
-        /* ✅ 추가: 수렴 막대 시각화 */
-        .conv-bar-wrap {
-            background: #eee;
-            border-radius: 6px;
-            height: 14px;
-            width: 100%;
             overflow: hidden;
-            margin-top: 3px;
+            font-size: 0.875rem;
         }
 
-        .conv-bar {
-            height: 100%;
-            border-radius: 6px;
-            background: var(--primary-color);
-            transition: width 0.3s;
+        .custom-table th {
+            background: #334155;
+            color: #f1f5f9;
+            padding: 10px 14px;
+            text-align: center;
         }
 
-        /* ✅ 추가: 트레이스 표 */
-        .trace-table {
-            width: 100%;
-            border-collapse: collapse;
+        .custom-table td {
+            border-bottom: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            padding: 9px 14px;
+            text-align: center;
+        }
+
+        .custom-table td:first-child {
+            border-left: 1px solid #e2e8f0;
+        }
+
+        .custom-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .custom-table tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .code-font {
             font-family: 'Fira Code', monospace;
-            font-size: 0.88rem;
-            margin: 12px 0;
         }
 
-        .trace-table th {
-            background: #1976d2;
-            color: white;
-            padding: 8px 12px;
-        }
-
-        .trace-table td {
-            border: 1px solid #b3c6e0;
-            padding: 8px 12px;
-            text-align: center;
-        }
-
-        .trace-table .tr-in {
-            background: #fce4ec !important;
-        }
-
-        .trace-table .tr-out {
-            background: #e3f2fd !important;
-        }
-
-        .trace-table tr:nth-child(even) {
-            background: #f0f7ff;
-        }
-
-        footer {
-            background: var(--secondary-color);
-            color: white;
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        @media (max-width: 768px) {
-            section {
-                padding: 25px;
-            }
-
-            .hero {
-                padding: 60px 20px;
-            }
+        .hl {
+            background: #fef9c3;
+            color: #713f12;
+            font-family: 'Fira Code', monospace;
+            border: 1px solid #fde68a;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.9em;
         }
     </style>
 </head>
-<body>
+<body class="text-slate-900 pb-20">
 
-<header class="hero">
-    <div class="breadcrumb">프로그램 개발 프로젝트 → <b>Project 07 (현재)</b></div>
-    <h1>확률로 푸는 수학: 파이(π)값 근사하기</h1>
-    <p>무작위 좌푯값을 이용하여 원주율을 계산하는 시뮬레이션 프로그램을 제작합니다.</p>
+<header class="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white py-16 px-6 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10"
+         style="background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 24px 24px;"></div>
+    <div class="relative max-w-6xl mx-auto">
+        <div class="inline-flex items-center gap-2 bg-white/15 px-4 py-1.5 rounded-full text-sm mb-6 tracking-wide">
+            <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+            프로그램 개발 프로젝트 → Project 07
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="bg-white/20 p-4 rounded-2xl backdrop-blur-sm">
+                <i data-lucide="circle-dot" class="w-10 h-10 text-white"></i>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">3-2-7. 확률로 푸는 수학: 파이(π)값 근사하기</h1>
+        </div>
+        <p class="mt-4 text-blue-100 text-lg max-w-2xl">무작위 좌푯값을 이용하여 원주율을 계산하는 시뮬레이션 프로그램을 제작합니다.</p>
+    </div>
 </header>
 
-<main class="container">
+<main class="max-w-6xl mx-auto px-6 mt-12 space-y-12">
 
-    <!-- 0. 인트로 -->
-    <!-- ✅ [수정] **기하학적 확률** 마크다운 → <b> 태그 교체 -->
-    <div class="bridge-box">
-        <h3><i class="fas fa-drafting-compass"></i> 다트 던지기로 π 찾기?</h3>
-        <p>한 변의 길이가 1인 정사각형 안에 무작위로 점을 찍는다고 상상해 보세요. 그중 반지름이 1인 사분원(부채꼴) 안에 들어가는 점의 비율은 얼마나 될까요? 이 <b>기하학적 확률</b>을 이용하면
-            신비로운 숫자 π를 프로그래밍으로 찾아낼 수 있습니다.</p>
-    </div>
+    <!-- Step 1: 기획 -->
+    <section class="concept-card bg-white p-8 shadow-sm border border-slate-300">
+        <div class="flex items-center gap-4 mb-6">
+            <div class="bg-blue-100 p-3 rounded-2xl">
+                <i class="w-8 h-8 text-blue-600" data-lucide="clipboard-list"></i>
+            </div>
+            <div>
+                <p class="text-blue-500 text-base font-bold">Section 1</p>
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Step 1. 프로그램 기획 (요구 사항)</h2>
+            </div>
+        </div>
+        <p class="text-slate-600 mb-5">한 변의 길이가 1인 정사각형 안에 무작위로 점을 찍는다고 상상해 보세요. 그중 반지름이 1인 사분원(부채꼴) 안에 들어가는 점의 비율을 이용하면
+            <b>기하학적 확률</b>로 π를 구할 수 있습니다. 무작위로 생성된 n개의 좌푯값이 주어졌을 때, 공식에 따라 π의 근삿값을 계산합니다.</p>
 
-    <!-- ==================== Step 1 ==================== -->
-    <section>
-        <h2><i class="fas fa-lightbulb"></i> Step 1. 프로그램 기획 (요구 사항)</h2>
-        <p>무작위로 생성된 \(n\)개의 좌푯값이 주어졌을 때, 공식에 따라 \(\pi\)의 근삿값을 계산합니다.</p>
-
-        <!-- ✅ [수정] 기하학 박스에 좌표 레이블 추가 -->
-        <div class="simulation-container">
-            <p style="margin-bottom:12px; font-weight:bold;">[단위 정사각형 안의 사분원 — 몬테카를로 시뮬레이션]</p>
-            <div style="position:relative; display:inline-block;">
-                <div class="geometry-box">
-                    <div class="quarter-circle"></div>
-                    <!-- 원 안의 점 (빨간색) -->
-                    <div style="position:absolute; top:30%; left:40%; width:7px; height:7px; background:#e91e63; border-radius:50%; transform:translate(-50%,-50%);"></div>
-                    <div style="position:absolute; top:80%; left:20%; width:7px; height:7px; background:#e91e63; border-radius:50%; transform:translate(-50%,-50%);"></div>
-                    <div style="position:absolute; top:50%; left:50%; width:7px; height:7px; background:#e91e63; border-radius:50%; transform:translate(-50%,-50%);"></div>
-                    <!-- 원 밖의 점 (파란색) -->
-                    <div style="position:absolute; top:10%; left:90%; width:7px; height:7px; background:#1976d2; border-radius:50%; transform:translate(-50%,-50%);"></div>
+        <!-- 기하학 시각화 -->
+        <div class="bg-slate-50 rounded-xl p-6 mb-5 text-center">
+            <p class="font-bold text-slate-700 mb-4 text-sm">[단위 정사각형 안의 사분원 — 몬테카를로 시뮬레이션]</p>
+            <div class="flex justify-center mb-4">
+                <div class="relative" style="width:200px; height:200px;">
+                    <!-- 정사각형 -->
+                    <div class="absolute inset-0 border-2 border-slate-500 bg-white"></div>
+                    <!-- 사분원 (아래-왼쪽 꼭짓점이 원점) -->
+                    <div class="absolute"
+                         style="bottom:0;left:0;width:200px;height:200px;border-top-right-radius:100%;background:rgba(236,72,153,0.15);border-top:2px solid #ec4899;border-right:2px solid #ec4899;"></div>
+                    <!-- 원 안 점 (빨간) -->
+                    <div class="absolute w-2 h-2 bg-pink-500 rounded-full"
+                         style="top:30%;left:40%;transform:translate(-50%,-50%)"></div>
+                    <div class="absolute w-2 h-2 bg-pink-500 rounded-full"
+                         style="top:80%;left:20%;transform:translate(-50%,-50%)"></div>
+                    <div class="absolute w-2 h-2 bg-pink-500 rounded-full"
+                         style="top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+                    <!-- 원 밖 점 (파란) -->
+                    <div class="absolute w-2 h-2 bg-blue-500 rounded-full"
+                         style="top:10%;left:90%;transform:translate(-50%,-50%)"></div>
                     <!-- 좌표 레이블 -->
-                    <div style="position:absolute; bottom:-22px; left:-8px; font-size:0.72rem; color:#555; font-family:'Fira Code',monospace;">
-                        (0,0)
-                    </div>
-                    <div style="position:absolute; bottom:-22px; right:-8px; font-size:0.72rem; color:#555; font-family:'Fira Code',monospace;">
-                        (1,0)
-                    </div>
-                    <div style="position:absolute; top:-22px; left:-8px; font-size:0.72rem; color:#555; font-family:'Fira Code',monospace;">
-                        (0,1)
-                    </div>
-                    <div style="position:absolute; top:-22px; right:-8px; font-size:0.72rem; color:#555; font-family:'Fira Code',monospace;">
-                        (1,1)
-                    </div>
+                    <div class="absolute code-font text-xs text-slate-500" style="bottom:-20px;left:-4px;">(0,0)</div>
+                    <div class="absolute code-font text-xs text-slate-500" style="bottom:-20px;right:-4px;">(1,0)</div>
+                    <div class="absolute code-font text-xs text-slate-500" style="top:-20px;left:-4px;">(0,1)</div>
+                    <div class="absolute code-font text-xs text-slate-500" style="top:-20px;right:-4px;">(1,1)</div>
                 </div>
             </div>
-            <p style="margin-top:28px; font-size:0.88rem; color:#555;">
-                <span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; vertical-align:middle;"></span>
-                사분원 내부 (x²+y²≤1) &nbsp;&nbsp;
-                <span style="display:inline-block; width:10px; height:10px; background:#1976d2; border-radius:50%; vertical-align:middle;"></span>
-                사분원 외부 (x²+y²>1)
-            </p>
-        </div>
-
-        <!-- ✅ [추가] 입력 방식 명확화 -->
-        <div class="fix-box">
-            <span class="fix-label">⚠️ 입력 방식 명확화 — 원본에 input() 없음</span>
-            <p>원본 코드는 좌표를 <b>하드코딩</b>했습니다. 실제 온라인 채점 시스템에서는 아래와 같이 입력을 받습니다. 두 방식을 구분하여 학습하세요.</p>
-            <div class="code-container" style="margin:12px 0; font-size:0.88rem;">
-                <span class="comment"># 방법 ①: 하드코딩 (학습/테스트용)</span><br>
-                points = [[<span class="number">0.1</span>, <span class="number">0.2</span>], [<span
-                    class="number">0.9</span>, <span class="number">0.8</span>], ...]<br><br>
-                <span class="comment"># 방법 ②: 표준 입력 (채점 시스템용)</span><br>
-                n = <span class="function">int</span>(<span class="function">input</span>()) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span
-                    class="comment"># 점의 개수 입력</span><br>
-                points = []<br>
-                <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="function">range</span>(n):<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;x, y = <span class="function">map</span>(<span class="function">float</span>,
-                <span class="function">input</span>().<span class="function">split</span>())<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;points.<span class="function">append</span>([x, y])<br><br>
-                <span class="comment"># 방법 ③: random 모듈 (확장 버전 — Step 4 참고)</span>
+            <div class="flex flex-wrap gap-4 justify-center text-xs text-slate-500 mt-6">
+                <span class="flex items-center gap-1"><span
+                        class="inline-block w-2.5 h-2.5 bg-pink-500 rounded-full"></span> 사분원 내부 (x²+y²≤1)</span>
+                <span class="flex items-center gap-1"><span
+                        class="inline-block w-2.5 h-2.5 bg-blue-500 rounded-full"></span> 사분원 외부 (x²+y²&gt;1)</span>
             </div>
         </div>
 
-        <div class="grid">
-            <div class="card">
-                <h4><i class="fas fa-database"></i> 입력 조건</h4>
-                <p>전체 점의 개수 \(n\)과 각 점의 \((x, y)\) 좌표.<br>좌표 범위: <span class="hl">0.0 ≤ x, y ≤ 1.0</span></p>
+        <!-- 입력 방식 명확화 -->
+        <div class="bg-pink-50 border-l-4 border-pink-500 rounded-r-lg p-5 mb-5">
+            <span class="inline-block bg-pink-500 text-white text-xs font-bold px-3 py-0.5 rounded-full mb-3">⚠️ 입력 방식 명확화 — 원본에 input() 없음</span>
+            <p class="text-sm text-slate-700 mb-3">원본 코드는 좌표를 <b>하드코딩</b>했습니다. 실제 온라인 채점 시스템에서는 아래와 같이 입력을 받습니다.</p>
+            <pre class="!mt-0 rounded-lg"><code class="language-python"># 방법 ①: 하드코딩 (학습/테스트용)
+points = [[0.1, 0.2], [0.9, 0.8], ...]
+
+# 방법 ②: 표준 입력 (채점 시스템용)
+n = int(input())          # 점의 개수 입력
+points = []
+for _ in range(n):
+    x, y = map(float, input().split())
+    points.append([x, y])
+
+# 방법 ③: random 모듈 (확장 버전 — Step 4 참고)</code></pre>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="concept-card border border-slate-200 p-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="database" class="w-4 h-4 text-blue-500"></i>
+                    <h4 class="font-bold text-slate-700">입력 조건</h4>
+                </div>
+                <p class="text-sm text-slate-600">전체 점의 개수 n과 각 점의 (x, y) 좌표.<br>좌표 범위: <span class="hl">0.0 ≤ x, y ≤ 1.0</span>
+                </p>
             </div>
-            <div class="card">
-                <h4><i class="fas fa-calculator"></i> 출력 결과</h4>
-                <p>계산된 \(\pi\)의 근삿값을 출력합니다.<br>점이 많을수록 <span class="hl">3.14159...</span>에 가까워집니다.</p>
+            <div class="concept-card border border-slate-200 p-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="calculator" class="w-4 h-4 text-blue-500"></i>
+                    <h4 class="font-bold text-slate-700">출력 결과</h4>
+                </div>
+                <p class="text-sm text-slate-600">계산된 π의 근삿값을 출력합니다.<br>점이 많을수록 <span class="hl">3.14159...</span>에
+                    가까워집니다.</p>
             </div>
         </div>
     </section>
 
-    <!-- ==================== Step 2 ==================== -->
-    <section>
-        <h2><i class="fas fa-square-root-alt"></i> Step 2. 프로그램 설계 (핵심 공식)</h2>
-        <p>몬테카를로 알고리즘의 핵심 로직을 설계합니다.</p>
+    <!-- Step 2: 설계 -->
+    <section class="concept-card bg-white p-8 shadow-sm border border-slate-300">
+        <div class="flex items-center gap-4 mb-6">
+            <div class="bg-violet-100 p-3 rounded-2xl">
+                <i class="w-8 h-8 text-violet-600" data-lucide="compass"></i>
+            </div>
+            <div>
+                <p class="text-violet-500 text-base font-bold">Section 2</p>
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Step 2. 프로그램 설계 (핵심 공식)</h2>
+            </div>
+        </div>
+        <p class="text-slate-600 mb-5">몬테카를로 알고리즘의 핵심 로직을 설계합니다.</p>
 
-        <div class="info-box">
-            <strong><i class="fas fa-check"></i> 원 안에 있는지 판별하는 법</strong>
-            <p>점 \((x, y)\)와 원점 \((0, 0)\) 사이의 거리가 반지름 \(1\)보다 작거나 같으면 사분원 내부에 있습니다.</p>
-            <p style="text-align: center; font-size: 1.2rem; margin: 10px 0;">$$x^2 + y^2 \leq 1$$</p>
-            <p style="font-size:0.9rem; color:#555;">※ 거리 = √(x²+y²) 이므로, 제곱근을 계산하지 않고 <b>제곱 상태에서 비교</b>하면 더 효율적입니다.</p>
+        <!-- 원 안 판별 -->
+        <div class="bg-emerald-50 border-l-4 border-emerald-400 rounded-r-lg p-5 mb-4">
+            <p class="font-bold text-emerald-800 mb-2">원 안에 있는지 판별하는 법</p>
+            <p class="text-sm text-slate-700 mb-2">점 (x, y)와 원점 (0, 0) 사이의 거리가 반지름 1보다 작거나 같으면 사분원 내부에 있습니다.</p>
+            <div class="bg-slate-800 text-amber-300 rounded-lg px-4 py-3 code-font text-base text-center mb-2">
+                x² + y² ≤ 1
+            </div>
+            <p class="text-xs text-slate-500">※ 거리 = √(x²+y²) 이므로, 제곱근을 계산하지 않고 <b>제곱 상태에서 비교</b>하면 더 효율적입니다.</p>
         </div>
 
-        <div class="info-box">
-            <strong><i class="fas fa-percentage"></i> π 근사 공식</strong>
-            <p>정사각형 면적(1×1=1)에 대한 사분원 면적(π×1²/4=π/4)의 비율이 점의 비율과 같습니다. 따라서:</p>
-            <p style="text-align: center; font-size: 1.2rem; margin: 10px 0;">$$\pi \approx 4 \times \frac{\text{원 안의 점
-                개수}}{\text{전체 점의 개수}}$$</p>
+        <!-- π 근사 공식 -->
+        <div class="bg-emerald-50 border-l-4 border-emerald-400 rounded-r-lg p-5 mb-4">
+            <p class="font-bold text-emerald-800 mb-2">π 근사 공식</p>
+            <p class="text-sm text-slate-700 mb-2">정사각형 면적(1×1=1)에 대한 사분원 면적(π×1²/4=π/4)의 비율이 점의 비율과 같습니다.</p>
+            <div class="bg-slate-800 text-amber-300 rounded-lg px-4 py-3 code-font text-sm text-center">
+                π ≈ 4 × (원 안의 점 개수 / 전체 점의 개수)
+            </div>
         </div>
 
-        <!-- ✅ [추가] 왜 4를 곱하는지 시각적 설명 -->
-        <div class="ok-box">
-            <span class="ok-label">💡 왜 4를 곱할까요?</span>
-            <p>정사각형(넓이=1) 안에서 <b>사분원</b>이 차지하는 비율 = π/4<br>
+        <!-- 왜 4를 곱하나 -->
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-4 mb-4">
+            <span class="inline-block bg-emerald-500 text-white text-xs font-bold px-3 py-0.5 rounded-full mb-2">💡 왜 4를 곱할까요?</span>
+            <p class="text-sm text-slate-700">정사각형(넓이=1) 안에서 <b>사분원</b>이 차지하는 비율 = π/4<br>
                 따라서: <span class="hl">원 안의 점 / 전체 점 ≈ π/4</span><br>
                 양변에 4를 곱하면: <span class="hl">π ≈ 4 × (원 안의 점 / 전체 점)</span></p>
         </div>
 
-        <!-- ✅ [추가] 좌표 범위 조건 명시 -->
-        <div class="caution">
-            <strong><i class="fas fa-ruler-combined"></i> 좌표 유효 범위: [0, 1] × [0, 1]</strong>
-            <p>이 프로그램은 모든 좌표가 <span class="hl">0.0 ≤ x ≤ 1.0</span>, <span class="hl">0.0 ≤ y ≤ 1.0</span> 범위 안에 있다고
-                가정합니다.<br>
-                음수나 1을 초과하는 좌표를 입력하면 수학 모델 자체가 무너져 π 근사값이 크게 틀립니다. 입력 범위를 항상 확인하세요.</p>
+        <!-- 좌표 유효 범위 -->
+        <div class="bg-red-50 border-l-4 border-red-400 rounded-r-lg p-5">
+            <p class="font-bold text-red-800 mb-2 flex items-center gap-2">
+                <i data-lucide="ruler" class="w-4 h-4"></i> 좌표 유효 범위: [0, 1] × [0, 1]
+            </p>
+            <p class="text-sm text-slate-700">이 프로그램은 모든 좌표가 <span class="hl">0.0 ≤ x ≤ 1.0</span>, <span class="hl">0.0 ≤ y ≤ 1.0</span>
+                범위 안에 있다고 가정합니다. 음수나 1을 초과하는 좌표를 입력하면 수학 모델 자체가 무너져 π 근사값이 크게 틀립니다.</p>
         </div>
     </section>
 
-    <!-- ==================== Step 3 ==================== -->
-    <section>
-        <h2><i class="fas fa-file-code"></i> Step 3. 프로그램 구현 (Source Code)</h2>
-
-        <!-- 기본 버전 (하드코딩) -->
-        <div class="code-container">
-            <div class="code-header">Python — 기본 버전 (하드코딩)</div>
-            <span class="comment"># 1. 테스트용 좌표 데이터 (2차원 리스트)</span><br>
-            <span class="comment">#    각 원소 [x, y]는 0.0~1.0 범위의 실수</span><br>
-            points = [[<span class="number">0.1</span>, <span class="number">0.2</span>], [<span
-                class="number">0.9</span>, <span class="number">0.8</span>], [<span class="number">0.3</span>, <span
-                class="number">0.4</span>], [<span class="number">0.5</span>, <span class="number">0.5</span>]]<br>
-            n = <span class="function">len</span>(points) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span
-                class="comment"># n = 4</span><br>
-            in_count = <span class="number">0</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span
-                class="comment"># 원 안에 들어간 점의 개수</span><br><br>
-
-            <span class="comment"># 2. 각 좌표를 순회하며 사분원 안에 있는지 검사</span><br>
-            <span class="keyword">for</span> p <span class="keyword">in</span> points:<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;x = p[<span class="number">0</span>] &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># p[0]: x 좌표</span><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;y = p[<span class="number">1</span>] &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># p[1]: y 좌표</span><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> x**<span class="number">2</span> + y**<span
-                class="number">2</span> <= <span class="number">1</span>: <span
-                class="comment"># 제곱 합이 1 이하 → 원 내부</span><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in_count += <span class="number">1</span><br><br>
-
-            <span class="comment"># 3. 파이값 계산 및 출력</span><br>
-            pi_approx = <span class="number">4</span> * (in_count / n) &nbsp;<span
-                class="comment"># 결과: 4 * (3/4) = 3.0</span><br>
-            <span class="function">print</span>(<span class="string">"파이 근삿값:"</span>, pi_approx)
+    <!-- Step 3: 구현 -->
+    <section class="concept-card bg-white p-8 shadow-sm border border-slate-300">
+        <div class="flex items-center gap-4 mb-6">
+            <div class="bg-emerald-100 p-3 rounded-2xl">
+                <i class="w-8 h-8 text-emerald-600" data-lucide="code-2"></i>
+            </div>
+            <div>
+                <p class="text-emerald-500 text-base font-bold">Section 3</p>
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Step 3. 프로그램 구현 (Source Code)</h2>
+            </div>
         </div>
 
-        <div class="caution">
-            <strong><i class="fas fa-layer-group"></i> 2차원 리스트 다루기</strong>
-            <p><span class="hl">points[i][0]</span>은 \(i\)번째 점의 x좌표, <span class="hl">points[i][1]</span>은 y좌표를 의미합니다.
-                <span class="hl">for p in points</span>로 순회할 때 <span class="hl">p</span>는 <span class="hl">[x, y]</span>
+        <!-- 기본 버전 -->
+        <p class="font-bold text-slate-700 mb-2">기본 버전 (하드코딩)</p>
+        <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col mb-6">
+            <div class="relative group bg-[#1d1f21]">
+                <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                    <span class="font-medium text-slate-400 code-font">pi_approx.py</span>
+                    <button class="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+                            onclick="copyCode('code-pi')">
+                        <i class="w-3 h-3" data-lucide="copy"></i> 복사
+                    </button>
+                </div>
+                <div class="p-4">
+          <pre><code class="language-python" id="code-pi"># 1. 테스트용 좌표 데이터 (2차원 리스트)
+#    각 원소 [x, y]는 0.0~1.0 범위의 실수
+points = [[0.1, 0.2], [0.9, 0.8], [0.3, 0.4], [0.5, 0.5]]
+n = len(points)          # n = 4
+in_count = 0             # 원 안에 들어간 점의 개수
+
+# 2. 각 좌표를 순회하며 사분원 안에 있는지 검사
+for p in points:
+    x = p[0]    # p[0]: x 좌표
+    y = p[1]    # p[1]: y 좌표
+    if x**2 + y**2 &lt;= 1:  # 제곱 합이 1 이하 → 원 내부
+        in_count += 1
+
+# 3. 파이값 계산 및 출력
+pi_approx = 4 * (in_count / n)  # 결과: 4 * (3/4) = 3.0
+print("파이 근삿값:", pi_approx)</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- caution: 2차원 리스트 -->
+        <div class="bg-red-50 border-l-4 border-red-400 rounded-r-lg p-5 mb-5">
+            <p class="font-bold text-red-800 mb-2 flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4"></i> 2차원 리스트 다루기
+            </p>
+            <p class="text-sm text-slate-700"><span class="hl">points[i][0]</span>은 i번째 점의 x좌표, <span class="hl">points[i][1]</span>은
+                y좌표를 의미합니다. <span class="hl">for p in points</span>로 순회할 때 <span class="hl">p</span>는 <span class="hl">[x, y]</span>
                 리스트 하나를 받습니다.</p>
         </div>
 
-        <!-- ✅ [추가] n=0 ZeroDivisionError 경고 -->
-        <div class="fix-box">
-            <span class="fix-label">⚠️ n = 0 → ZeroDivisionError</span>
-            <p>좌표 리스트가 비어 있으면 <span class="hl">in_count / n</span>에서 <b style="color:#c62828;">ZeroDivisionError:
-                division by zero</b>가 발생합니다. 입력 전에 반드시 n > 0임을 확인하세요.</p>
-            <div class="code-container" style="margin:10px 0; font-size:0.88rem;">
-                <span class="comment"># 심화 과제: 방어 처리 추가</span><br>
-                <span class="keyword">if</span> n == <span class="number">0</span>:<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;<span class="function">print</span>(<span
-                    class="string">"오류: 점이 1개 이상 필요합니다."</span>)<br>
-                <span class="keyword">else</span>:<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;pi_approx = <span class="number">4</span> * (in_count / n)<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;<span class="function">print</span>(pi_approx)
+        <!-- fix-box: ZeroDivisionError -->
+        <div class="bg-pink-50 border-l-4 border-pink-500 rounded-r-lg p-5 mb-5">
+            <span class="inline-block bg-pink-500 text-white text-xs font-bold px-3 py-0.5 rounded-full mb-3">⚠️ n = 0 → ZeroDivisionError</span>
+            <p class="text-sm text-slate-700 mb-3">좌표 리스트가 비어 있으면 <span class="hl">in_count / n</span>에서 <b
+                    class="text-red-700">ZeroDivisionError: division by zero</b>가 발생합니다.</p>
+            <pre class="!mt-0 rounded-lg"><code class="language-python"># 심화 과제: 방어 처리 추가
+if n == 0:
+    print("오류: 점이 1개 이상 필요합니다.")
+else:
+    pi_approx = 4 * (in_count / n)
+    print(pi_approx)</code></pre>
+        </div>
+
+        <!-- Trace table -->
+        <div class="bg-blue-50 border-l-4 border-blue-400 rounded-r-lg p-5 mb-5">
+            <h3 class="font-bold text-blue-800 mb-1 flex items-center gap-2">
+                <i data-lucide="footprints" class="w-4 h-4"></i>
+                코드 실행 추적 (Trace) — 4개 점 하드코딩 테스트
+            </h3>
+            <p class="text-sm text-slate-600 mb-3">각 점의 판별 과정을 단계별로 추적합니다.</p>
+            <div class="overflow-x-auto rounded-xl border border-blue-200 mb-3">
+                <table class="custom-table code-font text-xs">
+                    <thead>
+                    <tr>
+                        <th>반복</th>
+                        <th>p</th>
+                        <th>x</th>
+                        <th>y</th>
+                        <th>x²+y²</th>
+                        <th>≤1?</th>
+                        <th>in_count</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="!bg-pink-50">
+                        <td>1</td>
+                        <td>[0.1, 0.2]</td>
+                        <td>0.1</td>
+                        <td>0.2</td>
+                        <td>0.01+0.04=<b>0.05</b></td>
+                        <td>✅ 내부</td>
+                        <td>1</td>
+                    </tr>
+                    <tr class="!bg-blue-50">
+                        <td>2</td>
+                        <td>[0.9, 0.8]</td>
+                        <td>0.9</td>
+                        <td>0.8</td>
+                        <td>0.81+0.64=<b>1.45</b></td>
+                        <td>❌ 외부</td>
+                        <td>1</td>
+                    </tr>
+                    <tr class="!bg-pink-50">
+                        <td>3</td>
+                        <td>[0.3, 0.4]</td>
+                        <td>0.3</td>
+                        <td>0.4</td>
+                        <td>0.09+0.16=<b>0.25</b></td>
+                        <td>✅ 내부</td>
+                        <td>2</td>
+                    </tr>
+                    <tr class="!bg-pink-50">
+                        <td>4</td>
+                        <td>[0.5, 0.5]</td>
+                        <td>0.5</td>
+                        <td>0.5</td>
+                        <td>0.25+0.25=<b>0.50</b></td>
+                        <td>✅ 내부</td>
+                        <td>3</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-800 text-slate-200 rounded-lg px-4 py-3 code-font text-sm">
+                <div>n=4, in_count=3</div>
+                <div>pi_approx = 4 × (3/4) = <span class="text-green-400 font-bold">3.0</span></div>
+                <div class="text-green-600 text-xs mt-1"># 실제 π = 3.14159... 점이 4개라 오차 큼 → 점이 많을수록 정확!</div>
             </div>
         </div>
 
-        <!-- ✅ [추가] 코드 실행 추적(Trace) -->
-        <div class="trace-box">
-            <h3><i class="fas fa-shoe-prints"></i> 코드 실행 추적 (Trace) — 4개 점 하드코딩 테스트</h3>
-            <p style="margin: 8px 0 12px;">각 점의 판별 과정을 단계별로 추적합니다.</p>
-            <table class="trace-table">
+        <!-- 점별 판별 결과표 -->
+        <h3 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+            <i data-lucide="map-pin" class="w-4 h-4"></i> 테스트 데이터 점별 판별 결과
+        </h3>
+        <div class="overflow-x-auto mb-6">
+            <table class="custom-table code-font">
                 <thead>
                 <tr>
-                    <th>반복</th>
-                    <th>p</th>
-                    <th>x</th>
-                    <th>y</th>
+                    <th>#</th>
+                    <th>좌표 (x, y)</th>
+                    <th>x²</th>
+                    <th>y²</th>
                     <th>x²+y²</th>
-                    <th>≤1?</th>
-                    <th>in_count</th>
+                    <th>판별</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr class="tr-in">
+                <tr class="!bg-pink-50">
                     <td>1</td>
-                    <td>[0.1, 0.2]</td>
-                    <td>0.1</td>
-                    <td>0.2</td>
-                    <td>0.01+0.04=<b>0.05</b></td>
-                    <td>✅ 내부</td>
-                    <td>1</td>
+                    <td>(0.1, 0.2)</td>
+                    <td>0.01</td>
+                    <td>0.04</td>
+                    <td>0.05</td>
+                    <td>🔴 내부</td>
                 </tr>
-                <tr class="tr-out">
+                <tr class="!bg-blue-50">
                     <td>2</td>
-                    <td>[0.9, 0.8]</td>
-                    <td>0.9</td>
-                    <td>0.8</td>
-                    <td>0.81+0.64=<b>1.45</b></td>
-                    <td>❌ 외부</td>
-                    <td>1</td>
+                    <td>(0.9, 0.8)</td>
+                    <td>0.81</td>
+                    <td>0.64</td>
+                    <td>1.45</td>
+                    <td>🔵 외부</td>
                 </tr>
-                <tr class="tr-in">
+                <tr class="!bg-pink-50">
                     <td>3</td>
-                    <td>[0.3, 0.4]</td>
-                    <td>0.3</td>
-                    <td>0.4</td>
-                    <td>0.09+0.16=<b>0.25</b></td>
-                    <td>✅ 내부</td>
-                    <td>2</td>
+                    <td>(0.3, 0.4)</td>
+                    <td>0.09</td>
+                    <td>0.16</td>
+                    <td>0.25</td>
+                    <td>🔴 내부</td>
                 </tr>
-                <tr class="tr-in">
+                <tr class="!bg-pink-50">
                     <td>4</td>
-                    <td>[0.5, 0.5]</td>
-                    <td>0.5</td>
-                    <td>0.5</td>
-                    <td>0.25+0.25=<b>0.50</b></td>
-                    <td>✅ 내부</td>
-                    <td>3</td>
+                    <td>(0.5, 0.5)</td>
+                    <td>0.25</td>
+                    <td>0.25</td>
+                    <td>0.50</td>
+                    <td>🔴 내부</td>
                 </tr>
                 </tbody>
             </table>
-            <p style="font-family:'Fira Code',monospace; font-size:0.92rem; margin-top:12px; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:8px;">
-                n=4, in_count=3<br>
-                pi_approx = 4 × (3/4) = <b style="color:#b5cea8;">3.0</b><br>
-                <span style="color:#6a9955;"># 실제 π = 3.14159... 점이 4개라 오차 큼 → 점이 많을수록 정확!</span>
-            </p>
         </div>
-
-        <!-- ✅ [추가] 점별 판별 시각화 -->
-        <h3 style="margin-top:24px;"><i class="fas fa-map-marker-alt"></i> 테스트 데이터 점별 판별 결과</h3>
-        <table class="point-table">
-            <thead>
-            <tr>
-                <th>#</th>
-                <th>좌표 (x, y)</th>
-                <th>x²</th>
-                <th>y²</th>
-                <th>x²+y²</th>
-                <th>판별</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr class="row-in">
-                <td>1</td>
-                <td>(0.1, 0.2)</td>
-                <td>0.01</td>
-                <td>0.04</td>
-                <td>0.05</td>
-                <td>🔴 내부</td>
-            </tr>
-            <tr class="row-out">
-                <td>2</td>
-                <td>(0.9, 0.8)</td>
-                <td>0.81</td>
-                <td>0.64</td>
-                <td>1.45</td>
-                <td>🔵 외부</td>
-            </tr>
-            <tr class="row-in">
-                <td>3</td>
-                <td>(0.3, 0.4)</td>
-                <td>0.09</td>
-                <td>0.16</td>
-                <td>0.25</td>
-                <td>🔴 내부</td>
-            </tr>
-            <tr class="row-in">
-                <td>4</td>
-                <td>(0.5, 0.5)</td>
-                <td>0.25</td>
-                <td>0.25</td>
-                <td>0.50</td>
-                <td>🔴 내부</td>
-            </tr>
-            </tbody>
-        </table>
-        <p style="font-size:0.88rem; color:#777; text-align:center;">in_count=3, n=4 → π ≈ 4×(3/4) = <b>3.0</b></p>
+        <p class="text-xs text-center text-slate-500 mt-2">in_count=3, n=4 → π ≈ 4×(3/4) = <b>3.0</b></p>
     </section>
 
-    <!-- ==================== Step 4 ==================== -->
-    <section>
-        <h2><i class="fas fa-chart-line"></i> Step 4. 프로그램 테스트 및 고도화</h2>
-
-        <!-- ✅ [추가] n에 따른 수렴 표 -->
-        <h3 style="margin-bottom:12px;"><i class="fas fa-table"></i> 점의 개수(n)에 따른 π 근삿값 수렴 (실험적 예시)</h3>
-        <p style="margin-bottom:12px; font-size:0.9rem;">점이 많아질수록 실제 π=3.14159...에 수렴합니다. 아래는 <span class="hl">random.random()</span>으로
-            10회 반복 실험 평균값입니다.</p>
-        <table class="conv-table">
-            <thead>
-            <tr>
-                <th>점의 개수 n</th>
-                <th>π 근삿값 (예시)</th>
-                <th>오차</th>
-                <th>수렴도</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td>4</td>
-                <td>3.00000</td>
-                <td>±0.14</td>
-                <td>
-                    <div class="conv-bar-wrap">
-                        <div class="conv-bar" style="width:55%;"></div>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>100</td>
-                <td>3.12000</td>
-                <td>±0.02</td>
-                <td>
-                    <div class="conv-bar-wrap">
-                        <div class="conv-bar" style="width:72%;"></div>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>1,000</td>
-                <td>3.13600</td>
-                <td>±0.006</td>
-                <td>
-                    <div class="conv-bar-wrap">
-                        <div class="conv-bar" style="width:82%;"></div>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>10,000</td>
-                <td>3.14080</td>
-                <td>±0.001</td>
-                <td>
-                    <div class="conv-bar-wrap">
-                        <div class="conv-bar" style="width:92%;"></div>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>100,000</td>
-                <td>3.14140</td>
-                <td>±0.0002</td>
-                <td>
-                    <div class="conv-bar-wrap">
-                        <div class="conv-bar" style="width:97%;"></div>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>1,000,000</td>
-                <td>3.14159</td>
-                <td>±0.00003</td>
-                <td>
-                    <div class="conv-bar-wrap">
-                        <div class="conv-bar" style="width:99%;"></div>
-                    </div>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-
-        <div class="grid">
-            <div class="card">
-                <h4>결과의 정확성</h4>
-                <p>점의 개수가 많아질수록(예: 10,000개) \(\pi\) 값인 3.14159...에 점점 더 가까워집니다. 이것이 <b>큰 수의 법칙</b>입니다.</p>
+    <!-- Step 4: 테스트 -->
+    <section class="concept-card bg-white p-8 shadow-sm border border-slate-300">
+        <div class="flex items-center gap-4 mb-6">
+            <div class="bg-amber-100 p-3 rounded-2xl">
+                <i class="w-8 h-8 text-amber-600" data-lucide="flask-conical"></i>
             </div>
-            <div class="card">
-                <h4>랜덤 모듈 활용</h4>
-                <p>직접 좌표를 입력하는 대신 <span class="hl">random.random()</span> 함수를 써서 컴퓨터가 스스로 점을 찍게 해보세요. 아래 확장 코드를 참고하세요.
-                </p>
+            <div>
+                <p class="text-amber-500 text-base font-bold">Section 4</p>
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Step 4. 프로그램 테스트 및 고도화</h2>
             </div>
         </div>
 
-        <!-- ✅ [추가] random 모듈 확장 코드 -->
-        <div class="ok-box" style="margin-top:24px;">
-            <span class="ok-label">✅ 확장 버전 — random 모듈로 자동 시뮬레이션</span>
-            <p>직접 좌표를 입력하지 않고, 컴퓨터가 난수를 생성하여 시뮬레이션을 수행합니다.</p>
+        <!-- 수렴 표 -->
+        <h3 class="font-bold text-slate-700 mb-2 flex items-center gap-2">
+            <i data-lucide="table" class="w-4 h-4"></i> 점의 개수(n)에 따른 π 근삿값 수렴 (실험적 예시)
+        </h3>
+        <p class="text-sm text-slate-500 mb-3">점이 많아질수록 실제 π=3.14159...에 수렴합니다. 아래는 <span
+                class="hl">random.random()</span>으로 10회 반복 실험 평균값입니다.</p>
+        <div class="overflow-x-auto mb-6">
+            <table class="custom-table">
+                <thead>
+                <tr>
+                    <th>점의 개수 n</th>
+                    <th>π 근삿값 (예시)</th>
+                    <th>오차</th>
+                    <th>수렴도</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>4</td>
+                    <td>3.00000</td>
+                    <td>±0.14</td>
+                    <td>
+                        <div class="bg-slate-200 rounded-full h-3 w-full">
+                            <div class="bg-pink-500 h-3 rounded-full" style="width:55%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>100</td>
+                    <td>3.12000</td>
+                    <td>±0.02</td>
+                    <td>
+                        <div class="bg-slate-200 rounded-full h-3 w-full">
+                            <div class="bg-pink-500 h-3 rounded-full" style="width:72%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>1,000</td>
+                    <td>3.13600</td>
+                    <td>±0.006</td>
+                    <td>
+                        <div class="bg-slate-200 rounded-full h-3 w-full">
+                            <div class="bg-pink-500 h-3 rounded-full" style="width:82%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>10,000</td>
+                    <td>3.14080</td>
+                    <td>±0.001</td>
+                    <td>
+                        <div class="bg-slate-200 rounded-full h-3 w-full">
+                            <div class="bg-pink-500 h-3 rounded-full" style="width:92%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>100,000</td>
+                    <td>3.14140</td>
+                    <td>±0.0002</td>
+                    <td>
+                        <div class="bg-slate-200 rounded-full h-3 w-full">
+                            <div class="bg-pink-500 h-3 rounded-full" style="width:97%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>1,000,000</td>
+                    <td>3.14159</td>
+                    <td>±0.00003</td>
+                    <td>
+                        <div class="bg-slate-200 rounded-full h-3 w-full">
+                            <div class="bg-pink-500 h-3 rounded-full" style="width:99%"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
-        <div class="code-container">
-            <div class="code-header">Python — 확장 버전 (random 모듈)</div>
-            <span class="keyword">import</span> random<br><br>
 
-            n = <span class="function">int</span>(<span class="function">input</span>(<span class="string">"점의 개수를 입력하세요: "</span>))<br>
-            in_count = <span class="number">0</span><br><br>
-
-            <span class="keyword">for</span> _ <span class="keyword">in</span> <span
-                class="function">range</span>(n):<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># random.random()은 0.0 이상 1.0 미만의 난수를 반환</span><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;x = random.<span class="function">random</span>()<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;y = random.<span class="function">random</span>()<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> x**<span class="number">2</span> + y**<span
-                class="number">2</span> <= <span class="number">1</span>:<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in_count += <span class="number">1</span><br><br>
-
-            pi_approx = <span class="number">4</span> * in_count / n<br>
-            <span class="function">print</span>(f<span class="string">"n={n:,}개 → π ≈ {pi_approx:.5f}"</span>)
+        <div class="grid md:grid-cols-2 gap-4 mb-6">
+            <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50">
+                <h4 class="font-bold text-slate-700 mb-2">결과의 정확성</h4>
+                <p class="text-sm text-slate-600">점의 개수가 많아질수록 π 값인 3.14159...에 점점 더 가까워집니다. 이것이 <b>큰 수의 법칙</b>입니다.</p>
+            </div>
+            <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50">
+                <h4 class="font-bold text-slate-700 mb-2">랜덤 모듈 활용</h4>
+                <p class="text-sm text-slate-600">직접 좌표를 입력하는 대신 <span class="hl">random.random()</span> 함수를 써서 컴퓨터가 스스로
+                    점을 찍게 해보세요.</p>
+            </div>
         </div>
 
-        <div class="info-box" style="margin-top: 20px;">
-            <strong><i class="fas fa-microchip"></i> 생각해보기</strong>
-            <p>왜 하필 4를 곱할까요? 정사각형(넓이=1) 안에서 사분원의 넓이는 \(\pi r^2 / 4 = \pi/4\)입니다. 따라서 점 비율은 \(\pi/4\)에 가까워지고, 4를 곱하면
-                \(\pi\)를 얻습니다.</p>
+        <!-- 확장 버전 -->
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-4 mb-3">
+            <span class="inline-block bg-emerald-500 text-white text-xs font-bold px-3 py-0.5 rounded-full mb-2">✅ 확장 버전 — random 모듈로 자동 시뮬레이션</span>
+            <p class="text-sm text-slate-700">직접 좌표를 입력하지 않고, 컴퓨터가 난수를 생성하여 시뮬레이션을 수행합니다.</p>
         </div>
+        <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col mb-6">
+            <div class="relative group bg-[#1d1f21]">
+                <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                    <span class="font-medium text-slate-400 code-font">pi_random.py</span>
+                    <button class="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+                            onclick="copyCode('code-pi-random')">
+                        <i class="w-3 h-3" data-lucide="copy"></i> 복사
+                    </button>
+                </div>
+                <div class="p-4">
+          <pre><code class="language-python" id="code-pi-random">import random
 
-        <!-- ✅ [수정] href="#" 무효 버튼 제거하고 실용 링크만 유지 -->
-        <div style="text-align: center; margin-top: 30px;">
-            <p><b>온라인 채점 시스템(Online Judge)에서 내 코드를 검증해 보세요!</b></p>
-            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px;">
-                <a href="https://codeup.kr/problem.php?id=2843"
-                   style="padding: 10px 20px; background: #2196f3; color: white; border-radius: 5px; text-decoration: none;"
-                   target="_blank">CodeUp 2843번</a>
-                <a href="http://koistudy.net/?mid=prob_page&NO=4104"
-                   style="padding: 10px 20px; background: #4caf50; color: white; border-radius: 5px; text-decoration: none;"
-                   target="_blank">Koistudy 4104번</a>
+n = int(input("점의 개수를 입력하세요: "))
+in_count = 0
+
+for _ in range(n):
+    # random.random()은 0.0 이상 1.0 미만의 난수를 반환
+    x = random.random()
+    y = random.random()
+    if x**2 + y**2 &lt;= 1:
+        in_count += 1
+
+pi_approx = 4 * in_count / n
+print(f"n={n:,}개 → π ≈ {pi_approx:.5f}")</code></pre>
+                </div>
             </div>
         </div>
     </section>
+
+    <!-- CTA -->
+    <div class="concept-card bg-slate-900 p-8 shadow-lg border border-slate-700 mt-12 mb-12 overflow-hidden relative">
+        <div class="absolute right-6 top-6 opacity-5">
+            <i data-lucide="terminal" class="w-32 h-32 text-white"></i>
+        </div>
+        <div class="flex items-center gap-4 mb-6">
+            <div class="bg-amber-400/20 p-3 rounded-2xl">
+                <i data-lucide="trophy" class="w-8 h-8 text-amber-400"></i>
+            </div>
+            <div>
+                <p class="text-amber-400 text-base font-bold">도전!</p>
+                <h2 class="text-2xl font-bold text-white tracking-tight">온라인 채점 시스템에서 검증해 보세요!</h2>
+            </div>
+        </div>
+        <p class="text-slate-400 mb-6">완성한 코드를 Online Judge에 제출하여 정답을 확인하세요.</p>
+        <div class="flex flex-wrap gap-4">
+            <a href="https://codeup.kr/problem.php?id=2843" target="_blank"
+               class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 hover:scale-105">
+                <i data-lucide="external-link" class="w-4 h-4"></i> CodeUp 2843번
+            </a>
+            <a href="http://koistudy.net/?mid=prob_page&NO=4104" target="_blank"
+               class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 hover:scale-105">
+                <i data-lucide="external-link" class="w-4 h-4"></i> Koistudy 4104번
+            </a>
+        </div>
+    </div>
 
 </main>
 
-<footer>
-    <p>&copy; 3-2-7. 파이(π)값 근사하기 프로젝트 — 데이터와 확률</p>
-    <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 10px;">복잡한 수학 문제도 충분한 데이터와 프로그래밍만 있다면 해결할 수 있습니다.</p>
-</footer>
+<div class="copy-toast fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10 z-[100]"
+     id="toast">
+    <div class="bg-indigo-500 p-1 rounded-full"><i class="w-3 h-3 text-white" data-lucide="check"></i></div>
+    <span class="font-bold text-white">클립보드에 복사되었습니다!</span>
+</div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    window.onload = function () {
+        lucide.createIcons();
+        Prism.highlightAll();
+    };
+
+    function copyCode(id) {
+        const el = document.getElementById(id);
+        const text = el.innerText;
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        const toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+</script>
 </body>
 </html>

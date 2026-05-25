@@ -168,4 +168,4 @@ makeDocument({
             {input: "2x + 1 = 2", expected: "0.50", actual: "0.50", pass: "O"},
         ],
     },
-}, "sw_project_3-2-2_c.docx");
+}, "../c/3-2-2.docx");

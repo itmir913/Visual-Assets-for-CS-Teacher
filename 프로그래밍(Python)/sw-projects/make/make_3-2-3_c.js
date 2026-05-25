@@ -120,4 +120,4 @@ makeDocument({
             {input: "2100 2", expected: "28", actual: "28", pass: "O"},
         ],
     },
-}, "sw_project_3-2-3_c.docx");
+}, "../c/3-2-3.docx");

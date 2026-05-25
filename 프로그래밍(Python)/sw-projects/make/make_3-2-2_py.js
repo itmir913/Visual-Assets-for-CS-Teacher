@@ -160,4 +160,4 @@ makeDocument({
             {input: "2x + 1 = 2", expected: "0.5", actual: "0.5", pass: "O"},
         ],
     },
-}, "sw_project_3-2-2_py.docx");
+}, "../py/3-2-2.docx");

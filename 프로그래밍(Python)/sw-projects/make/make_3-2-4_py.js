@@ -113,4 +113,4 @@ makeDocument({
             {input: "1 1", expected: "F-0001", actual: "F-0001", pass: "O"},
         ],
     },
-}, "sw_project_3-2-4_py.docx");
+}, "../py/3-2-4.docx");

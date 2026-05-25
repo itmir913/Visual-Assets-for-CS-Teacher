@@ -151,4 +151,4 @@ makeDocument({
             {input: "140 40", expected: "정상", actual: "정상", pass: "O"},
         ],
     },
-}, "sw_project_3-2-1_c.docx");
+}, "../c/3-2-1.docx");

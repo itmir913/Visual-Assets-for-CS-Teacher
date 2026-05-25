@@ -77,9 +77,6 @@ const dateAuthorBlock = () => {
     const noB = noBorder();
     const allNone = {top: noB, bottom: noB, left: noB, right: noB};
 
-    // 열 너비 정의 (6 content 열 + 1 spacer)
-    // C: [년입력/학번:, 년, 월입력, 월/이름:, 일입력, 일]
-    // 레이블 셀(C[1],C[3],C[5])은 텍스트 너비에 맞게 좁게, 입력 셀은 넓게
     const C = [800, 500, 1500, 800, 1500, 500]; // 합계 5600
     const SPACER = CONTENT_W - C.reduce((a, b) => a + b, 0); // 4306
 
@@ -100,7 +97,7 @@ const dateAuthorBlock = () => {
         new TableCell({
             width: {size: w, type: WidthType.DXA},
             columnSpan: span,
-            borders: allNone,
+            borders: noB,
             margins: {top: 60, bottom: 60, left: 80, right: 80},
             children: [new Paragraph({
                 alignment: align,
@@ -118,7 +115,6 @@ const dateAuthorBlock = () => {
                 insideHorizontal: noB, insideVertical: noB,
             },
             rows: [
-                // 1행: [빈] | 년입력 | 년 | 월입력 | 월 | 일입력 | 일
                 new TableRow({
                     children: [
                         noCell(SPACER),
@@ -130,7 +126,6 @@ const dateAuthorBlock = () => {
                         labelCell("일", C[5]),
                     ],
                 }),
-                // 2행: [빈] | 학번: | (span 2) | 이름: | (span 2)
                 new TableRow({
                     children: [
                         noCell(SPACER),
@@ -203,57 +198,60 @@ const checklistBox = (items) => {
     });
 };
 
+// ─── 섹션 간 페이지 구분 ────────────────────────────────────────────────────
+const pageBreak = () =>
+    new Paragraph({
+        children: [new PageBreak()],
+        spacing: {before: 0, after: 0},
+    });
+
+// ─── 문자열 배열 → 단락 배열 (빈 배열이면 빈 단락 1개) ────────────────────
+const lines = (arr) => (arr && arr.length ? arr : [""]).map(t => p(t));
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. 프로그램 기획서
 // ═══════════════════════════════════════════════════════════════════════════
-const makeSection1 = () => {
+const makeSection1 = (d = {}) => {
     const table = new Table({
-                width: {size: CONTENT_W, type: WidthType.DXA},
-                columnWidths: [LW, RW],
-                borders: outerBorders,
-                rows: [
-                    new TableRow({
-                        children: [
-                            grayCell("프로그램명", LW, 1),
-                            contentCell([p("")], RW, 1),
-                        ],
-                    }),
-                    new TableRow({
-                        height: {value: 800, rule: "atLeast"},
-                        children: [
-                            grayCell("개발 목적", LW, 1),
-                            contentCell([p("")], RW, 1),
-                        ],
-                    }),
-                    new TableRow({
-                        children: [
-                            grayCell("대상\n사용자", LW, 1),
-                            contentCell([p("")], RW, 1),
-                        ],
-                    }),
-                    new TableRow({
-                        height: {value: 1800, rule: "atLeast"},
-                        children: [
-                            grayCell("기능 요구\n사항", LW, 1),
-                            contentCell([p("")], RW, 1),
-                        ],
-                    }),
-                    new TableRow({
-                        height: {value: 1800, rule: "atLeast"},
-                        children: [
-                            grayCell("실행 화면\n예시", LW, 1),
-                            contentCell([
-                                p("- 입력:"),
-                                p(""),
-                                p("- 출력:"),
-                                p(""),
-                            ], RW, 1),
-                        ],
-                    }),
+        width: {size: CONTENT_W, type: WidthType.DXA},
+        columnWidths: [LW, RW],
+        borders: outerBorders,
+        rows: [
+            new TableRow({
+                children: [
+                    grayCell("프로그램명", LW, 1),
+                    contentCell([p(d.programName || "")], RW, 1),
                 ],
-            }
-        )
-    ;
+            }),
+            new TableRow({
+                height: {value: 800, rule: "atLeast"},
+                children: [
+                    grayCell("개발 목적", LW, 1),
+                    contentCell(lines(d.purpose), RW, 1),
+                ],
+            }),
+            new TableRow({
+                children: [
+                    grayCell("대상\n사용자", LW, 1),
+                    contentCell([p(d.targetUser || "")], RW, 1),
+                ],
+            }),
+            new TableRow({
+                height: {value: 1800, rule: "atLeast"},
+                children: [
+                    grayCell("기능 요구\n사항", LW, 1),
+                    contentCell(lines(d.features), RW, 1),
+                ],
+            }),
+            new TableRow({
+                height: {value: 1800, rule: "atLeast"},
+                children: [
+                    grayCell("실행 화면\n예시", LW, 1),
+                    contentCell(lines(d.screenExample || ["- 입력:", "", "- 출력:", ""]), RW, 1),
+                ],
+            }),
+        ],
+    });
 
     return [
         titleP("프로그램 기획서"),
@@ -261,9 +259,9 @@ const makeSection1 = () => {
         table,
         ...emptyP(1),
         checklistBox([
-            "프로그램 이름(주제)이 적혀 있다",
-            "프로그램을 만들려는 이유가 진로 또는 실생활과 연관하여 1문장 이상 서술되어 있다",
-            "프로그램의 주요 기능이 2가지 이상 서술되어 있다",
+            "개발할 프로젝트 주제와 프로그램 이름이 구체적으로 확정되어 있다.",
+            "프로그램을 만들려는 이유가 진로 또는 실생활과 연관하여 1문장 이상 서술되어 있다.",
+            "프로그램의 주요 기능이 2가지 이상 서술되어 있다.",
         ]),
     ];
 };
@@ -271,7 +269,7 @@ const makeSection1 = () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. 프로그램 개발 설계서-1 (요구 사항 분석)
 // ═══════════════════════════════════════════════════════════════════════════
-const makeSection2 = () => {
+const makeSection2 = (d = {}) => {
     const halfW = Math.floor((CONTENT_W - LW) / 2);
     const halfW2 = CONTENT_W - LW - halfW;
 
@@ -293,19 +291,19 @@ const makeSection2 = () => {
             ],
         });
 
-    const blankRow = () =>
+    const dataRow = (leftPs, rightPs) =>
         new TableRow({
             height: {value: 1800, rule: "atLeast"},
             children: [
                 new TableCell({
                     width: {size: halfW, type: WidthType.DXA},
                     margins: {top: 100, bottom: 100, left: 120, right: 120},
-                    children: [p("")],
+                    children: leftPs,
                 }),
                 new TableCell({
                     width: {size: halfW2, type: WidthType.DXA},
                     margins: {top: 100, bottom: 100, left: 120, right: 120},
-                    children: [p("")],
+                    children: rightPs,
                 }),
             ],
         });
@@ -323,11 +321,11 @@ const makeSection2 = () => {
                         width: {size: halfW + halfW2, type: WidthType.DXA},
                         columnSpan: 2,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [p("")],
+                        children: [p(d.programName || "")],
                     }),
                 ],
             }),
-            // 요구 사항 분석 라벨 + 입력 설계 헤더
+            // 요구 사항 분석 라벨 (rowspan 6)
             new TableRow({
                 children: [
                     grayCell("요구 사항\n분석", LW, 6),
@@ -345,11 +343,36 @@ const makeSection2 = () => {
                     }),
                 ],
             }),
-            blankRow(),
+            dataRow(lines(d.inputDesign), lines(d.inputExample)),
             subHeader("출력 설계", "출력 데이터 예시"),
-            blankRow(),
-            subHeader("해결 방법", "해결 방법 예시"),
-            blankRow(),
+            dataRow(lines(d.outputDesign), lines(d.outputExample)),
+            // 제약 조건 통합 헤더 (가로 통칸)
+            new TableRow({
+                children: [
+                    new TableCell({
+                        width: {size: halfW + halfW2, type: WidthType.DXA},
+                        columnSpan: 2,
+                        shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
+                        verticalAlign: VerticalAlign.CENTER,
+                        margins: {top: 80, bottom: 80, left: 120, right: 120},
+                        children: [
+                            pCenter("제약 조건 및 예외 데이터 (문자의 입력, 음수 입력 등 예외 조건)", {size: FONT_TITLE}),
+                        ],
+                    }),
+                ],
+            }),
+            // 제약 조건 내용 (가로 통칸)
+            new TableRow({
+                height: {value: 1800, rule: "atLeast"},
+                children: [
+                    new TableCell({
+                        width: {size: halfW + halfW2, type: WidthType.DXA},
+                        columnSpan: 2,
+                        margins: {top: 100, bottom: 100, left: 120, right: 120},
+                        children: lines(d.constraints),
+                    }),
+                ],
+            }),
         ],
     });
 
@@ -359,10 +382,9 @@ const makeSection2 = () => {
         table,
         ...emptyP(1),
         checklistBox([
-            "사용자가 입력하는 값이 2가지 이상 명시되어 있다",
-            "프로그램이 출력하는 결과가 명시되어 있다",
-            "입력값을 처리하는 방법(규칙 또는 공식)이 1문장 이상 서술되어 있다",
-            "잘못된 입력(예: 음수, 문자 입력 등)에 대한 처리 방법이 언급되어 있다",
+            "입력 데이터의 종류, 자료형(형태), 그리고 올바른 입력 예시가 명확히 명시되어 있다.",
+            "프로그램이 최종적으로 출력하는 결과물과 출력 형태(데이터 예시)가 명확히 명시되어 있다.",
+            "정상 범위를 벗어난 잘못된 입력(예: 음수, 문자 입력 등)에 대한 제약 조건과 처리 방법이 구체적으로 기술되어 있다.",
         ]),
     ];
 };
@@ -370,7 +392,7 @@ const makeSection2 = () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. 프로그램 개발 설계서-2 (알고리즘 설계)
 // ═══════════════════════════════════════════════════════════════════════════
-const makeSection3 = () => {
+const makeSection3 = (d = {}) => {
     const halfW = Math.floor((CONTENT_W - LW) / 2);
     const halfW2 = CONTENT_W - LW - halfW;
 
@@ -379,7 +401,6 @@ const makeSection3 = () => {
         columnWidths: [LW, halfW, halfW2],
         borders: outerBorders,
         rows: [
-            // 프로그램명
             new TableRow({
                 children: [
                     grayCell("프로그램명", LW, 1),
@@ -387,11 +408,10 @@ const makeSection3 = () => {
                         width: {size: halfW + halfW2, type: WidthType.DXA},
                         columnSpan: 2,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [p("")],
+                        children: [p(d.programName || "")],
                     }),
                 ],
             }),
-            // 알고리즘 설계 라벨 + 헤더
             new TableRow({
                 children: [
                     grayCell("알고리즘\n설계", LW, 2),
@@ -409,19 +429,18 @@ const makeSection3 = () => {
                     }),
                 ],
             }),
-            // 내용 (큰 영역)
             new TableRow({
                 height: {value: 7000, rule: "atLeast"},
                 children: [
                     new TableCell({
                         width: {size: halfW, type: WidthType.DXA},
                         margins: {top: 120, bottom: 120, left: 120, right: 120},
-                        children: [p("")],
+                        children: lines(d.flowchart),
                     }),
                     new TableCell({
                         width: {size: halfW2, type: WidthType.DXA},
                         margins: {top: 120, bottom: 120, left: 120, right: 120},
-                        children: [p("")],
+                        children: lines(d.pseudocode),
                     }),
                 ],
             }),
@@ -434,18 +453,18 @@ const makeSection3 = () => {
         table,
         ...emptyP(1),
         checklistBox([
-            "프로그램의 시작과 끝이 명시되어 있다",
-            "처리 단계가 순서대로 3단계 이상 서술되어 있다",
-            "조건에 따라 다른 동작을 하는 분기(if / 아니면)가 1개 이상 포함되어 있다",
-            "반복이 필요한 경우 반복 조건이 명시되어 있다",
+            "프로그램의 시작과 끝이 명시되어 있다.",
+            "처리 단계가 순서대로 3단계 이상 서술되어 있다.",
+            "조건에 따라 다른 동작을 하는 분기(if / 아니면)가 1개 이상 포함되어 있다.",
+            "반복이 필요한 경우 반복 조건이 명시되어 있다.",
         ]),
     ];
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 4. 프로그램 개발 설계서-3 (소스 코드)
+// 4. 프로그램 구현 (소스 코드)
 // ═══════════════════════════════════════════════════════════════════════════
-const makeSection4 = () => {
+const makeSection4 = (d = {}) => {
     const halfW = Math.floor((CONTENT_W - LW) / 2);
     const halfW2 = CONTENT_W - LW - halfW;
 
@@ -461,18 +480,18 @@ const makeSection4 = () => {
                         width: {size: halfW + halfW2, type: WidthType.DXA},
                         columnSpan: 2,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [p("")],
+                        children: [p(d.programName || "")],
                     }),
                 ],
             }),
             new TableRow({
                 children: [
-                    grayCell("소스 코드", LW, 2),
+                    grayCell("프로그램 구현", LW, 2),
                     new TableCell({
                         width: {size: halfW, type: WidthType.DXA},
                         shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [pCenter("프로토타입 코드", {size: FONT_TITLE})],
+                        children: [pCenter("소스 코드", {size: FONT_TITLE})],
                     }),
                     new TableCell({
                         width: {size: halfW2, type: WidthType.DXA},
@@ -488,12 +507,12 @@ const makeSection4 = () => {
                     new TableCell({
                         width: {size: halfW, type: WidthType.DXA},
                         margins: {top: 120, bottom: 120, left: 120, right: 120},
-                        children: [p("")],
+                        children: lines(d.code),
                     }),
                     new TableCell({
                         width: {size: halfW2, type: WidthType.DXA},
                         margins: {top: 120, bottom: 120, left: 120, right: 120},
-                        children: [p("")],
+                        children: lines(d.explanation),
                     }),
                 ],
             }),
@@ -501,14 +520,14 @@ const makeSection4 = () => {
     });
 
     return [
-        titleP("프로그램 개발 설계서-3"),
+        titleP("프로그램 구현"),
         ...dateAuthorBlock(),
         table,
         ...emptyP(1),
         checklistBox([
-            "코드를 실행하면 오류 없이 결과가 출력된다",
-            "코드의 주요 단계마다 무엇을 하는지 설명이 1줄 이상 작성되어 있다",
-            "잘못된 입력값에 대한 처리(예외 처리)가 코드에 포함되어 있다",
+            "코드를 실행하면 오류 없이 결과가 출력된다.",
+            "코드의 주요 단계마다 무엇을 하는지 설명이 1줄 이상 작성되어 있다.",
+            "잘못된 입력값에 대한 처리(예외 처리)가 코드에 포함되어 있다.",
         ]),
     ];
 };
@@ -516,12 +535,11 @@ const makeSection4 = () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 5. 프로그램 테스트
 // ═══════════════════════════════════════════════════════════════════════════
-const makeSection5 = () => {
-    // 입력 데이터 | 기대 출력 | 실제 출력 | 판정(O/X)
-    const C1 = 2500;  // 입력 데이터
-    const C2 = 2200;  // 기대 출력
-    const C3 = 2200;  // 실제 출력
-    const C4 = CONTENT_W - LW - C1 - C2 - C3;  // 판정(O/X) — 나머지 2106
+const makeSection5 = (d = {}) => {
+    const C1 = 2500;
+    const C2 = 2200;
+    const C3 = 2200;
+    const C4 = CONTENT_W - LW - C1 - C2 - C3;
 
     const blankTestRow = () =>
         new TableRow({
@@ -530,25 +548,58 @@ const makeSection5 = () => {
                 new TableCell({
                     width: {size: C1, type: WidthType.DXA},
                     margins: {top: 80, bottom: 80, left: 120, right: 120},
-                    children: [p("")],
+                    children: [p("")]
                 }),
                 new TableCell({
                     width: {size: C2, type: WidthType.DXA},
                     margins: {top: 80, bottom: 80, left: 120, right: 120},
-                    children: [p("")],
+                    children: [p("")]
                 }),
                 new TableCell({
                     width: {size: C3, type: WidthType.DXA},
                     margins: {top: 80, bottom: 80, left: 120, right: 120},
-                    children: [p("")],
+                    children: [p("")]
                 }),
                 new TableCell({
                     width: {size: C4, type: WidthType.DXA},
                     margins: {top: 80, bottom: 80, left: 120, right: 120},
-                    children: [p("")],
+                    children: [p("")]
                 }),
             ],
         });
+
+    const filledTestRow = (tc) =>
+        new TableRow({
+            height: {value: 700, rule: "atLeast"},
+            children: [
+                new TableCell({
+                    width: {size: C1, type: WidthType.DXA},
+                    margins: {top: 80, bottom: 80, left: 120, right: 120},
+                    children: [p(tc.input || "")]
+                }),
+                new TableCell({
+                    width: {size: C2, type: WidthType.DXA},
+                    margins: {top: 80, bottom: 80, left: 120, right: 120},
+                    children: [pCenter(tc.expected || "")]
+                }),
+                new TableCell({
+                    width: {size: C3, type: WidthType.DXA},
+                    margins: {top: 80, bottom: 80, left: 120, right: 120},
+                    children: [pCenter(tc.actual || "")]
+                }),
+                new TableCell({
+                    width: {size: C4, type: WidthType.DXA},
+                    margins: {top: 80, bottom: 80, left: 120, right: 120},
+                    children: [pCenter(tc.pass || "")]
+                }),
+            ],
+        });
+
+    const testCases = d.testCases || [];
+    const testRows = testCases.length > 0
+        ? testCases.map(filledTestRow)
+        : [blankTestRow(), blankTestRow(), blankTestRow(), blankTestRow()];
+    const testRowspan = (testCases.length || 4) + 1;
 
     const table = new Table({
         width: {size: CONTENT_W, type: WidthType.DXA},
@@ -562,7 +613,7 @@ const makeSection5 = () => {
                         width: {size: C1 + C2 + C3 + C4, type: WidthType.DXA},
                         columnSpan: 4,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [p("")],
+                        children: [p(d.programName || "")],
                     }),
                 ],
             }),
@@ -574,7 +625,7 @@ const makeSection5 = () => {
                         width: {size: C1 + C2 + C3 + C4, type: WidthType.DXA},
                         columnSpan: 4,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [p("")],
+                        children: lines(d.expectedErrors),
                     }),
                 ],
             }),
@@ -586,13 +637,13 @@ const makeSection5 = () => {
                         width: {size: C1 + C2 + C3 + C4, type: WidthType.DXA},
                         columnSpan: 4,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [p("")],
+                        children: lines(d.improvements),
                     }),
                 ],
             }),
             new TableRow({
                 children: [
-                    grayCell("테스트", LW, 5),
+                    grayCell("테스트", LW, testRowspan),
                     new TableCell({
                         width: {size: C1, type: WidthType.DXA},
                         shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
@@ -619,10 +670,7 @@ const makeSection5 = () => {
                     }),
                 ],
             }),
-            blankTestRow(),
-            blankTestRow(),
-            blankTestRow(),
-            blankTestRow(),
+            ...testRows,
         ],
     });
 
@@ -645,57 +693,58 @@ const makeSection5 = () => {
         hintP,
         ...emptyP(1),
         checklistBox([
-            "입력값과 출력값이 모두 기록된 테스트 케이스가 3개 있다",
-            "정상적인 값으로 테스트한 케이스가 2개 이상 있다",
-            "경계값(최솟값·최댓값) 또는 예외 입력을 사용한 테스트 케이스가 있다",
-            "발견한 오류 또는 개선할 점이 1문장 이상 서술되어 있다  (없으면 '없음'과 이유)",
+            "입력값과 출력값이 모두 기록된 테스트 케이스가 3개 이상 있다.",
+            "정상적인 값으로 테스트한 케이스가 2개 이상 있다.",
+            "경계값(최솟값·최댓값) 또는 예외 입력을 사용한 테스트 케이스가 있다.",
+            "발견한 오류 또는 개선할 점이 1문장 이상 서술되어 있다. (없으면 '없음'과 이유)",
         ]),
     ];
 };
 
-// ─── 섹션 간 페이지 구분 ────────────────────────────────────────────────────
-const pageBreak = () =>
-    new Paragraph({
-        children: [new PageBreak()],
-        spacing: {before: 0, after: 0},
-    });
-
 // ═══════════════════════════════════════════════════════════════════════════
-// 문서 생성
+// 공통 문서 생성 함수 (외부에서 require해서 사용)
 // ═══════════════════════════════════════════════════════════════════════════
-const doc = new Document({
-    styles: {
-        default: {
-            document: {
-                run: {font: FONT, size: FONT_BODY},
-            },
-        },
-    },
-    sections: [
-        {
-            properties: {
-                page: {
-                    size: {width: A4_W, height: A4_H},
-                    margin: {top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN},
+const makeDocument = (data = {}, outputFile = "sw_project_template.docx") => {
+    const doc = new Document({
+        styles: {
+            default: {
+                document: {
+                    run: {font: FONT, size: FONT_BODY},
                 },
             },
-            children: [
-                ...makeSection1(),
-                pageBreak(),
-                ...makeSection2(),
-                pageBreak(),
-                ...makeSection3(),
-                pageBreak(),
-                ...makeSection4(),
-                pageBreak(),
-                ...makeSection5(),
-            ],
         },
-    ],
-});
+        sections: [
+            {
+                properties: {
+                    page: {
+                        size: {width: A4_W, height: A4_H},
+                        margin: {top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN},
+                    },
+                },
+                children: [
+                    ...makeSection1(data.s1),
+                    pageBreak(),
+                    ...makeSection2(data.s2),
+                    pageBreak(),
+                    ...makeSection3(data.s3),
+                    pageBreak(),
+                    ...makeSection4(data.s4),
+                    pageBreak(),
+                    ...makeSection5(data.s5),
+                ],
+            },
+        ],
+    });
 
-Packer.toBuffer(doc).then((buffer) => {
-    const outPath = "sw_project_template.docx";
-    fs.writeFileSync(outPath, buffer);
-    console.log("완료:", outPath);
-});
+    return Packer.toBuffer(doc).then((buffer) => {
+        fs.writeFileSync(outputFile, buffer);
+        console.log("완료:", outputFile);
+    });
+};
+
+module.exports = {makeDocument};
+
+// 직접 실행 시 빈 양식 생성
+if (require.main === module) {
+    makeDocument({}, "sw_project_template.docx");
+}

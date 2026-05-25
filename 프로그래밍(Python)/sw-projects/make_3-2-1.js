@@ -126,7 +126,7 @@ makeDocument({
 
     s5: {
         programName: "비만도 측정 프로그램",
-        expectedErrors: [
+        errors: [
             "obesity <= 10 조건으로 인해 음수 비만도(저체중)도 '정상'으로 출력될 수 있다.",
         ],
         improvements: [

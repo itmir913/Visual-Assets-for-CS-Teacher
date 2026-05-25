@@ -27,20 +27,24 @@ const outerBorders = {
 };
 
 // ─── 공통 단락 빌더 ─────────────────────────────────────────────────────────
-const p = (text, opts = {}) =>
-    new Paragraph({
+const p = (text, opts = {}) => {
+    const parts = text.split('\n');
+    const children = parts.map((part, i) =>
+        new TextRun({
+            text: part,
+            font: FONT,
+            size: opts.size || FONT_BODY,
+            bold: opts.bold || false,
+            color: opts.color || "000000",
+            ...(i > 0 ? {break: 1} : {}),
+        })
+    );
+    return new Paragraph({
         alignment: opts.center ? AlignmentType.CENTER : AlignmentType.LEFT,
         spacing: {before: 40, after: 40},
-        children: [
-            new TextRun({
-                text,
-                font: FONT,
-                size: opts.size || FONT_BODY,
-                bold: opts.bold || false,
-                color: opts.color || "000000",
-            }),
-        ],
+        children,
     });
+};
 
 const pCenter = (text, opts = {}) => p(text, {...opts, center: true});
 
@@ -262,6 +266,7 @@ const makeSection1 = (d = {}) => {
             "개발할 프로젝트 주제와 프로그램 이름이 구체적으로 확정되어 있다.",
             "프로그램을 만들려는 이유가 진로 또는 실생활과 연관하여 1문장 이상 서술되어 있다.",
             "프로그램의 주요 기능이 2가지 이상 서술되어 있다.",
+            "실행 시 입력과 출력 화면 예시가 각각 1개 이상 제시되어 있다.",
         ]),
     ];
 };
@@ -455,8 +460,7 @@ const makeSection3 = (d = {}) => {
         checklistBox([
             "프로그램의 시작과 끝이 명시되어 있다.",
             "처리 단계가 순서대로 3단계 이상 서술되어 있다.",
-            "조건에 따라 다른 동작을 하는 분기(if / 아니면)가 1개 이상 포함되어 있다.",
-            "반복이 필요한 경우 반복 조건이 명시되어 있다.",
+            "프로그램 특성에 맞는 제어 구조(선택·반복)가 알고리즘에 올바르게 반영되어 있다.",
         ]),
     ];
 };
@@ -527,7 +531,7 @@ const makeSection4 = (d = {}) => {
         checklistBox([
             "코드를 실행하면 오류 없이 결과가 출력된다.",
             "코드의 주요 단계마다 무엇을 하는지 설명이 1줄 이상 작성되어 있다.",
-            "잘못된 입력값에 대한 처리(예외 처리)가 코드에 포함되어 있다.",
+            "잘못된 입력값(예: 음수, 문자 등)이 들어왔을 때 처리하는 코드가 포함되어 있다.",
         ]),
     ];
 };
@@ -601,7 +605,8 @@ const makeSection5 = (d = {}) => {
         : [blankTestRow(), blankTestRow(), blankTestRow(), blankTestRow()];
     const testRowspan = (testCases.length || 4) + 1;
 
-    const table = new Table({
+    // ── 표 1: 테스트 케이스 ──────────────────────────────────────────────────
+    const testTable = new Table({
         width: {size: CONTENT_W, type: WidthType.DXA},
         columnWidths: [LW, C1, C2, C3, C4],
         borders: outerBorders,
@@ -614,30 +619,6 @@ const makeSection5 = (d = {}) => {
                         columnSpan: 4,
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
                         children: [p(d.programName || "")],
-                    }),
-                ],
-            }),
-            new TableRow({
-                height: {value: 800, rule: "atLeast"},
-                children: [
-                    grayCell("예상 오류", LW, 1),
-                    new TableCell({
-                        width: {size: C1 + C2 + C3 + C4, type: WidthType.DXA},
-                        columnSpan: 4,
-                        margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: lines(d.expectedErrors),
-                    }),
-                ],
-            }),
-            new TableRow({
-                height: {value: 800, rule: "atLeast"},
-                children: [
-                    grayCell("개선점", LW, 1),
-                    new TableCell({
-                        width: {size: C1 + C2 + C3 + C4, type: WidthType.DXA},
-                        columnSpan: 4,
-                        margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: lines(d.improvements),
                     }),
                 ],
             }),
@@ -686,11 +667,35 @@ const makeSection5 = (d = {}) => {
         })],
     });
 
+    // ── 표 2: 발견한 오류 / 개선점 ──────────────────────────────────────────
+    const resultTable = new Table({
+        width: {size: CONTENT_W, type: WidthType.DXA},
+        columnWidths: [LW, RW],
+        borders: outerBorders,
+        rows: [
+            new TableRow({
+                height: {value: 800, rule: "atLeast"},
+                children: [
+                    grayCell("발견한\n오류", LW, 1),
+                    contentCell(lines(d.errors), RW, 1),
+                ],
+            }),
+            new TableRow({
+                height: {value: 800, rule: "atLeast"},
+                children: [
+                    grayCell("개선점", LW, 1),
+                    contentCell(lines(d.improvements), RW, 1),
+                ],
+            }),
+        ],
+    });
+
     return [
         titleP("프로그램 테스트"),
         ...dateAuthorBlock(),
-        table,
+        testTable,
         hintP,
+        resultTable,
         ...emptyP(1),
         checklistBox([
             "입력값과 출력값이 모두 기록된 테스트 케이스가 3개 이상 있다.",

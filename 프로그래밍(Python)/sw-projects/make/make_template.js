@@ -1,7 +1,7 @@
 const {
     Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
     AlignmentType, BorderStyle, WidthType, ShadingType,
-    VerticalAlign, PageBreak,
+    VerticalAlign, PageBreak, TableLayoutType,
 } = require('docx');
 const fs = require('fs');
 
@@ -179,6 +179,8 @@ const checklistBox = (items) => {
 
     return new Table({
         width: {size: CONTENT_W, type: WidthType.DXA},
+        columnWidths: [CONTENT_W], // ◀ [해결책 1] 테이블 열 너비를 명시적으로 지정
+        layout: TableLayoutType.FIXED, // ◀ [해결책 2] 뷰어가 멋대로 너비를 줄이지 못하도록 고정
         borders: {
             top: {style: BorderStyle.SINGLE, size: 12, color: BOX_BORDER},
             bottom: {style: BorderStyle.SINGLE, size: 12, color: BOX_BORDER},
@@ -751,5 +753,5 @@ module.exports = {makeDocument};
 
 // 직접 실행 시 빈 양식 생성
 if (require.main === module) {
-    makeDocument({}, "sw_project_template.docx");
+    makeDocument({}, "../sw_project_template.docx");
 }

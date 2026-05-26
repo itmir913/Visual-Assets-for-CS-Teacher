@@ -318,7 +318,7 @@ const makeQ1 = () => [
             run("\n\n(예: 갤러리에 무작위로 저장된 반려동물 사진을 일일이 손으로 분류해야 하는 불편함을 해소하기 위해, 사진을 자동으로 분류하는 시스템을 만들고자 한다.)",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        3200
+        7000
     ),
     ...emptyP(1),
     checklistBox([
@@ -341,7 +341,7 @@ const makeQ2 = () => [
             run("\n\n(예: 입력 — 강아지·고양이 사진  /  출력 — '강아지' 또는 '고양이'로 분류된 레이블)",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        5000
+        5500
     ),
     ...emptyP(1),
     checklistBox([
@@ -363,7 +363,7 @@ const makeQ3 = () => [
             run("\n\n②  구현 도구:  ", {bold: true}),
             run("①에서 선택한 유형을 구현하기 위해 티처블머신·코랩·오렌지3 중 어떤 도구를 선택했는지 밝히고, 그 이유를 서술하시오."),
         ],
-        5000
+        7500
     ),
     ...emptyP(1),
     checklistBox([
@@ -383,7 +383,7 @@ const makeQ4 = () => [
             run("\n\n〈화면 캡처 단축키: 윈도우 + Shift + S〉",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        5500
+        8500
     ),
     ...emptyP(1),
     checklistBox([
@@ -403,7 +403,7 @@ const makeQ5 = () => [
             run("\n\n〈화면 캡처 단축키: 윈도우 + Shift + S〉",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        5500
+        8500
     ),
     ...emptyP(1),
     checklistBox([
@@ -421,7 +421,7 @@ const makeQ6 = () => [
             run("문항 6.  ", {bold: true}),
             run("학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오. 테스트 전 예상했던 결과와 실제 결과를 비교하고, 차이가 발생했다면 그 원인을 분석하시오."),
         ],
-        5500
+        6500
     ),
     ...emptyP(1),
     checklistBox([
@@ -443,7 +443,7 @@ const makeQ7 = () => [
             run("개선 사항  ", {bold: true}),
             run("현재 모델의 한계를 바탕으로, 성능을 향상시키기 위해 필요한 개선사항을 구체적으로 서술하시오."),
         ],
-        5500
+        6500
     ),
     ...emptyP(1),
     checklistBox([
@@ -461,7 +461,7 @@ const makeQ8 = () => [
             run("문항 8.  ", {bold: true}),
             run("기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오."),
         ],
-        6000
+        7500
     ),
     ...emptyP(1),
     checklistBox([

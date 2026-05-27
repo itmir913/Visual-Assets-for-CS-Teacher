@@ -1,5 +1,5 @@
 // 고대의 지혜: 시저 암호 해독하기 (Project 3-2-6) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

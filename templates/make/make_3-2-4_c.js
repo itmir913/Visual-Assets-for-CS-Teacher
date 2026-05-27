@@ -1,5 +1,5 @@
 // 자재 자동 라벨링: 철근 자르기 (Project 3-2-4) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

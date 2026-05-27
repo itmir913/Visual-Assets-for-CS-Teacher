@@ -1,5 +1,5 @@
 // 순위 데이터 정렬: 3등 찾기 (Project 3-2-12) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

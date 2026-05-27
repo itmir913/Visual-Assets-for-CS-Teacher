@@ -1,5 +1,5 @@
 // 비만도 측정 프로그램 (Project 3-2-1) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

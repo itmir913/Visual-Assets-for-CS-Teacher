@@ -1,5 +1,5 @@
 // 복리 계산기 (Project 3-2-15) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

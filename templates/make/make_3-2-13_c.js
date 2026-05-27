@@ -1,5 +1,5 @@
 // 도서 대출 시스템 (Project 3-2-13) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

@@ -1,5 +1,5 @@
 // 철광석 제련 알고리즘 (Project 3-2-11) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

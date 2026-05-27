@@ -1,5 +1,5 @@
 // 복면산(覆面算) 문제 해결 (Project 3-2-9) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

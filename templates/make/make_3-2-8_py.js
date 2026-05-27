@@ -1,5 +1,5 @@
 // 종이 자르기: 격자 프로그래밍 (Project 3-2-8) — Python 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

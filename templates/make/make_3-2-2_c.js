@@ -1,5 +1,5 @@
 // 일차방정식 해 구하기 (Project 3-2-2) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

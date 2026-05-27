@@ -1,5 +1,5 @@
 // 교집합과 합집합 계산기 (Project 3-2-14) — C 언어 버전
-const {makeDocument} = require('./make_template');
+const {makeDocument} = require('./make_sw_template');
 
 makeDocument({
     s1: {

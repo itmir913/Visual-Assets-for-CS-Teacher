@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>기계학습 모델 구현 예시 ② — 하루 최고기온과 전력 소비량 예측</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .q-header {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .answer-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+
+        .checklist-box {
+            background: #eff6ff;
+            border: 2px solid #3b82f6;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .two-col-answer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .two-col-answer {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-temperature-high absolute top-10 left-10 text-8xl -rotate-12"></i>
+        <i class="fa-solid fa-bolt absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서 · 예시 ②</span>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">하루 최고기온과 전력 소비량 예측</h1>
+        <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            지도학습 · 예측 (선형회귀) · Orange3<br>
+            <span class="text-sm opacity-75">진로 연관: 환경 · 에너지 · 전기공학</span>
+        </p>
+    </div>
+</header>
+
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex flex-wrap gap-3">
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full text-sm font-bold text-sky-700"><i
+                    class="fa-solid fa-brain"></i> 지도학습 · 선형회귀</span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full text-sm font-bold text-blue-700"><i
+                    class="fa-solid fa-toolbox"></i> 도구: Orange3</span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full text-sm font-bold text-emerald-700"><i
+                    class="fa-solid fa-briefcase"></i> 환경 · 에너지 · 전기공학</span>
+        </div>
+        <p class="text-slate-500 text-sm mt-3">이 보고서는 교사가 제작한 예시 답안입니다. 실제 수행평가 작성 시 참고용으로 활용하세요.</p>
+    </div>
+</div>
+
+<nav class="sticky-nav px-6 py-3">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow">
+                <i class="fa-solid fa-bolt text-base"></i>
+            </div>
+            <span class="font-black text-lg tracking-tight text-slate-800">전력 소비량 예측 모델</span>
+        </div>
+        <div class="hidden md:flex space-x-4 text-sm font-bold text-slate-500">
+            <a class="hover:text-sky-600 transition" href="#q1">문제정의</a>
+            <a class="hover:text-sky-600 transition" href="#q2">모델설명</a>
+            <a class="hover:text-sky-600 transition" href="#q3">유형·도구</a>
+            <a class="hover:text-sky-600 transition" href="#q4">데이터</a>
+            <a class="hover:text-sky-600 transition" href="#q5">학습결과</a>
+            <a class="hover:text-sky-600 transition" href="#q6">테스트</a>
+            <a class="hover:text-sky-600 transition" href="#q7">기대·개선</a>
+            <a class="hover:text-sky-600 transition" href="#q8">소감</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-4xl mx-auto px-6 py-16 space-y-10">
+
+    <section class="section-card scroll-mt-24" id="q1">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 1. 문제 정의</p>
+            <p class="text-slate-600 text-sm">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">여름철 폭염이 이어지면 냉방 기기 사용이 급격히 늘어나 전력망에 부하가 걸리고,
+            심한 경우 대규모 정전(블랙아웃)이 발생하기도 한다.
+            당일 최고기온을 알면 전력 소비량을 미리 예측할 수 있어
+            발전소 가동 계획을 효율적으로 세울 수 있다.
+            하루 최고기온(°C)을 입력하면 당일 전력 소비량(MWh)을 예측해주는
+            인공지능 모델을 만들어, 에너지 수급 계획 수립에 활용하고자 한다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 해결하고자 하는 문제가 실생활 또는 학문 분야와 연관되어 구체적으로 제시되어 있다.</li>
+                <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q2">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
+            <p class="text-slate-600 text-sm">어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 입력: 하루 최고기온 (단위: °C)
+            ■ 출력: 예측 전력 소비량 (단위: MWh)
+
+            기온이 높아질수록 냉방 기기 사용이 늘어나 전력 소비량도 증가하는
+            여름철 패턴을 학습하여, 예보 기온이 주어지면
+            해당 날의 전력 소비량을 수치로 예측한다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 만들고자 하는 모델의 입력 데이터(종류·형태)가 명확히 제시되어 있다.</li>
+                <li>☑ 모델이 출력하는 결과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q3">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+            <p class="text-slate-600 text-sm">① 기계학습 유형 선택 및 이유, ② 구현 도구 선택 및 이유를 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">① 기계학습 유형: 지도학습 — 예측 (선형회귀)
+
+            기온(연속형 수치)과 전력 소비량(연속형 수치)의 관계를 학습하여
+            수치를 추정하는 것이므로 '예측' 모델이 적합하다.
+            정답(전력 소비량 수치)이 포함된 과거 데이터로 학습하므로 지도학습이다.
+
+            ② 구현 도구: Orange3
+
+            기상청·한전 CSV 데이터를 불러와 선형회귀 분석과 산점도를
+            코딩 없이 노드 연결만으로 구현할 수 있어 선택했다.
+            공공 데이터 활용 프로젝트 특성상 CSV 가공이 쉬운 Orange3가 적합하다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 지도학습 또는 비지도학습 중 하나를 명확히 선택하였다.</li>
+                <li>☑ 분류·군집·예측 등의 개념을 활용하여 유형 선택 이유가 논리적으로 서술되어 있다.</li>
+                <li>☑ 구현 도구를 선택하고 그 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q4">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 4. 데이터 설명</p>
+            <p class="text-slate-600 text-sm">데이터의 출처·유형·수량·특성을 작성하고, 스크린샷을 첨부하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 출처: 기상청 기상자료개방포털 (날씨) + 한국전력공사 공공데이터포털 (전력)
+            • 유형: 수치형 정형 데이터 (CSV, 2개 열)
+            • 수량: 2023년 6~8월 여름철 일별 데이터 (92행)
+
+            최고기온(°C) | 전력 소비량(MWh)
+            ─────────────┼──────────────────
+            28 | 72,450
+            32 | 85,300
+            36 | 96,800
+            38 | 102,500
+            40 | 108,200
+            (이하 87행 생략 / 전체 92행)
+
+            ※ 스크린샷: 기상청·한전 데이터 다운로드 화면 및 Orange3 CSV 로드 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 데이터의 출처가 명시되어 있다.</li>
+                <li>☑ 데이터의 유형과 수량이 구체적으로 서술되어 있다.</li>
+                <li>☑ 학습에 사용된 데이터 화면 또는 목록 스크린샷이 첨부되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q5">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 5. 학습 결과</p>
+            <p class="text-slate-600 text-sm">학습 완료 화면 또는 학습 결과를 스크린샷으로 첨부하고, 결과의 의미를 설명하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 산점도에서 기온이 높을수록 전력 소비량도 늘어나는 패턴이 뚜렷하게 나타남
+            → 강한 선형 관계 시각적으로 확인
+
+            • 학습된 회귀식: 전력 소비량 = 2,850 × 기온 − 7,430
+            → 기온이 1°C 오를 때마다 전력 소비량 약 2,850 MWh 증가
+
+            • 평균적으로 약 2,500 MWh 오차 범위 내에서 예측 → 전력망 운영 계획에 활용 가능한 수준
+
+            ※ 스크린샷: Orange3 회귀선 산점도 및 Test and Score 결과 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습 완료 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
+                <li>☑ 학습 결과 수치가 구체적으로 언급되어 있다.</li>
+                <li>☑ 학습 결과의 의미가 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q6">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 6. 테스트 및 결과 분석</p>
+            <p class="text-slate-600 text-sm">새로운 데이터로 테스트하고, 예상 결과와 실제 결과를 비교·분석하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 테스트 1
+            입력: 34°C (전형적인 폭염 수준)
+            예상: 약 89,370 MWh (= 2,850 × 34 − 7,430)
+            실제 출력: 91,200 MWh → 오차 약 2%, 실용적 수준
+
+            ■ 테스트 2
+            입력: 25°C (봄·가을 수준, 학습 데이터 하한 근처)
+            예상: 약 63,820 MWh
+            실제 출력: 64,500 MWh → 오차 약 1%, 비교적 정확
+
+            ■ 분석
+            여름철(6~8월) 데이터만 학습하여 겨울 난방 수요는 반영되지 않는다.
+            한국의 전력 소비는 U자 곡선(봄·가을 낮고, 여름·겨울 높음)을 보이는데,
+            이 모델은 여름철 냉방 수요 구간만 포착한 것이므로
+            겨울철 기온을 입력하면 예측값이 크게 벗어날 수 있다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
+                <li>☑ 테스트 전 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
+                <li>☑ 차이가 있다면 그 원인이 분석되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q7">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 7. 기대 효과 및 개선 사항</p>
+            <p class="text-slate-600 text-sm">모델 적용 시 기대 효과와 현재 모델의 한계 및 개선 방향을 서술하시오.</p>
+        </div>
+        <div class="two-col-answer mb-4">
+            <div class="answer-block text-slate-700 text-base">
+                <p class="font-bold text-sky-700 mb-2">기대 효과</p>관심 분야: 환경 · 에너지
+
+                기상 예보에 연동하여 다음 날 전력 수요를 예측하면
+                발전소 가동 계획을 최적화하고
+                블랙아웃(대규모 정전)을 사전에 예방할 수 있다.
+
+                태양광·풍력 등 신재생에너지의 발전 계획 수립과
+                수요·공급 균형 관리에도 활용 가능하다.
+            </div>
+            <div class="answer-block text-slate-700 text-base">
+                <p class="font-bold text-sky-700 mb-2">개선 사항</p>현재 모델의 한계:
+                여름철 데이터만 사용하여
+                겨울 난방 수요와 봄·가을 환절기 패턴을
+                반영하지 못한다.
+
+                개선 방향:
+                4계절 전체 데이터를 포함하거나,
+                기온 외에 습도·요일·공휴일 여부·
+                계절 플래그를 추가 특성으로 넣으면
+                연간 예측 정확도를 높일 수 있다.
+            </div>
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 자신의 관심 분야가 명시되고, 기대 효과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 현재 모델의 한계가 언급되어 있다.</li>
+                <li>☑ 성능 향상을 위한 개선사항이 제시되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q8">
+        <div class="q-header">
+            <p class="font-black text-sky-700 text-base mb-1">문항 8. 소감</p>
+            <p class="text-slate-600 text-sm">달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">기상청과 한전의 공개 데이터를 직접 다운로드해서 사용한 게 처음이었는데,
+            실제 데이터로 AI를 만들 수 있다는 것이 놀라웠다.
+
+            기온이 1°C 오를 때마다 전력 소비량이 약 2,850 MWh씩 늘어난다는
+            계산 결과를 보고, 폭염 때 에어컨을 조금만 덜 틀어도
+            얼마나 많은 에너지를 아낄 수 있는지 수치로 실감했다.
+
+            환경 분야에 관심이 있는데, 이런 예측 모델이
+            실제 에너지 절약과 기후 위기 대응에 도움이 될 수 있다는 걸 알게 됐다.
+            나중에 4계절 데이터와 신재생에너지 발전량 데이터를 결합한
+            더 정교한 에너지 수급 예측 모델을 만들어보고 싶다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것 또는 달라진 생각이 포함되어 있다.</li>
+                <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-slate-900 py-12 px-6 text-center mt-10">
+    <p class="text-white font-black text-xl mb-1">인공지능 기초</p>
+    <p class="text-slate-400 text-sm">기계학습 모델 구현 보고서 예시 ② — 하루 최고기온과 전력 소비량 예측</p>
+</footer>
+
+</body>
+</html>

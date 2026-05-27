@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>기계학습 모델 구현 예시 ⑤ — 신용점수와 소득으로 대출 승인 여부 분류</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .q-header {
+            background: #eff6ff;
+            border-left: 4px solid #1d4ed8;
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .answer-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+
+        .checklist-box {
+            background: #eff6ff;
+            border: 2px solid #3b82f6;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .two-col-answer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .two-col-answer {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-building-columns absolute top-10 left-10 text-8xl -rotate-12"></i>
+        <i class="fa-solid fa-credit-card absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서 · 예시 ⑤</span>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">신용점수와 소득으로 대출 승인 여부 분류</h1>
+        <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            지도학습 · 분류 (로지스틱 회귀) · Orange3<br>
+            <span class="text-sm opacity-75">진로 연관: 금융 · 은행 · 핀테크</span>
+        </p>
+    </div>
+</header>
+
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex flex-wrap gap-3">
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full text-sm font-bold text-blue-700"><i
+                    class="fa-solid fa-brain"></i> 지도학습 · 로지스틱 회귀</span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full text-sm font-bold text-sky-700"><i
+                    class="fa-solid fa-toolbox"></i> 도구: Orange3</span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-full text-sm font-bold text-indigo-700"><i
+                    class="fa-solid fa-briefcase"></i> 금융 · 은행 · 핀테크</span>
+        </div>
+        <p class="text-slate-500 text-sm mt-3">이 보고서는 교사가 제작한 예시 답안입니다. 실제 수행평가 작성 시 참고용으로 활용하세요.</p>
+    </div>
+</div>
+
+<nav class="sticky-nav px-6 py-3">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 bg-blue-700 rounded-xl flex items-center justify-center text-white shadow"><i
+                    class="fa-solid fa-building-columns text-base"></i></div>
+            <span class="font-black text-lg tracking-tight text-slate-800">대출 승인 분류 모델</span>
+        </div>
+        <div class="hidden md:flex space-x-4 text-sm font-bold text-slate-500">
+            <a class="hover:text-blue-700 transition" href="#q1">문제정의</a>
+            <a class="hover:text-blue-700 transition" href="#q2">모델설명</a>
+            <a class="hover:text-blue-700 transition" href="#q3">유형·도구</a>
+            <a class="hover:text-blue-700 transition" href="#q4">데이터</a>
+            <a class="hover:text-blue-700 transition" href="#q5">학습결과</a>
+            <a class="hover:text-blue-700 transition" href="#q6">테스트</a>
+            <a class="hover:text-blue-700 transition" href="#q7">기대·개선</a>
+            <a class="hover:text-blue-700 transition" href="#q8">소감</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-4xl mx-auto px-6 py-16 space-y-10">
+
+    <section class="section-card scroll-mt-24" id="q1">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 1. 문제 정의</p>
+            <p class="text-slate-600 text-sm">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오.</p></div>
+        <div class="answer-block text-slate-700 text-base mb-4">은행에서 대출 신청자가 많을 때 담당자가 모든 신청서를 일일이 검토하면
+            시간이 오래 걸리고 판단 기준도 담당자마다 달라질 수 있다.
+            신용점수와 월 소득 등의 데이터를 입력하면
+            '대출 승인' 또는 '대출 거절'을 자동으로 판단하는 인공지능 모델을 만들어,
+            은행의 대출 심사 과정을 보조하고 일관성 있는 기준을 적용하는 데 활용하고자 한다.
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 해결하고자 하는 문제가 실생활과 연관되어 구체적으로 제시되어 있다.</li>
+                <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q2">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
+            <p class="text-slate-600 text-sm">어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 입력: 대출 신청자의 신용점수(점), 월 소득(만원), 부채 비율(%)
+            ■ 출력: '승인' 또는 '거절' 레이블 + 승인 확률(%)
+
+            과거 대출 승인·거절 기록 데이터를 학습하여,
+            새로운 신청자의 정보가 입력되면
+            대출 승인 가능성을 확률로 계산하고 결과를 출력한다.
+            예) 신용 720점 / 월소득 350만원 / 부채비율 20% → 승인 확률 87%
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 입력 데이터가 명확히 제시되어 있다.</li>
+                <li>☑ 모델이 출력하는 결과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q3">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+            <p class="text-slate-600 text-sm">① 기계학습 유형, ② 구현 도구를 선택하고 각각 이유를 서술하시오.</p></div>
+        <div class="answer-block text-slate-700 text-base mb-4">① 기계학습 유형: 지도학습 — 분류 (로지스틱 회귀)
+
+            대출 결과는 '승인' 또는 '거절', 두 가지 중 하나를 판별하는 분류이므로 분류 모델이 적합하다.
+            과거 데이터에 '승인/거절' 레이블이 포함되어 있어 지도학습이다.
+            '승인' 또는 '거절'을 확률로 판별할 수 있는 로지스틱 회귀를 선택했다.
+
+            ② 구현 도구: Orange3
+
+            Orange3의 Logistic Regression 노드를 이용하면
+            코딩 없이 모델을 구성하고 결과를 표와 그래프로 직관적으로 확인할 수 있다.
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 지도/비지도 학습 중 하나를 명확히 선택하였다.</li>
+                <li>☑ 유형 선택 이유가 논리적으로 서술되어 있다.</li>
+                <li>☑ 구현 도구 선택 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q4">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 4. 데이터 설명</p>
+            <p class="text-slate-600 text-sm">데이터의 출처·유형·수량·특성을 작성하고, 스크린샷을 첨부하시오.</p></div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 출처: Kaggle 'Credit Risk Dataset' (공개 데이터셋, CC0 라이선스)
+            • 유형: 수치형 정형 데이터 (CSV, 4개 열 사용)
+            • 수량: 1,000행 (대출 승인 700건 / 거절 300건)
+
+            신용점수(점) | 월소득(만원) | 부채비율(%) | 결과
+            ────────────┼──────────────┼─────────────┼────────
+            720 | 350 | 18 | 승인
+            540 | 200 | 55 | 거절
+            810 | 480 | 10 | 승인
+            430 | 150 | 72 | 거절
+            660 | 290 | 31 | 승인
+            (이하 995행 생략 / 전체 1,000행)
+
+            ※ 스크린샷: Kaggle 데이터셋 다운로드 화면 및 Orange3 CSV 로드 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 데이터의 출처가 명시되어 있다.</li>
+                <li>☑ 데이터의 유형과 수량이 구체적으로 서술되어 있다.</li>
+                <li>☑ 학습에 사용된 데이터 화면 스크린샷이 첨부되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q5">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 5. 학습 결과</p>
+            <p class="text-slate-600 text-sm">학습 완료 화면을 스크린샷으로 첨부하고, 결과의 의미를 설명하시오.</p></div>
+        <div class="answer-block text-slate-700 text-base mb-4">• Orange3 교차 검증(Cross Validation) 결과
+            전체 정확도: 88.2%
+
+            • 테스트 200건 결과
+            실제 승인 고객 140명 중 132명을 올바르게 승인 예측 → 대부분 놓치지 않음
+            실제로는 거절이어야 하는 고객 60명 중 16명이 승인으로 잘못 예측됨 → 추가 검토 필요
+
+            ※ 스크린샷: Orange3 학습 결과 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습 완료 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
+                <li>☑ 학습 결과 수치가 구체적으로 언급되어 있다.</li>
+                <li>☑ 학습 결과의 의미가 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q6">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 6. 테스트 및 결과 분석</p>
+            <p class="text-slate-600 text-sm">새로운 데이터로 테스트하고, 예상 결과와 실제 결과를 비교·분석하시오.</p></div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 테스트 1 — 우량 신청자
+            입력: 신용점수 780점 / 월소득 420만원 / 부채비율 12%
+            예상: 승인
+            실제 출력: 승인 확률 96.4% → 예상과 일치
+
+            ■ 테스트 2 — 고위험 신청자
+            입력: 신용점수 490점 / 월소득 170만원 / 부채비율 68%
+            예상: 거절
+            실제 출력: 거절 확률 91.8% → 예상과 일치
+
+            ■ 테스트 3 — 경계 사례
+            입력: 신용점수 620점 / 월소득 260만원 / 부채비율 38%
+            예상: 판단하기 어려움
+            실제 출력: 승인 확률 54.2% → 경계 수준, 추가 심사 권고
+
+            ■ 분석
+            신용점수가 높고 부채비율이 낮을수록 승인 확률이 명확히 높아지는
+            패턴이 모델에 잘 반영됐다. 경계 사례(확률 50%대)는
+            사람이 추가로 검토하는 하이브리드 방식이 적절하다.
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
+                <li>☑ 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
+                <li>☑ 차이가 있다면 그 원인이 분석되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q7">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 7. 기대 효과 및 개선 사항</p>
+            <p class="text-slate-600 text-sm">모델 적용 시 기대 효과와 현재 모델의 한계 및 개선 방향을 서술하시오.</p></div>
+        <div class="two-col-answer mb-4">
+            <div class="answer-block text-slate-700 text-base"><p class="font-bold text-blue-800 mb-2">기대 효과</p>관심 분야:
+                금융 · 핀테크
+
+                은행 대출 심사에서 1차 자동 심사로 활용하면
+                처리 속도를 높이고 심사 기준의 일관성을 유지할 수 있다.
+
+                인터넷 은행·핀테크 앱에서 신청자가
+                입력값을 넣으면 즉시 예비 결과를 확인하는
+                신속 심사 서비스로도 활용 가능하다.
+            </div>
+            <div class="answer-block text-slate-700 text-base"><p class="font-bold text-blue-800 mb-2">개선 사항</p>현재 모델의
+                한계:
+                신용점수·소득·부채비율 3개 특성만 사용하여
+                직업 안정성, 연체 이력, 담보 여부 등
+                실제 심사 기준의 다양한 요소를 반영하지 못한다.
+
+                개선 방향:
+                더 많은 특성을 추가하거나,
+                의사결정나무·랜덤포레스트로 모델을 교체하여
+                비선형 패턴도 학습할 수 있게 한다.
+            </div>
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 관심 분야가 명시되고, 기대 효과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 현재 모델의 한계가 언급되어 있다.</li>
+                <li>☑ 성능 향상을 위한 개선사항이 제시되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q8">
+        <div class="q-header"><p class="font-black text-blue-800 text-base mb-1">문항 8. 소감</p>
+            <p class="text-slate-600 text-sm">달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오.</p></div>
+        <div class="answer-block text-slate-700 text-base mb-4">은행 대출 심사를 AI가 한다는 게 처음엔 윤리적으로 괜찮은지 의문이었는데,
+            직접 만들어보니 '보조 도구'로 활용하고 최종 결정은 사람이 하는 방식임을 이해했다.
+
+            잘못 승인된 경우와 잘못 거절된 경우의 의미를 살펴보면서,
+            AI 모델의 오류가 실제 사람에게 미치는 영향을 고려해야 한다는 걸 느꼈다.
+
+            특히 부채비율이 높아도 소득이 충분하면 승인 확률이 올라가는 패턴을 보며,
+            AI가 단순 규칙이 아닌 복합적인 패턴을 학습한다는 것이 인상 깊었다.
+
+            금융 분야에 관심이 있어서, 나중에 더 많은 특성과 데이터로
+            공정하고 정확한 신용 평가 AI를 만들어보고 싶다.
+        </div>
+        <div class="checklist-box"><p class="font-bold text-blue-700 text-sm mb-2"><i
+                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것이 포함되어 있다.</li>
+                <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-slate-900 py-12 px-6 text-center mt-10">
+    <p class="text-white font-black text-xl mb-1">인공지능 기초</p>
+    <p class="text-slate-400 text-sm">기계학습 모델 구현 보고서 예시 ⑤ — 신용점수와 소득으로 대출 승인 여부 분류</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>기계학습 모델 구현 예시 ③ — 마스크 착용 여부 자동 분류</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .q-header {
+            background: #eef2ff;
+            border-left: 4px solid #6366f1;
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .answer-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+
+        .checklist-box {
+            background: #eff6ff;
+            border: 2px solid #3b82f6;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .two-col-answer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .two-col-answer {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-face-mask absolute top-10 left-10 text-8xl -rotate-12"></i>
+        <i class="fa-solid fa-camera absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서 · 예시 ③</span>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">마스크 착용 여부 자동 분류</h1>
+        <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            지도학습 · 분류 (이미지) · 티처블머신<br>
+            <span class="text-sm opacity-75">진로 연관: 의료 · 공공행정 · 공중보건</span>
+        </p>
+    </div>
+</header>
+
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex flex-wrap gap-3">
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-full text-sm font-bold text-indigo-700"><i
+                    class="fa-solid fa-brain"></i> 지도학습 · 이미지 분류</span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-violet-50 border border-violet-200 rounded-full text-sm font-bold text-violet-700"><i
+                    class="fa-solid fa-toolbox"></i> 도구: 티처블머신</span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-200 rounded-full text-sm font-bold text-rose-700"><i
+                    class="fa-solid fa-briefcase"></i> 의료 · 공공행정 · 공중보건</span>
+        </div>
+        <p class="text-slate-500 text-sm mt-3">이 보고서는 교사가 제작한 예시 답안입니다. 실제 수행평가 작성 시 참고용으로 활용하세요.</p>
+    </div>
+</div>
+
+<nav class="sticky-nav px-6 py-3">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow">
+                <i class="fa-solid fa-face-mask text-base"></i>
+            </div>
+            <span class="font-black text-lg tracking-tight text-slate-800">마스크 분류 모델</span>
+        </div>
+        <div class="hidden md:flex space-x-4 text-sm font-bold text-slate-500">
+            <a class="hover:text-indigo-600 transition" href="#q1">문제정의</a>
+            <a class="hover:text-indigo-600 transition" href="#q2">모델설명</a>
+            <a class="hover:text-indigo-600 transition" href="#q3">유형·도구</a>
+            <a class="hover:text-indigo-600 transition" href="#q4">데이터</a>
+            <a class="hover:text-indigo-600 transition" href="#q5">학습결과</a>
+            <a class="hover:text-indigo-600 transition" href="#q6">테스트</a>
+            <a class="hover:text-indigo-600 transition" href="#q7">기대·개선</a>
+            <a class="hover:text-indigo-600 transition" href="#q8">소감</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-4xl mx-auto px-6 py-16 space-y-10">
+
+    <section class="section-card scroll-mt-24" id="q1">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 1. 문제 정의</p>
+            <p class="text-slate-600 text-sm">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">병원·마트·대중교통 등 마스크 착용이 권고되는 시설에서
+            직원이 일일이 착용 여부를 확인하는 것은 번거롭고 인력 낭비가 크다.
+            웹캠 영상에서 마스크를 착용했는지 미착용했는지를
+            자동으로 판별하는 인공지능 모델을 만들어,
+            스마트 출입 관리 시스템이나 공중보건 모니터링에 활용하고자 한다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 해결하고자 하는 문제가 실생활과 연관되어 구체적으로 제시되어 있다.</li>
+                <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q2">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
+            <p class="text-slate-600 text-sm">어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 입력: 웹캠으로 촬영한 얼굴 이미지 (실시간 또는 사진)
+            ■ 출력: '착용' 또는 '미착용' 레이블 + 각 클래스의 신뢰도(%)
+
+            웹캠 앞에 얼굴을 가져다 대면 모델이 실시간으로
+            마스크 착용 여부를 판단하여 레이블과 신뢰도를 출력한다.
+            예) 착용: 97.3% / 미착용: 2.7%
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 입력 데이터(종류·형태)가 명확히 제시되어 있다.</li>
+                <li>☑ 모델이 출력하는 결과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q3">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+            <p class="text-slate-600 text-sm">① 기계학습 유형 선택 및 이유, ② 구현 도구 선택 및 이유를 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">① 기계학습 유형: 지도학습 — 분류
+
+            이미지를 입력받아 '착용' 또는 '미착용'이라는 정해진 범주(클래스) 중
+            하나로 판별하는 것이므로 분류 모델이 적합하다.
+            각 이미지에 '착용/미착용' 레이블을 붙인 데이터로 학습하므로 지도학습이다.
+
+            ② 구현 도구: 티처블머신 (Teachable Machine)
+
+            웹캠 앞에서 직접 이미지를 촬영하여 즉시 학습할 수 있어
+            별도의 데이터셋 준비 없이도 빠르게 모델을 만들 수 있다.
+            코딩 없이 브라우저에서 드래그&드롭으로 구현 가능하다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 지도학습 또는 비지도학습 중 하나를 명확히 선택하였다.</li>
+                <li>☑ 분류·군집·예측 등의 개념으로 유형 선택 이유가 논리적으로 서술되어 있다.</li>
+                <li>☑ 구현 도구 선택 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q4">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 4. 데이터 설명</p>
+            <p class="text-slate-600 text-sm">데이터의 출처·유형·수량·특성을 작성하고, 스크린샷을 첨부하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 출처: 티처블머신 웹캠으로 직접 촬영 (직접 수집)
+            • 유형: 이미지 데이터 (웹캠 캡처, 224×224px)
+            • 수량: 클래스별 각 80장 / 총 160장
+
+            클래스 1 — 착용(80장): 마스크를 코·입 모두 가리도록 착용한 정면 얼굴
+            클래스 2 — 미착용(80장): 마스크 없이 정면을 바라보는 얼굴
+
+            • 다양성 확보를 위해 조명 밝기, 얼굴 각도(정면·약 45°), 마스크 색상(흰색·검정·컬러)을 달리하여 촬영
+
+            ※ 스크린샷: 티처블머신 클래스별 이미지 업로드 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 데이터의 출처가 명시되어 있다.</li>
+                <li>☑ 데이터의 유형과 수량이 구체적으로 서술되어 있다.</li>
+                <li>☑ 학습에 사용된 데이터 화면 스크린샷이 첨부되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q5">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 5. 학습 결과</p>
+            <p class="text-slate-600 text-sm">학습 완료 화면을 스크린샷으로 첨부하고, 결과의 의미를 설명하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 학습 설정: Epochs 50 / 배치 크기 16 / 학습률 0.001 (티처블머신 기본값)
+
+            • 학습 완료 후 성능 (테스트셋 20% 기준)
+            전체 정확도: 96.3%
+            착용 이미지 97%, 미착용 이미지 96% 정확도로 분류 → 두 클래스 모두 고르게 잘 학습됨
+
+            • 손실(Loss): 0.12로 수렴 → 모델이 안정적으로 학습됨
+
+            • 실시간 미리보기에서 웹캠 앞에 마스크를 착용하자 0.3초 이내에
+            '착용: 97%'로 즉시 반응 → 실시간 판별 가능 확인
+
+            ※ 스크린샷: 티처블머신 학습 완료 화면(Loss 그래프 포함) [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습 완료 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
+                <li>☑ 정확도·손실 등 학습 결과 수치가 구체적으로 언급되어 있다.</li>
+                <li>☑ 학습 결과의 의미가 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q6">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 6. 테스트 및 결과 분석</p>
+            <p class="text-slate-600 text-sm">새로운 데이터로 테스트하고, 예상 결과와 실제 결과를 비교·분석하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 테스트 1 — 정상 착용
+            입력: 마스크를 코·입 모두 덮어 착용한 이미지
+            예상: 착용으로 분류
+            실제 출력: 착용 98.4% → 예상과 일치
+
+            ■ 테스트 2 — 턱스크 (마스크를 턱에만 걸침)
+            입력: 마스크를 턱에만 내린 이미지
+            예상: 미착용으로 분류되길 기대
+            실제 출력: 착용 61% / 미착용 39% → 예상과 다름
+
+            ■ 분석
+            턱스크는 학습 데이터에 없던 상황이라 모델이 혼동했다.
+            '착용'과 '미착용' 두 클래스만 있어 중간 상태를 구분하지 못한다.
+            턱스크를 별도 클래스로 추가 학습하면 개선 가능하다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
+                <li>☑ 테스트 전 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
+                <li>☑ 차이가 있다면 그 원인이 분석되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q7">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 7. 기대 효과 및 개선 사항</p>
+            <p class="text-slate-600 text-sm">모델 적용 시 기대 효과와 현재 모델의 한계 및 개선 방향을 서술하시오.</p>
+        </div>
+        <div class="two-col-answer mb-4">
+            <div class="answer-block text-slate-700 text-base">
+                <p class="font-bold text-indigo-700 mb-2">기대 효과</p>관심 분야: 의료 · 공중보건
+
+                병원·요양원 등 감염 취약 시설 출입구에
+                카메라 + AI를 설치하면 마스크 미착용자를
+                자동으로 감지하고 알림을 보낼 수 있다.
+
+                방역 인력을 줄이면서도 감염 예방 효과를
+                유지할 수 있어 공중보건 관리에 기여한다.
+            </div>
+            <div class="answer-block text-slate-700 text-base">
+                <p class="font-bold text-indigo-700 mb-2">개선 사항</p>현재 모델의 한계:
+                착용 / 미착용 두 클래스만 있어
+                턱스크·코스크 등 불완전 착용 상태를
+                구분하지 못한다.
+
+                개선 방향:
+                '완전 착용 / 불완전 착용 / 미착용'
+                3클래스로 확장하고,
+                다양한 마스크 종류·얼굴형·조명 조건의
+                이미지를 추가 수집하여 재학습한다.
+            </div>
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 자신의 관심 분야가 명시되고, 기대 효과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 현재 모델의 한계가 언급되어 있다.</li>
+                <li>☑ 성능 향상을 위한 개선사항이 제시되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section-card scroll-mt-24" id="q8">
+        <div class="q-header">
+            <p class="font-black text-indigo-700 text-base mb-1">문항 8. 소감</p>
+            <p class="text-slate-600 text-sm">달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">코딩 한 줄 없이 웹캠 앞에서 사진만 찍으면 AI가 만들어진다는 게 처음엔 믿기지 않았다.
+            그런데 티처블머신에서 직접 데이터를 모으고 학습 버튼을 누르자
+            정확도 96%짜리 모델이 완성된 것을 보고 AI가 더 이상 특별한 게 아니라는 걸 느꼈다.
+
+            턱스크를 넣었을 때 모델이 혼동한 결과가 인상 깊었다.
+            AI가 학습하지 않은 상황에는 취약하다는 점을 직접 체험하며,
+            데이터를 얼마나 다양하게 모으느냐가 AI 성능을 결정한다는 것을 깨달았다.
+
+            의료 관련 진로에 관심이 있어서, 나중에 병원에서 실제로 활용할 수 있는
+            더 정교한 감염 예방 AI 시스템을 만들어보고 싶다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것 또는 달라진 생각이 포함되어 있다.</li>
+                <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-slate-900 py-12 px-6 text-center mt-10">
+    <p class="text-white font-black text-xl mb-1">인공지능 기초</p>
+    <p class="text-slate-400 text-sm">기계학습 모델 구현 보고서 예시 ③ — 마스크 착용 여부 자동 분류</p>
+</footer>
+
+</body>
+</html>

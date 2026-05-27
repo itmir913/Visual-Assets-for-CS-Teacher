@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>기계학습 모델 구현 예시 ① — 운동 시간과 소모 칼로리 예측</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .q-header {
+            background: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .answer-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+
+        .checklist-box {
+            background: #eff6ff;
+            border: 2px solid #3b82f6;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .two-col-answer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .two-col-answer {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-dumbbell absolute top-10 left-10 text-8xl -rotate-12"></i>
+        <i class="fa-solid fa-fire-flame-curved absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서 · 예시 ①</span>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">운동 시간과 소모 칼로리 예측</h1>
+        <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            지도학습 · 예측 (선형회귀) · Orange3<br>
+            <span class="text-sm opacity-75">진로 연관: 스포츠 · 보건 · 피트니스</span>
+        </p>
+    </div>
+</header>
+
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex flex-wrap gap-3">
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-full text-sm font-bold text-orange-700">
+                <i class="fa-solid fa-brain"></i> 지도학습 · 선형회귀
+            </span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full text-sm font-bold text-amber-700">
+                <i class="fa-solid fa-toolbox"></i> 도구: Orange3
+            </span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full text-sm font-bold text-sky-700">
+                <i class="fa-solid fa-briefcase"></i> 스포츠 · 보건 · 피트니스
+            </span>
+        </div>
+        <p class="text-slate-500 text-sm mt-3">이 보고서는 교사가 제작한 예시 답안입니다. 실제 수행평가 작성 시 참고용으로 활용하세요.</p>
+    </div>
+</div>
+
+<nav class="sticky-nav px-6 py-3">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow">
+                <i class="fa-solid fa-chart-line text-base"></i>
+            </div>
+            <span class="font-black text-lg tracking-tight text-slate-800">칼로리 예측 모델</span>
+        </div>
+        <div class="hidden md:flex space-x-4 text-sm font-bold text-slate-500">
+            <a class="hover:text-orange-600 transition" href="#q1">문제정의</a>
+            <a class="hover:text-orange-600 transition" href="#q2">모델설명</a>
+            <a class="hover:text-orange-600 transition" href="#q3">유형·도구</a>
+            <a class="hover:text-orange-600 transition" href="#q4">데이터</a>
+            <a class="hover:text-orange-600 transition" href="#q5">학습결과</a>
+            <a class="hover:text-orange-600 transition" href="#q6">테스트</a>
+            <a class="hover:text-orange-600 transition" href="#q7">기대·개선</a>
+            <a class="hover:text-orange-600 transition" href="#q8">소감</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-4xl mx-auto px-6 py-16 space-y-10">
+
+    <!-- Q1 -->
+    <section class="section-card scroll-mt-24" id="q1">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 1. 문제 정의</p>
+            <p class="text-slate-600 text-sm">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오. 어떤 불편함 또는 필요가 발생하는지 포함하여 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">헬스장에서 꾸준히 운동하고 있지만, 운동 후 실제로 칼로리를 얼마나 소모했는지 정확히 알기 어렵다.
+            운동 기기마다 계산 방식이 달라 신뢰하기 어렵고, 막연히 '많이 움직이면 많이 탄다'는 감각에만 의존해야 하는 불편함이 있다.
+            운동 시간(분)을 입력하면 소모 칼로리(kcal)를 자동으로 예측해주는 인공지능 모델을 만들어,
+            개인 맞춤형 운동 계획을 수립하는 데 활용하고자 한다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 해결하고자 하는 문제가 실생활 또는 학문 분야와 연관되어 구체적으로 제시되어 있다.</li>
+                <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q2 -->
+    <section class="section-card scroll-mt-24" id="q2">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
+            <p class="text-slate-600 text-sm">구현하려는 AI 모델이 어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지
+                구체적으로 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 입력: 하루 운동 시간 (단위: 분)
+            ■ 출력: 예측 소모 칼로리 (단위: kcal)
+
+            과거의 운동 기록 데이터를 학습하여, 새로운 운동 시간이 주어지면
+            해당 시간 동안 소모될 칼로리를 수치로 예측한다.
+            운동 시간이 길어질수록 소모 칼로리도 선형적으로 증가하는 패턴을 포착한다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 만들고자 하는 모델의 입력 데이터(종류·형태)가 명확히 제시되어 있다.</li>
+                <li>☑ 모델이 출력하는 결과(레이블·수치·군집 등)가 구체적으로 서술되어 있다.</li>
+                <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q3 -->
+    <section class="section-card scroll-mt-24" id="q3">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+            <p class="text-slate-600 text-sm">①&nbsp;기계학습 유형(지도/비지도)을 선택하고 이유를 설명하시오. ②&nbsp;구현 도구를 선택하고 그 이유를
+                서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">① 기계학습 유형: 지도학습 — 예측 (선형회귀)
+
+            운동 시간(연속형 수치)을 입력받아 칼로리(연속형 수치)를 출력하는 것이므로,
+            '분류'처럼 범주를 나누는 것이 아니라 수치를 추정하는 '예측' 모델이 적합하다.
+            정답 레이블(칼로리 수치)이 포함된 데이터로 학습하기 때문에 지도학습에 해당한다.
+
+            ② 구현 도구: Orange3
+
+            CSV 파일을 불러와 선형회귀 분석과 산점도 시각화를 코딩 없이 노드 연결만으로 구현할 수 있다.
+            회귀선을 시각적으로 바로 확인할 수 있어 결과 해석이 직관적이다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 지도학습 또는 비지도학습 중 하나를 명확히 선택하였다.</li>
+                <li>☑ 분류·군집·예측 등의 개념을 활용하여 유형 선택 이유가 논리적으로 서술되어 있다.</li>
+                <li>☑ 구현 도구를 선택하고 그 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q4 -->
+    <section class="section-card scroll-mt-24" id="q4">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 4. 데이터 설명</p>
+            <p class="text-slate-600 text-sm">모델 학습에 사용한 데이터의 출처·유형·수량·특성을 작성하고, 필요한 경우 스크린샷을 첨부하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 출처: 삼성헬스 앱 운동 기록 내보내기 (직접 수집)
+            • 유형: 수치형 정형 데이터 (CSV, 2개 열)
+            • 수량: 30일간의 유산소 운동 기록 (30행)
+
+            운동 시간(분) | 소모 칼로리(kcal)
+            ─────────────┼──────────────────
+            20 | 148
+            35 | 261
+            50 | 375
+            60 | 445
+            75 | 558
+            (이하 25행 생략 / 전체 30행)
+
+            ※ 스크린샷: 삼성헬스 앱 데이터 내보내기 화면 및 Orange3 CSV 로드 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 데이터의 출처(직접 촬영·공개 데이터셋·직접 수집 등)가 명시되어 있다.</li>
+                <li>☑ 데이터의 유형(이미지·텍스트·수치 등)과 수량이 구체적으로 서술되어 있다.</li>
+                <li>☑ 학습에 사용된 데이터 화면 또는 데이터 목록 스크린샷이 첨부되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q5 -->
+    <section class="section-card scroll-mt-24" id="q5">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 5. 학습 결과</p>
+            <p class="text-slate-600 text-sm">모델을 학습시킨 결과를 서술하시오. 학습 완료 화면 또는 학습 결과(정확도·손실 등)를 스크린샷으로 첨부하고 의미를
+                설명하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">• 산점도에서 데이터 점들이 회귀선 근처에 촘촘하게 모여 있어
+            운동 시간과 칼로리 사이에 강한 선형 관계임을 시각적으로 확인
+
+            • 학습된 회귀식: 칼로리 = 7.3 × 운동 시간 − 14.2
+
+            • 평균적으로 약 13 kcal 오차 범위 내에서 예측 → 실용적으로 충분한 정확도
+
+            ※ 스크린샷: Orange3 회귀선 산점도 및 Test and Score 결과 화면 [실제 수행평가 시 첨부]
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습이 완료된 모델 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
+                <li>☑ 정확도·손실·신뢰도 등 학습 결과 수치가 구체적으로 언급되어 있다.</li>
+                <li>☑ 학습 결과의 의미(모델이 잘 학습되었는지 여부 등)가 서술되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q6 -->
+    <section class="section-card scroll-mt-24" id="q6">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 6. 테스트 및 결과 분석</p>
+            <p class="text-slate-600 text-sm">학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오. 예상 결과와 실제 결과를 비교하고, 차이가 있다면 원인을
+                분석하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">■ 테스트 1
+            입력: 45분
+            예상: 약 314 kcal (= 7.3 × 45 − 14.2)
+            실제 출력: 315 kcal → 오차 1 kcal, 예상과 거의 일치
+
+            ■ 테스트 2
+            입력: 90분 (학습 데이터보다 더 긴 시간)
+            예상: 약 643 kcal
+            실제 출력: 648 kcal → 오차 5 kcal 이내, 신뢰 가능
+
+            ■ 분석
+            운동 강도 차이(가벼운 걷기 vs 고강도 달리기)는 현재 모델에 반영되지 않아,
+            동일 시간이라도 실제 소모량은 달라질 수 있다.
+            다만 평균적인 유산소 운동 기준으로는 예측이 비교적 정확하다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
+                <li>☑ 테스트 전 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
+                <li>☑ 예상과 실제 사이에 차이가 있다면 그 원인이 분석되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q7 -->
+    <section class="section-card scroll-mt-24" id="q7">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 7. 기대 효과 및 개선 사항</p>
+            <p class="text-slate-600 text-sm">이 모델을 관심 분야에 적용했을 때 기대 효과를 서술하고, 현재 모델의 한계와 개선 방향을 제시하시오.</p>
+        </div>
+        <div class="two-col-answer mb-4">
+            <div class="answer-block text-slate-700 text-base">
+                <p class="font-bold text-orange-700 mb-2">기대 효과</p>관심 분야: 스포츠 · 보건
+
+                퍼스널 트레이너가 회원의 목표 칼로리를 입력하면
+                필요한 운동 시간을 역산하는 방식으로 활용할 수 있다.
+
+                학교 체육 시간에 학생별 적정 운동량 처방,
+                피트니스 앱에 내장하여 개인 맞춤 운동 알림 기능을
+                제공하는 서비스로 발전시킬 수 있다.
+            </div>
+            <div class="answer-block text-slate-700 text-base">
+                <p class="font-bold text-orange-700 mb-2">개선 사항</p>현재 모델의 한계:
+                운동 시간 하나만 변수로 사용하여
+                운동 종류(달리기·수영·근력), 체중, 연령 차이를
+                전혀 반영하지 못한다.
+
+                개선 방향:
+                운동 종류·체중을 추가 특성으로 포함한
+                다중선형회귀로 확장하거나,
+                개인별 데이터를 따로 학습시켜
+                개인화 모델을 만들 수 있다.
+            </div>
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 자신의 관심 분야가 명시되고, 모델 적용 시 기대되는 효과가 구체적으로 서술되어 있다.</li>
+                <li>☑ 현재 모델의 한계 또는 부족한 점이 언급되어 있다.</li>
+                <li>☑ 성능 향상을 위한 개선사항(데이터 확충·모델 변경·파라미터 조정 등)이 제시되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Q8 -->
+    <section class="section-card scroll-mt-24" id="q8">
+        <div class="q-header">
+            <p class="font-black text-orange-700 text-base mb-1">문항 8. 소감</p>
+            <p class="text-slate-600 text-sm">기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오.</p>
+        </div>
+        <div class="answer-block text-slate-700 text-base mb-4">처음에는 '시간이 길면 칼로리가 늘어난다'는 것을 수식으로 표현하는 게 어려울 것 같았는데,
+            Orange3에서 데이터를 연결하고 Linear Regression 노드를 이으면
+            자동으로 그래프가 그려지는 것이 신기했다.
+
+            R² = 0.94라는 숫자가 처음엔 낯설었지만,
+            '내 운동 시간으로 칼로리 변동의 94%를 설명할 수 있다'는 뜻임을 이해하고 나서
+            AI가 패턴을 수치로 표현한다는 점이 흥미로웠다.
+
+            앞으로 운동 종류와 체중까지 추가하면 더 정확한 모델을 만들 수 있을 것 같고,
+            스포츠 과학 분야에서 이런 예측 모델이 실제로 어떻게 활용되는지 더 공부해보고 싶다.
+        </div>
+        <div class="checklist-box">
+            <p class="font-bold text-blue-700 text-sm mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+            <ul class="space-y-1 text-sm text-slate-600">
+                <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것 또는 달라진 생각이 포함되어 있다.</li>
+                <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
+            </ul>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-slate-900 py-12 px-6 text-center mt-10">
+    <p class="text-white font-black text-xl mb-1">인공지능 기초</p>
+    <p class="text-slate-400 text-sm">기계학습 모델 구현 보고서 예시 ① — 운동 시간과 소모 칼로리 예측</p>
+</footer>
+
+</body>
+</html>

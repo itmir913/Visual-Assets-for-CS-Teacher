@@ -15,11 +15,13 @@ const GRAY_HEADER = "D9D9D9";
 const BLUE_HEADER = "EBF3FB";
 const BLUE_BORDER = "2E74B5";
 const BLUE_TEXT = "1F4E79";
+const SAMPLE_BG = "FFF9E6";   // 예시 뱃지 배경
+const SAMPLE_BORD = "C8960C";   // 예시 뱃지 테두리
 const FONT = "맑은 고딕";
-const FONT_H1 = 28;   // 14pt  — 문서 제목
-const FONT_TITLE = 22;   // 11pt  — 표 헤더
-const FONT_BODY = 20;   // 10pt  — 본문
-const FONT_SMALL = 18;   // 9pt   — 안내문구·주석
+const FONT_H1 = 28;   // 14pt — 문서 제목
+const FONT_TITLE = 22;  // 11pt — 표 헤더
+const FONT_BODY = 20;  // 10pt — 본문
+const FONT_SMALL = 18;  //  9pt — 안내문구·주석
 
 // ─── 보더 헬퍼 ──────────────────────────────────────────────────────────────
 const solid = (color = "000000", size = 6) => ({style: BorderStyle.SINGLE, size, color});
@@ -32,7 +34,7 @@ const outerBorders = {
 
 // ─── 단락 빌더 ──────────────────────────────────────────────────────────────
 const p = (text, opts = {}) => {
-    const parts = text.split('\n');
+    const parts = (text || "").split('\n');
     const children = parts.map((part, i) =>
         new TextRun({
             text: part,
@@ -55,24 +57,35 @@ const pCenter = (text, opts = {}) => p(text, {...opts, center: true});
 
 const emptyP = (lines = 1) =>
     Array.from({length: lines}, () =>
-        new Paragraph({spacing: {before: 0, after: 0}, children: [new TextRun("")]})
-    );
+        new Paragraph({spacing: {before: 0, after: 0}, children: [new TextRun("")]}));
 
 const pageBreak = () =>
     new Paragraph({children: [new PageBreak()], spacing: {before: 0, after: 0}});
 
-// ─── 셀 빌더 ────────────────────────────────────────────────────────────────
-const grayCell = (text, width, rowSpan = 1, colSpan = 1) =>
-    new TableCell({
-        width: {size: width, type: WidthType.DXA},
-        shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
-        verticalAlign: VerticalAlign.CENTER,
-        margins: {top: 80, bottom: 80, left: 120, right: 120},
-        rowSpan,
-        columnSpan: colSpan,
-        children: [pCenter(text, {size: FONT_TITLE})],
-    });
+// ─── 텍스트런 빌더 (\n 자동 분리 → break:1) ──────────────────────────────────
+// 항상 TextRun[] 반환. children에 직접 할당하거나 .flat()으로 평탄화해 사용.
+const run = (text, opts = {}) => {
+    const parts = (text || "").split('\n');
+    return parts.map((part, i) =>
+        new TextRun({
+            text: part,
+            font: FONT,
+            size: opts.size || FONT_BODY,
+            bold: opts.bold || false,
+            color: opts.color || "000000",
+            italics: opts.italics || false,
+            ...(i > 0 ? {break: 1} : {}),
+        })
+    );
+};
 
+// ─── 문자열 배열 → 단락 배열 ─────────────────────────────────────────────────
+const toParagraphs = (lines) => {
+    if (!lines || lines.length === 0) return [p("")];
+    return lines.map(line => p(line));
+};
+
+// ─── 셀 빌더 ────────────────────────────────────────────────────────────────
 const contentCell = (paragraphs, width, rowSpan = 1, colSpan = 1) =>
     new TableCell({
         width: {size: width, type: WidthType.DXA},
@@ -83,31 +96,18 @@ const contentCell = (paragraphs, width, rowSpan = 1, colSpan = 1) =>
         children: paragraphs,
     });
 
-// 문항 헤더 셀 (회색, 왼쪽 정렬, 복수 TextRun 지원)
 const questionHeaderCell = (runs, width) =>
     new TableCell({
         width: {size: width, type: WidthType.DXA},
         shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
         verticalAlign: VerticalAlign.CENTER,
         margins: {top: 100, bottom: 100, left: 160, right: 120},
-        children: [new Paragraph({spacing: {before: 40, after: 40}, children: runs})],
+        children: [new Paragraph({spacing: {before: 40, after: 40}, children: runs.flat()})],
     });
 
-// ─── 텍스트런 빌더 ──────────────────────────────────────────────────────────
-const run = (text, opts = {}) =>
-    new TextRun({
-        text,
-        font: FONT,
-        size: opts.size || FONT_BODY,
-        bold: opts.bold || false,
-        color: opts.color || "000000",
-        italics: opts.italics || false,
-    });
-
-// ─── 문항 표 (전체 너비) ─────────────────────────────────────────────────────
-//  headerRuns : TextRun[] — 회색 헤더 행에 들어갈 런 배열
-//  answerH    : 답변 칸 최소 높이 (DXA)
-const questionTable = (headerRuns, answerH = 6000) =>
+// ─── 문항 표 (1열) ───────────────────────────────────────────────────────────
+// contentParagraphs: 답변 단락 배열 — 빈 양식이면 [p("")]
+const questionTable = (headerRuns, contentParagraphs = [p("")], answerH = 6000) =>
     new Table({
         width: {size: CONTENT_W, type: WidthType.DXA},
         columnWidths: [CONTENT_W],
@@ -118,13 +118,13 @@ const questionTable = (headerRuns, answerH = 6000) =>
             }),
             new TableRow({
                 height: {value: answerH, rule: "atLeast"},
-                children: [contentCell([p("")], CONTENT_W)],
+                children: [contentCell(contentParagraphs, CONTENT_W)],
             }),
         ],
     });
 
 // ─── 문항 표 (2열) ───────────────────────────────────────────────────────────
-const questionTable2Col = (headerRunsL, headerRunsR, answerH = 6000) => {
+const questionTable2Col = (headerRunsL, headerRunsR, contentL = [p("")], contentR = [p("")], answerH = 6000) => {
     const HALF = Math.floor(CONTENT_W / 2);
     const HALF2 = CONTENT_W - HALF;
     return new Table({
@@ -139,22 +139,22 @@ const questionTable2Col = (headerRunsL, headerRunsR, answerH = 6000) => {
                         shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
                         verticalAlign: VerticalAlign.CENTER,
                         margins: {top: 100, bottom: 100, left: 160, right: 120},
-                        children: [new Paragraph({spacing: {before: 40, after: 40}, children: headerRunsL})],
+                        children: [new Paragraph({spacing: {before: 40, after: 40}, children: headerRunsL.flat()})],
                     }),
                     new TableCell({
                         width: {size: HALF2, type: WidthType.DXA},
                         shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
                         verticalAlign: VerticalAlign.CENTER,
                         margins: {top: 100, bottom: 100, left: 160, right: 120},
-                        children: [new Paragraph({spacing: {before: 40, after: 40}, children: headerRunsR})],
+                        children: [new Paragraph({spacing: {before: 40, after: 40}, children: headerRunsR.flat()})],
                     }),
                 ],
             }),
             new TableRow({
                 height: {value: answerH, rule: "atLeast"},
                 children: [
-                    contentCell([p("")], HALF),
-                    contentCell([p("")], HALF2),
+                    contentCell(contentL, HALF),
+                    contentCell(contentR, HALF2),
                 ],
             }),
         ],
@@ -185,13 +185,13 @@ const checklistBox = (items) =>
                         children: [
                             new Paragraph({
                                 spacing: {before: 40, after: 80},
-                                children: [run("자기점검 체크리스트", {size: FONT_TITLE, bold: true, color: BLUE_TEXT})],
+                                children: run("자기점검 체크리스트", {size: FONT_TITLE, bold: true, color: BLUE_TEXT}),
                             }),
                             ...items.map((text) =>
                                 new Paragraph({
                                     spacing: {before: 40, after: 40},
                                     indent: {left: 140},
-                                    children: [run("□  " + text)],
+                                    children: run("□  " + text),
                                 })
                             ),
                         ],
@@ -202,11 +202,10 @@ const checklistBox = (items) =>
     });
 
 // ─── 학생 정보 표 ────────────────────────────────────────────────────────────
-// 행1: 학번 | (입력) | 이름 | (입력)
-// 행2: 사용 도구 | (티처블머신 / 코랩 / 오렌지3)
-const studentInfoTable = () => {
-    const LB = 1400; // 레이블 폭
-    const VC = Math.floor((CONTENT_W - LB * 2) / 2); // 값 칸(학번·이름)
+// toolName: null → 빈 양식(힌트 텍스트), string → 예시값 표시
+const studentInfoTable = (toolName = null) => {
+    const LB = 1400;
+    const VC = Math.floor((CONTENT_W - LB * 2) / 2);
     const VC2 = CONTENT_W - LB * 2 - VC;
 
     const labelCell = (text, w) =>
@@ -218,13 +217,20 @@ const studentInfoTable = () => {
             children: [pCenter(text, {size: FONT_TITLE})],
         });
 
-    const inputCell = (w, colSpan = 1) =>
+    const inputCell = (w) =>
         new TableCell({
             width: {size: w, type: WidthType.DXA},
             verticalAlign: VerticalAlign.CENTER,
             margins: {top: 80, bottom: 80, left: 160, right: 120},
-            columnSpan: colSpan,
             children: [p("")],
+        });
+
+    const valueCell = (text, w) =>
+        new TableCell({
+            width: {size: w, type: WidthType.DXA},
+            verticalAlign: VerticalAlign.CENTER,
+            margins: {top: 80, bottom: 80, left: 160, right: 120},
+            children: [p(text, {color: "888888", italics: true})],
         });
 
     const toolHintCell = (w) =>
@@ -237,13 +243,21 @@ const studentInfoTable = () => {
                 new Paragraph({
                     spacing: {before: 40, after: 40},
                     children: [
-                        run(""),                               // 입력 공간
-                        run("      (티처블머신  /  코랩  /  오렌지3  중 선택하여 기재)", {
-                            size: FONT_SMALL, color: "888888", italics: true,
-                        }),
+                        ...run(""),
+                        ...run("      (티처블머신  /  코랩  /  오렌지3  중 선택하여 기재)",
+                            {size: FONT_SMALL, color: "888888", italics: true}),
                     ],
                 }),
             ],
+        });
+
+    const toolFilledCell = (name, w) =>
+        new TableCell({
+            width: {size: w, type: WidthType.DXA},
+            verticalAlign: VerticalAlign.CENTER,
+            margins: {top: 80, bottom: 80, left: 160, right: 120},
+            columnSpan: 3,
+            children: [p(name)],
         });
 
     return new Table({
@@ -252,64 +266,117 @@ const studentInfoTable = () => {
         borders: outerBorders,
         rows: [
             new TableRow({
-                children: [
-                    labelCell("학번", LB),
-                    inputCell(VC),
-                    labelCell("이름", LB),
-                    inputCell(VC2),
-                ],
+                children: toolName
+                    ? [
+                        labelCell("학번", LB),
+                        valueCell("20251234  (예시)", VC),
+                        labelCell("이름", LB),
+                        valueCell("홍길동  (예시)", VC2),
+                    ]
+                    : [
+                        labelCell("학번", LB),
+                        inputCell(VC),
+                        labelCell("이름", LB),
+                        inputCell(VC2),
+                    ],
             }),
             new TableRow({
                 children: [
                     labelCell("사용 도구", LB),
-                    toolHintCell(CONTENT_W - LB),
+                    toolName
+                        ? toolFilledCell(toolName, CONTENT_W - LB)
+                        : toolHintCell(CONTENT_W - LB),
                 ],
             }),
         ],
     });
 };
 
-// ─── 1페이지 상단: 제목 + 안내문구 ──────────────────────────────────────────
+// ─── 예시 뱃지 (황금색 박스) ─────────────────────────────────────────────────
+const sampleBadge = (c) =>
+    new Table({
+        width: {size: CONTENT_W, type: WidthType.DXA},
+        columnWidths: [CONTENT_W],
+        layout: TableLayoutType.FIXED,
+        borders: {
+            top: {style: BorderStyle.SINGLE, size: 12, color: SAMPLE_BORD},
+            bottom: {style: BorderStyle.SINGLE, size: 12, color: SAMPLE_BORD},
+            left: {style: BorderStyle.SINGLE, size: 12, color: SAMPLE_BORD},
+            right: {style: BorderStyle.SINGLE, size: 12, color: SAMPLE_BORD},
+            insideHorizontal: noBorder(),
+            insideVertical: noBorder(),
+        },
+        rows: [
+            new TableRow({
+                children: [
+                    new TableCell({
+                        width: {size: CONTENT_W, type: WidthType.DXA},
+                        shading: {fill: SAMPLE_BG, type: ShadingType.CLEAR},
+                        margins: {top: 120, bottom: 120, left: 200, right: 200},
+                        children: [
+                            new Paragraph({
+                                spacing: {before: 40, after: 60},
+                                children: [
+                                    ...run("▶  예시 보고서  |  ", {size: FONT_TITLE, bold: true, color: "A07000"}),
+                                    ...run(c.topic, {size: FONT_TITLE, bold: true, color: "222222"}),
+                                ],
+                            }),
+                            new Paragraph({
+                                spacing: {before: 0, after: 40},
+                                children: run(
+                                    `기계학습 유형: ${c.mlType}    /    도구: ${c.tool}    /    진로 연관: ${c.career}`,
+                                    {size: FONT_SMALL, color: "666666"}
+                                ),
+                            }),
+                        ],
+                    }),
+                ],
+            }),
+        ],
+    });
+
+// ─── 제목 블록 ───────────────────────────────────────────────────────────────
 const titleBlock = () => [
     new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: {before: 160, after: 100},
-        children: [run("기계학습 모델 구현 보고서", {size: FONT_H1, bold: true})],
+        children: run("기계학습 모델 구현 보고서", {size: FONT_H1, bold: true}),
     }),
     new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: {before: 0, after: 60},
-        children: [run(
+        children: run(
             "실습형 수행평가 (20점 만점)  ·  시험 시간 45분  ·  오픈북 (미리 준비한 코드·데이터·유인물 참고 가능)",
             {size: FONT_SMALL, color: "888888"}
-        )],
+        ),
     }),
     new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: {before: 0, after: 160},
-        children: [run(
+        children: run(
             "작성 완료 후 오른쪽 상단 제출 버튼을 클릭하고 컴퓨터를 종료하시오.",
             {size: FONT_SMALL, color: "888888"}
-        )],
+        ),
     }),
 ];
 
-// ─── 문항 페이지 제목 ────────────────────────────────────────────────────────
+// ─── 섹션 제목 ───────────────────────────────────────────────────────────────
 const sectionTitle = (text) =>
     new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: {before: 160, after: 140},
-        children: [run(text, {size: FONT_H1, bold: true})],
+        children: run(text, {size: FONT_H1, bold: true}),
     });
 
 // ════════════════════════════════════════════════════════════════════════════
-// 각 페이지(섹션) 생성 함수
+// 페이지별 생성 함수
+// c: content 객체(예시 보고서) 또는 null(빈 양식)
 // ════════════════════════════════════════════════════════════════════════════
 
-// ── 1페이지: 표지 + Q1 ──────────────────────────────────────────────────────
-const makeQ1 = () => [
+const makeQ1 = (c) => [
     ...titleBlock(),
-    studentInfoTable(),
+    ...(c ? [sampleBadge(c), ...emptyP(1)] : []),
+    studentInfoTable(c ? c.tool : null),
     ...emptyP(1),
     questionTable(
         [
@@ -318,7 +385,8 @@ const makeQ1 = () => [
             run("\n\n(예: 갤러리에 무작위로 저장된 반려동물 사진을 일일이 손으로 분류해야 하는 불편함을 해소하기 위해, 사진을 자동으로 분류하는 시스템을 만들고자 한다.)",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        7000
+        c ? toParagraphs(c.q1) : [p("")],
+        c ? 2000 : 7000
     ),
     ...emptyP(1),
     checklistBox([
@@ -327,8 +395,7 @@ const makeQ1 = () => [
     ]),
 ];
 
-// ── 2페이지: Q2 ─────────────────────────────────────────────────────────────
-const makeQ2 = () => [
+const makeQ2 = (c) => [
     sectionTitle("문항 2"),
     questionTable(
         [
@@ -341,7 +408,8 @@ const makeQ2 = () => [
             run("\n\n(예: 입력 — 강아지·고양이 사진  /  출력 — '강아지' 또는 '고양이'로 분류된 레이블)",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        5500
+        c ? toParagraphs(c.q2) : [p("")],
+        c ? 2000 : 5500
     ),
     ...emptyP(1),
     checklistBox([
@@ -351,8 +419,7 @@ const makeQ2 = () => [
     ]),
 ];
 
-// ── 3페이지: Q3 ─────────────────────────────────────────────────────────────
-const makeQ3 = () => [
+const makeQ3 = (c) => [
     sectionTitle("문항 3"),
     questionTable(
         [
@@ -363,7 +430,8 @@ const makeQ3 = () => [
             run("\n\n②  구현 도구:  ", {bold: true}),
             run("①에서 선택한 유형을 구현하기 위해 티처블머신·코랩·오렌지3 중 어떤 도구를 선택했는지 밝히고, 그 이유를 서술하시오."),
         ],
-        7500
+        c ? toParagraphs(c.q3) : [p("")],
+        c ? 2000 : 7500
     ),
     ...emptyP(1),
     checklistBox([
@@ -373,8 +441,7 @@ const makeQ3 = () => [
     ]),
 ];
 
-// ── 4페이지: Q4 ─────────────────────────────────────────────────────────────
-const makeQ4 = () => [
+const makeQ4 = (c) => [
     sectionTitle("문항 4"),
     questionTable(
         [
@@ -383,7 +450,8 @@ const makeQ4 = () => [
             run("\n\n〈화면 캡처 단축키: 윈도우 + Shift + S〉",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        8500
+        c ? toParagraphs(c.q4) : [p("")],
+        c ? 2000 : 8500
     ),
     ...emptyP(1),
     checklistBox([
@@ -393,8 +461,7 @@ const makeQ4 = () => [
     ]),
 ];
 
-// ── 5페이지: Q5 ─────────────────────────────────────────────────────────────
-const makeQ5 = () => [
+const makeQ5 = (c) => [
     sectionTitle("문항 5"),
     questionTable(
         [
@@ -403,7 +470,8 @@ const makeQ5 = () => [
             run("\n\n〈화면 캡처 단축키: 윈도우 + Shift + S〉",
                 {size: FONT_SMALL, color: "555555", italics: true}),
         ],
-        8500
+        c ? toParagraphs(c.q5) : [p("")],
+        c ? 2000 : 8500
     ),
     ...emptyP(1),
     checklistBox([
@@ -413,15 +481,15 @@ const makeQ5 = () => [
     ]),
 ];
 
-// ── 6페이지: Q6 ─────────────────────────────────────────────────────────────
-const makeQ6 = () => [
+const makeQ6 = (c) => [
     sectionTitle("문항 6"),
     questionTable(
         [
             run("문항 6.  ", {bold: true}),
             run("학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오. 테스트 전 예상했던 결과와 실제 결과를 비교하고, 차이가 발생했다면 그 원인을 분석하시오."),
         ],
-        6500
+        c ? toParagraphs(c.q6) : [p("")],
+        c ? 2000 : 6500
     ),
     ...emptyP(1),
     checklistBox([
@@ -431,8 +499,7 @@ const makeQ6 = () => [
     ]),
 ];
 
-// ── 7페이지: Q7 (2열) ────────────────────────────────────────────────────────
-const makeQ7 = () => [
+const makeQ7 = (c) => [
     sectionTitle("문항 7"),
     questionTable2Col(
         [
@@ -443,7 +510,9 @@ const makeQ7 = () => [
             run("개선 사항  ", {bold: true}),
             run("현재 모델의 한계를 바탕으로, 성능을 향상시키기 위해 필요한 개선사항을 구체적으로 서술하시오."),
         ],
-        6500
+        c ? toParagraphs(c.q7left) : [p("")],
+        c ? toParagraphs(c.q7right) : [p("")],
+        c ? 2000 : 6500
     ),
     ...emptyP(1),
     checklistBox([
@@ -453,15 +522,15 @@ const makeQ7 = () => [
     ]),
 ];
 
-// ── 8페이지: Q8 ─────────────────────────────────────────────────────────────
-const makeQ8 = () => [
+const makeQ8 = (c) => [
     sectionTitle("문항 8"),
     questionTable(
         [
             run("문항 8.  ", {bold: true}),
             run("기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오."),
         ],
-        7500
+        c ? toParagraphs(c.q8) : [p("")],
+        c ? 2000 : 7500
     ),
     ...emptyP(1),
     checklistBox([
@@ -472,8 +541,16 @@ const makeQ8 = () => [
 
 // ════════════════════════════════════════════════════════════════════════════
 // 문서 생성
+// contentOrFile: content 객체 → 예시 보고서
+//                문자열 또는 생략  → 빈 양식 (하위 호환)
 // ════════════════════════════════════════════════════════════════════════════
-const makeDocument = (outputFile = "ai_report_template.docx") => {
+const makeDocument = (contentOrFile = null, outputFile = "ai_report_template.docx") => {
+    if (typeof contentOrFile === 'string') {
+        outputFile = contentOrFile;
+        contentOrFile = null;
+    }
+    const c = contentOrFile; // null → 빈 양식, 객체 → 예시 보고서
+
     const doc = new Document({
         styles: {
             default: {
@@ -489,29 +566,14 @@ const makeDocument = (outputFile = "ai_report_template.docx") => {
                     },
                 },
                 children: [
-                    // 1페이지: 표지 + Q1
-                    ...makeQ1(),
-                    pageBreak(),
-                    // 2페이지: Q2
-                    ...makeQ2(),
-                    pageBreak(),
-                    // 3페이지: Q3
-                    ...makeQ3(),
-                    pageBreak(),
-                    // 4페이지: Q4
-                    ...makeQ4(),
-                    pageBreak(),
-                    // 5페이지: Q5
-                    ...makeQ5(),
-                    pageBreak(),
-                    // 6페이지: Q6
-                    ...makeQ6(),
-                    pageBreak(),
-                    // 7페이지: Q7 (2열)
-                    ...makeQ7(),
-                    pageBreak(),
-                    // 8페이지: Q8
-                    ...makeQ8(),
+                    ...makeQ1(c), pageBreak(),
+                    ...makeQ2(c), pageBreak(),
+                    ...makeQ3(c), pageBreak(),
+                    ...makeQ4(c), pageBreak(),
+                    ...makeQ5(c), pageBreak(),
+                    ...makeQ6(c), pageBreak(),
+                    ...makeQ7(c), pageBreak(),
+                    ...makeQ8(c),
                 ],
             },
         ],

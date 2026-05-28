@@ -9,7 +9,8 @@
 
 ## 🔗 바로가기
 * **단축 링크:** [https://bit.ly/정보교과](https://bit.ly/정보교과)
-* **웹 페이지:** [https://itmir913.github.io/Visual-Assets-for-CS-Teacher/](https://itmir913.github.io/Visual-Assets-for-CS-Teacher/)
+* **웹 페이지:
+  ** [https://luminousky.com/Visual-Assets-for-CS-Teacher/](https://luminousky.com/Visual-Assets-for-CS-Teacher/)
 
 ## 📄 라이선스 안내 (License)
 이 프로젝트의 모든 자료는 **CC BY-NC-SA 4.0** 라이선스를 따릅니다.

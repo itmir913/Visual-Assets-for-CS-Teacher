@@ -1,4 +1,5 @@
 // build.js
+// 실행: templates/ 폴더에서 node build.js
 const fs = require('fs');
 const path = require('path');
 const {execSync} = require('child_process');

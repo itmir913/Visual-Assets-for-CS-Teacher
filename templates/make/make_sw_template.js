@@ -78,71 +78,45 @@ const contentCell = (paragraphs, width, rowspan) =>
 
 // ─── 날짜/작성자 영역 ────────────────────────────────────────────────────────
 const dateAuthorBlock = () => {
-    const noB = noBorder();
-    const allNone = {top: noB, bottom: noB, left: noB, right: noB};
+    // 학번/이름 행 — AI 템플릿과 동일한 보더 테이블 패턴
+    const LB = 1400;
+    const VC = Math.floor((CONTENT_W - LB * 2) / 2);
+    const VC2 = CONTENT_W - LB * 2 - VC;
 
-    const C = [800, 500, 1500, 800, 1500, 500]; // 합계 5600
-    const SPACER = CONTENT_W - C.reduce((a, b) => a + b, 0); // 4306
-
-    const noCell = (w) =>
-        new TableCell({width: {size: w, type: WidthType.DXA}, borders: allNone, children: [p("")]});
-
-    const labelCell = (text, w, span = 1) =>
+    const siLabelCell = (text, w) =>
         new TableCell({
             width: {size: w, type: WidthType.DXA},
-            columnSpan: span,
-            borders: allNone,
-            margins: {top: 60, bottom: 60, left: 60, right: 40},
+            shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
             verticalAlign: VerticalAlign.CENTER,
-            children: [p(text)],
+            margins: {top: 80, bottom: 80, left: 120, right: 80},
+            children: [pCenter(text, {size: FONT_TITLE})],
         });
 
-    const inputCell = (w, span = 1, align = AlignmentType.LEFT) =>
+    const siInputCell = (w) =>
         new TableCell({
             width: {size: w, type: WidthType.DXA},
-            columnSpan: span,
-            borders: noB,
-            margins: {top: 60, bottom: 60, left: 80, right: 80},
-            children: [new Paragraph({
-                alignment: align,
-                spacing: {before: 40, after: 40},
-                children: [new TextRun({text: "", font: FONT, size: FONT_BODY})],
-            })],
+            verticalAlign: VerticalAlign.CENTER,
+            margins: {top: 80, bottom: 80, left: 160, right: 120},
+            children: [p("")],
         });
 
-    return [
-        new Table({
-            width: {size: CONTENT_W, type: WidthType.DXA},
-            columnWidths: [SPACER, ...C],
-            borders: {
-                top: noB, bottom: noB, left: noB, right: noB,
-                insideHorizontal: noB, insideVertical: noB,
-            },
-            rows: [
-                new TableRow({
-                    children: [
-                        noCell(SPACER),
-                        inputCell(C[0], 1, AlignmentType.RIGHT),
-                        labelCell("년", C[1]),
-                        inputCell(C[2], 1, AlignmentType.RIGHT),
-                        labelCell("월", C[3]),
-                        inputCell(C[4], 1, AlignmentType.RIGHT),
-                        labelCell("일", C[5]),
-                    ],
-                }),
-                new TableRow({
-                    children: [
-                        noCell(SPACER),
-                        labelCell("학번:", C[0]),
-                        inputCell(C[1] + C[2], 2),
-                        labelCell("이름:", C[3]),
-                        inputCell(C[4] + C[5], 2),
-                    ],
-                }),
-            ],
-        }),
-        ...emptyP(1),
-    ];
+    const studentTable = new Table({
+        width: {size: CONTENT_W, type: WidthType.DXA},
+        columnWidths: [LB, VC, LB, VC2],
+        borders: outerBorders,
+        rows: [
+            new TableRow({
+                children: [
+                    siLabelCell("학번", LB),
+                    siInputCell(VC),
+                    siLabelCell("이름", LB),
+                    siInputCell(VC2),
+                ],
+            }),
+        ],
+    });
+
+    return [studentTable, ...emptyP(1)];
 };
 
 // ─── 큰 제목 ────────────────────────────────────────────────────────────────
@@ -385,7 +359,6 @@ const makeSection2 = (d = {}) => {
 
     return [
         titleP("프로그램 개발 설계서-1"),
-        ...dateAuthorBlock(),
         table,
         ...emptyP(1),
         checklistBox([
@@ -456,7 +429,6 @@ const makeSection3 = (d = {}) => {
 
     return [
         titleP("프로그램 개발 설계서-2"),
-        ...dateAuthorBlock(),
         table,
         ...emptyP(1),
         checklistBox([
@@ -527,7 +499,6 @@ const makeSection4 = (d = {}) => {
 
     return [
         titleP("프로그램 구현"),
-        ...dateAuthorBlock(),
         table,
         ...emptyP(1),
         checklistBox([
@@ -694,7 +665,6 @@ const makeSection5 = (d = {}) => {
 
     return [
         titleP("프로그램 테스트"),
-        ...dateAuthorBlock(),
         testTable,
         hintP,
         resultTable,
@@ -753,5 +723,8 @@ module.exports = {makeDocument};
 
 // 직접 실행 시 빈 양식 생성
 if (require.main === module) {
-    makeDocument({}, "../sw_project_template.docx");
+    Promise.all([
+        makeDocument({}, "../c/sw_project_template.docx"),
+        makeDocument({}, "../py/sw_project_template.docx"),
+    ]);
 }

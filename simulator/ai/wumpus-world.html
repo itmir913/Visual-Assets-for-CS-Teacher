@@ -39,11 +39,19 @@
 
         .section-card {
             background: white;
-            padding: 2.5rem;
+            /* 모바일에서는 좌우 여백을 줄인다. main 의 px-6 와 겹쳐 2.5rem 을 그대로 두면
+               375px 화면에서 좌우로 128px을 잃어 격자가 246px까지 쪼그라든다. */
+            padding: 1.25rem;
             border-radius: 2rem;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
             border: 1px solid #f1f5f9;
             transition: all 0.3s ease;
+        }
+
+        @media (min-width: 640px) {
+            .section-card {
+                padding: 2.5rem;
+            }
         }
 
         .quiz-btn {
@@ -446,7 +454,8 @@
         container.innerHTML = '';
 
         const iconSizeClass = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
-        const coordTextSize = SIZE <= 5 ? 'text-[0.7rem]' : 'text-[0.5rem]';
+        // 좌표 라벨이 0.5rem(8px)이면 사실상 읽을 수 없다. 판이 커질수록 작아지되 하한을 둔다.
+        const coordTextSize = SIZE <= 5 ? 'text-xs' : 'text-[0.625rem]';
 
         for (let y = SIZE - 1; y >= 0; y--) {
             for (let x = 0; x < SIZE; x++) {
@@ -602,7 +611,12 @@
             }
         }
 
-        candidates.sort(() => Math.random() - 0.5);
+        // sort(() => Math.random() - 0.5) 는 비교 함수 규약을 어겨 한쪽으로 치우친 순서를 만든다.
+        // 위험도·거리가 모두 같을 때만 쓰이는 무작위 순서이므로 제대로 섞어 준다.
+        for (let i = candidates.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
 
         candidates.forEach(cand => {
             let risk = 0.2;

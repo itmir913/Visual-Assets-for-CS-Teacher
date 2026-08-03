@@ -1,4 +1,4 @@
-# supervised-polynomial-regression.html 교육적 검증 리포트
+# supervised-multiple-linear-regression.html 교육적 검증 리포트
 
 - 검증일: 2026-08-03
 - 대상: 고등학교 「인공지능 기초」
@@ -10,7 +10,7 @@
 
 | | 내용 |
 |---|---|
-| 파일명 | `supervised-polynomial-regression.html` |
+| 파일명 | `supervised-multiple-linear-regression.html` |
 | `<title>` | 다중선형회귀 모델 시뮬레이터 |
 | `<h1>` | Multiple Linear Regression |
 | 모델 | `pred = w1·x1 + w2·x2 + b` — **서로 다른 두 변수**를 쓰는 다중선형회귀 |

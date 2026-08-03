@@ -70,6 +70,13 @@
             color: white !important;
         }
 
+
+        /* 발산 상태 전용 (Rose) — 실패가 아니라 관찰 결과이므로 다시 누를 수 있게 둔다 */
+        #btnTrain.state-diverged {
+            background-color: #e11d48 !important;
+            color: white !important;
+        }
+
         #btnTrain.state-complete:disabled {
             opacity: 1;
         }
@@ -339,6 +346,19 @@
                             y = w₁x₁ + w₂x₂ + b
                         </span>
                     </div>
+                    <!-- 학습률(learning rate): 경사하강의 핵심 하이퍼파라미터.
+                         너무 크면 발산하고 너무 작으면 느리다는 것을 직접 실험할 수 있어야 한다. -->
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="lrSlider" class="text-base font-bold text-slate-300">학습률 (α)</label>
+                            <span id="lrDisplay" class="math-font text-base font-black text-amber-400">0.050</span>
+                        </div>
+                        <input type="range" id="lrSlider" min="0" max="100" step="1" value="50"
+                               class="w-full accent-amber-500 cursor-pointer">
+                        <p id="lrHint" class="text-base text-slate-400 font-medium mt-2 leading-snug break-keep">
+                            적당한 학습률입니다.
+                        </p>
+                    </div>
                     <div class="grid grid-cols-2 gap-3 mb-2">
                         <button id="btnTrain"
                                 class="col-span-2 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg">
@@ -499,6 +519,9 @@
 
     class RegressionModel {
         constructor() {
+            // 학습률은 사용자가 슬라이더로 정하는 값이므로 init() 에서 되돌리면 안 된다.
+            // (되돌리면 슬라이더를 아무리 움직여도 학습 시작 순간 기본값으로 리셋된다.)
+            this.learningRate = 0.05;
             this.init();
         }
 
@@ -507,7 +530,8 @@
             this.w2 = Math.random() * 2 - 1;
             this.b = Math.random() * 2 - 1;
             this.epoch = 0;
-            this.learningRate = 0.05;
+            this.diverged = false;
+            this.hitEpochCap = false;
             this.isTraining = false;
             this.hasStarted = false;
         }
@@ -529,13 +553,22 @@
             db = (2 / N) * db;
 
             if (Math.abs(dw1) < 0.00001 && Math.abs(dw2) < 0.00001 && Math.abs(db) < 0.00001) return true;
-            if (this.epoch > 3000) return true; // 무한루프 방지 (최대 에포크 제한)
+            if (this.epoch > 3000) {   // 무한루프 방지 (최대 에포크 제한)
+                this.hitEpochCap = true;
+                return true;
+            }
 
             this.w1 -= this.learningRate * dw1;
             this.w2 -= this.learningRate * dw2;
             this.b -= this.learningRate * db;
             this.epoch++;
 
+            // 학습률을 크게 잡으면 값이 무한대로 튀어 나간다. 정규화 좌표라 정상 학습은 이 범위를 넘지 않는다.
+            if (!isFinite(this.w1) || !isFinite(this.w2) || !isFinite(this.b) ||
+                Math.abs(this.w1) > 1e6 || Math.abs(this.w2) > 1e6 || Math.abs(this.b) > 1e6) {
+                this.diverged = true;
+                return true;
+            }
             return false;
         }
     }
@@ -775,6 +808,40 @@
                 this.updateUI(); // 캔버스가 초기화된 후 다시 데이터를 그림
             });
 
+            // --- 학습률 슬라이더 ---
+            // 0.001 ~ 2.5 로그 스케일. 슬라이더 50이 기존 기본값 0.05 가 되도록 맞췄다.
+            const lrSlider = document.getElementById('lrSlider');
+            const lrDisplay = document.getElementById('lrDisplay');
+            const lrHint = document.getElementById('lrHint');
+
+            const sliderToLR = (v) => Math.pow(10, -3 + 3.398 * (v / 100));
+
+            const applyLR = () => {
+                const lr = sliderToLR(parseInt(lrSlider.value));
+                this.model.learningRate = lr;
+                lrDisplay.innerText = lr < 0.01 ? lr.toFixed(4) : lr.toFixed(3);
+
+                let msg, color;
+                if (lr < 0.01) {
+                    msg = '너무 작습니다. 수렴까지 아주 오래 걸립니다.';
+                    color = 'text-sky-400';
+                } else if (lr <= 0.3) {
+                    msg = '적당한 학습률입니다.';
+                    color = 'text-slate-400';
+                } else if (lr <= 0.6) {
+                    msg = '다소 큽니다. 학습이 진동할 수 있습니다.';
+                    color = 'text-amber-400';
+                } else {
+                    msg = '너무 큽니다. 발산할 가능성이 높습니다.';
+                    color = 'text-rose-400';
+                }
+                lrHint.innerText = msg;
+                lrHint.className = 'text-base font-medium mt-2 leading-snug break-keep ' + color;
+            };
+
+            lrSlider.addEventListener('input', applyLR);
+            applyLR();
+
             document.getElementById('btnTrain').addEventListener('click', () => {
                 if (this.dataManager.points.length < 2) return alert('정상적인 학습을 위해 데이터를 2개 이상 넣어주세요.');
 
@@ -889,9 +956,21 @@
             if (isConverged) {
                 this.model.isTraining = false;
                 const btn = document.getElementById('btnTrain');
-                btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>학습 완료';
-                btn.className = "col-span-2 py-3 state-complete font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg";
-                btn.disabled = true;
+                if (this.model.diverged) {
+                    // 발산은 실패가 아니라 관찰 대상이다. 이유를 알려 주고 다시 시도할 수 있게 둔다.
+                    btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-2"></i>발산! 학습률을 낮춰 보세요';
+                    btn.className = "col-span-2 py-3 state-diverged font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg";
+                    btn.disabled = false;
+                } else if (this.model.hitEpochCap) {
+                    // 상한에 걸린 것은 아직 수렴하지 않았다는 뜻이다. '완료'라고 하면 거짓말이 된다.
+                    btn.innerHTML = '<i class="fa-solid fa-hourglass-half mr-2"></i>3000회 도달 (아직 수렴 전)';
+                    btn.className = "col-span-2 py-3 state-diverged font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg";
+                    btn.disabled = false;
+                } else {
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>학습 완료';
+                    btn.className = "col-span-2 py-3 state-complete font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg";
+                    btn.disabled = true;
+                }
                 this.setLockUI(false);
                 document.getElementById('btnPause').disabled = true;
             } else {

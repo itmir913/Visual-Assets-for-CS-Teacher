@@ -91,6 +91,12 @@
             background-color: #1e3a8a !important;
         }
 
+        /* 발산 상태 전용 (Rose) — 실패가 아니라 관찰 결과이므로 다시 누를 수 있게 둔다 */
+        #btnTrain.state-diverged {
+            background-color: #e11d48 !important;
+            color: white !important;
+        }
+
         /* 커스텀 스크롤바 */
         ::-webkit-scrollbar {
             width: 8px;
@@ -298,6 +304,19 @@
                         <span id="equationDisplay"
                               class="math-font text-2xl font-black text-emerald-400">y = ax + b</span>
                     </div>
+                    <!-- 학습률(learning rate): 경사하강의 핵심 하이퍼파라미터.
+                         너무 크면 발산하고 너무 작으면 느리다는 것을 직접 실험할 수 있어야 한다. -->
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="lrSlider" class="text-base font-bold text-slate-300">학습률 (α)</label>
+                            <span id="lrDisplay" class="math-font text-base font-black text-amber-400">0.050</span>
+                        </div>
+                        <input type="range" id="lrSlider" min="0" max="100" step="1" value="50"
+                               class="w-full accent-amber-500 cursor-pointer">
+                        <p id="lrHint" class="text-base text-slate-400 font-medium mt-2 leading-snug break-keep">
+                            적당한 학습률입니다.
+                        </p>
+                    </div>
                     <div class="grid grid-cols-2 gap-3 mb-2">
                         <button id="btnTrain"
                                 class="col-span-2 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg">
@@ -390,6 +409,7 @@
             this.w = Math.random() * 2 - 1;
             this.b = Math.random() * 2 - 1;
             this.epoch = 0;
+            this.diverged = false;
         }
 
         trainStep(normalizedPoints) {
@@ -406,6 +426,14 @@
             this.w -= this.learningRate * dw;
             this.b -= this.learningRate * db;
             this.epoch++;
+
+            // 학습률을 크게 잡으면 값이 무한대로 튀어 나간다. 그대로 두면 화면이 깨지므로 여기서 멈춘다.
+            // 정규화 좌표에서 도는 값이라 정상 학습이라면 이 범위를 넘지 않는다.
+            if (!isFinite(this.w) || !isFinite(this.b) ||
+                Math.abs(this.w) > 1e6 || Math.abs(this.b) > 1e6) {
+                this.diverged = true;
+                return true;
+            }
             return false;
         }
     }
@@ -538,8 +566,10 @@
             const btn = document.getElementById('btnTrain');
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 시작';
-            btn.classList.remove('bg-emerald-500', 'bg-blue-700');
+            // 이전 실행의 완료/발산 상태 색이 남지 않도록 함께 지운다.
+            btn.classList.remove('bg-emerald-500', 'bg-blue-700', 'state-complete', 'state-diverged', 'state-loading');
             btn.classList.add('bg-blue-500');
+            this.model.diverged = false;
             document.getElementById('btnPause').disabled = false;
         }
 
@@ -551,6 +581,40 @@
                 this.enableTraining();
                 this.updateUI();
             });
+
+            // --- 학습률 슬라이더 ---
+            // 0.001 ~ 2.5 로그 스케일. 슬라이더 50이 기존 기본값 0.05 가 되도록 맞췄다.
+            const lrSlider = document.getElementById('lrSlider');
+            const lrDisplay = document.getElementById('lrDisplay');
+            const lrHint = document.getElementById('lrHint');
+
+            const sliderToLR = (v) => Math.pow(10, -3 + 3.398 * (v / 100));
+
+            const applyLR = () => {
+                const lr = sliderToLR(parseInt(lrSlider.value));
+                this.model.learningRate = lr;
+                lrDisplay.innerText = lr < 0.01 ? lr.toFixed(4) : lr.toFixed(3);
+
+                let msg, cls;
+                if (lr < 0.01) {
+                    msg = '너무 작습니다. 수렴까지 아주 오래 걸립니다.';
+                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-sky-400';
+                } else if (lr <= 0.5) {
+                    msg = '적당한 학습률입니다.';
+                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-slate-400';
+                } else if (lr <= 1.2) {
+                    msg = '다소 큽니다. 직선이 좌우로 진동할 수 있습니다.';
+                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-amber-400';
+                } else {
+                    msg = '너무 큽니다. 발산할 가능성이 높습니다.';
+                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-rose-400';
+                }
+                lrHint.innerText = msg;
+                lrHint.className = cls;
+            };
+
+            lrSlider.addEventListener('input', applyLR);
+            applyLR();
 
             document.getElementById('btnTrain').addEventListener('click', () => {
                 if (this.dataManager.points.length < 2) return alert('데이터를 2개 이상 넣어주세요.');
@@ -691,10 +755,18 @@
             if (isConverged) {
                 this.model.isTraining = false;
                 const btn = document.getElementById('btnTrain');
-                btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>학습 완료 (수렴)';
-                btn.classList.add('state-complete');
-                btn.disabled = true; // [핵심 개선] 수렴 시 버튼 비활성화
-                document.getElementById('btnPause').disabled = true;
+                if (this.model.diverged) {
+                    // 발산은 실패가 아니라 관찰 대상이다. 이유를 분명히 알려 주고 다시 시도할 수 있게 둔다.
+                    btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-2"></i>발산! 학습률을 낮춰 보세요';
+                    btn.classList.add('state-diverged');
+                    btn.disabled = false;
+                    document.getElementById('btnPause').disabled = true;
+                } else {
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>학습 완료 (수렴)';
+                    btn.classList.add('state-complete');
+                    btn.disabled = true; // [핵심 개선] 수렴 시 버튼 비활성화
+                    document.getElementById('btnPause').disabled = true;
+                }
             } else {
                 this.animationId = requestAnimationFrame(() => this.loop());
             }

@@ -288,7 +288,7 @@
             <div class="lg:col-span-3 control-panel flex flex-col p-0 overflow-hidden">
                 <div class="p-4 bg-slate-800 text-white flex justify-between items-center rounded-t-xl">
                     <div class="font-bold flex items-center gap-3 w-full">
-                        <span class="bg-slate-700 px-4 py-2 rounded-lg text-sm border border-slate-600 w-full"
+                        <span class="bg-slate-700 px-4 py-2 rounded-lg text-base leading-relaxed break-keep border border-slate-600 w-full"
                               id="tree-status">
                             대기 중
                         </span>
@@ -401,9 +401,11 @@
                 </div>
 
             </div>
-            <div class="w-full max-w-2xl mx-auto mb-4 bg-slate-800 text-white font-bold px-4 rounded-xl text-sm sm:text-base text-center shadow-inner h-14 flex items-center justify-center break-keep transition-colors"
-                 id="grid-status">
-                대기 중
+            <!-- 바깥 div만 flex(수직 중앙 정렬)로 두고, 메시지는 안쪽 span에 넣는다.
+                 status 요소 자체를 flex 컨테이너로 두면 innerHTML 안의 <b> 등이
+                 각각 별도 flex 아이템이 되어 문장이 토막나며 줄바꿈된다. -->
+            <div class="w-full max-w-2xl mx-auto mb-4 bg-slate-800 text-white font-bold px-4 py-3 rounded-xl text-base text-center shadow-inner min-h-14 flex items-center justify-center transition-colors">
+                <span class="break-keep leading-relaxed" id="grid-status">대기 중</span>
             </div>
             <div class="w-full max-w-2xl mx-auto" id="grid-container"></div>
         </div>
@@ -468,11 +470,15 @@
                 if (this.currentNode === this.goalId) {
                     this.isFinished = true;
                     this.buildPath();
+                    // 최적성 보장은 A*에만 해당한다. 그리디는 h(n)만 보므로
+                    // 찾은 경로가 최단이라는 보장이 없다 (실제로 무작위 미로의 약 16%에서 더 길다).
                     return {
                         type: 'success',
                         node: this.currentNode,
                         path: this.path,
-                        msg: '🎉 목표 노드에 도달했습니다! 최적 경로를 표시합니다.'
+                        msg: this.type === 'astar'
+                            ? '🎉 목표 도달! A*는 g(n)+h(n)을 함께 보므로 이 경로가 <b>최단 경로임이 보장</b>됩니다.'
+                            : '🎉 목표 도달! 다만 그리디는 h(n)만 보고 달려왔기 때문에 이 경로가 <b>최단이라는 보장은 없습니다.</b>'
                     };
                 }
 
@@ -631,9 +637,47 @@
                 }
             }
 
+            // --- 휴리스틱 h(n) 부여 ---
+            // h(n)은 '목표까지 남은 거리의 추정값'이어야 한다. 무작위 값을 쓰면
+            //  (1) 목표에 가까울수록 h가 작다는 핵심 직관이 사라지고
+            //  (2) h > 실제 거리가 되어 A*의 최적성 전제(admissible)가 깨진다.
+            //
+            // 그래서 트리상의 실제 거리를 먼저 구한 뒤,
+            //  - 목표로 가는 길목(조상 사슬)에 있는 노드: 실제 남은 거리를 그대로 부여.
+            //    h <= 실제 비용이므로 admissible 이 보장된다.
+            //  - 그 밖의 노드: 실제 거리의 40~100%로 과소평가.
+            //    이 가지들은 목표에 닿을 수 없어(자식 방향 간선만 존재) 실제 비용이 무한대이므로
+            //    어떤 값을 줘도 admissible 하다. 일부러 작게 잡아 '가까워 보이는 함정 가지'를 만들어,
+            //    h만 보는 그리디가 헛걸음하는 장면이 실제로 나오도록 한다.
+            //    A*는 g(n)을 함께 보므로 깊이 들어간 함정일수록 덜 속는다.
+            let parentOf = new Map();
+            this.edges.get().forEach(e => parentOf.set(e.to, e.from));
+
+            // 목표에서 뿌리까지의 조상 사슬: id -> 목표까지의 거리
+            let goalChain = new Map();
+            for (let c = this.goalNode, d = 0; c !== undefined; c = parentOf.get(c), d++) {
+                goalChain.set(c, d);
+            }
+
+            // n에서 조상을 따라 올라가다 목표 사슬(=최소 공통 조상)을 만나면 그 지점까지의 거리를 합산
+            const treeDist = (id) => {
+                let d = 0;
+                for (let c = id; c !== undefined; c = parentOf.get(c), d++) {
+                    if (goalChain.has(c)) return d + goalChain.get(c);
+                }
+                return Infinity;
+            };
+
             let allIds = this.nodes.getIds();
             allIds.forEach(id => {
-                let h = (id === this.goalNode) ? 0 : Math.floor(Math.random() * 20) + 1;
+                let h;
+                if (id === this.goalNode) {
+                    h = 0;
+                } else if (goalChain.has(id)) {
+                    h = goalChain.get(id);                       // 길목: 실제 남은 거리
+                } else {
+                    h = Math.max(1, Math.round(treeDist(id) * (0.2 + Math.random() * 0.5)));
+                }
                 this.nodeDataMap.set(id, {h: h});
                 this.updateNodeStyle(id, 'default');
             });
@@ -654,7 +698,11 @@
             let n = this.nodes.get(id);
             if (!n) return;
 
-            let h = this.nodeDataMap.get(id).h;
+            // 트리 재생성이 중간에 끊기면 nodes 와 nodeDataMap 이 어긋날 수 있다.
+            // 이 상태에서 resetSearch() 가 전체 노드를 훑으면 예외로 화면이 멈추므로 방어한다.
+            let data = this.nodeDataMap.get(id);
+            if (!data) return;
+            let h = data.h;
             let baseLabel = id === this.startNode ? 'Start' : (id === this.goalNode ? 'Goal' : `Node ${id}`);
 
             let labelText = `<b>${baseLabel}</b>`;

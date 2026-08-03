@@ -180,7 +180,7 @@
     </div>
 </div>
 
-<main class="max-w-7xl mx-auto mt-8 px-4">
+<main class="max-w-7xl mx-auto mt-8 px-2 sm:px-4">
 
     <div class="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 shadow-sm">
         <i class="fa-solid fa-circle-info text-amber-500 mt-1 shrink-0"></i>
@@ -274,7 +274,8 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-grow">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
+            <!-- 격자 카드는 모바일에서 패딩을 줄여 칸 크기를 최대한 확보한다 -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-5 flex flex-col">
                 <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2">
 
                     <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
@@ -492,15 +493,26 @@
     // ==========================================
     // GRID SEARCH LOGIC
     // ==========================================
-    const ROWS = 10;
-    const COLS = 10;
+    // 격자 칸은 손가락으로 벽을 그리는 대상이라 최소 44px는 되어야 한다.
+    // 10칸을 좁은 화면에 그대로 넣으면 28px까지 줄어 오조작이 잦으므로 화면 폭에 맞춰 칸 수를 줄인다.
+    // 구간 값은 실측으로 정했다. 각 구간의 가장 좁은 폭에서도 칸이 44px 이상이 되도록 잡았다.
+    function computeGridSize() {
+        const w = window.innerWidth;
+        if (w < 372) return 6;   // 360px 안드로이드 기준 약 50px
+        if (w < 460) return 7;   // 375px 기준 약 45px
+        if (w < 620) return 8;
+        return 10;
+    }
+
+    let ROWS = computeGridSize();
+    let COLS = ROWS;
     const gridContainer = document.getElementById('grid-container');
 
     let grid = [];
     let gridState = [];
 
     let startNode = {r: 1, c: 1};
-    let endNode = {r: 8, c: 8};
+    let endNode = {r: ROWS - 2, c: COLS - 2};
 
     let currentTool = 'wall';
     let isDrawing = false;
@@ -619,6 +631,24 @@
         btnPlay.addEventListener('click', toggleGridAutoPlay);
         btnStep.addEventListener('click', stepForward);
         document.getElementById('algo-select').addEventListener('change', resetSearch);
+
+        // 화면을 돌리거나 창 크기를 바꿨을 때만 격자를 다시 만든다.
+        // 칸 수가 그대로면 만들지 않으므로 그리던 벽이 사라지지 않는다.
+        let gridResizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(gridResizeTimer);
+            gridResizeTimer = setTimeout(() => {
+                const next = computeGridSize();
+                if (next === ROWS) return;
+                ROWS = COLS = next;
+                startNode = {r: 1, c: 1};
+                endNode = {r: ROWS - 2, c: COLS - 2};
+                createGrid();
+                clearSearchVisuals();
+                updateGridVisuals();
+                showToast(`화면 크기에 맞춰 격자를 ${ROWS}×${COLS}로 바꿨습니다.`);
+            }, 250);
+        });
     }
 
     function handleCellMouseDown(e) {

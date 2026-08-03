@@ -734,7 +734,6 @@
         let treeIdCounter = 0;
         const queueStack = [];
         const visited = Array(ROWS).fill(0).map(() => Array(COLS).fill(false));
-        const inStack = Array(ROWS).fill(0).map(() => Array(COLS).fill(false));
         const parent = Array(ROWS).fill(0).map(() => Array(COLS).fill(null));
 
         const isBFS = (algoType === 'bfs');
@@ -745,7 +744,6 @@
         queueStack.push({r: startNode.r, c: startNode.c, treeId: startTreeId, parentCoords: null});
 
         if (isBFS) visited[startNode.r][startNode.c] = true;
-        else inStack[startNode.r][startNode.c] = true;
 
         yield {
             type: 'add_node',
@@ -785,8 +783,10 @@
 
                 if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
                     if (!visited[nr][nc] && gridState[nr][nc] !== 1) {
-                        if (!isBFS && inStack[nr][nc]) continue;
-
+                        // DFS는 교과서대로 '꺼낼 때' 방문 처리한다.
+                        // 그래서 같은 칸이 여러 부모에게서 스택에 중복으로 쌓일 수 있고,
+                        // 나중에 꺼낼 때 이미 방문했으면 건너뛴다.
+                        // (이 중복이 쌓이는 모습이 스택 기반 DFS의 실제 동작이다.)
                         const neighborTreeId = treeIdCounter++;
                         const neighbor = {
                             r: nr,
@@ -797,11 +797,11 @@
                         };
                         queueStack.push(neighbor);
 
+                        // BFS는 '넣을 때' 방문 처리한다. 그래야 같은 칸이 큐에 두 번 들어가지 않고
+                        // 최단 경로가 보장된다. DFS는 위 설명대로 꺼낼 때 처리하므로 여기서 아무것도 하지 않는다.
                         if (isBFS) {
                             visited[nr][nc] = true;
                             parent[nr][nc] = {r: current.r, c: current.c};
-                        } else {
-                            inStack[nr][nc] = true;
                         }
 
                         let labelStr = (nr === endNode.r && nc === endNode.c) ? 'E' : `${nr},${nc}`;

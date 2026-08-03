@@ -278,7 +278,10 @@
                         <div class="text-right mb-1.5">
                             <span id="cMarginLabel" class="text-xs font-bold text-rose-400 break-keep">표준 마진</span>
                         </div>
-                        <input type="range" id="cSlider" min="0" max="100" step="1" value="50"
+                        <!-- 학습부에서 C < 0.01 을 0.01 로 잘라내므로, 슬라이더 하한도 C=0.01 에 맞춘다.
+                             (min=0 이면 0~10 구간이 전부 같은 C 로 동작하는 '먹통 구간'이 되고,
+                              표시값은 0.00 인데 실제로는 0.01 이 쓰여 값이 어긋난다.) -->
+                        <input type="range" id="cSlider" min="10" max="100" step="1" value="50"
                                class="w-full accent-rose-600 mb-1.5 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                         <p class="text-xs font-bold text-rose-500 text-center bg-rose-50 py-1.5 rounded break-keep">
                             ※ 작은 C = 너그러운 벌점 😌<br>큰 C = 엄격한 벌점 😡
@@ -630,10 +633,13 @@
         }
 
         identifySupportVectors(normPoints) {
+            // 서포트 벡터는 '마진 경계 위에 있거나 그 안쪽으로 들어온' 점, 즉 y·f(x) <= 1 인 점이다.
+            // 하한(margin >= -0.05)을 두면 경계 반대편으로 깊이 넘어간 오분류 점이 빠지는데,
+            // 소프트 마진 SVM에서 그런 점들도 엄연히 서포트 벡터(벌점을 무는 점)이므로 하한을 두지 않는다.
             this.supportVectors = [];
             for (let p of normPoints) {
                 let margin = p.y * (this.w[0] * p.x1 + this.w[1] * p.x2 + this.b);
-                if (margin <= 1.05 && margin >= -0.05) this.supportVectors.push(p.original);
+                if (margin <= 1.05) this.supportVectors.push(p.original);
             }
         }
     }
@@ -915,7 +921,8 @@
     sliderC.addEventListener('input', (e) => {
         let sliderVal = parseInt(e.target.value);
         let actualC = calculateActualC(sliderVal);
-        labelC.innerText = actualC.toFixed(2);
+        // C는 0.01~316 로그 스케일이라 toFixed(2) 하나로는 작은 쪽 자릿수가 다 사라진다.
+        labelC.innerText = actualC < 1 ? actualC.toFixed(3) : actualC.toFixed(1);
 
         if (sliderVal < 40) {
             labelCMargin.innerText = "소프트 마진 (벌점 낮음 😌)";

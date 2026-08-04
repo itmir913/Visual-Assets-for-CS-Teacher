@@ -91,7 +91,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end;
             position: relative;
             width: 100%;
             min-height: 160px;
@@ -834,7 +833,12 @@ function switchTab(name) {
     document.querySelector(`[data-tab="${name}"]`).classList.add('active');
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    if (name === 'graph') buildGraphPanel();
+    // 탭이 보인 뒤 실제 clientWidth로 다시 렌더
+    requestAnimationFrame(() => {
+        if (name === 'manual') renderTower('manualScene', manualPegs, manualN, manualSelected);
+        if (name === 'auto')   renderTower('aiScene', aiPegs, aiN, -1);
+        if (name === 'graph')  buildGraphPanel();
+    });
 }
 
 /* ============================================================
@@ -887,7 +891,6 @@ function pegName(i) { return ['A', 'B', 'C'][i]; }
 function renderTower(sceneId, pegs, n, selectedPeg) {
     const scene = document.getElementById(sceneId);
     scene.innerHTML = '';
-    const maxDiskWidth = Math.min(scene.clientWidth / 3 - 16, 120);
 
     pegs.forEach((diskStack, pi) => {
         const col = document.createElement('div');
@@ -902,26 +905,32 @@ function renderTower(sceneId, pegs, n, selectedPeg) {
         const diskArea = document.createElement('div');
         diskArea.className = 'peg-disks';
 
-        // 기둥 막대
+        // 기둥 막대 (position:absolute, flex 흐름 밖)
         const rod = document.createElement('div');
         rod.className = 'peg-rod';
         diskArea.appendChild(rod);
 
-        // 원판 (top → bottom 순으로 표시: 배열 역순)
+        // spacer: flex:1로 위쪽 빈 공간을 채워 디스크를 아래로 밀어냄
         const spacer = document.createElement('div');
         spacer.style.flex = '1';
         diskArea.appendChild(spacer);
 
-        diskStack.forEach((diskNum, di) => {
+        // diskStack[0]=가장 큰 원판(맨 아래), [length-1]=가장 작은 원판(맨 위)
+        // 위→아래 순서: 작은(상단) → 큰(하단) → 역순으로 append
+        // 너비를 % 단위로 설정 — clientWidth 측정 시점에 무관하게 일관된 크기
+        for (let i = diskStack.length - 1; i >= 0; i--) {
+            const diskNum = diskStack[i];
+            const isTopDisk = (i === diskStack.length - 1);
             const ratio = diskNum / n;
-            const w = Math.round(maxDiskWidth * (0.35 + 0.65 * ratio));
+            const pct = Math.round((0.35 + 0.65 * ratio) * 100); // 35%~100%
             const d = document.createElement('div');
-            d.className = 'disk' + (selectedPeg === pi && di === diskStack.length - 1 ? ' lifting' : '');
-            d.style.width = w + 'px';
+            d.className = 'disk' + (selectedPeg === pi && isTopDisk ? ' lifting' : '');
+            d.style.width = pct + '%';
+            d.style.maxWidth = '110px';
             d.style.background = DISK_COLORS[diskNum - 1] || '#94a3b8';
             d.textContent = diskNum;
-            diskArea.insertBefore(d, spacer);
-        });
+            diskArea.appendChild(d);
+        }
 
         col.appendChild(diskArea);
 

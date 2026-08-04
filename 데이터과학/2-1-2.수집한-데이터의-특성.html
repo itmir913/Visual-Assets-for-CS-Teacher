@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수집한 데이터의 특성</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-table-list absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chart-column absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            수집한 데이터의 특성
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>내려받았으니 이제 분석하면 될까?</strong><br>
+            분석하기 전에<br>
+            이 데이터가 <strong>어떤 데이터인지</strong> 먼저 알아야 합니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터의 특성이 출처 &middot; 규모 &middot; 속성 &middot; 통계적 특성 등으로 이루어짐을 알고, 메타 데이터를 이용해 수집한 데이터셋의 특성을 설명할
+                        수 있다.
+                    </li>
+                    <li>평균 &middot; 중앙값 &middot; 표준편차 등의 통곗값으로 데이터를 요약하고, 통곗값만으로는 알 수 없는 것이 무엇인지 말할 수 있다.</li>
+                    <li>데이터 품질 점검 항목으로 수집한 데이터를 검토하고, 데이터 편향이 분석 결과를 어떻게 왜곡하는지 사례를 들어 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chart-simple text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">수집한 데이터의 특성</span>
+        </div>
+        <div class="hidden md:flex space-x-5 font-bold text-slate-500 text-base">
+            <a href="#feature" class="hover:text-indigo-600 transition">특성 파악</a>
+            <a href="#meta" class="hover:text-indigo-600 transition">메타 데이터</a>
+            <a href="#stats" class="hover:text-indigo-600 transition">통계적 특성</a>
+            <a href="#quality" class="hover:text-indigo-600 transition">품질 점검</a>
+            <a href="#bias" class="hover:text-indigo-600 transition">편향 사례</a>
+            <a href="#literacy" class="hover:text-indigo-600 transition">데이터 문해력</a>
+            <a href="#activity" class="hover:text-indigo-600 transition">선택 활동</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 데이터의 특성 파악 ===== -->
+    <section id="feature" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">&lsquo;데이터의 특성&rsquo;이란 무엇일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">파일을 열면 숫자가 잔뜩 있는데, 무엇부터 봐야 할까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터의 특성은 데이터의 <strong>출처, 규모, 속성별 의미와 자료형, 통계적 특성</strong> 등을 의미합니다.
+                데이터의 특성을 파악하면 데이터를 정확하게 이해하고,
+                <strong>데이터 편향성 등 데이터 품질에 이상이 없는지</strong> 확인할 수 있습니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-sky-900">
+                    <i class="fa-solid fa-building-columns text-sky-500 mr-1"></i>출처
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터가 <strong>어디서 왔는지</strong>, 어떤 방식으로 수집되었는지를 이해해야 합니다.
+                    <strong>신뢰할 수 있는 출처</strong>가 분석 결과의 신뢰도를 높입니다.
+                </p>
+            </div>
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-indigo-900">
+                    <i class="fa-solid fa-ruler text-indigo-500 mr-1"></i>규모
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터셋의 크기와 포함된 <strong>데이터 포인트의 수</strong>를 파악합니다.
+                    속성이 몇 개이고 가로줄이 몇 개인지가 규모입니다.
+                </p>
+            </div>
+            <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-violet-900">
+                    <i class="fa-solid fa-tags text-violet-500 mr-1"></i>속성
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    각 데이터의 <strong>의미와 데이터 유형</strong>(수치형, 범주형 등)을 이해해야 합니다.
+                    데이터를 적절히 처리하고 분석하는 데 필수적입니다.
+                </p>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-emerald-900">
+                    <i class="fa-solid fa-chart-simple text-emerald-500 mr-1"></i>통계적 특성
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>평균, 중앙값, 표준편차, 최댓값 및 최솟값</strong> 등을 조사하여
+                    데이터의 <strong>분포와 경향성</strong>을 이해합니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 국민체력측정통계 데이터셋 일부 -->
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">예시 &mdash; 국민체력측정통계 데이터셋의 일부</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    실제 데이터셋을 열면 이런 표가 나옵니다. 왼쪽 두 칸은 <strong>측정자 정보</strong>,
+                    나머지는 <strong>측정 결과</strong>입니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                    <tr>
+                        <th colspan="2" class="text-center">측정자 정보</th>
+                        <th colspan="7" class="text-center">측정 결과</th>
+                    </tr>
+                    <tr>
+                        <th>연령 구간</th>
+                        <th>성별</th>
+                        <th>신장</th>
+                        <th>체중</th>
+                        <th>bmi</th>
+                        <th>체지방</th>
+                        <th>윗몸 일으키기</th>
+                        <th>오래 달리기</th>
+                        <th>앉아 윗몸 앞으로 굽히기</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>1</td>
+                        <td>169</td>
+                        <td>51</td>
+                        <td>18</td>
+                        <td>17</td>
+                        <td>35</td>
+                        <td>21</td>
+                        <td class="font-bold text-rose-600">&minus;7</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>1</td>
+                        <td>173</td>
+                        <td>74</td>
+                        <td>25</td>
+                        <td>25</td>
+                        <td>32</td>
+                        <td class="font-bold text-rose-600">9998</td>
+                        <td>6</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>2</td>
+                        <td>159</td>
+                        <td>58</td>
+                        <td>23</td>
+                        <td>34</td>
+                        <td>21</td>
+                        <td>23</td>
+                        <td>19</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>1</td>
+                        <td>180</td>
+                        <td>89</td>
+                        <td>28</td>
+                        <td>17</td>
+                        <td>59</td>
+                        <td>42</td>
+                        <td>2</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-500">[표 Ⅱ-1] 국민체력측정통계 데이터셋의 일부</p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-400 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-rose-800">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>이상하지 않나요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>&lsquo;앉아 윗몸 앞으로 굽히기&rsquo;에 &minus;7이 있습니다.</strong>
+                    길이를 재는 값인데 음수가 나올 수 있을까요?
+                    <strong>&lsquo;오래 달리기&rsquo;에는 9998</strong>이 있습니다. 다른 값은 20~40 사이인데 혼자만 9998입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이럴 때 <strong>바로 지워 버리면 안 됩니다.</strong> 그 속성이 무엇을 어떻게 측정한 것인지 먼저 확인해야 합니다.
+                    &lsquo;앉아 윗몸 앞으로 굽히기&rsquo;는 <strong>발끝을 기준선(0)으로 두고</strong> 손끝이 얼마나 넘어갔는지를 재므로,
+                    발끝에 못 미치면 <strong>음수가 정상적인 값</strong>입니다.
+                    반대로 9998은 <strong>측정하지 않았음을 나타내는 약속된 값</strong>일 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-arrow-right-long text-rose-500 mr-1"></i>
+                    <strong>속성값의 의미를 알아야 그 값이 정상인지 판단할 수 있습니다.</strong>
+                    그 의미가 어디에 적혀 있는지가 다음 이야기입니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 특성 정리표 -->
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">한 장으로 정리한 데이터의 특성</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터를 정확하게 분석하려면 다음과 같이 <strong>출처와 규모, 각 속성의 자료형과 의미</strong> 등을 파악해야 합니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table>
+                    <tbody>
+                    <tr>
+                        <th class="w-32">출처</th>
+                        <td>문화체육관광부</td>
+                    </tr>
+                    <tr>
+                        <th>수집 시기</th>
+                        <td>2019. 1. 1. ~ 12. 31.</td>
+                    </tr>
+                    <tr>
+                        <th>수집 방법</th>
+                        <td>국민체력 100 체력인증센터에 방문하여 체력을 측정한 만 19세 이상 국민의 데이터를 전처리 후 제공</td>
+                    </tr>
+                    <tr>
+                        <th>규모</th>
+                        <td>
+                            <ul class="space-y-1 text-base text-slate-700 list-disc list-outside pl-5">
+                                <li>13개의 속성 &times; 11만 개 이상의 데이터 포인트(성인)</li>
+                                <li>12개 속성 &times; 4만 개 이상의 데이터 포인트(노인)</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>속성</th>
+                        <td>
+                            <ul class="space-y-1 text-base text-slate-700 list-disc list-outside pl-5">
+                                <li>측정 대상의 정보를 표현한 속성(연령 구간, 성별): <strong>범주형</strong></li>
+                                <li>측정한 결괏값을 표현한 속성(신장, 체중 등): <strong>수치형</strong></li>
+                            </ul>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-500">[표 Ⅱ-2] 국민체력측정통계의 특성</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    <strong>연령 구간과 성별에 1, 2 같은 숫자가 적혀 있다고 해서 수치형이 아닙니다.</strong>
+                    성별의 1과 2는 <strong>크기를 뜻하는 숫자가 아니라 이름표</strong>이므로 범주형입니다.
+                    두 값을 더하거나 평균을 내는 것은 의미가 없습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                [표 Ⅱ-2]의 <strong>수집 방법</strong>을 다시 읽어 봅시다.
+                이 데이터셋으로 <strong>&lsquo;우리나라 고등학생의 체력&rsquo;</strong>을 분석할 수 있을까요?
+                할 수 없다면 그 이유는 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 메타 데이터 ===== -->
+    <section id="meta" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">속성값의 의미는 어디에 적혀 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터를 설명해 주는 데이터가 따로 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
+                <p class="text-lg text-indigo-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-quote-left text-indigo-400 mr-2"></i>
+                    <strong>메타 데이터(meta data)</strong>는 데이터를 설명해 주는 데이터이며,
+                    데이터의 <strong>출처, 수집 방법, 각 속성에 대한 의미와 유형</strong> 등을 포함한다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-600 leading-relaxed">
+                &lsquo;국민체력측정통계&rsquo; 데이터셋과 함께 제공되는 메타 데이터도 내려받으면
+                <strong>데이터 수집 방법과 수집 주기</strong> 등을 파악할 수 있습니다.
+                앞에서 본 &minus;7과 9998의 정체도 여기에 적혀 있습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-language text-indigo-500 mr-1"></i>용어 들여다보기
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="bg-indigo-100 text-indigo-800 font-bold text-base px-3 py-1 rounded-full">메타 데이터</span>
+                    <i class="fa-solid fa-equals text-slate-400"></i>
+                    <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">meta data</span>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>meta-</strong>는 &lsquo;<strong>~에 대한, 한 단계 위의</strong>&rsquo;라는 뜻입니다.
+                    그래서 메타 데이터는 <strong>데이터에 대한 데이터</strong>입니다.
+                    라면 봉지 뒷면의 <strong>원재료명 &middot; 제조일자 &middot; 조리법</strong>이 라면 자체는 아니지만
+                    라면을 제대로 먹으려면 꼭 필요한 것과 같습니다.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">메타 데이터에서 확인하는 것</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    국민체력측정통계의 <strong>파일 설계서</strong>에는 다음 두 가지가 들어 있습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-sky-900">
+                        <i class="fa-solid fa-clipboard-list text-sky-500 mr-1"></i>측정 항목 확인
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        성인 연령층(19~64세)의 <strong>측정 요인과 측정 항목 및 방법</strong>이 적혀 있습니다.
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>요인</th>
+                                <th>측정 항목 및 방법</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td rowspan="4" class="font-bold align-middle">체격</td>
+                                <td>길이</td>
+                                <td>신장: 0.1cm 단위 측정</td>
+                            </tr>
+                            <tr>
+                                <td>무게</td>
+                                <td>체중: 0.1kg 단위 측정</td>
+                            </tr>
+                            <tr>
+                                <td>신체질량지수(BMI)</td>
+                                <td>체중(kg) / 신장(m)&sup2;</td>
+                            </tr>
+                            <tr>
+                                <td>신체 구성</td>
+                                <td>체지방률(0.1% 단위), 허리둘레(0.1cm 단위)</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-violet-900">
+                        <i class="fa-solid fa-table-columns text-violet-500 mr-1"></i>속성 정보 확인
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        각 속성의 <strong>항목명, 길이, 타입, 특이 사항</strong> 등이 적혀 있습니다.
+                        타입은 코드(V), 텍스트(V), 수치(N)로 표시됩니다.
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>항목 번호</th>
+                                <th>항목명</th>
+                                <th>길이</th>
+                                <th>타입</th>
+                                <th>특이 사항</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>연령 구간</td>
+                                <td>1</td>
+                                <td>V</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>성별</td>
+                                <td>1</td>
+                                <td>V</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>신장</td>
+                                <td>3</td>
+                                <td>N</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>체중</td>
+                                <td>3</td>
+                                <td>N</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td>체지방</td>
+                                <td>4</td>
+                                <td>N</td>
+                                <td class="font-bold text-rose-600">9998 측정하지 않은 값</td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td>허리둘레</td>
+                                <td>4</td>
+                                <td>N</td>
+                                <td class="font-bold text-rose-600">9998 측정하지 않은 값</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <p class="text-base text-slate-500">[그림 Ⅱ-6] 국민체력측정통계 파일 설계서 중 일부</p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-check text-emerald-500 mr-1"></i>
+                    <strong>9998의 정체가 밝혀졌습니다.</strong> 이 값은 잘못 입력된 숫자가 아니라
+                    <strong>&lsquo;측정하지 않았음&rsquo;을 나타내기로 약속한 값</strong>입니다.
+                    메타 데이터를 보지 않고 9998을 그대로 평균에 넣었다면
+                    <strong>평균이 엉뚱하게 커졌을 것</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                체지방 속성 4만 개 중 9998이 5,000개 들어 있다고 합시다.
+                이 5,000개를 <strong>그냥 지우는 것</strong>과 <strong>남겨 두고 평균을 내는 것</strong> 중
+                어느 쪽이 더 위험할까요? 그렇게 생각한 이유도 말해 봅시다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 통계적 특성 파악 ===== -->
+    <section id="stats" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">11만 개를 어떻게 한눈에 볼까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">전부 눈으로 읽을 수는 없습니다.</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">평균, 중앙값 등의 <strong>통곗값</strong>을 이용하여
+                많은 데이터를 <strong>요약</strong>한 후 특성을 파악해 볼 수 있습니다.</p>
+        </div>
+
+        <!-- 통곗값 용어 카드 -->
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">데이터를 요약하는 통곗값</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터 집합의 경향성을 수치로 요약하면 데이터의 특성을 정확하게 파악할 수 있습니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                    <tr>
+                        <th class="w-32">통곗값</th>
+                        <th>뜻과 성질</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">평균</td>
+                        <td>속성의 숫자를 모두 더해 개수로 나눈 값이다. 히스토그램의 무게 중심이기도 하며 대푯값 중 가장 많이 사용되지만,
+                            데이터의 개수가 적을 때 <strong>극단적으로 큰 값이나 작은 값에 크게 영향</strong>을 받는다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">중앙값</td>
+                        <td>속성의 수치 데이터를 크기 순으로 나열했을 때 중앙에 위치한 값이다.
+                            중앙값은 평균에 비해 <strong>극단치의 영향을 덜 받는다</strong>는 장점이 있다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">최빈값</td>
+                        <td>가장 자주 나타나는 값이며, <strong>범주형 데이터는 최빈값만 구할 수 있다</strong>.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">분산</td>
+                        <td>평균과 각 데이터의 차이인 <strong>편차를 제곱해서 더한 값</strong>을 데이터의 개수로 나눈 값이다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">표준편차</td>
+                        <td><strong>분산의 제곱근</strong>이며, 분산과 함께 데이터가 <strong>평균에서 얼마나 퍼져 있는지</strong>를 나타내는 척도이다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">최솟값 &middot; 최댓값</td>
+                        <td>데이터 중 가장 작은 값과 가장 큰 값이다. 둘 사이가 데이터가 놓인 <strong>범위</strong>가 된다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    <strong>우리 반 성적으로 확인해 봅시다.</strong> 한 명이 0점을 받으면 <strong>평균은 뚝 떨어지지만
+                    중앙값은 거의 그대로</strong>입니다. 두 값의 차이가 크다면 그것 자체가
+                    <strong>&lsquo;한쪽으로 치우친 데이터&rsquo;라는 신호</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- BMI 통계 -->
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">실제로 요약해 보면</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    국민체력측정통계의 BMI 속성을 성별로 나누어 통곗값을 구한 결과입니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>성별</th>
+                        <th>평균</th>
+                        <th>표준편차</th>
+                        <th>최솟값</th>
+                        <th>중앙값</th>
+                        <th>최댓값</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">남자</td>
+                        <td>24.58</td>
+                        <td>3.18</td>
+                        <td>11</td>
+                        <td>24</td>
+                        <td>46</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">여자</td>
+                        <td>22.61</td>
+                        <td>3.31</td>
+                        <td>12</td>
+                        <td>22</td>
+                        <td>42</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-500">[표 Ⅱ-3] 국민체력측정통계의 BMI에 대한 통계 일부</p>
+
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>성별</th>
+                        <th>인원</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">남자</td>
+                        <td>56,148</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">여자</td>
+                        <td>56,069</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-500">[표 Ⅱ-4] 성별 데이터 포인트 개수</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-indigo-900">
+                        <i class="fa-solid fa-magnifying-glass text-indigo-500 mr-1"></i>여기까지 알 수 있는 것
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        성별로 구분해서 구한 BMI의 통곗값으로부터 <strong>남자의 BMI가 여자보다 높은 경향</strong>이 있음을
+                        파악할 수 있습니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-emerald-900">
+                        <i class="fa-solid fa-scale-balanced text-emerald-500 mr-1"></i>편향까지 알 수 있는 것
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        남자와 여자의 인원수는 큰 차이가 없어 <strong>성별에 따른 편향성이 없음</strong>을 알 수 있고,
+                        데이터 포인트의 개수가 많아 <strong>국민 체력 수준을 대표할 가능성이 높습니다.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 열 통계 -->
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">스프레드시트로 직접 구해 보기</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    구글 스프레드시트에서 파일을 열고, 메뉴
+                    <span class="widget-name">데이터</span> &rarr; <span class="widget-name">열 통계</span>를 선택합니다.
+                    통계를 구할 <strong>열의 셀을 선택</strong>하면 손쉽게 원하는 속성의 통계적 특성을 파악할 수 있습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-sky-900">
+                        <i class="fa-solid fa-chart-simple text-sky-500 mr-1"></i>신장의 통계적 특성
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <tbody>
+                            <tr>
+                                <th class="w-32">전체 행 수</th>
+                                <td>112,218</td>
+                            </tr>
+                            <tr>
+                                <th>빈 셀</th>
+                                <td>2</td>
+                            </tr>
+                            <tr>
+                                <th>고유한 값</th>
+                                <td>69</td>
+                            </tr>
+                            <tr>
+                                <th>평균</th>
+                                <td>166.6389253</td>
+                            </tr>
+                            <tr>
+                                <th>중앙값</th>
+                                <td>167</td>
+                            </tr>
+                            <tr>
+                                <th>최솟값</th>
+                                <td>131</td>
+                            </tr>
+                            <tr>
+                                <th>최댓값</th>
+                                <td>200</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-violet-900">
+                        <i class="fa-solid fa-ranking-star text-violet-500 mr-1"></i>가장 자주 나오는 신장
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>값</th>
+                                <th>빈도</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="font-bold text-slate-700">170</td>
+                                <td>4,655</td>
+                            </tr>
+                            <tr>
+                                <td>162</td>
+                                <td>4,561</td>
+                            </tr>
+                            <tr>
+                                <td>172</td>
+                                <td>4,521</td>
+                            </tr>
+                            <tr>
+                                <td>160</td>
+                                <td>4,495</td>
+                            </tr>
+                            <tr>
+                                <td>164</td>
+                                <td>4,453</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        가장 빈도가 높은 <strong>170</strong>이 이 속성의 <strong>최빈값</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                    <strong>빈 셀 2개</strong>가 보입니다. 11만 개 중 2개라 눈으로는 절대 찾을 수 없지만,
+                    열 통계는 이렇게 <strong>비어 있는 값이 몇 개인지까지</strong> 알려 줍니다.
+                    이런 값을 <strong>결측치</strong>라고 하며, 다음 소절에서 처리 방법을 배웁니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+            <p class="font-bold text-lg text-amber-900">
+                <i class="fa-solid fa-circle-exclamation mr-1"></i>통곗값만으로는 부족합니다
+            </p>
+            <p class="text-base text-slate-700 leading-relaxed">
+                통곗값만으로 데이터의 <strong>실제 분포와 속성 간의 관계</strong> 등을 파악하기 어렵기 때문에,
+                <strong>데이터 시각화</strong> 등 추가적인 분석으로 데이터의 특성을 정확하게 이해해야 합니다.
+                평균이 같아도 <strong>고르게 퍼진 데이터</strong>와 <strong>양 끝에 몰린 데이터</strong>는 전혀 다른 데이터입니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                신장의 <strong>평균은 166.6</strong>인데 <strong>중앙값은 167</strong>입니다. 거의 같습니다.
+                만약 어떤 속성에서 평균이 중앙값보다 <strong>훨씬 크게</strong> 나왔다면,
+                그 데이터에는 어떤 값이 섞여 있다고 짐작할 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 수집한 데이터 품질 점검 ===== -->
+    <section id="quality" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이 데이터를 믿어도 될까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">수집한 데이터는 오류뿐만 아니라 누락, 편향 등 다양한 문제가 있을 수 있습니다.</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">따라서 다음과 같이
+                <strong>실제 현상을 정확하게 표현하는지를 검토하는 과정</strong>이 필요합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">데이터 품질 점검 시 고려 사항</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    분석을 시작하기 <strong>전에</strong> 던져야 할 세 가지 질문입니다.
+                </p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-sky-900">
+                        <i class="fa-solid fa-list-check text-sky-500 mr-1"></i>① 빠짐없이 들어 있는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        데이터가 <strong>문제 해결에 필요한 대상과 속성을 모두 포함하는가?</strong>
+                        필요한 속성이 빠져 있으면 아무리 분석해도 답이 나오지 않습니다.
+                    </p>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 border-l-4 border-l-indigo-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-indigo-900">
+                        <i class="fa-solid fa-spell-check text-indigo-500 mr-1"></i>② 오류를 걸러 냈는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>잘못된 정보 입력, 중복 데이터, 누락된 값</strong>으로 인한 오류를 검증하고 수정했는가?
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-rose-900">
+                        <i class="fa-solid fa-scale-unbalanced text-rose-500 mr-1"></i>③ 한쪽으로 치우치지 않았는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>데이터 편향성은 없는가?</strong> 예를 들어 데이터가
+                        <strong>특정 지역이나 집단, 상황에 치우쳐 있지는 않은가?</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6">
+                <p class="text-lg text-rose-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-quote-left text-rose-400 mr-2"></i>
+                    <strong>데이터 편향성</strong>은 데이터가 현실 세계를 정확하게 반영하지 못하고
+                    <strong>한쪽으로 치우친 성질</strong>을 가지고 있는 것을 말한다.
+                </p>
+            </div>
+            <p class="text-base text-slate-600 leading-relaxed">
+                데이터 편향성은 <strong>분석의 신뢰성을 떨어뜨리는 주요한 요인</strong>이므로,
+                데이터 수집 시 <strong>전체를 대표하는 데이터인지, 인종 &middot; 성별 등에 의한 편견이 반영되지 않았는지</strong>
+                주의를 기울여야 합니다.
+            </p>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-arrow-right-long text-rose-500 mr-1"></i>
+                    앞에서 <strong>남자 56,148명, 여자 56,069명</strong>을 확인한 것이 바로 이 점검이었습니다.
+                    두 수가 비슷했기 때문에 <strong>성별을 기준으로 한 분석에 적절한 데이터</strong>라고 판단할 수 있었습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 데이터 편향 사례 ===== -->
+    <section id="bias" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">치우친 데이터는 무엇을 망가뜨릴까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터 수집 시 문제가 발생한 두 가지 사례입니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 사례 1 -->
+            <div class="section-card border-t-4 border-rose-500 space-y-4">
+                <div class="flex items-center gap-3">
+                    <span class="bg-rose-500 text-white font-bold text-base px-4 py-1.5 rounded-full">사례 1</span>
+                    <span class="font-black text-base text-slate-700">1936년 미국 대통령 선거</span>
+                </div>
+
+                <svg viewBox="0 0 320 120" role="img" aria-label="적은 수의 무작위 표본이 전체를 고르게 대표하고, 많은 수의 표본이라도 한쪽에 몰려 있으면 전체를 대표하지 못하는 것을 나타낸 그림"
+                     class="w-full h-auto">
+                    <rect x="4" y="14" width="140" height="92" rx="10" fill="#fef2f2" stroke="#fecaca"/>
+                    <rect x="176" y="14" width="140" height="92" rx="10" fill="#ecfdf5" stroke="#a7f3d0"/>
+                    <g fill="#fca5a5">
+                        <circle cx="24" cy="34" r="5"/>
+                        <circle cx="40" cy="34" r="5"/>
+                        <circle cx="56" cy="34" r="5"/>
+                        <circle cx="72" cy="34" r="5"/>
+                        <circle cx="88" cy="34" r="5"/>
+                        <circle cx="104" cy="34" r="5"/>
+                        <circle cx="120" cy="34" r="5"/>
+                        <circle cx="24" cy="50" r="5"/>
+                        <circle cx="40" cy="50" r="5"/>
+                        <circle cx="56" cy="50" r="5"/>
+                        <circle cx="72" cy="50" r="5"/>
+                        <circle cx="88" cy="50" r="5"/>
+                        <circle cx="104" cy="50" r="5"/>
+                        <circle cx="120" cy="50" r="5"/>
+                    </g>
+                    <g fill="#e2e8f0">
+                        <circle cx="24" cy="70" r="5"/>
+                        <circle cx="40" cy="70" r="5"/>
+                        <circle cx="56" cy="70" r="5"/>
+                        <circle cx="72" cy="70" r="5"/>
+                        <circle cx="88" cy="70" r="5"/>
+                        <circle cx="104" cy="70" r="5"/>
+                        <circle cx="120" cy="70" r="5"/>
+                        <circle cx="24" cy="86" r="5"/>
+                        <circle cx="40" cy="86" r="5"/>
+                        <circle cx="56" cy="86" r="5"/>
+                        <circle cx="72" cy="86" r="5"/>
+                        <circle cx="88" cy="86" r="5"/>
+                        <circle cx="104" cy="86" r="5"/>
+                        <circle cx="120" cy="86" r="5"/>
+                    </g>
+                    <g fill="#e2e8f0">
+                        <circle cx="196" cy="34" r="5"/>
+                        <circle cx="212" cy="34" r="5"/>
+                        <circle cx="228" cy="34" r="5"/>
+                        <circle cx="244" cy="34" r="5"/>
+                        <circle cx="260" cy="34" r="5"/>
+                        <circle cx="276" cy="34" r="5"/>
+                        <circle cx="292" cy="34" r="5"/>
+                        <circle cx="196" cy="50" r="5"/>
+                        <circle cx="212" cy="50" r="5"/>
+                        <circle cx="228" cy="50" r="5"/>
+                        <circle cx="244" cy="50" r="5"/>
+                        <circle cx="260" cy="50" r="5"/>
+                        <circle cx="276" cy="50" r="5"/>
+                        <circle cx="292" cy="50" r="5"/>
+                        <circle cx="196" cy="70" r="5"/>
+                        <circle cx="212" cy="70" r="5"/>
+                        <circle cx="228" cy="70" r="5"/>
+                        <circle cx="244" cy="70" r="5"/>
+                        <circle cx="260" cy="70" r="5"/>
+                        <circle cx="276" cy="70" r="5"/>
+                        <circle cx="292" cy="70" r="5"/>
+                        <circle cx="196" cy="86" r="5"/>
+                        <circle cx="212" cy="86" r="5"/>
+                        <circle cx="228" cy="86" r="5"/>
+                        <circle cx="244" cy="86" r="5"/>
+                        <circle cx="260" cy="86" r="5"/>
+                        <circle cx="276" cy="86" r="5"/>
+                        <circle cx="292" cy="86" r="5"/>
+                    </g>
+                    <g fill="#34d399">
+                        <circle cx="212" cy="34" r="5"/>
+                        <circle cx="276" cy="50" r="5"/>
+                        <circle cx="228" cy="70" r="5"/>
+                        <circle cx="292" cy="86" r="5"/>
+                        <circle cx="196" cy="50" r="5"/>
+                        <circle cx="260" cy="86" r="5"/>
+                    </g>
+                </svg>
+                <p class="text-base text-slate-500 text-center">
+                    왼쪽: 많이 모았지만 <strong class="text-rose-600">한쪽 집단</strong>에만 몰림 &middot;
+                    오른쪽: 적게 모았지만 <strong class="text-emerald-600">고르게</strong> 흩어짐
+                </p>
+
+                <p class="text-base text-slate-600 leading-relaxed">
+                    1936년 미국 대통령 선거 여론 조사를 <strong>두 기관</strong>에서 실시했습니다.
+                </p>
+                <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
+                    <p class="font-bold text-base text-rose-800 mb-1">
+                        <i class="fa-solid fa-xmark mr-1"></i>리터러리 다이제스트 &mdash; 256만 명
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>전화 가입자와 자동차 소유자 천만 명</strong>을 대상으로 우편 설문을 해서
+                        256만 명의 결과를 받았으나, <strong>조사 대상이 부유층에만 편향</strong>되어
+                        당선 결과를 잘못 예측했습니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                    <p class="font-bold text-base text-emerald-800 mb-1">
+                        <i class="fa-solid fa-check mr-1"></i>갤럽 &mdash; 1,500명
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>무작위로 선택된 1,500명</strong>에 대한 면접 설문으로
+                        당선 결과뿐만 아니라 <strong>득표율까지 근접하게 예측</strong>했습니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-arrow-right-long text-indigo-500 mr-1"></i>
+                        <strong>1,700배 많은 데이터가 졌습니다.</strong>
+                        1936년 당시 전화와 자동차는 부유층의 물건이었기 때문에,
+                        명단 자체가 이미 <strong>한쪽으로 치우쳐 있었습니다.</strong>
+                        데이터는 <strong>많이가 아니라 고르게</strong> 모아야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 사례 2 -->
+            <div class="section-card border-t-4 border-violet-500 space-y-4">
+                <div class="flex items-center gap-3">
+                    <span class="bg-violet-500 text-white font-bold text-base px-4 py-1.5 rounded-full">사례 2</span>
+                    <span class="font-black text-base text-slate-700">제2차 세계 대전 전투기</span>
+                </div>
+
+                <svg viewBox="0 0 320 120" role="img" aria-label="귀환한 전투기의 날개와 꼬리에 총탄 자국이 표시된 그림"
+                     class="w-full h-auto">
+                    <rect x="4" y="6" width="312" height="108" rx="10" fill="#f5f3ff" stroke="#ddd6fe"/>
+                    <g fill="#c4b5fd" stroke="#8b5cf6" stroke-width="1.5">
+                        <ellipse cx="160" cy="60" rx="16" ry="44"/>
+                        <path d="M60 52 L144 46 L144 74 L60 68 Z"/>
+                        <path d="M260 52 L176 46 L176 74 L260 68 Z"/>
+                        <path d="M132 96 L188 96 L176 104 L144 104 Z"/>
+                    </g>
+                    <g fill="#4c1d95">
+                        <circle cx="84" cy="58" r="3.5"/>
+                        <circle cx="98" cy="64" r="3.5"/>
+                        <circle cx="112" cy="55" r="3.5"/>
+                        <circle cx="76" cy="64" r="3.5"/>
+                        <circle cx="236" cy="58" r="3.5"/>
+                        <circle cx="222" cy="64" r="3.5"/>
+                        <circle cx="208" cy="55" r="3.5"/>
+                        <circle cx="244" cy="63" r="3.5"/>
+                        <circle cx="150" cy="99" r="3.5"/>
+                        <circle cx="168" cy="99" r="3.5"/>
+                    </g>
+                </svg>
+                <p class="text-base text-slate-500 text-center">
+                    <strong>돌아온</strong> 전투기의 총탄 자국은 날개와 꼬리에 몰려 있었습니다.
+                </p>
+
+                <p class="text-base text-slate-600 leading-relaxed">
+                    제2차 세계 대전 당시 미군은 전투기가 격추되는 것을 줄이기 위해
+                    <strong>귀환한 전투기의 외상을 분석</strong>해서 취약 부분을 보강하는 계획을 세웠습니다.
+                    분석 결과 비행기의 외상 대부분은 <strong>날개 및 꼬리 부분에 집중</strong>되었음을 발견했습니다.
+                </p>
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                    <p class="font-bold text-base text-violet-800 mb-1">
+                        <i class="fa-solid fa-hand mr-1"></i>통계학자 아브라함 왈드의 지적
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>돌아오지 못한 전투기에 대한 데이터가 누락된 잘못된 연구</strong>임을 지적했습니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-arrow-right-long text-indigo-500 mr-1"></i>
+                        <strong>날개에 총을 맞은 비행기는 돌아왔습니다.</strong>
+                        그러니 보강해야 할 곳은 총탄 자국이 있는 날개가 아니라,
+                        <strong>자국이 하나도 없는 자리</strong>입니다. 거기 맞은 비행기는 돌아오지 못했으므로 데이터에 없습니다.
+                        &mdash;
+                        <strong>데이터에 없는 것</strong>을 생각하지 않으면 정반대의 결론에 이릅니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <p class="text-base text-slate-500 text-center">[그림 Ⅱ-7] 데이터 편향 사례</p>
+
+        <!-- 더 알아보기: 데이터 수집 시 주의사항 -->
+        <div class="section-card space-y-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">
+                    <i class="fa-solid fa-circle-plus text-indigo-500 mr-1"></i>더 알아보기 &mdash; 데이터 수집 시 주의사항
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터를 손에 넣은 뒤 스스로에게 던져야 할 다섯 가지 질문입니다.
+                </p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-indigo-700 mb-2">
+                        <span class="font-black text-slate-400 mr-1">Q.</span>데이터 출처가 명확한가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <span class="font-black text-slate-400 mr-1">A.</span>
+                        <strong>정부 기관, 대학, 비영리 조직</strong> 등 신뢰할 수 있는 기관 또는 업체인지 확인합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-indigo-700 mb-2">
+                        <span class="font-black text-slate-400 mr-1">Q.</span>법적 및 윤리적 문제는 없는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <span class="font-black text-slate-400 mr-1">A.</span>
+                        <strong>데이터 이용 허락 범위, 개인 정보 보호</strong> 등의 기준을 준수하고 있는지 주의 깊게 확인합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-indigo-700 mb-2">
+                        <span class="font-black text-slate-400 mr-1">Q.</span>데이터 품질에 문제가 없는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <span class="font-black text-slate-400 mr-1">A.</span>
+                        <strong>결측치, 이상치, 중복값</strong> 등의 문제를 확인하고, 필요하다면 전처리 과정을 거쳐야 합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-indigo-700 mb-2">
+                        <span class="font-black text-slate-400 mr-1">Q.</span>데이터에 편향성은 없는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <span class="font-black text-slate-400 mr-1">A.</span>
+                        <strong>실제 현상을 대표할 만큼 데이터의 양이 충분하고 편향되지 않았는지</strong> 확인합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-indigo-700 mb-2">
+                        <span class="font-black text-slate-400 mr-1">Q.</span>메타 데이터에 이상이 없는가?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <span class="font-black text-slate-400 mr-1">A.</span>
+                        <strong>데이터 수집 주체, 내용과 속성의 의미, 수집 방법</strong> 등을 포함하는 메타 데이터를 꼼꼼히 확인합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 학교 급식 만족도를 <strong>학교 누리집 배너를 클릭한 학생</strong>에게만 물었습니다.
+                이 데이터에는 사례 1과 사례 2 중 <strong>어느 쪽 문제</strong>가 더 가깝게 나타날까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 데이터 문해력 ===== -->
+    <section id="literacy" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터를 읽는 힘은 무엇으로 이루어질까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터 문해력(data literacy)</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터 문해력은 데이터를 <strong>이해하고 해석한 것을 바탕으로
+                올바른 결정을 내릴 수 있는 능력</strong>입니다. 데이터 문해력을 갖추면 다양한 데이터를 통해 정보를 얻으며,
+                <strong>논리적이고 근거 있는 결정</strong>을 할 수 있습니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">데이터 이해</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터의 <strong>출처, 유형, 특징 및 가치</strong>를 파악하고, 어떻게 수집되었는지,
+                    어떤 한계가 있는지 등 데이터의 <strong>전반적인 특성을 이해하는 능력</strong>
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500 space-y-3">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">데이터 해석</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    수치나 그래프에서 나타나는 <strong>분포, 추세 등을 식별</strong>하고,
+                    이를 바탕으로 데이터가 전달하려는 <strong>정보나 메시지를 해석하는 능력</strong>
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">데이터 기반의 소통</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터로부터 얻은 <strong>통찰이나 해석</strong>을 다른 사람에게
+                    <strong>명확하게 전달하는 능력</strong>
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-magnifying-glass-arrow-right"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">비판적 사고</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터의 어떤 <strong>한계나 편향성을 파악</strong>하고,
+                    그로 인해 발생할 수 있는 <strong>해석의 오류를 인식하는 능력</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+            <p class="text-base text-slate-600 leading-relaxed">
+                <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                <strong>데이터 기반의 의사 결정이 중요해지면서 데이터 문해력의 중요성은 더욱 강조되고 있습니다.</strong>
+                이번 소절에서 한 일을 되짚어 보면, 메타 데이터를 읽은 것이 <strong>데이터 이해</strong>,
+                통곗값을 읽은 것이 <strong>데이터 해석</strong>,
+                편향 사례를 따진 것이 <strong>비판적 사고</strong>였습니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 선택 활동 1 ===== -->
+    <section id="activity" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">직접 해 볼까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">선택 활동 1 &mdash; 국민의 행복에 영향을 미치는 요인 확인하기</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 space-y-2">
+                <p class="font-bold text-base text-indigo-900">
+                    <i class="fa-solid fa-flag text-indigo-500 mr-1"></i>문제 상황
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    국제 연합(UN)은 매년 세계 각국의 행복 점수를 산출해 &lsquo;World Happiness Report&rsquo;라는
+                    보고서를 발표합니다. 전문가들은 <strong>행복 점수가 낮게 나오는 요인이 무엇인지</strong> 분석하고
+                    대책을 제안하고 있습니다.
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    행복 점수는 개인의 삶에 대한 설문의 결과를 기반으로 하며,
+                    <strong>6가지 속성</strong>(1인당 GDP, 사회적 지지, 건강 기대 수명, 선택의 자유, 관대함, 부패 인식)이
+                    행복 점수를 설명하는 데 기여하는 정도를 함께 제공합니다.
+                </p>
+                <p class="text-base text-slate-500 break-words">
+                    세계 행복 보고서 사이트: worldhappiness.report
+                </p>
+            </div>
+
+            <!-- 단계 1 -->
+            <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                <div class="flex items-center gap-3">
+                    <span class="bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">단계 1</span>
+                    <span class="font-black text-base text-slate-700">문제 정의하기</span>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>목표</strong> &mdash; 세계 행복 보고서에 따르면 우리나라는
+                    <strong>1인당 GDP, 건강 기대 수명 등은 높지만 행복 점수는 상대적으로 낮았습니다.</strong>
+                    국민의 행복에 영향을 미치는 요인이 무엇인지 찾아봅시다.
+                </p>
+            </div>
+
+            <!-- 단계 2 -->
+            <div class="bg-white border-2 border-indigo-200 rounded-2xl p-5 space-y-3">
+                <div class="flex items-center gap-3">
+                    <span class="bg-indigo-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">단계 2</span>
+                    <span class="font-black text-base text-slate-700">데이터 수집하기</span>
+                </div>
+                <ol class="space-y-2 text-base text-slate-600 leading-relaxed list-decimal list-outside pl-5">
+                    <li>캐글(kaggle) 사이트에 방문하여 검색어를
+                        <strong>&lsquo;World Happiness Report 2023&rsquo;</strong>으로 검색합니다.
+                        검색 후 항목 중 <span class="widget-name">Datasets</span>을 선택해서
+                        관련성이 높은 데이터셋을 찾습니다.
+                    </li>
+                    <li><span class="widget-name">Dataset</span>의 <span class="widget-name">Data Card</span>에서
+                        <strong>속성명과 속성 개수, 속성값의 분포, 데이터 포인트 개수</strong> 등을 확인한 후 파일을 내려받습니다.
+                    </li>
+                </ol>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                        캐글의 데이터셋은 <strong>누구나 올릴 수 있습니다.</strong>
+                        데이터에 대한 설명과 메타 데이터를 확인해야 하며,
+                        특히 <strong>원천 데이터(Provenance)의 신뢰성</strong>을 확인하고 사용해야 합니다.
+                        앞에서 배운 <strong>&lsquo;데이터 출처가 명확한가?&rsquo;</strong>가 바로 여기에 쓰입니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 단계 3 -->
+            <div class="bg-white border-2 border-emerald-200 rounded-2xl p-5 space-y-4">
+                <div class="flex items-center gap-3">
+                    <span class="bg-emerald-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">단계 3</span>
+                    <span class="font-black text-base text-slate-700">속성 파악하기</span>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>137개 국가</strong>의 행복 점수와 행복에 영향을 미치는 6개의 속성,
+                    그리고 그 6개의 속성이 행복 점수 중 어느 정도를 설명할 수 있는지를 나타내는 속성으로 구성되어 있습니다.
+                    구글 스프레드시트에서 세계 행복 보고서 데이터셋을 불러오고, 다음 질문에 대답해 봅시다.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th class="w-64">속성명</th>
+                            <th>의미</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><span class="attr-name">Ladder score</span><br>(행복 점수)</td>
+                            <td>0부터 10까지의 단계가 있는 사다리에서 자신의 단계가 어디인지에 대한 국민의 응답 평균이며,
+                                행복 점수가 높다는 것은 삶의 만족도가 높다는 것을 나타낸다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Logged GDP per capita</span><br>(1인당 GDP)</td>
+                            <td>1인당 GDP의 자연로그값으로, GDP의 경우 국가별로 큰 차이가 있어 분석과 모델링을 단순화하기 위해
+                                변환한 값을 제공한다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Social support</span><br>(사회적 지지)</td>
+                            <td>&ldquo;당신이 어려움에 처했다면 의지할 수 있는 친척이나 친구가 있습니까?&rdquo;에 대한
+                                응답(0 또는 1)의 국가별 평균이다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Healthy life expectancy</span><br>(건강 기대 수명)</td>
+                            <td>건강한 상태로 생활할 수 있는 나이를 추정한 값이며, 세계보건기구(WHO)의 데이터를 기반으로 한다.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Freedom to make life choices</span><br>(선택의 자유)</td>
+                            <td>&ldquo;당신이 인생에서 무엇을 할 것인지 선택할 수 있는 자유에 만족하십니까, 불만족하십니까?&rdquo;에 대한
+                                응답(0 또는 1)의 국가별 평균이다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Generosity</span><br>(관대함)</td>
+                            <td>&ldquo;지난 한 달 동안 기부한 적이 있습니까?&rdquo;에 대한 응답과 1인당 GDP를 이용해서 계산한
+                                기부에 대한 경향성을 나타내는 값이다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Perceptions of corruption</span><br>(부패 인식)</td>
+                            <td>&ldquo;부패가 정부 전체에 널리 퍼져 있습니까?&rdquo;에 대한 응답(0 또는 1)의 국가별 평균이다.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="attr-name">Explained by ~</span><br>(~에 의해 설명됨)</td>
+                            <td>~ 속성에 의해 각 국가의 행복 점수가 어느 정도 설명되는지를 나타낸다.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <p class="font-bold text-base text-slate-800">
+                            <span class="inline-flex w-6 h-6 bg-emerald-500 text-white rounded-full items-center justify-center font-black mr-1">1</span>
+                            우리나라의 행복 점수는 몇 위인지 알아보고, 행복 점수가 가장 높은 국가를 찾아봅시다.
+                        </p>
+                        <div class="overflow-x-auto">
+                            <table>
+                                <tbody>
+                                <tr>
+                                    <th class="w-24">국가</th>
+                                    <td>한국</td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th>순위</th>
+                                    <td>위</td>
+                                    <td>1위</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <p class="font-bold text-base text-slate-800">
+                            <span class="inline-flex w-6 h-6 bg-emerald-500 text-white rounded-full items-center justify-center font-black mr-1">2</span>
+                            행복 점수가 가장 높은 나라와 우리나라를 비교해 보고,
+                            6가지 주요 속성 중 <strong>차이가 큰 속성</strong>을 찾아봅시다.
+                        </p>
+                        <div class="bg-white border border-slate-200 rounded-lg h-16"></div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <p class="font-bold text-base text-slate-800">
+                            <span class="inline-flex w-6 h-6 bg-emerald-500 text-white rounded-full items-center justify-center font-black mr-1">3</span>
+                            메뉴의 <span class="widget-name">데이터</span> &rarr; <span class="widget-name">열 통계</span>를 선택하여
+                            행복 점수와 행복에 영향을 미치는 6가지 속성의
+                            <strong>평균, 중앙값, 최솟값과 최댓값</strong>을 확인해 보고,
+                            우리나라의 각 속성값과 비교해 봅시다.
+                        </p>
+                        <div class="overflow-x-auto">
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th class="w-24"></th>
+                                    <th>행복 점수</th>
+                                    <th>1인당 GDP</th>
+                                    <th>사회적 지지</th>
+                                    <th>건강 기대 수명</th>
+                                    <th>선택의 자유</th>
+                                    <th>관대함</th>
+                                    <th>부패 인식</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <th>평균</th>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th>중앙값</th>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th>최솟값</th>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th>최댓값</th>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <details class="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                <summary class="flex items-center gap-3 px-5 py-4 hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-chevron-right text-slate-400 details-chevron"></i>
+                    <span class="font-bold text-base text-slate-800">세계 행복 보고서 데이터셋을 사이트에서 직접 내려받으려면</span>
+                </summary>
+                <div class="px-5 py-4 space-y-3 bg-white">
+                    <ul class="space-y-2 text-base text-slate-600 leading-relaxed list-disc list-outside pl-5">
+                        <li>세계 행복 보고서 사이트(worldhappiness.report)의 <span class="widget-name">Appendices &amp; Data</span>
+                            페이지에서 보고서에 사용된 데이터셋을 직접 내려받을 수 있습니다.
+                        </li>
+                        <li><span class="widget-name">Data for Figure 2.1</span>을 선택하면
+                            <strong>최근 연도의 국가별 행복 데이터셋</strong>을 내려받게 됩니다.
+                        </li>
+                        <li><span class="widget-name">Data for Table 2.1</span>을 선택하면
+                            <strong>연도별 데이터</strong>를 내려받을 수 있습니다.
+                        </li>
+                        <li><span class="widget-name">Statistical Appendix 1 for Chapter 2</span>는
+                            <strong>각 속성에 대한 설명</strong>을 볼 수 있습니다. 이것이 이 데이터셋의 메타 데이터입니다.
+                        </li>
+                        <li><strong>해마다 속성명이나 제공 항목에 일부 차이가 있다</strong>는 점을 주의해야 합니다.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 데이터셋의 <strong>속성 이름만</strong> 보고, 각 속성이 <strong>수치형인지 범주형인지</strong> 말할 수 있나요?
+                말할 수 없다면 <strong>무엇을 더 봐야 하는지</strong> 이야기해 봅시다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: AI와 함께 정리 ===== -->
+    <section class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">데이터를 내려받은 다음, 분석하기 전에 무엇을 해야 할까?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        먼저 <strong class="text-sky-200">데이터의 특성</strong>을 파악합니다.
+                        데이터의 <strong class="text-indigo-200">출처 &middot; 규모 &middot; 속성별 의미와 자료형 &middot; 통계적 특성</strong>이 그것입니다.
+                        속성값의 의미는 데이터를 설명해 주는 데이터인
+                        <strong class="text-sky-200">메타 데이터</strong>에 적혀 있으므로 함께 내려받아 확인합니다.
+                        그다음 <strong class="text-indigo-200">평균 &middot; 중앙값 &middot; 표준편차</strong> 등의 통곗값으로
+                        많은 데이터를 요약해 보되, 통곗값만으로는 분포와 관계를 알 수 없으므로
+                        <strong class="text-sky-200">시각화</strong>로 보완합니다.
+                        마지막으로 필요한 속성이 다 있는지, 오류를 걸러 냈는지,
+                        <strong class="text-sky-200">한쪽으로 치우치지 않았는지</strong>를 점검합니다.
+                        데이터는 <strong class="text-indigo-200">많이가 아니라 고르게</strong> 모아야 합니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-file-lines text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">메타 데이터 <span class="font-medium text-sky-200">meta data</span></p>
+                    <p class="text-base text-sky-100">데이터를 설명해 주는 데이터</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-chart-simple text-indigo-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">통곗값 <span class="font-medium text-sky-200">statistics</span></p>
+                    <p class="text-base text-sky-100">평균 &middot; 중앙값 &middot; 최빈값 &middot; 분산 &middot; 표준편차</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-scale-unbalanced text-violet-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">데이터 편향성 <span class="font-medium text-sky-200">bias</span></p>
+                    <p class="text-base text-sky-100">현실을 반영하지 못하고 치우친 성질</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터의 특성</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">네 가지 관점</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>출처</strong> &middot; <strong>규모</strong> &middot; <strong>속성별 의미와 자료형</strong> &middot; <strong>통계적 특성</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>특성을 파악해야 <strong>데이터 품질에 이상이 없는지</strong> 확인할 수 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>숫자로 적혀 있어도 <strong>이름표면 범주형</strong>이다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">메타 데이터</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">meta data</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>데이터에 대해 설명해 주는 데이터</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>출처 &middot; 수집 방법 &middot; <strong>각 속성의 의미와 유형</strong>을 포함</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>이상한 값(&minus;7, 9998)의 <strong>정체를 알려 주는 곳</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">통계적 특성</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">많은 데이터를 요약하기</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>평균</strong>은 극단치에 흔들리고, <strong>중앙값</strong>은 덜 흔들린다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>표준편차</strong>는 평균에서 얼마나 퍼져 있는지의 척도</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>통곗값만으로는 <strong>분포와 관계</strong>를 알 수 없다 &rarr; 시각화</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터 품질 점검</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">편향은 신뢰성을 무너뜨린다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>필요한 <strong>대상과 속성</strong>을 다 포함하는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>오입력 &middot; 중복 &middot; 누락을 <strong>검증하고 수정</strong>했는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>256만 명이 1,500명에게 졌다 &mdash; <strong>많이가 아니라 고르게</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 10: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>데이터의 특성</strong>에 해당하지 <strong>않는</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '출처는 데이터가 어디서 왔는지를 나타내며, 신뢰할 수 있는 출처가 분석 결과의 신뢰도를 높입니다.')">
+                    ① 데이터의 출처
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규모는 데이터셋의 크기와 데이터 포인트의 수입니다.')">
+                    ② 데이터의 규모
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 어떤 프로그램으로 분석할지는 데이터 자체의 성질이 아닙니다. 데이터의 특성은 출처·규모·속성별 의미와 자료형·통계적 특성입니다.')">
+                    ③ 분석에 사용할 프로그램의 종류
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평균·중앙값·표준편차 등의 통계적 특성은 데이터의 특성에 포함됩니다.')">
+                    ④ 데이터의 통계적 특성
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    데이터셋을 열었더니 &lsquo;앉아 윗몸 앞으로 굽히기&rsquo; 속성에 <strong>&minus;7</strong>이 들어 있습니다.
+                    가장 먼저 해야 할 일은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지우기 전에 확인해야 합니다. 음수가 정상적인 값일 수도 있습니다.')">
+                    ① 잘못된 값이므로 그 줄을 지운다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 메타 데이터를 보면 그 속성이 무엇을 어떻게 측정한 것인지 알 수 있고, 음수가 정상적인 값인지 판단할 수 있습니다.')">
+                    ② 메타 데이터에서 그 속성이 무엇을 측정한 것인지 확인한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '0으로 바꾸면 실제로 측정된 값이 사라져 분석 결과가 왜곡됩니다.')">
+                    ③ 음수이므로 0으로 바꾼다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평균을 먼저 구하면 그 평균이 이미 잘못된 값일 수 있습니다. 값의 의미를 확인하는 것이 먼저입니다.')">
+                    ④ 일단 평균부터 구해 본다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>극단적으로 크거나 작은 값의 영향을 가장 덜 받는</strong> 통곗값은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평균은 모든 값을 더해서 나누므로 극단적인 값 하나에도 크게 움직입니다.')">
+                    ① 평균
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 중앙값은 크기 순으로 나열했을 때 가운데 값이므로, 양 끝에 아무리 큰 값이 있어도 거의 움직이지 않습니다.')">
+                    ② 중앙값
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '최댓값은 극단적으로 큰 값 그 자체입니다.')">
+                    ③ 최댓값
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분산은 평균과의 차이를 제곱해서 더하므로 극단치의 영향이 오히려 커집니다.')">
+                    ④ 분산
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    1936년 미국 대통령 선거에서 <strong>256만 명을 조사한 기관이 1,500명을 조사한 기관에 진 이유</strong>는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '256만 명은 결코 적은 수가 아닙니다. 문제는 수가 아니었습니다.')">
+                    ① 조사한 사람 수가 너무 적어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 전화 가입자와 자동차 소유자 명단은 당시 부유층에 치우쳐 있었습니다. 데이터가 전체를 대표하지 못하면 아무리 많이 모아도 결과가 왜곡됩니다.')">
+                    ② 조사 대상이 부유층에만 편향되어 전체를 대표하지 못해서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '설문을 우편으로 했는지 면접으로 했는지보다, 누구를 대상으로 골랐는지가 결정적이었습니다.')">
+                    ③ 우편 설문이라 응답이 느려서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산 실수가 아니라 데이터 수집 단계의 편향이 원인이었습니다.')">
+                    ④ 집계 과정에서 계산을 잘못해서
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 5 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>데이터 편향성</strong>에 대한 설명으로 <strong>옳은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '편향은 값이 비어 있는 것(결측치)과는 다른 문제입니다.')">
+                    ① 데이터에 빈 값이 많이 들어 있는 성질이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 데이터가 현실 세계를 정확하게 반영하지 못하고 한쪽으로 치우친 성질이며, 분석의 신뢰성을 떨어뜨리는 주요한 요인입니다.')">
+                    ② 데이터가 현실 세계를 정확하게 반영하지 못하고 한쪽으로 치우친 성질이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터의 양을 늘려도 치우친 방식으로 모으면 편향은 그대로 남습니다. 1936년 사례가 그 증거입니다.')">
+                    ③ 데이터를 많이 모으기만 하면 저절로 해결되는 문제이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터의 파일 형식과는 관계가 없습니다.')">
+                    ④ 데이터를 저장한 파일 형식이 서로 다른 것을 말한다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="bg-slate-900 text-white py-12 px-6 mt-12">
+    <div class="max-w-6xl mx-auto text-center">
+        <p class="text-base text-slate-400">데이터 과학 · Ⅱ단원 데이터 준비와 분석</p>
+        <p class="font-bold text-base text-slate-300 mt-1">01. 데이터 수집 — 2. 수집한 데이터의 특성</p>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

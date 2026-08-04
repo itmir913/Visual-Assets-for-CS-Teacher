@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터셋의 이해</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 말풍선 — 교과서 [그림 Ⅰ-11]의 리뷰 장면을 대체한다 */
+        .speech {
+            position: relative;
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .speech::after {
+            content: "";
+            position: absolute;
+            bottom: -9px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+        }
+
+        .speech-left::after {
+            left: 1.5rem;
+            border-top: 10px solid var(--tail, #dcfce7);
+        }
+
+        /* 프로그램 안의 고유 이름(위젯 이름, 데이터셋·속성 이름)을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. `Merge Data`는 코드가 아니라 화면에 적힌 버튼 이름인데,
+           모노스페이스로 두면 코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           글꼴은 본문과 같은 Pretendard로 두고 배경·테두리로만 구별한다. */
+        .widget-name,
+        .attr-name {
+            /* `inline-block` + `nowrap`으로 두면 `Find matching pairs of rows`처럼 긴 설정
+               이름이 통째로 한 줄을 차지해 375px에서 화면을 뚫는다. `inline`으로 두어 줄바꿈을
+               허용하고, `box-decoration-break: clone`으로 잘린 조각마다 배경·테두리를 그린다. */
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 오렌지 위젯 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 데이터셋 이름 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 오렌지3 위젯 노드 — 스크린샷 대신 쓰는 공통 컴포넌트.
+           위젯 이름과 연결 순서만 정확하면 학생이 실제 화면에서 따라갈 수 있다. */
+        .widget-node {
+            background: #ffffff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.06);
+        }
+
+        /* 빈 표 칸 — 통합 결과에서 값이 없는 자리를 눈에 띄게 표시한다 */
+        .empty-cell {
+            background-image: repeating-linear-gradient(45deg, #f1f5f9 0 6px, #ffffff 6px 12px);
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-layer-group absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-object-group absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터셋의 이해
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            데이터셋은 <strong>무엇이고</strong>,<br>
+            <strong>어떻게 구성되어</strong> 있을까요?<br>
+            그리고 둘을 <strong>합치면</strong> 무엇이 좋아질까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터셋의 뜻을 설명하고, 데이터와 데이터셋이 어떻게 다른지 구분할 수 있다.</li>
+                    <li>정형 데이터셋과 비정형 데이터셋의 예를 들고, 서로 다른 형태의 데이터셋을 함께 분석하면 무엇이 좋은지 말할 수 있다.</li>
+                    <li>데이터 통합의 세 가지 방법을 구분하고, 목적에 맞는 방법을 고를 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-layer-group text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터셋의 이해</span>
+        </div>
+        <div class="hidden md:flex space-x-5 font-bold text-slate-500 text-base">
+            <a href="#dataset" class="hover:text-indigo-600 transition">데이터셋</a>
+            <a href="#forms" class="hover:text-indigo-600 transition">형태</a>
+            <a href="#integration" class="hover:text-indigo-600 transition">데이터 통합</a>
+            <a href="#methods" class="hover:text-indigo-600 transition">세 가지 방법</a>
+            <a href="#orange" class="hover:text-indigo-600 transition">오렌지 실습</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 데이터셋이란 ===== -->
+    <section id="dataset" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터셋이란 무엇일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터와 데이터셋은 그냥 같은 말 아닐까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">앞 절에서 데이터 하나하나와 속성을 배웠습니다.
+                이제 그것들이 <strong>모여서 이룬 덩어리</strong>를 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
+                <p class="text-lg text-indigo-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-quote-left text-indigo-400 mr-2"></i>
+                    <strong>데이터셋(dataset)</strong>은 데이터들의 모임으로
+                    <strong>하나 이상의 데이터 포인트로 구성</strong>된다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-language text-indigo-500 mr-1"></i>용어 들여다보기
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="bg-indigo-100 text-indigo-800 font-bold text-base px-3 py-1 rounded-full">데이터셋</span>
+                    <i class="fa-solid fa-equals text-slate-400"></i>
+                    <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">dataset</span>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>data</strong> + <strong>set</strong>입니다.
+                    영어 <strong>set</strong>은 &lsquo;한 벌 &middot; 한 묶음&rsquo;을 뜻합니다.
+                    커피잔 여섯 개를 한 상자에 담은 것을 &lsquo;커피잔 세트&rsquo;라고 부르는 것과 같습니다.
+                    즉 데이터셋은 <strong>따로 놀던 데이터를 목적에 맞게 한 묶음으로 정리해 둔 것</strong>입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-5">
+                    <div class="w-11 h-11 bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-shapes"></i>
+                    </div>
+                    <p class="font-bold text-base text-slate-800 mb-2">데이터 (data)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>사실이나 정보의 원시 형태</strong>로, 다양한 형태(숫자, 텍스트, 이미지 등)로
+                        존재할 수 있습니다.
+                    </p>
+                    <p class="text-base text-slate-500 leading-relaxed mt-3 pt-3 border-t border-slate-100">
+                        <i class="fa-solid fa-comment-dots text-slate-400 mr-1"></i>
+                        아직 정리되지 않은 <strong>낱개</strong>입니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-indigo-200 rounded-2xl p-5">
+                    <div class="w-11 h-11 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-table-list"></i>
+                    </div>
+                    <p class="font-bold text-base text-indigo-800 mb-2">데이터셋 (dataset)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>목적에 맞는 관련 데이터가 모여 구조화된 형태</strong>를 이룬 것으로,
+                        특정 분석이나 처리를 위해 정리된 데이터의 집합입니다.
+                        보통 <strong>표나 데이터베이스 형태</strong>로 구성되며,
+                        여러 데이터 포인트들이 모여서 형성됩니다.
+                    </p>
+                    <p class="text-base text-slate-500 leading-relaxed mt-3 pt-3 border-t border-slate-100">
+                        <i class="fa-solid fa-comment-dots text-indigo-400 mr-1"></i>
+                        <strong>목적</strong>과 <strong>구조</strong>가 생긴 묶음입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-key text-indigo-500 mr-1"></i>
+                    <strong>가르는 지점은 &lsquo;목적&rsquo;과 &lsquo;구조&rsquo;입니다.</strong>
+                    서랍에 굴러다니는 영수증은 데이터이고,
+                    그것을 &lsquo;이번 달 지출을 알아보려고&rsquo; 날짜 &middot; 항목 &middot; 금액 표로 옮겨 적으면 데이터셋이 됩니다.
+                    같은 내용인데도 <strong>왜 모았는지가 정해지고 칸이 생기는 순간</strong> 데이터셋이 되는 것입니다.
+                </p>
+            </div>
+
+            <div>
+                <p class="font-bold text-base text-slate-700 mb-3">정형 데이터로 표현된 영화 데이터셋</p>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[480px]">
+                        <thead>
+                        <tr>
+                            <th>제목</th>
+                            <th>감독</th>
+                            <th>관객 수(만 명)</th>
+                            <th>평점</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>우리집</td>
+                            <td>감독 A</td>
+                            <td>324</td>
+                            <td>8.8</td>
+                        </tr>
+                        <tr>
+                            <td>민들레</td>
+                            <td>감독 B</td>
+                            <td>186</td>
+                            <td>8.7</td>
+                        </tr>
+                        <tr>
+                            <td>영혼들</td>
+                            <td>감독 C</td>
+                            <td>405</td>
+                            <td>9.1</td>
+                        </tr>
+                        <tr>
+                            <td>아홉 번째 별</td>
+                            <td>감독 D</td>
+                            <td>227</td>
+                            <td>9.3</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mt-4">
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <i class="fa-solid fa-magnifying-glass text-indigo-500 mr-1"></i>
+                        앞 절에서 배운 눈으로 읽어 봅시다. 이 영화 데이터셋은
+                        <strong>4개의 속성</strong>(제목 &middot; 감독 &middot; 관객 수 &middot; 평점)과
+                        <strong>4개의 데이터 포인트</strong>(영화 네 편)로 이루어져 있습니다.
+                        속성은 <strong>세로줄</strong>, 데이터 포인트는 <strong>가로줄</strong>이었습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 반 학생들의 키를 종이에 아무렇게나 적어 둔 것은 <strong>데이터일까요, 데이터셋일까요?</strong>
+                데이터셋이 되려면 무엇이 더 있어야 하는지 두 가지를 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 데이터셋의 형태 ===== -->
+    <section id="forms" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터셋은 표로만 되어 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">칸에 안 들어가는 것들은 데이터셋이 못 되는 걸까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터는 <strong>정형 데이터로 표현</strong>하거나,
+                구조화되지 않은 <strong>리뷰 텍스트와 이미지 같은 비정형 데이터로도 표현</strong>할 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div>
+                    <p class="font-bold text-base text-slate-700 mb-3">비정형 데이터로 표현된 리뷰 데이터셋</p>
+                    <div class="border-4 border-slate-300 rounded-3xl bg-white p-4 mx-auto w-full max-w-[320px] space-y-4">
+                        <div class="flex justify-center">
+                            <div class="w-16 h-1.5 bg-slate-200 rounded-full"></div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="w-9 h-9 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div class="speech speech-left bg-green-100 text-green-900 text-base"
+                                 style="--tail:#dcfce7">너무 재밌어서 두 번 봤습니다. 꼭 보세요!
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="w-9 h-9 rounded-full bg-sky-100 text-sky-500 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div class="speech speech-left bg-green-100 text-green-900 text-base"
+                                 style="--tail:#dcfce7">기대를 하지 않고 봤는데, 기대 이상이었어요!
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div class="speech speech-left bg-green-100 text-green-900 text-base"
+                                 style="--tail:#dcfce7">재미없습니다. 돈이 아까워요. 추천하고 싶지 않아요.
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="w-9 h-9 rounded-full bg-violet-100 text-violet-500 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div class="speech speech-left bg-green-100 text-green-900 text-base"
+                                 style="--tail:#dcfce7">시간 보내기용으로 추천합니다. 영화보는 내내 웃었어요.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        왼쪽 리뷰들도 <strong>하나의 데이터셋</strong>입니다.
+                        &lsquo;이 영화에 대한 관객의 반응&rsquo;이라는 <strong>목적</strong>으로 모였기 때문입니다.
+                        다만 앞 절에서 배운 대로 <strong>칸이 정해져 있지 않아</strong> 비정형입니다.
+                        글의 길이도 제각각이고, 옆에 붙은 <strong>프로필 이미지</strong>도 표에 넣을 수 없습니다.
+                    </p>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                        <p class="font-bold text-base text-slate-800 mb-3">
+                            <i class="fa-solid fa-layer-group text-indigo-500 mr-1"></i>데이터셋은 세 가지로 나뉩니다
+                        </p>
+                        <ul class="space-y-2 text-base text-slate-600 leading-relaxed list-disc list-outside pl-5">
+                            <li><strong>정형 데이터로 구성된 데이터셋</strong> &mdash; 영화 데이터셋처럼 전부 표에 들어감</li>
+                            <li><strong>비정형 데이터로 구성된 데이터셋</strong> &mdash; 리뷰 데이터셋처럼 전부 표 밖에 있음</li>
+                            <li><strong>정형과 비정형이 섞인 데이터셋</strong> &mdash; 실제로 가장 흔한 경우</li>
+                        </ul>
+                        <p class="text-base text-slate-600 leading-relaxed mt-3">
+                            영화 예매 앱을 떠올려 보세요. 상영 시간 &middot; 좌석 &middot; 가격은 정형이고,
+                            포스터 이미지 &middot; 예고편 영상 &middot; 관람평은 비정형입니다.
+                            <strong>한 화면 안에 둘이 같이 있습니다.</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    <strong>서로 다른 형태의 데이터셋을 함께 분석하면 새로운 통찰을 얻을 수 있습니다.</strong>
+                    위 <strong>영화 데이터셋</strong>과 <strong>리뷰 데이터셋</strong>을 함께 분석하면
+                    해당 영화에 대한 <strong>관객들의 감정과 느낀점</strong>을 더 명확하게 파악할 수 있습니다.
+                </p>
+                <p class="text-base text-indigo-900 leading-relaxed mt-3">
+                    평점 <strong>8.8</strong>이라는 숫자만으로는 <strong>왜</strong> 그 점수인지 알 수 없습니다.
+                    리뷰를 함께 보면 &lsquo;웃겨서&rsquo;인지 &lsquo;감동해서&rsquo;인지가 드러납니다.
+                    <strong>숫자는 &lsquo;얼마나&rsquo;를, 글은 &lsquo;왜&rsquo;를 알려 줍니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 학교 <strong>급식 만족도 조사</strong>에서 정형 데이터셋에 해당하는 것과
+                비정형 데이터셋에 해당하는 것을 하나씩 들어 보세요.
+                그리고 둘을 함께 보면 무엇을 더 알 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 데이터 통합 ===== -->
+    <section id="integration" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터셋을 합치면 무엇이 좋을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">따로 있는 표 두 개를 왜 굳이 하나로 만들까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">앞에서 &lsquo;함께 분석하면 좋다&rsquo;고 했는데,
+                <strong>어떻게</strong> 함께 놓는지가 이번 내용입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
+                <p class="text-lg text-indigo-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-quote-left text-indigo-400 mr-2"></i>
+                    <strong>데이터 통합</strong>은 두 개 이상의 데이터셋을
+                    <strong>하나의 데이터셋으로 합하는 과정</strong>이다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-emerald-800 mb-2">
+                        <i class="fa-solid fa-maximize text-emerald-500 mr-1"></i>속성이 많아집니다
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        여러 개의 데이터를 통합하면 <strong>한 번에 분석할 수 있는 속성의 수가 많아지게 되므로
+                        포괄적인 분석이 가능</strong>합니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-emerald-800 mb-2">
+                        <i class="fa-solid fa-diagram-project text-emerald-500 mr-1"></i>관계가 더 보입니다
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>더 많은 수의 속성 간 관계를 발견</strong>할 수 있습니다.
+                        앞 절에서 배운 상관관계 &middot; 인과 관계를 찾을 재료가 늘어나는 것입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-comment-dots text-indigo-500 mr-1"></i>
+                    영화 데이터셋만 보면 &lsquo;평점이 높은 영화&rsquo;까지밖에 알 수 없습니다.
+                    여기에 상영관 데이터셋을 붙이면
+                    <strong>&lsquo;평점이 높은 영화가 어느 관에서 하는가&rsquo;</strong>를 한 번에 물을 수 있습니다.
+                    <strong>따로 있을 때는 던질 수 없던 질문</strong>이 생기는 것, 이것이 통합의 이유입니다.
+                </p>
+            </div>
+
+            <div>
+                <p class="font-bold text-base text-slate-700 mb-3">합칠 재료 &mdash; 데이터셋 두 개</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="w-4 h-4 rounded-full bg-indigo-400 inline-block"></span>
+                            <span class="font-bold text-base text-slate-700">영화 데이터셋</span>
+                            <span class="attr-name">data</span>
+                        </div>
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                            <table class="min-w-[240px]">
+                                <thead>
+                                <tr>
+                                    <th>제목</th>
+                                    <th>감독</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>우리집</td>
+                                    <td>감독 A</td>
+                                </tr>
+                                <tr>
+                                    <td>민들레</td>
+                                    <td>감독 B</td>
+                                </tr>
+                                <tr>
+                                    <td>영혼들</td>
+                                    <td>감독 C</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="w-4 h-4 rounded-full bg-emerald-400 inline-block"></span>
+                            <span class="font-bold text-base text-slate-700">상영관 데이터셋</span>
+                            <span class="attr-name">extra data</span>
+                        </div>
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                            <table class="min-w-[240px]">
+                                <thead>
+                                <tr>
+                                    <th>제목</th>
+                                    <th>상영관</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>우리집</td>
+                                    <td>1관</td>
+                                </tr>
+                                <tr>
+                                    <td>아홉 번째 별</td>
+                                    <td>1관</td>
+                                </tr>
+                                <tr>
+                                    <td>영혼들</td>
+                                    <td>3관</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mt-4">
+                    <p class="text-base text-amber-900 leading-relaxed">
+                        <i class="fa-solid fa-magnifying-glass text-amber-500 mr-1"></i>
+                        <strong>합치기 전에 두 가지를 확인하세요.</strong>
+                        첫째, <strong>공통된 속성</strong>이 있는가 &mdash; 여기서는 <strong>&lsquo;제목&rsquo;</strong>입니다.
+                        이것이 두 표를 잇는 <strong>다리</strong> 역할을 합니다.
+                        둘째, <strong>한쪽에만 있는 데이터</strong>가 무엇인가 &mdash;
+                        <strong>민들레</strong>는 영화 데이터셋에만, <strong>아홉 번째 별</strong>은 상영관 데이터셋에만 있습니다.
+                        이 둘을 어떻게 처리하느냐가 다음에 나올 <strong>세 가지 방법</strong>을 가릅니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                위 두 데이터셋에서 <strong>양쪽에 모두 있는 영화</strong>는 무엇이고,
+                <strong>한쪽에만 있는 영화</strong>는 무엇인가요? 각각 이름을 대 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 세 가지 방법 ===== -->
+    <section id="methods" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">통합하는 방법은 몇 가지일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">한쪽에만 있는 데이터는 버려야 할까, 남겨야 할까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터 통합 방법은 <strong>세 가지 종류</strong>가 있으며,
+                <strong>목적에 맞는 방법을 선택</strong>하여 통합합니다.</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <p class="text-base text-slate-600 leading-relaxed">
+                <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                아래 그림에서 <span class="font-bold text-indigo-700">왼쪽 원은 영화 데이터셋</span>,
+                <span class="font-bold text-emerald-700">오른쪽 원은 상영관 데이터셋</span>입니다.
+                두 원이 겹치는 부분이 <strong>양쪽에 모두 있는 데이터</strong>이고,
+                <strong>색칠된 부분이 결과에 남는 데이터</strong>입니다.
+            </p>
+        </div>
+
+        <div class="space-y-6">
+            <!-- 방법 1 -->
+            <div class="section-card space-y-5">
+                <div class="flex flex-col sm:flex-row gap-5 items-start">
+                    <svg viewBox="0 0 130 76" class="w-32 h-auto shrink-0 mx-auto sm:mx-0" role="img"
+                         aria-label="두 원이 겹치는 부분만 색칠된 벤 다이어그램">
+                        <defs>
+                            <clipPath id="venn-inner">
+                                <circle cx="48" cy="38" r="30"/>
+                            </clipPath>
+                        </defs>
+                        <circle cx="48" cy="38" r="30" fill="#ffffff"/>
+                        <circle cx="82" cy="38" r="30" fill="#ffffff"/>
+                        <g clip-path="url(#venn-inner)">
+                            <circle cx="82" cy="38" r="30" fill="#a5b4fc"/>
+                        </g>
+                        <circle cx="48" cy="38" r="30" fill="none" stroke="#6366f1" stroke-width="2.5"/>
+                        <circle cx="82" cy="38" r="30" fill="none" stroke="#10b981" stroke-width="2.5"/>
+                    </svg>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="bg-indigo-600 text-white font-bold text-base px-3 py-1 rounded-full">방법 1</span>
+                            <span class="font-bold text-xl text-slate-800">공통된 속성 기준으로 통합</span>
+                        </div>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            두 데이터셋에서 <strong>공통된 속성인 &lsquo;제목&rsquo;을 기준으로 같은 데이터만</strong> 통합합니다.
+                            <strong>양쪽에 모두 있는 것만</strong> 남고, 한쪽에만 있는 것은 버려집니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[360px]">
+                        <thead>
+                        <tr>
+                            <th>제목</th>
+                            <th>감독</th>
+                            <th>상영관</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>우리집</td>
+                            <td>감독 A</td>
+                            <td>1관</td>
+                        </tr>
+                        <tr>
+                            <td>영혼들</td>
+                            <td>감독 C</td>
+                            <td>3관</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <p class="text-base text-indigo-900 leading-relaxed">
+                        <i class="fa-solid fa-thumbs-up text-indigo-500 mr-1"></i>
+                        이 방법은 <strong>불필요한 데이터 없이 공통된 값만 필요한 경우</strong>에 사용할 수 있습니다.
+                        빈칸이 하나도 없어 <strong>바로 분석에 쓰기 좋습니다.</strong>
+                        대신 민들레와 아홉 번째 별은 <strong>사라졌다</strong>는 점을 잊으면 안 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 방법 2 -->
+            <div class="section-card space-y-5">
+                <div class="flex flex-col sm:flex-row gap-5 items-start">
+                    <svg viewBox="0 0 130 76" class="w-32 h-auto shrink-0 mx-auto sm:mx-0" role="img"
+                         aria-label="왼쪽 원 전체가 색칠된 벤 다이어그램">
+                        <circle cx="48" cy="38" r="30" fill="#a5b4fc"/>
+                        <circle cx="82" cy="38" r="30" fill="none" stroke="#10b981" stroke-width="2.5"/>
+                        <circle cx="48" cy="38" r="30" fill="none" stroke="#6366f1" stroke-width="2.5"/>
+                    </svg>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="bg-indigo-600 text-white font-bold text-base px-3 py-1 rounded-full">방법 2</span>
+                            <span class="font-bold text-xl text-slate-800">영화 데이터셋의 속성 기준으로 통합</span>
+                        </div>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>영화 데이터셋의 데이터 포인트를 기준으로</strong> 상영관 데이터셋의 데이터 포인트를 통합하고,
+                            <strong>일치하는 데이터가 없는 경우에는 해당 속성값을 빈 칸으로</strong> 추출합니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[360px]">
+                        <thead>
+                        <tr>
+                            <th>제목</th>
+                            <th>감독</th>
+                            <th>상영관</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>우리집</td>
+                            <td>감독 A</td>
+                            <td>1관</td>
+                        </tr>
+                        <tr>
+                            <td>민들레</td>
+                            <td>감독 B</td>
+                            <td class="empty-cell"></td>
+                        </tr>
+                        <tr>
+                            <td>영혼들</td>
+                            <td>감독 C</td>
+                            <td>3관</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <p class="text-base text-indigo-900 leading-relaxed">
+                        <i class="fa-solid fa-thumbs-up text-indigo-500 mr-1"></i>
+                        이 방법은 <strong>기준이 되는 데이터셋과 다른 데이터셋과의 관계를 파악할 때</strong> 사용할 수 있습니다.
+                        영화 세 편이 <strong>모두 남아 있고</strong>, 민들레의 상영관 칸만 비어 있습니다.
+                        &lsquo;<strong>우리 영화 중 아직 상영관이 안 잡힌 것은?</strong>&rsquo;을 알고 싶을 때 이 방법을 씁니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 방법 3 -->
+            <div class="section-card space-y-5">
+                <div class="flex flex-col sm:flex-row gap-5 items-start">
+                    <svg viewBox="0 0 130 76" class="w-32 h-auto shrink-0 mx-auto sm:mx-0" role="img"
+                         aria-label="두 원 전체가 색칠된 벤 다이어그램">
+                        <circle cx="48" cy="38" r="30" fill="#a5b4fc"/>
+                        <circle cx="82" cy="38" r="30" fill="#a5b4fc"/>
+                        <circle cx="48" cy="38" r="30" fill="none" stroke="#6366f1" stroke-width="2.5"/>
+                        <circle cx="82" cy="38" r="30" fill="none" stroke="#10b981" stroke-width="2.5"/>
+                    </svg>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="bg-indigo-600 text-white font-bold text-base px-3 py-1 rounded-full">방법 3</span>
+                            <span class="font-bold text-xl text-slate-800">공통된 속성 기준으로 모든 데이터 통합</span>
+                        </div>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            공통된 속성을 기준으로 <strong>모든 데이터셋의 데이터 포인트를</strong> 통합합니다.
+                            어느 한쪽에만 있어도 <strong>버리지 않고 모두 남깁니다.</strong>
+                        </p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[360px]">
+                        <thead>
+                        <tr>
+                            <th>제목</th>
+                            <th>감독</th>
+                            <th>상영관</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>우리집</td>
+                            <td>감독 A</td>
+                            <td>1관</td>
+                        </tr>
+                        <tr>
+                            <td>민들레</td>
+                            <td>감독 B</td>
+                            <td class="empty-cell"></td>
+                        </tr>
+                        <tr>
+                            <td>아홉 번째 별</td>
+                            <td class="empty-cell"></td>
+                            <td>1관</td>
+                        </tr>
+                        <tr>
+                            <td>영혼들</td>
+                            <td>감독 C</td>
+                            <td>3관</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <p class="text-base text-indigo-900 leading-relaxed">
+                        <i class="fa-solid fa-thumbs-up text-indigo-500 mr-1"></i>
+                        이 방법은 <strong>데이터셋 간의 완전한 관계를 파악할 때</strong> 사용할 수 있습니다.
+                        <strong>아무것도 잃지 않는</strong> 대신 <strong>빈칸이 가장 많이 생깁니다.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">
+                <i class="fa-solid fa-scale-balanced text-indigo-500 mr-2"></i>세 방법을 한 줄로 비교하면
+            </h3>
+            <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                <table class="min-w-[620px]">
+                    <thead>
+                    <tr>
+                        <th>방법</th>
+                        <th>남는 데이터 포인트</th>
+                        <th>빈칸</th>
+                        <th>언제 쓰나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">1. 공통된 것만</td>
+                        <td>2개 (양쪽에 다 있는 것)</td>
+                        <td>없음</td>
+                        <td>공통된 값만 필요할 때</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">2. 기준 데이터셋 전부</td>
+                        <td>3개 (영화 데이터셋 전부)</td>
+                        <td>조금</td>
+                        <td>기준 데이터셋과의 관계를 볼 때</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">3. 모든 데이터</td>
+                        <td>4개 (양쪽 전부)</td>
+                        <td>가장 많음</td>
+                        <td>완전한 관계를 볼 때</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-key text-indigo-500 mr-1"></i>
+                    <strong>고르는 기준은 &lsquo;무엇을 알고 싶은가&rsquo;입니다.</strong>
+                    빈칸이 없는 깔끔한 표가 늘 좋은 것이 아닙니다.
+                    방법 1을 쓰면 &lsquo;아직 상영관이 안 잡힌 영화&rsquo;는 <strong>아예 보이지 않게</strong> 됩니다.
+                    <strong>버려진 데이터가 사실은 답이었을 수도 있습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <h3 class="text-xl font-bold text-slate-800">
+                <i class="fa-solid fa-clipboard-question text-indigo-500 mr-2"></i>직접 판단해 봅시다
+            </h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                <strong>감독 A</strong>의 영화가 현재 어디에서 상영하는지를 알고 싶다면
+                어떤 통합 방법을 사용해야 할까요?
+            </p>
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-check-double text-indigo-500 mr-1"></i>
+                    <strong>세 방법 모두</strong> 감독 A의 영화가 어디에서 상영되고 있는지 알 수 있습니다.
+                    &lsquo;우리집&rsquo;은 양쪽 데이터셋에 다 있어서 어느 방법으로 합쳐도 남기 때문입니다.
+                    다만 <strong>&lsquo;공통된 속성을 기준으로 통합하는 방법&rsquo;(방법 1)이 가장 효율적</strong>입니다.
+                    필요 없는 빈칸이 딸려 오지 않기 때문입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &lsquo;<strong>상영관이 아직 잡히지 않은 영화를 찾아라</strong>&rsquo;는 요청을 받았습니다.
+                세 방법 중 어느 것을 써야 할까요? 그리고 <strong>방법 1을 쓰면 안 되는 이유</strong>는 무엇인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 오렌지 실습 ===== -->
+    <section id="orange" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">오렌지로 직접 통합해 볼까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">방금 배운 세 가지 방법이 프로그램에서는 어떻게 나타날까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">오렌지 프로그램의 위젯으로 두 개 이상의 데이터셋을 쉽게 통합할 수 있습니다.
+                <span class="widget-name">Merge Data</span> 위젯을 사용해 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div>
+                <p class="font-bold text-base text-slate-700 mb-4">이번 실습에서 만들 워크플로</p>
+                <div class="flex flex-col lg:flex-row items-center justify-center gap-3 lg:gap-6 py-2">
+                    <div class="flex flex-col gap-3">
+                        <div class="widget-node">
+                            <i class="fa-solid fa-file-lines text-2xl text-orange-500 mb-2 block"></i>
+                            <p class="font-bold text-base text-slate-800">File</p>
+                            <p class="text-base text-slate-500">상영관 데이터</p>
+                        </div>
+                        <div class="widget-node">
+                            <i class="fa-solid fa-file-lines text-2xl text-orange-500 mb-2 block"></i>
+                            <p class="font-bold text-base text-slate-800">File</p>
+                            <p class="text-base text-slate-500">영화 데이터</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-down text-2xl text-orange-400 lg:hidden"></i>
+                    <i class="fa-solid fa-arrow-right text-2xl text-orange-400 hidden lg:block"></i>
+                    <div class="widget-node">
+                        <i class="fa-solid fa-code-merge text-2xl text-orange-500 mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-800">Merge Data</p>
+                        <p class="text-base text-slate-500">두 표 합치기</p>
+                    </div>
+                    <i class="fa-solid fa-arrow-down text-2xl text-orange-400 lg:hidden"></i>
+                    <i class="fa-solid fa-arrow-right text-2xl text-orange-400 hidden lg:block"></i>
+                    <div class="widget-node">
+                        <i class="fa-solid fa-table text-2xl text-orange-500 mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-800">Data Table</p>
+                        <p class="text-base text-slate-500">결과 확인</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                            1
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-base text-slate-800 mb-2">데이터 수집하기</p>
+                            <p class="text-base text-slate-600 leading-relaxed mb-3">
+                                구글 스프레드시트를 열어 아래 두 표를 각각 입력하고,
+                                파일 확장자를 <strong>xlsx</strong> 형식으로 저장합니다. 창 두 개, 파일 두 개입니다.
+                            </p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <p class="font-bold text-base text-slate-700 mb-2">상영관 데이터</p>
+                                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                        <table class="min-w-[380px]">
+                                            <thead>
+                                            <tr>
+                                                <th>상영관</th>
+                                                <th>시작 시간</th>
+                                                <th>제목</th>
+                                                <th>금액</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td>1관</td>
+                                                <td>19:00</td>
+                                                <td>우리집</td>
+                                                <td>11,000</td>
+                                            </tr>
+                                            <tr>
+                                                <td>1관</td>
+                                                <td>17:30</td>
+                                                <td>아홉 번째 별</td>
+                                                <td>10,000</td>
+                                            </tr>
+                                            <tr>
+                                                <td>3관</td>
+                                                <td>18:00</td>
+                                                <td>영혼들</td>
+                                                <td>10,000</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-base text-slate-700 mb-2">영화 데이터</p>
+                                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                        <table class="min-w-[380px]">
+                                            <thead>
+                                            <tr>
+                                                <th>제목</th>
+                                                <th>감독</th>
+                                                <th>관객 수(만 명)</th>
+                                                <th>평점</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td>우리집</td>
+                                                <td>감독 A</td>
+                                                <td>324</td>
+                                                <td>8.8</td>
+                                            </tr>
+                                            <tr>
+                                                <td>민들레</td>
+                                                <td>감독 B</td>
+                                                <td>186</td>
+                                                <td>8.7</td>
+                                            </tr>
+                                            <tr>
+                                                <td>영혼들</td>
+                                                <td>감독 C</td>
+                                                <td>405</td>
+                                                <td>9.1</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                            2
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-base text-slate-800 mb-2">데이터 통합하기</p>
+                            <ol class="space-y-2 text-base text-slate-600 leading-relaxed list-decimal list-outside pl-5">
+                                <li>오렌지 프로그램을 열고 <span class="widget-name">File</span> 위젯에서
+                                    <strong>상영관 데이터</strong>를 불러옵니다.
+                                    창이 열리면 저장한 xlsx 파일을 고르고, <strong>속성명을 확인한 뒤</strong>
+                                    <span class="widget-name">Apply</span>를 클릭합니다.
+                                </li>
+                                <li>같은 방법으로 <span class="widget-name">File</span> 위젯을 하나 더 놓아
+                                    <strong>영화 데이터</strong>를 불러옵니다.
+                                </li>
+                                <li>두 개의 <span class="widget-name">File</span>에
+                                    <span class="widget-name">Merge Data</span> 위젯을 연결하고,
+                                    <span class="widget-name">Row matching</span> 설정을
+                                    <strong>[제목] - [제목]</strong>으로 설정합니다.
+                                </li>
+                            </ol>
+                            <div class="bg-white border border-slate-200 rounded-xl p-4 mt-3">
+                                <p class="text-base text-slate-600 leading-relaxed">
+                                    <i class="fa-solid fa-circle-exclamation text-orange-500 mr-1"></i>
+                                    <strong>3번이 이 실습의 핵심입니다.</strong>
+                                    <span class="widget-name">Row matching</span>이 바로 앞에서 배운
+                                    <strong>&lsquo;공통된 속성&rsquo;</strong>을 지정하는 자리입니다.
+                                    두 표를 잇는 <strong>다리를 무엇으로 놓을지</strong> 정하는 것입니다.
+                                    여기서는 양쪽에 다 있는 <strong>제목</strong>을 골랐습니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                            3
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-base text-slate-800 mb-2">데이터 확인하기</p>
+                            <p class="text-base text-slate-600 leading-relaxed">
+                                <span class="widget-name">Merge Data</span>에
+                                <span class="widget-name">Data Table</span> 위젯을 연결하여 통합된 데이터를 확인하고,
+                                <span class="widget-name">Merge Data</span> 위젯에서
+                                <span class="widget-name">Merging</span> 설정을 바꿔 봅니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p class="text-base text-amber-900 leading-relaxed">
+                    <i class="fa-solid fa-circle-exclamation text-amber-500 mr-1"></i>
+                    <strong>이번 실습에서는 상영관 데이터가 기준입니다.</strong>
+                    <span class="widget-name">Merge Data</span> 위젯에 <strong>먼저 연결한 데이터</strong>를
+                    <span class="attr-name">Data</span>, <strong>그 이후에 연결한 데이터</strong>를
+                    <span class="attr-name">Extra data</span>라고 부릅니다.
+                    앞 절 설명에서는 영화 데이터셋이 기준이었지만, 여기서는 상영관을 먼저 불러오므로
+                    <strong>기준이 뒤바뀝니다.</strong> 같은 설정이라도 <strong>무엇을 먼저 연결했느냐에 따라 결과가 달라집니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">
+                <i class="fa-solid fa-right-left text-indigo-500 mr-2"></i>Merging 설정 세 가지 &mdash; 앞에서 배운 그 세 가지입니다
+            </h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                이름만 영어일 뿐, <strong>벤 다이어그램이 정확히 같습니다.</strong>
+                셋을 모두 눌러 보고 결과가 어떻게 달라지는지 확인해 보세요.
+            </p>
+            <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                <table class="min-w-[680px]">
+                    <thead>
+                    <tr>
+                        <th>오렌지의 Merging 설정</th>
+                        <th>뜻</th>
+                        <th>앞에서 배운 방법</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><span class="widget-name">Append columns from Extra data</span></td>
+                        <td>기준(Data)의 행은 모두 두고, Extra data의 열을 붙인다.
+                            짝이 없으면 빈칸으로 둔다.
+                        </td>
+                        <td class="font-bold text-slate-700">방법 2 &mdash; 기준 데이터셋 전부</td>
+                    </tr>
+                    <tr>
+                        <td><span class="widget-name">Find matching pairs of rows</span></td>
+                        <td>일치하는 행을 찾고, <strong>일치하지 않는 행은 출력에서 제외</strong>한다.</td>
+                        <td class="font-bold text-slate-700">방법 1 &mdash; 공통된 것만</td>
+                    </tr>
+                    <tr>
+                        <td><span class="widget-name">Concatenate tables</span></td>
+                        <td>일치하는 행을 찾고, <strong>일치하지 않는 행은 끝에 추가</strong>한다.</td>
+                        <td class="font-bold text-slate-700">방법 3 &mdash; 모든 데이터</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="font-bold text-base text-slate-800 mb-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-500 mr-1"></i>세 설정을 각각 눌러 보고 적어 봅시다
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed mb-3">
+                    설정마다 <strong>데이터 포인트가 몇 개 나오는지</strong> 세어 보고,
+                    <strong>어떤 특징이 있는지</strong> 적어 보세요.
+                    위 두 표(상영관 3개 &middot; 영화 3개, 공통은 우리집 &middot; 영혼들)를 기준으로
+                    <strong>미리 예상한 뒤 화면과 맞춰 보면</strong> 훨씬 잘 남습니다.
+                </p>
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="min-w-[560px]">
+                        <thead>
+                        <tr>
+                            <th>설정</th>
+                            <th>예상 데이터 포인트 수</th>
+                            <th>화면에서 확인한 수 &middot; 특징</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><span class="widget-name">Append columns from Extra data</span></td>
+                            <td>상영관 3개가 모두 남으므로 <strong>3개</strong></td>
+                            <td class="text-slate-400">직접 확인해 보세요</td>
+                        </tr>
+                        <tr>
+                            <td><span class="widget-name">Find matching pairs of rows</span></td>
+                            <td>공통은 우리집 &middot; 영혼들뿐이므로 <strong>2개</strong></td>
+                            <td class="text-slate-400">직접 확인해 보세요</td>
+                        </tr>
+                        <tr>
+                            <td><span class="widget-name">Concatenate tables</span></td>
+                            <td>상영관 3개 + 영화에만 있는 민들레 = <strong>4개</strong></td>
+                            <td class="text-slate-400">직접 확인해 보세요</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    <strong>통합에 쓸 수 있는 위젯이 하나 더 있습니다.</strong>
+                    <span class="widget-name">Concatenate</span> 위젯입니다.
+                    <span class="widget-name">Merge Data</span>는 <strong>특정 키를 기준으로 두 데이터셋의 행을 통합</strong>하고,
+                    <span class="widget-name">Concatenate</span>는 <strong>동일한 형식의 두 데이터셋을 단순히 연결</strong>한다는 점에서
+                    차이가 있습니다.
+                    <strong>다리를 놓고 잇느냐, 그냥 아래에 이어 붙이느냐</strong>의 차이입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <span class="widget-name">Row matching</span>을 <strong>[제목] - [제목]</strong>이 아니라
+                <strong>[상영관] - [감독]</strong>으로 잘못 설정하면 어떤 일이 생길까요?
+                &lsquo;다리&rsquo;라는 말로 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: AI와 함께 정리 ===== -->
+    <section class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">데이터셋은 무엇이고, 왜 합쳐서 볼까?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">데이터셋(dataset)</strong>은 데이터들의 모임으로
+                        하나 이상의 데이터 포인트로 구성됩니다.
+                        낱개인 데이터와 달리 <strong class="text-sky-200">목적</strong>에 맞게 모여
+                        <strong class="text-sky-200">구조</strong>를 갖춘 것이 데이터셋입니다.
+                        정형으로도, 비정형으로도 표현할 수 있고 둘이 섞이기도 합니다.
+                        <strong class="text-indigo-200">데이터 통합</strong>은 두 개 이상의 데이터셋을 하나로 합하는 과정으로,
+                        분석할 수 있는 속성이 많아져 <strong class="text-indigo-200">포괄적인 분석</strong>이 가능해지고
+                        더 많은 속성 간 관계를 발견할 수 있습니다.
+                        방법은 <strong class="text-sky-200">세 가지</strong>이고,
+                        <strong class="text-sky-200">무엇을 알고 싶은지</strong>에 따라 골라 씁니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-layer-group text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">데이터셋 <span class="font-medium text-sky-200">dataset</span></p>
+                    <p class="text-base text-sky-100">목적 + 구조를 갖춘 데이터의 묶음</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-shapes text-indigo-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">데이터셋의 형태</p>
+                    <p class="text-base text-sky-100">정형 &middot; 비정형 &middot; 섞인 것</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-object-group text-violet-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">데이터 통합</p>
+                    <p class="text-base text-sky-100">공통된 속성을 다리로 세 가지 방법</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터셋</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">dataset</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>데이터들의 모임으로 <strong>하나 이상의 데이터 포인트</strong>로 구성</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>데이터는 <strong>원시 형태의 낱개</strong>, 데이터셋은 <strong>목적 + 구조</strong>를 갖춘 묶음</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>보통 <strong>표나 데이터베이스</strong> 형태로 구성된다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터셋의 형태</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">structured &middot; unstructured</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>정형</strong>(영화 표) &middot; <strong>비정형</strong>(리뷰 글 &middot; 이미지) &middot; <strong>섞인 것</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>서로 다른 형태를 <strong>함께 분석하면 새로운 통찰</strong>을 얻는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>숫자는 <strong>얼마나</strong>를, 글은 <strong>왜</strong>를 알려 준다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터 통합</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">data integration</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>두 개 이상의 데이터셋을 <strong>하나로 합하는 과정</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성 수가 늘어 <strong>포괄적인 분석</strong>이 가능해진다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>두 표를 잇는 <strong>공통된 속성</strong>이 반드시 필요하다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">통합의 세 가지 방법</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">Orange · Merging</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>공통된 것만</strong> &mdash; 빈칸 없음 / Find matching pairs of rows</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>기준 데이터셋 전부</strong> &mdash; 짝 없으면 빈칸 / Append columns</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>모든 데이터</strong> &mdash; 아무것도 안 버림 / Concatenate tables</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>데이터</strong>와 <strong>데이터셋</strong>의 차이로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터셋도 이미지나 텍스트 같은 비정형 데이터로 이루어질 수 있습니다.')">
+                    ① 데이터는 이미지이고, 데이터셋은 숫자만 모은 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 데이터는 사실이나 정보의 원시 형태이고, 데이터셋은 목적에 맞는 데이터가 모여 구조화된 형태를 이룬 것입니다.')">
+                    ② 데이터는 원시 형태의 낱개이고, 데이터셋은 목적에 맞게 모여 구조를 갖춘 집합이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '개수가 기준이 아닙니다. 데이터셋은 데이터 포인트가 하나만 있어도 됩니다.')">
+                    ③ 데이터는 100개 미만이고, 데이터셋은 100개 이상이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터셋은 표뿐 아니라 리뷰 글이나 이미지 같은 비정형 형태로도 표현할 수 있습니다.')">
+                    ④ 데이터는 사람이 만들고, 데이터셋은 컴퓨터만 만들 수 있다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    제목 &middot; 감독 &middot; 관객 수 &middot; 평점 네 열에 영화 네 편이 적힌 영화 데이터셋이 있습니다.
+                    이 데이터셋의 <strong>속성 수</strong>와 <strong>데이터 포인트 수</strong>는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 열이 속성이므로 4개, 행이 데이터 포인트이므로 4개입니다.')">
+                    ① 속성 4개, 데이터 포인트 4개
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '속성은 세로줄(열)의 개수입니다. 영화 편수가 아닙니다.')">
+                    ② 속성 4개, 데이터 포인트 16개
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '속성과 데이터 포인트가 뒤바뀌지는 않았지만, 개수를 다시 세어 보세요.')">
+                    ③ 속성 16개, 데이터 포인트 4개
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '칸의 총 개수(4×4)는 속성값의 수이지 데이터 포인트의 수가 아닙니다.')">
+                    ④ 속성 1개, 데이터 포인트 16개
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>데이터 통합</strong>의 이점으로 알맞지 <strong>않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '통합하면 한 번에 분석할 수 있는 속성의 수가 많아집니다.')">
+                    ① 한 번에 분석할 수 있는 속성의 수가 많아진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '속성이 많아지므로 포괄적인 분석이 가능해집니다.')">
+                    ② 포괄적인 분석이 가능해진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '더 많은 수의 속성 간 관계를 발견할 수 있습니다.')">
+                    ③ 더 많은 속성 간 관계를 발견할 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 통합 방법에 따라 빈칸이 생기거나 일부 데이터가 빠질 수 있습니다. 오히려 무엇이 사라지는지를 확인해야 합니다.')">
+                    ④ 어떤 방법으로 합쳐도 데이터가 하나도 빠지지 않는다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>빈칸 없이 양쪽에 모두 있는 데이터만</strong> 남기고 싶습니다. 알맞은 통합 방법은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 공통된 속성을 기준으로 같은 데이터만 통합하면 빈칸 없이 양쪽에 다 있는 것만 남습니다.')">
+                    ① 공통된 속성 기준으로 통합하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기준 데이터셋의 데이터 포인트를 모두 남기므로, 짝이 없는 자리는 빈칸이 됩니다.')">
+                    ② 기준 데이터셋의 속성 기준으로 통합하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모든 데이터를 남기는 방법이므로 빈칸이 가장 많이 생깁니다.')">
+                    ③ 공통된 속성 기준으로 모든 데이터 통합하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '공통된 속성이 없으면 두 표를 이을 다리가 없어 통합할 수 없습니다.')">
+                    ④ 공통된 속성 없이 그냥 두 표를 나란히 두기
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 5 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    오렌지의 <span class="widget-name">Find matching pairs of rows</span> 설정은
+                    앞에서 배운 어떤 방법과 같을까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 일치하는 행만 남기고 일치하지 않는 행은 출력에서 제외하므로, 공통된 속성 기준으로 통합하는 방법과 같습니다.')">
+                    ① 공통된 것만 남기는 방법
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기준 데이터셋을 모두 남기는 것은 Append columns from Extra data입니다.')">
+                    ② 기준 데이터셋을 모두 남기는 방법
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모든 데이터를 남기는 것은 Concatenate tables입니다.')">
+                    ③ 모든 데이터를 남기는 방법
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 표를 잇는 공통된 속성을 지정하는 자리는 Row matching입니다.')">
+                    ④ 공통된 속성을 지정하는 방법
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="bg-slate-900 text-white py-12 px-6 mt-12">
+    <div class="max-w-6xl mx-auto text-center">
+        <p class="text-base text-slate-400">데이터 과학 · Ⅰ단원 데이터 과학의 이해</p>
+        <p class="font-bold text-base text-slate-300 mt-1">03. 데이터셋과 데이터베이스 — 1. 데이터셋의 이해</p>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

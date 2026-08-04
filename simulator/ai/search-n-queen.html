@@ -110,6 +110,14 @@
             background-color: #cbd5e1;
         }
 
+        /* 단계별 풀이 섹션용 정적 4×4 체스판 */
+        .walkthrough-board {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .bg-white-cell { background-color: #f8fafc; }
+        .bg-black-cell { background-color: #94a3b8; }
+
         .cell-conflict {
             background-color: #fecdd3 !important;
             box-shadow: inset 0 0 10px rgba(225, 29, 72, 0.5);
@@ -195,8 +203,7 @@
             overflow: hidden;
             /* 칸을 고정 크기로 두면 판을 작게 골라도 칸이 커지지 않는다.
                가진 폭을 나눠 쓰게 하고, 칸이 지나치게 커지지 않도록 판에만 상한을 둔다. */
-            width: 100%;
-            max-width: 30rem;
+            width: min(30rem, calc(100% - 3rem));
             margin: 0 auto;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
@@ -428,6 +435,7 @@
         <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-sm">
             <a class="hover:text-indigo-600 transition" href="#concept">개념 이해</a>
             <a class="hover:text-purple-600 transition" href="#rules">퍼즐 규칙</a>
+            <a class="hover:text-rose-600 transition" href="#walkthrough">단계별 풀이</a>
             <a class="hover:text-emerald-600 transition" href="#practice">직접 해보기</a>
             <a class="hover:text-purple-700 transition" href="#simulation">N-Queen 실습</a>
             <a class="hover:text-purple-700 transition" href="#summary">코드 원리</a>
@@ -512,6 +520,155 @@
                     <h4 class="font-bold text-slate-800 mb-2 text-lg">3. 최종 목표</h4>
                     <p class="text-slate-600 leading-relaxed">어떤 퀸들도 서로 공격할 수 없도록, 즉 <strong>같은 행, 열, 대각선에 겹치지
                         않게</strong> 안전하게 배치하세요.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================================
+         단계별 풀이 섹션 — 4-Queen으로 탐색 트리·백트래킹 체험
+    ================================================================ -->
+    <section class="scroll-mt-24 mb-16 mx-auto" id="walkthrough">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">단계별 풀이: 4-Queen으로 익히기</h2>
+            <div class="w-16 h-1.5 bg-rose-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">탐색 트리를 따라가며 4-Queen 문제를 인공지능처럼 단계별로 풀어 봅시다.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 md:p-10 shadow-sm border border-slate-200 space-y-5">
+
+            <!-- 1단계 -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-black text-lg shrink-0">1</div>
+                    <h4 class="text-lg font-bold text-slate-800">첫 번째 줄에 첫 번째 퀸 놓기 (초기 상태에서 시작)</h4>
+                </div>
+                <div class="flex flex-col md:flex-row items-center gap-6">
+                    <div class="chess-board walkthrough-board shrink-0">
+                        <div class="chess-cell bg-white-cell">👑</div>
+                        <div class="chess-cell bg-black-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-white-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-black-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-black-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-white-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-white-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-black-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell"><div class="absolute inset-0 bg-red-500/30"></div></div>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        빈 체스판이 <strong class="text-emerald-600">초기 상태</strong>입니다.
+                        첫 번째 행, 첫 번째 열에 퀸을 놓습니다.<br><br>
+                        <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold">빨간색 칸</span>은
+                        첫 번째 퀸이 공격할 수 있는 범위입니다.
+                        이제 다음 줄에는 저 칸들을 피해서 놓아야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 2단계 -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-black text-lg shrink-0">2</div>
+                    <h4 class="text-lg font-bold text-slate-800">다음 줄에 두 번째, 세 번째 퀸 놓기 (경로 탐색)</h4>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    공격받지 않는 위치를 찾아 두 번째 줄과 세 번째 줄에 차례대로 퀸을 배치해 봅니다.
+                    이 과정이 바로 트리의 가지를 타고 내려가는 <strong>경로 탐색</strong>입니다.
+                </p>
+                <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-center gap-3 text-base font-medium text-slate-500">
+                    1줄 퀸 놓기
+                    <i class="fa-solid fa-arrow-right text-slate-400"></i>
+                    2줄 안전한 곳 찾기
+                    <i class="fa-solid fa-arrow-right text-slate-400"></i>
+                    3줄 안전한 곳 찾기…
+                </div>
+            </div>
+
+            <!-- 3단계 -->
+            <div class="bg-rose-50 border-l-4 border-rose-500 rounded-2xl p-6 space-y-3">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-rose-500 text-white rounded-full flex items-center justify-center font-black text-lg shrink-0">3</div>
+                    <h4 class="text-lg font-bold text-slate-800">막혔다면? 뒤로 돌아가기! (백트래킹)</h4>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    만약 세 번째 줄에 퀸을 놓으려고 보니, 어떤 칸에 놓아도 다른 퀸에게 공격받게 된다면 어떻게 해야 할까요?<br>
+                    인공지능은 그 길이 틀렸음을 알고 <strong>이전 단계(위쪽 가지)로 다시 돌아가서</strong> 퀸의 위치를 바꿉니다.
+                    이것을 다른 길을 탐색한다고 표현합니다.
+                </p>
+            </div>
+
+            <!-- 4단계 -->
+            <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-sky-900">4개의 퀸을 모두 놓았다! (목표 상태 도달)</h4>
+                </div>
+                <div class="flex flex-col md:flex-row items-center gap-6">
+                    <div class="chess-board walkthrough-board shrink-0">
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-black-cell">👑</div>
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell">👑</div>
+                        <div class="chess-cell bg-white-cell">👑</div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-black-cell"></div>
+                        <div class="chess-cell bg-white-cell"></div>
+                        <div class="chess-cell bg-black-cell">👑</div>
+                        <div class="chess-cell bg-white-cell"></div>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        모든 경로를 체계적으로 탐색하다 보면 결국 4개의 퀸이 서로 공격하지 않는
+                        배치도를 찾게 됩니다. 인공지능이 문제의 해답을 찾은 이 순간이 바로
+                        <strong class="text-sky-600">목표 상태</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 오개념 방지 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                    헷갈리기 쉬운 점! (오개념 방지)
+                </h3>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-4">
+                    <p class="font-bold text-base text-amber-800">"인공지능은 그냥 무작정 모든 경우의 수를 한 번씩 다 해보는 거 아니야?"</p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-xl p-4 border border-rose-200 space-y-2">
+                            <p class="text-rose-600 font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-xmark"></i> 무식한 방법 (단순 대입)
+                            </p>
+                            <p class="text-base text-slate-600">
+                                "아무 데나 놓고 안 되면 다른 데 아무 데나 놔보지 뭐."<br>
+                                이렇게 하면 경우의 수가 너무 많아져서 시간이 엄청나게 오래 걸립니다.
+                            </p>
+                        </div>
+                        <div class="bg-white rounded-xl p-4 border border-blue-200 space-y-2">
+                            <p class="text-blue-600 font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-check"></i> 인공지능의 탐색 트리 (백트래킹)
+                            </p>
+                            <p class="text-base text-slate-700">
+                                "첫 번째 줄에 놨더니 이 칸은 무조건 죽네? 그럼 이쪽 가지는 아예 탐색하지 말고
+                                <strong>잘라버려야겠다(가지치기).</strong>"<br>
+                                인공지능은 <strong>안 되는 길은 일찍 포기하고 되돌아가기 때문에</strong>
+                                훨씬 빠르고 똑똑하게 정답을 찾습니다.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

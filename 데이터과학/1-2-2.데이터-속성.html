@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 속성</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 말풍선 — 교과서 [그림 Ⅰ-9]의 대화 장면을 대체한다 */
+        .speech {
+            position: relative;
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .speech::after {
+            content: "";
+            position: absolute;
+            bottom: -9px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+        }
+
+        .speech-left::after {
+            left: 1.5rem;
+            border-top: 10px solid var(--tail, #e0e7ff);
+        }
+
+        .speech-right::after {
+            right: 1.5rem;
+            border-top: 10px solid var(--tail, #cffafe);
+        }
+
+        /* 산점도 — [그림 Ⅰ-8]. 점을 퍼센트로 배치해 어떤 폭에서도 비율이 유지된다.
+           축 눈금은 HTML 텍스트라 text-base 아래로 내려가지 않는다. */
+        .plot {
+            position: relative;
+            border-left: 2px solid #94a3b8;
+            border-bottom: 2px solid #94a3b8;
+            background-image: linear-gradient(#f1f5f9 1px, transparent 1px),
+            linear-gradient(90deg, #f1f5f9 1px, transparent 1px);
+            background-size: 25% 25%;
+            height: 240px;
+        }
+
+        .dot {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            margin: -7px 0 0 -7px;
+            border-radius: 50%;
+            background: #4f46e5;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+        }
+
+        /* 오렌지3 위젯 노드 — 스크린샷 대신 쓰는 공통 컴포넌트.
+           위젯 이름과 연결 순서만 정확하면 학생이 실제 화면에서 따라갈 수 있다. */
+        .widget-node {
+            background: #ffffff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-table-columns absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chart-simple absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터 속성
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            정형 데이터에서 <strong>속성별 의미</strong>와<br>
+            <strong>속성 간의 관계</strong>를 파악하면,<br>
+            그 데이터의 가치를 판단할 수 있습니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>정형 데이터에서 속성, 속성값, 데이터 포인트를 찾아 각각이 무엇인지 설명할 수 있다.</li>
+                    <li>속성을 수치형과 범주형으로 구분하고, 각 유형이 어떤 분석에 알맞은지 말할 수 있다.</li>
+                    <li>속성 간의 상관관계와 인과 관계를 구분하고, 독립 변수와 종속 변수를 찾을 수 있다.</li>
+                    <li>여러 속성을 연결하면 어떤 잠재적 가치가 생기는지 예를 들어 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-table-columns text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 속성</span>
+        </div>
+        <div class="hidden lg:flex space-x-5 font-bold text-slate-500 text-base">
+            <a href="#attribute" class="hover:text-indigo-600 transition">속성</a>
+            <a href="#terms" class="hover:text-indigo-600 transition">용어</a>
+            <a href="#types" class="hover:text-indigo-600 transition">종류</a>
+            <a href="#relation" class="hover:text-indigo-600 transition">관계</a>
+            <a href="#potential" class="hover:text-indigo-600 transition">잠재적 가치</a>
+            <a href="#orange" class="hover:text-indigo-600 transition">오렌지 실습</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 데이터 속성의 이해 ===== -->
+    <section id="attribute" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 속성이란 무엇일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">표의 가로줄과 세로줄은 각각 무엇을 뜻할까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">앞 시간에 정형 데이터가 <strong>행과 열로 이루어진 표</strong>라는 것을 배웠습니다.
+                이제 그 표의 <strong>가로줄과 세로줄에 각각 이름을 붙여</strong> 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
+                <p class="text-lg text-indigo-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-quote-left text-indigo-400 mr-2"></i>
+                    데이터의 <strong>속성(feature)</strong>은
+                    데이터를 <strong>설명하거나 구별하는 데 사용되는 구체적인 정보나 특징</strong>을 말한다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-language text-indigo-500 mr-1"></i>용어 들여다보기
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="bg-indigo-100 text-indigo-800 font-bold text-base px-3 py-1 rounded-full">속성(屬性)</span>
+                    <i class="fa-solid fa-equals text-slate-400"></i>
+                    <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">feature</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <p class="font-bold text-base text-slate-700 mb-1">한자로 보면</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>딸릴 속(屬) + 성질 성(性)</strong> &rarr; <strong>그것에 딸려 있는 성질</strong>
+                        </p>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <p class="font-bold text-base text-slate-700 mb-1">영어로 보면</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>feature</strong> = <strong>특징</strong>.
+                            얼굴의 features가 &lsquo;이목구비&rsquo;인 것과 같은 말입니다.
+                        </p>
+                    </div>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-arrow-right-long text-indigo-500 mr-1"></i>
+                    사람을 설명할 때 &lsquo;키, 몸무게, 혈액형&rsquo;을 말하듯,
+                    데이터를 설명하는 항목 하나하나가 속성입니다.
+                    <strong>표에서는 세로줄(열) 하나가 속성 하나</strong>입니다.
+                </p>
+            </div>
+
+            <div>
+                <p class="font-bold text-base text-slate-700 mb-3">정형 데이터의 속성</p>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[420px]">
+                        <thead>
+                        <tr>
+                            <th>이름</th>
+                            <th>학번</th>
+                            <th>점수</th>
+                            <th>등급</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>학생 A</td>
+                            <td>10101</td>
+                            <td>58</td>
+                            <td>C</td>
+                        </tr>
+                        <tr>
+                            <td>학생 B</td>
+                            <td>10102</td>
+                            <td>75</td>
+                            <td>B</td>
+                        </tr>
+                        <tr>
+                            <td>학생 C</td>
+                            <td>10103</td>
+                            <td>89</td>
+                            <td>A</td>
+                        </tr>
+                        <tr>
+                            <td>학생 D</td>
+                            <td>10104</td>
+                            <td>96</td>
+                            <td>A</td>
+                        </tr>
+                        <tr>
+                            <td>학생 E</td>
+                            <td>10105</td>
+                            <td>61</td>
+                            <td>B</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-500 leading-relaxed mt-3">
+                    <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i>
+                    앞 시간 정형 데이터 예시에 <strong>&lsquo;등급&rsquo; 속성과 두 명이 더해진</strong> 표입니다.
+                    같은 표를 이번에는 <strong>구조</strong>의 눈으로 다시 봅시다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5">
+                    <div class="w-11 h-11 bg-sky-500 text-white rounded-xl flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-heading"></i>
+                    </div>
+                    <p class="font-bold text-base text-sky-800 mb-1">속성명</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        각 속성의 이름입니다. 위 표에서는
+                        <strong>이름 &middot; 학번 &middot; 점수 &middot; 등급</strong> 네 개입니다.
+                        속성명이 저장된 <strong>첫 번째 행을 헤더(header)</strong>라고 합니다.
+                    </p>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <div class="w-11 h-11 bg-indigo-500 text-white rounded-xl flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-table-cells"></i>
+                    </div>
+                    <p class="font-bold text-base text-indigo-800 mb-1">속성값</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        속성명 아래에 실제로 적힌 값입니다.
+                        &lsquo;점수&rsquo; 속성의 속성값은 <strong>58, 75, 89, 96, 61</strong>입니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5">
+                    <div class="w-11 h-11 bg-violet-500 text-white rounded-xl flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
+                    <p class="font-bold text-base text-violet-800 mb-1">데이터 포인트(data point)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>서로 구별되는 데이터의 개별 요소</strong>입니다.
+                        <strong>각 행에 있는 속성값이 모여</strong> 하나의 데이터 포인트를 이룹니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-key text-indigo-500 mr-1"></i>
+                    <strong>한 문장으로 정리하면</strong> &mdash;
+                    위 표는 <strong>열 단위로 4개의 속성</strong>, <strong>행 단위로 5개의 데이터 포인트</strong>로
+                    구성되어 있습니다.
+                    <strong>세로줄은 &lsquo;무엇을 재는가&rsquo;, 가로줄은 &lsquo;누구를 재는가&rsquo;</strong>라고 생각하면 헷갈리지 않습니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="font-bold text-base text-slate-800 mb-2">
+                    <i class="fa-solid fa-eye text-indigo-500 mr-1"></i>표 안에 벌써 두 종류가 섞여 있습니다
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    &lsquo;점수&rsquo;의 <strong>58, 75</strong>는 <strong>수치로 값을 표현하는 수치형 데이터</strong>이고,
+                    &lsquo;등급&rsquo;의 <strong>A, B, C</strong>는 <strong>몇 개의 범주를 나타내는 값들로 구성된 범주형 데이터</strong>입니다.
+                    이 구분은 잠시 뒤에 자세히 다룹니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                위 표에서 <strong>&lsquo;학생 C&rsquo;의 데이터 포인트</strong>는 무엇으로 이루어져 있나요?
+                그리고 이 표에 &lsquo;출석 일수&rsquo; 열을 하나 더 붙이면 속성과 데이터 포인트의 개수는 각각 몇 개가 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 여러 이름 ===== -->
+    <section id="terms" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">같은 것을 왜 여러 이름으로 부를까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">책마다 부르는 말이 다르면 어떻게 알아들을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터 과학 자료를 찾아보면 같은 개념을 다른 말로 부르는 일이 자주 있습니다.
+                당황하지 않으려면 미리 알아 두는 편이 좋습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                <table class="min-w-[560px]">
+                    <thead>
+                    <tr>
+                        <th>이 교과서의 용어</th>
+                        <th>같은 뜻으로 쓰이는 다른 말</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">속성<br><span class="font-medium text-slate-500">feature</span></td>
+                        <td>특징, 변수, 어트리뷰트(attribute)</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">데이터 포인트<br><span class="font-medium text-slate-500">data point</span></td>
+                        <td>샘플(sample), 레코드(record), 인스턴스(instance), 튜플(tuple)</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="font-bold text-base text-slate-800 mb-2">
+                    <i class="fa-solid fa-circle-question text-indigo-500 mr-1"></i>왜 이렇게 이름이 많을까?
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터 과학은 <strong>다양한 학문적 배경을 바탕으로 발전</strong>했기 때문입니다.
+                    동일한 개념인데도 여러 분야에서 사용하는 용어들을 다양하게 사용합니다.
+                    예를 들어 <strong>기계학습에서 &lsquo;특징&rsquo;이라고 부르는 용어를,
+                    통계학에서는 &lsquo;독립 변인&rsquo; 또는 &lsquo;독립 변수&rsquo;라고 부릅니다.</strong>
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed mt-3">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    앞 절에서 데이터 과학이 <strong>컴퓨터 과학 &middot; 통계학 &middot; 수학이 융합된 학문</strong>이라고 배웠습니다.
+                    용어가 여러 개인 것은 그 융합의 흔적입니다.
+                    <strong>말이 다를 뿐 가리키는 것은 같다</strong>는 점만 알면 됩니다.
+                </p>
+            </div>
+
+            <div class="space-y-5">
+                <h3 class="text-xl font-bold text-slate-800">
+                    <i class="fa-solid fa-chart-scatter text-indigo-500 mr-2"></i>그래프에서는 데이터 포인트가 &lsquo;점&rsquo;이 됩니다
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    표에서는 <strong>한 줄</strong>이던 데이터 포인트가, 그래프에서는 <strong>점 하나</strong>가 됩니다.
+                    아래 표의 공부 시간과 점수를 <strong>산점도</strong>로 옮겨 보면
+                    각 점이 하나의 데이터 포인트를 의미합니다.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div>
+                        <p class="font-bold text-base text-slate-700 mb-3">점수 데이터셋</p>
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                            <table class="min-w-[240px]">
+                                <thead>
+                                <tr>
+                                    <th>공부 시간</th>
+                                    <th>점수</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>28</td>
+                                    <td>70</td>
+                                </tr>
+                                <tr>
+                                    <td>30</td>
+                                    <td>75</td>
+                                </tr>
+                                <tr>
+                                    <td>32</td>
+                                    <td>81</td>
+                                </tr>
+                                <tr>
+                                    <td>33</td>
+                                    <td>86</td>
+                                </tr>
+                                <tr>
+                                    <td>35</td>
+                                    <td>89</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="font-bold text-base text-slate-700 mb-3">공부 시간에 따른 점수 그래프</p>
+                        <div class="bg-white border border-slate-200 rounded-2xl p-4">
+                            <div class="flex gap-2">
+                                <div class="flex flex-col justify-between text-base text-slate-500 py-0 shrink-0"
+                                     style="height:240px">
+                                    <span>100</span><span>90</span><span>80</span><span>70</span><span>60</span><span>50</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="plot">
+                                        <div class="dot" style="left:20%;bottom:40%"></div>
+                                        <div class="dot" style="left:33.3%;bottom:50%"></div>
+                                        <div class="dot" style="left:46.7%;bottom:62%"></div>
+                                        <div class="dot" style="left:53.3%;bottom:72%"></div>
+                                        <div class="dot" style="left:66.7%;bottom:78%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-base text-slate-500 mt-1">
+                                        <span>25</span><span>30</span><span>35</span><span>40</span>
+                                    </div>
+                                    <p class="text-base text-slate-500 text-center mt-1">공부 시간</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-base text-slate-500 leading-relaxed mt-3">
+                            <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i>
+                            점 <strong>다섯 개</strong>는 표의 <strong>다섯 줄</strong>과 정확히 하나씩 짝지어집니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                다른 책에서 &lsquo;<strong>인스턴스가 100개인 데이터셋</strong>&rsquo;이라는 문장을 만났습니다.
+                이 교과서의 말로 바꾸면 무엇이 몇 개라는 뜻일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 속성의 종류 ===== -->
+    <section id="types" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">속성에는 어떤 종류가 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">숫자로 적혀 있으면 무조건 수치형일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">속성값은 데이터의 유형에 따라 크게
+                <strong>수치형 데이터</strong>와 <strong>범주형 데이터</strong>로 분류할 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-sky-500 text-white font-bold text-base px-3 py-1 rounded-full">수치형 데이터</span>
+                        <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">numerical data</span>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        속성값이 <strong>수치로 측정되는 자료</strong>이며 <strong>숫자로 표현</strong>됩니다.
+                    </p>
+                    <div class="bg-white border border-sky-200 rounded-xl p-4">
+                        <p class="font-bold text-base text-slate-700 mb-2">예</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-sky-100 text-sky-800 text-base font-medium px-3 py-1 rounded-full">키</span>
+                            <span class="bg-sky-100 text-sky-800 text-base font-medium px-3 py-1 rounded-full">몸무게</span>
+                            <span class="bg-sky-100 text-sky-800 text-base font-medium px-3 py-1 rounded-full">길이</span>
+                            <span class="bg-sky-100 text-sky-800 text-base font-medium px-3 py-1 rounded-full">불량품 개수</span>
+                            <span class="bg-sky-100 text-sky-800 text-base font-medium px-3 py-1 rounded-full">돈</span>
+                            <span class="bg-sky-100 text-sky-800 text-base font-medium px-3 py-1 rounded-full">사람 수</span>
+                        </div>
+                    </div>
+                    <p class="text-base text-sky-900 leading-relaxed">
+                        <i class="fa-solid fa-thumbs-up text-sky-500 mr-1"></i>
+                        <strong>잘하는 것</strong> &mdash; 다른 속성과의 <strong>관계 파악</strong>이나
+                        다양한 <strong>통곗값 산출</strong>이 쉽습니다.
+                    </p>
+                </div>
+
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-6 space-y-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-violet-500 text-white font-bold text-base px-3 py-1 rounded-full">범주형 데이터</span>
+                        <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">categorical data</span>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>여러 범주 중 해당하는 하나의 값</strong>으로 표현됩니다.
+                    </p>
+                    <div class="bg-white border border-violet-200 rounded-xl p-4">
+                        <p class="font-bold text-base text-slate-700 mb-2">예</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-violet-100 text-violet-800 text-base font-medium px-3 py-1 rounded-full">과목(국어, 영어, 수학 등)</span>
+                            <span class="bg-violet-100 text-violet-800 text-base font-medium px-3 py-1 rounded-full">성별(남, 여)</span>
+                            <span class="bg-violet-100 text-violet-800 text-base font-medium px-3 py-1 rounded-full">혈액형(A, B, O, AB)</span>
+                        </div>
+                    </div>
+                    <p class="text-base text-violet-900 leading-relaxed">
+                        <i class="fa-solid fa-thumbs-up text-violet-500 mr-1"></i>
+                        <strong>잘하는 것</strong> &mdash; <strong>범주 간의 비교</strong>나
+                        특정 범주에 대한 <strong>특성 및 경향성 파악</strong>이 쉽습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-4">
+                    <i class="fa-solid fa-comments text-indigo-500 mr-2"></i>대화로 보면 이렇습니다
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                        <div class="flex justify-start">
+                            <div class="speech speech-left bg-indigo-100 text-indigo-900 text-base">나이가 어떻게 되세요?</div>
+                        </div>
+                        <div class="flex justify-end">
+                            <div class="speech speech-right bg-cyan-100 text-cyan-900 text-base">18살입니다.</div>
+                        </div>
+                        <p class="text-base text-sky-700 font-bold text-center pt-2">
+                            <i class="fa-solid fa-arrow-up mr-1"></i>수치형 데이터
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                        <div class="flex justify-start">
+                            <div class="speech speech-left bg-indigo-100 text-indigo-900 text-base">혈액형은 어떻게 되세요?</div>
+                        </div>
+                        <div class="flex justify-end">
+                            <div class="speech speech-right bg-cyan-100 text-cyan-900 text-base">A형입니다.</div>
+                        </div>
+                        <p class="text-base text-violet-700 font-bold text-center pt-2">
+                            <i class="fa-solid fa-arrow-up mr-1"></i>범주형 데이터
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p class="text-base text-amber-900 leading-relaxed">
+                    <i class="fa-solid fa-circle-exclamation text-amber-500 mr-1"></i>
+                    <strong>흔한 오해 &mdash; 숫자로 적혀 있다고 다 수치형이 아닙니다.</strong>
+                    학번 <strong>10101</strong>은 숫자지만 <strong>범주형</strong>입니다.
+                    학번을 더하거나 평균을 내는 일은 아무 의미가 없기 때문입니다.
+                    <strong>&lsquo;더하고 평균을 내는 것이 말이 되는가?&rsquo;</strong>를 물어보면 헷갈리지 않습니다.
+                    키와 몸무게는 평균이 말이 되지만, 학번과 혈액형은 그렇지 않습니다.
+                </p>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-shuffle text-indigo-500 mr-1"></i>
+                    <strong>유형은 고정된 것이 아닙니다.</strong>
+                    <strong>같은 데이터라고 할지라도 분석의 목적과 필요에 따라 데이터의 유형은 다르게 표현할 수 있습니다.</strong>
+                    예를 들어 &lsquo;나이&rsquo;는 보통 수치형이지만,
+                    <strong>10대 &middot; 20대 &middot; 30대</strong>로 묶으면 범주형이 됩니다.
+                    나이대별로 비교하고 싶을 때는 이렇게 바꾸는 편이 낫습니다.
+                </p>
+            </div>
+
+            <details class="bg-slate-50 border border-slate-200 rounded-2xl">
+                <summary class="px-5 py-4 font-bold text-base text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chevron-right text-indigo-500 details-chevron"></i>
+                    더 알아보기: 수치형과 범주형은 다시 둘로 나뉩니다
+                </summary>
+                <div class="px-5 pb-5 space-y-4">
+                    <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <p class="font-bold text-base text-sky-800 mb-2">수치형 데이터(numerical data)</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>숫자형 데이터</strong>라고도 합니다.
+                            <strong>연속형(continuous) 데이터</strong>와 <strong>이산형(discrete) 데이터</strong>로 나뉩니다.
+                            키나 몸무게처럼 <strong>사이의 값이 얼마든지 있을 수 있으면 연속형</strong>,
+                            불량품 개수나 사람 수처럼 <strong>중간값이 있을 수 없으면 이산형</strong>입니다.
+                            사람 수는 1명과 2명 사이에 1.5명이 없습니다.
+                        </p>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <p class="font-bold text-base text-violet-800 mb-2">범주형 데이터(categorical data)</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>카테고리로 나누어지는 데이터</strong>를 말합니다.
+                            <strong>순서가 있는 데이터</strong>와 <strong>순서가 없는 데이터</strong>로 나뉩니다.
+                            성적 등급 A &middot; B &middot; C는 <strong>순서가 있고</strong>,
+                            혈액형 A &middot; B &middot; O &middot; AB는 <strong>순서가 없습니다.</strong>
+                        </p>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &lsquo;우편번호&rsquo;와 &lsquo;하루 걸음 수&rsquo; 중 <strong>수치형은 어느 쪽</strong>일까요?
+                위에서 배운 &lsquo;평균을 내는 것이 말이 되는가&rsquo;로 판단해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 속성 간 관계 ===== -->
+    <section id="relation" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">속성끼리는 어떤 관계가 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">같이 움직이면 하나가 다른 하나의 원인일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터의 속성 간에는 <strong>관계가 존재하는 경우</strong>가 있습니다.
+                이 관계를 찾아내는 것이 데이터 분석의 큰 부분입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-600 leading-relaxed">
+                데이터 분석을 통해 속성 간의 <strong>상관관계</strong>와 <strong>인과 관계</strong>를 파악하여
+                데이터 속에 숨어 있는 <strong>패턴과 규칙</strong>을 유용하게 활용할 수 있습니다.
+                예를 들어 공부 시간과 점수의 관계 분석을 통해
+                <strong>성적 향상을 위한 개인별 학습 전략</strong>을 세울 수 있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-sky-500 text-white font-bold text-base px-3 py-1 rounded-full">상관관계</span>
+                        <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">correlation</span>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>두 속성이 얼마나 관련되어 있는지</strong>를 말합니다.
+                        하나가 늘 때 다른 하나도 같이 늘거나 줄면 상관관계가 있는 것입니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-6 space-y-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-violet-500 text-white font-bold text-base px-3 py-1 rounded-full">인과 관계</span>
+                        <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">causal relationship</span>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>한 속성이 다른 속성에 영향을 미치는 것</strong>을 말합니다.
+                        <strong>원인 인(因) + 결과 과(果)</strong> &mdash; 원인과 결과가 분명한 관계입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p class="text-base text-amber-900 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                    <strong>둘은 같은 말이 아닙니다.</strong>
+                    <strong>상관관계가 있다고 해서 인과 관계가 있는 것은 아닙니다.</strong>
+                    아이스크림 판매량과 물놀이 사고 건수는 같이 올라가지만,
+                    아이스크림이 사고를 일으키는 것은 아닙니다.
+                    <strong>더운 날씨</strong>라는 <strong>숨은 원인</strong>이 둘 다를 밀어 올린 것입니다.
+                    상관관계를 인과 관계로 착각하면 엉뚱한 결정을 내리게 됩니다.
+                </p>
+            </div>
+
+            <div class="space-y-5">
+                <h3 class="text-xl font-bold text-slate-800">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-indigo-500 mr-2"></i>영향을 주는 쪽과 받는 쪽에 이름 붙이기
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    통계 분야에서는 다른 속성값에 의해 <strong>영향을 받는 속성을 종속 변수</strong>,
+                    <strong>영향을 주는 속성을 독립 변수</strong>라고 합니다.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="bg-slate-700 text-white font-bold text-base px-3 py-1 rounded-full">독립 변수</span>
+                            <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">independent variable</span>
+                        </div>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>홀로 독(獨) + 설 립(立)</strong> &mdash; 혼자 서 있는 변수.
+                            영어 <strong>independent</strong>도 <strong>in-</strong>(아닌) + <strong>dependent</strong>(의존하는)로,
+                            <strong>남에게 기대지 않는다</strong>는 뜻입니다.
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="bg-indigo-600 text-white font-bold text-base px-3 py-1 rounded-full">종속 변수</span>
+                            <span class="bg-slate-800 text-white font-bold text-base px-3 py-1 rounded-full">dependent variable</span>
+                        </div>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>따를 종(從) + 딸릴 속(屬)</strong> &mdash; 남을 따라가는 변수.
+                            <strong>depend on</strong>(&sim;에 달려 있다)의 그 <strong>dependent</strong>입니다.
+                            독립 변수가 정해져야 값이 정해집니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <p class="font-bold text-base text-slate-700 mb-3">학생들의 점수 데이터셋</p>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[480px]">
+                        <thead>
+                        <tr>
+                            <th>이름</th>
+                            <th class="bg-slate-200">공부 시간</th>
+                            <th class="bg-indigo-100">점수</th>
+                            <th>출석 일수</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>학생 A</td>
+                            <td>3</td>
+                            <td>60</td>
+                            <td>165/192</td>
+                        </tr>
+                        <tr>
+                            <td>학생 B</td>
+                            <td>5</td>
+                            <td>100</td>
+                            <td>190/192</td>
+                        </tr>
+                        <tr>
+                            <td>학생 C</td>
+                            <td>2</td>
+                            <td>40</td>
+                            <td>188/192</td>
+                        </tr>
+                        <tr>
+                            <td>학생 D</td>
+                            <td>4</td>
+                            <td>80</td>
+                            <td>187/192</td>
+                        </tr>
+                        <tr>
+                            <td>학생 E</td>
+                            <td>1.5</td>
+                            <td>30</td>
+                            <td>173/192</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div class="bg-slate-100 border border-slate-300 rounded-2xl p-4">
+                        <p class="font-bold text-base text-slate-800 mb-1">공부 시간 &rarr; 독립 변수</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            다른 속성에 영향을 <strong>받지 않는다고 가정</strong>하는 독립 변수입니다.
+                            다른 속성에 영향을 줄 수 있습니다.
+                        </p>
+                    </div>
+                    <div class="bg-indigo-50 border border-indigo-300 rounded-2xl p-4">
+                        <p class="font-bold text-base text-indigo-800 mb-1">점수 &rarr; 종속 변수</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            공부 시간에 따라 점수가 <strong>변하므로</strong> 종속 변수입니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mt-4">
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <i class="fa-solid fa-comment-dots text-indigo-500 mr-1"></i>
+                        표를 보면 <strong>공부 시간이 증가할수록 점수도 높아진다</strong>는 경향이 보입니다.
+                        그래서 &ldquo;3시간 30분 공부하면 점수는 약 70점 정도 나오겠네?&rdquo;처럼
+                        <strong>표에 없는 값도 짐작</strong>할 수 있습니다.
+                        이렇게 <strong>관계를 찾아 예측하는 것</strong>이 데이터 분석입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-slate-800">
+                    <i class="fa-solid fa-flask text-indigo-500 mr-2"></i>직접 판단해 봅시다 &mdash; 음료수 판매량 예측
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    음료수 판매량을 예측하려면 <strong>어떤 속성</strong>을 파악하면 좋을까요?
+                    아래 표에서 음료수 판매량과 <strong>같이 움직이는 속성</strong>을 찾아보세요.
+                </p>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[520px]">
+                        <thead>
+                        <tr>
+                            <th>기온</th>
+                            <th>강수량</th>
+                            <th>음료수 판매량</th>
+                            <th>아이스크림 판매량</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>10</td>
+                            <td>5</td>
+                            <td>21</td>
+                            <td>5</td>
+                        </tr>
+                        <tr>
+                            <td>15</td>
+                            <td>0</td>
+                            <td>29</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td>20</td>
+                            <td>0</td>
+                            <td>40</td>
+                            <td>35</td>
+                        </tr>
+                        <tr>
+                            <td>30</td>
+                            <td>5</td>
+                            <td>55</td>
+                            <td>35</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <p class="text-base text-indigo-900 leading-relaxed">
+                        <i class="fa-solid fa-check-double text-indigo-500 mr-1"></i>
+                        <strong>기온 속성</strong>입니다. 기온이 10 &rarr; 15 &rarr; 20 &rarr; 30으로 오를 때
+                        음료수 판매량도 21 &rarr; 29 &rarr; 40 &rarr; 55로 <strong>빠짐없이 함께 올랐습니다.</strong>
+                        그에 비해 <strong>강수량</strong>은 5 &rarr; 0 &rarr; 0 &rarr; 5로 오르내리는데도
+                        판매량은 계속 올라 관련이 높아 보이지 않습니다.
+                    </p>
+                    <p class="text-base text-indigo-900 leading-relaxed mt-3">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                        <strong>아이스크림 판매량은 함정입니다.</strong>
+                        음료수와 같이 오르는 것처럼 보이지만(20 &rarr; 30에서는 35로 멈춰 있습니다),
+                        아이스크림이 많이 팔려서 음료수가 팔리는 것이 아닙니다.
+                        앞에서 본 대로 <strong>기온이라는 숨은 원인</strong>이 둘 다를 밀어 올린,
+                        <strong>상관관계일 뿐 인과 관계가 아닌</strong> 경우입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &lsquo;키가 큰 학생일수록 신발 크기가 크다&rsquo;는 <strong>상관관계일까요, 인과 관계일까요?</strong>
+                그리고 &lsquo;공부 시간과 점수&rsquo;에서 독립 변수와 종속 변수는 각각 무엇이었나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 잠재적 가치 ===== -->
+    <section id="potential" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">속성을 모으면 무엇을 알 수 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">사진 한 장에는 사진만 들어 있을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터의 다양한 속성을 분석하고 속성 간 관계를 발견하면
+                데이터가 가진 <strong>잠재적 가치</strong>를 상세하게 파악할 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-600 leading-relaxed">
+                <strong>잠재적(潛在的, potential)</strong>이란 <strong>겉으로 드러나지 않고 속에 숨어 있는</strong>이라는 뜻입니다.
+                즉 잠재적 가치는 <strong>아직 눈에 보이지 않지만 꺼내 쓸 수 있는 가치</strong>입니다.
+                스마트폰으로 찍은 사진 한 장을 예로 들어 봅시다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-bold text-base text-slate-800 mb-4">
+                        <i class="fa-solid fa-camera-retro text-indigo-500 mr-1"></i>사진 한 장에 함께 저장되는 속성
+                    </p>
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+                        <div class="bg-slate-100 border border-slate-200 rounded-lg h-28 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-image text-4xl text-slate-400"></i>
+                        </div>
+                        <ul class="space-y-1 text-base text-slate-600 leading-relaxed list-none">
+                            <li><i class="fa-solid fa-clock text-sky-500 mr-2"></i>2023년 5월 7일 17:40</li>
+                            <li><i class="fa-solid fa-file-image text-emerald-500 mr-2"></i>2.2MB JPEG &middot; 3024&times;4032</li>
+                            <li><i class="fa-solid fa-camera text-violet-500 mr-2"></i>ISO 200 &middot; 49mm</li>
+                            <li><i class="fa-solid fa-location-dot text-rose-500 mr-2"></i>촬영 장소 좌표</li>
+                        </ul>
+                    </div>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        사진을 찍으면 <strong>사진뿐만 아니라</strong> 시간 속성, 위치 속성, 얼굴 속성,
+                        카메라 정보 속성까지 저장됩니다.
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                        <p class="font-bold text-base text-indigo-800 mb-2">
+                            <i class="fa-solid fa-link text-indigo-500 mr-1"></i>속성을 연결하면 새로운 사실이 나옵니다
+                        </p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>속성의 연결을 통해 새로운 사실을 발견</strong>하여 다양하게 활용할 수 있습니다.
+                            데이터로 <strong>자신의 동선</strong>이나
+                            <strong>언제 어디에서 누구와 함께 있었는지</strong>를 확인할 수 있습니다.
+                        </p>
+                        <p class="text-base text-slate-600 leading-relaxed mt-3">
+                            시간 속성 하나만으로는 &lsquo;언제&rsquo;만 알 수 있고,
+                            위치 속성 하나만으로는 &lsquo;어디&rsquo;만 알 수 있습니다.
+                            <strong>둘을 이으면 &lsquo;언제 어디에&rsquo;가 되고,
+                            얼굴 속성까지 더하면 &lsquo;언제 어디에서 누구와&rsquo;</strong>가 됩니다.
+                        </p>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                        <p class="text-base text-emerald-900 leading-relaxed">
+                            <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>
+                            이처럼 <strong>데이터의 특성을 이해하고 그 속성들을 통합하여 분석하면
+                            데이터로부터 새로운 가치를 발견</strong>할 수 있습니다.
+                            사진첩이 자동으로 &lsquo;여행&rsquo; 앨범을 만들어 주는 것이 바로 이 원리입니다.
+                        </p>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                        <p class="text-base text-amber-900 leading-relaxed">
+                            <i class="fa-solid fa-shield-halved text-amber-500 mr-1"></i>
+                            <strong>같은 힘이 반대로도 작동합니다.</strong>
+                            내 동선과 만난 사람을 알아낼 수 있다는 것은,
+                            <strong>사진을 그대로 올리면 남도 그것을 알 수 있다</strong>는 뜻입니다.
+                            그래서 사진을 공유할 때 위치 속성을 지우는 기능이 있습니다.
+                            속성의 잠재적 가치는 <strong>쓰기에 따라 편리함이 되기도, 위험이 되기도</strong> 합니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    <i class="fa-solid fa-pen"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">해 보기 &mdash; 목적에 따른 속성을 찾아보자</h3>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>같은 대상을 두고서도 목적에 따라 서로 다른 속성이 필요할 수도 있습니다.</strong>
+                        같은 사진 한 장인데 무엇을 하려는지에 따라 필요한 속성이 달라집니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                <table class="min-w-[560px]">
+                    <thead>
+                    <tr>
+                        <th>무엇을 하려는가</th>
+                        <th>필요한 속성</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">스마트폰에 저장된 이미지의 정보 확인하기</td>
+                        <td class="text-slate-400">직접 확인해 보세요</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">친구들과 찍은 사진 분류하기</td>
+                        <td>얼굴, 시간, 장소</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">이미지 편집하기</td>
+                        <td>렌즈 정보, 해상도, 촬영 모드</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    두 번째와 세 번째를 비교해 보세요. <strong>같은 사진인데 필요한 속성이 전혀 겹치지 않습니다.</strong>
+                    사진을 <strong>분류</strong>하려면 &lsquo;누가 &middot; 언제 &middot; 어디서&rsquo;가 필요하고,
+                    <strong>편집</strong>하려면 &lsquo;어떻게 찍혔는가&rsquo;가 필요하기 때문입니다.
+                    그래서 데이터를 다룰 때는 <strong>목적을 먼저 정해야</strong> 어떤 속성을 쓸지 정할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                학생의 성적을 예측할 때 필요한 속성을 골라 보세요 &mdash;
+                <strong>출석률 / 이전 학기 성적 / 학습 시간 / 이름 / 가족 구성원 수 / 통학 시간</strong>.
+                고르지 <strong>않은</strong> 것에 대해서는 &lsquo;왜 성적과 관계가 없는지&rsquo;까지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 오렌지 실습 ===== -->
+    <section id="orange" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">오렌지로 직접 속성을 확인해 볼까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">배운 개념이 실제 프로그램에서는 어떻게 보일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">오렌지 프로그램에서 제공하는 <strong>동물 데이터</strong>로
+                동물들을 분류하는 속성을 알아봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
+                <p class="text-base text-orange-900 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>
+                    <strong>오렌지(Orange 3)</strong>는 코드를 쓰지 않고
+                    <strong>위젯(widget)이라는 블록을 선으로 이어</strong> 데이터를 분석하는 프로그램입니다.
+                    아래 그림에서 <strong>네모 하나가 위젯 하나</strong>이고,
+                    <strong>화살표가 데이터가 흘러가는 방향</strong>입니다.
+                </p>
+            </div>
+
+            <div>
+                <p class="font-bold text-base text-slate-700 mb-4">이번 실습에서 만들 워크플로</p>
+                <div class="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-8 py-2">
+                    <div class="widget-node">
+                        <i class="fa-solid fa-folder-open text-2xl text-orange-500 mb-2 block"></i>
+                        <p class="font-mono font-bold text-base text-slate-800">Datasets</p>
+                        <p class="text-base text-slate-500">데이터 불러오기</p>
+                    </div>
+                    <i class="fa-solid fa-arrow-down text-2xl text-orange-400 md:hidden"></i>
+                    <i class="fa-solid fa-arrow-right text-2xl text-orange-400 hidden md:block"></i>
+                    <div class="widget-node">
+                        <i class="fa-solid fa-table text-2xl text-orange-500 mb-2 block"></i>
+                        <p class="font-mono font-bold text-base text-slate-800">Data Table</p>
+                        <p class="text-base text-slate-500">속성 확인하기</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                            1
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-base text-slate-800 mb-2">동물 데이터 불러오기</p>
+                            <p class="text-base text-slate-600 leading-relaxed">
+                                오렌지 프로그램을 실행하고 <span class="font-mono font-bold text-orange-700">Datasets</span> 위젯에서
+                                <span class="font-mono font-bold text-orange-700">Zoo</span> 데이터셋을 더블 클릭합니다.
+                                더블 클릭하여 <strong>초록색 원이 표시되면</strong> 창을 닫습니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                            2
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-base text-slate-800 mb-2">동물 데이터 속성 확인하기</p>
+                            <p class="text-base text-slate-600 leading-relaxed">
+                                <span class="font-mono font-bold text-orange-700">Datasets</span>에
+                                <span class="font-mono font-bold text-orange-700">Data Table</span> 위젯을 연결하여
+                                데이터의 속성을 확인합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="font-bold text-base text-indigo-800 mb-2">
+                    <i class="fa-solid fa-paw text-indigo-500 mr-1"></i>Zoo 데이터셋은 이렇게 생겼습니다
+                </p>
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    101마리 동물의 특징을 모아 놓은 표입니다.
+                    <span class="font-mono">hair</span>(털), <span class="font-mono">feathers</span>(깃털),
+                    <span class="font-mono">eggs</span>(알), <span class="font-mono">milk</span>(젖),
+                    <span class="font-mono">aquatic</span>(수생), <span class="font-mono">backbone</span>(척추),
+                    <span class="font-mono">fins</span>(지느러미), <span class="font-mono">legs</span>(다리 수),
+                    <span class="font-mono">tail</span>(꼬리) 같은 속성이 있고,
+                    마지막 <span class="font-mono">type</span> 속성에 포유류 &middot; 조류 &middot; 어류 등
+                    <strong>7가지 분류</strong>가 들어 있습니다.
+                </p>
+            </div>
+
+            <div class="space-y-5">
+                <h3 class="text-xl font-bold text-slate-800">
+                    <i class="fa-solid fa-clipboard-question text-indigo-500 mr-2"></i>확인해 봅시다
+                </h3>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-slate-800">
+                        1. <span class="font-mono">Zoo</span> 데이터셋은 정형 데이터일까요, 비정형 데이터일까요?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>정형 데이터</strong>입니다.
+                        <strong>행과 열로 이루어진 표에 각각의 값이 모두 형식을 갖추고 있기 때문</strong>입니다.
+                        앞 시간의 <strong>판단의 열쇠</strong>를 그대로 적용한 것입니다.
+                    </p>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-slate-800">
+                        2. <span class="font-mono">fish</span>(어류)와 <span class="font-mono">bird</span>(조류)를 비교할 때,
+                        구분하기에 적합한 속성과 공통된 속성은 무엇일까요?
+                    </p>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-[440px]">
+                            <thead>
+                            <tr>
+                                <th>구분하기에 적합한 속성</th>
+                                <th>공통된 속성</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="font-mono">feathers, toothed, breathes, fins, legs</td>
+                                <td class="font-mono">hair, eggs, milk, backbone, tail</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <i class="fa-solid fa-key text-indigo-500 mr-1"></i>
+                        <strong>구분에 쓸모 있는 속성은 값이 서로 다른 속성입니다.</strong>
+                        새는 깃털이 있고 물고기는 없으니 <span class="font-mono">feathers</span>는 둘을 갈라 줍니다.
+                        반대로 <strong>양쪽 값이 같은 속성은 구분에 쓸모가 없습니다.</strong>
+                        둘 다 알을 낳으니 <span class="font-mono">eggs</span>로는 나눌 수 없습니다.
+                    </p>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-slate-800">
+                        3. <span class="font-mono">mammal</span>(포유류)을 설명하기에
+                        <span class="font-mono">aquatic</span>(수생) 속성은 적합할까요?
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>적합한 속성이라고 보기 어렵습니다.</strong>
+                        포유류 중에는 <span class="font-mono">aquatic</span> 속성값이
+                        <strong>1인 돌고래</strong>도 있고 <strong>0인 곰</strong>도 있기 때문에,
+                        포유류의 특징으로 볼 수 없습니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                        <strong>좋은 속성의 조건이 여기서 뒤집혀 나옵니다.</strong>
+                        어떤 집단을 설명하는 속성이 되려면
+                        <strong>그 집단 안에서는 값이 고르고, 다른 집단과는 값이 달라야</strong> 합니다.
+                        포유류 안에서 값이 제각각이면 설명이 되지 않습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <span class="font-mono">mammal</span>(포유류)을 다른 동물과 구분하는 데
+                <strong>가장 좋은 속성 하나</strong>를 고른다면 무엇일까요?
+                위 2번 문제에서 배운 &lsquo;좋은 속성의 조건&rsquo;을 적용해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리 ===== -->
+    <section class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">데이터의 속성을 왜 들여다봐야 할까?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">속성(feature)</strong>은 데이터를 설명하거나 구별하는 데 쓰이는
+                        구체적인 정보나 특징입니다.
+                        표에서 <strong class="text-sky-200">열 하나가 속성 하나</strong>이고,
+                        <strong class="text-sky-200">행 하나가 데이터 포인트 하나</strong>입니다.
+                        속성값은 <strong class="text-indigo-200">수치형</strong>과 <strong class="text-indigo-200">범주형</strong>으로 나뉘며,
+                        목적에 따라 유형을 바꿔 표현할 수도 있습니다.
+                        속성 간의 <strong class="text-indigo-200">상관관계와 인과 관계</strong>를 파악하면
+                        숨어 있는 패턴과 규칙을 찾을 수 있고,
+                        여러 속성을 연결하면 하나만으로는 보이지 않던
+                        <strong class="text-sky-200">잠재적 가치</strong>가 드러납니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-table-columns text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">속성 <span class="font-medium text-sky-200">feature</span></p>
+                    <p class="text-base text-sky-100">열 = 속성 &middot; 행 = 데이터 포인트</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-shapes text-indigo-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">속성의 종류</p>
+                    <p class="text-base text-sky-100">수치형 numerical &middot; 범주형 categorical</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-diagram-project text-violet-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">속성 간 관계</p>
+                    <p class="text-base text-sky-100">상관관계 &ne; 인과 관계 &middot; 독립 &middot; 종속 변수</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터 속성</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">feature</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>데이터를 <strong>설명하거나 구별</strong>하는 정보나 특징</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>열</strong> = 속성 &middot; <strong>행</strong> = 데이터 포인트</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성명이 담긴 첫 행 = <strong>헤더</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">속성의 종류</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">numerical &middot; categorical</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>수치형</strong> &mdash; 수치로 측정, 통곗값 산출이 쉽다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>범주형</strong> &mdash; 여러 범주 중 하나, 비교가 쉽다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>목적과 필요에 따라 <strong>유형을 바꿔</strong> 표현 가능</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">속성 간 관계</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">correlation &middot; causality</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>상관관계</strong> &mdash; 두 속성이 얼마나 관련되어 있는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>인과 관계</strong> &mdash; 한 속성이 다른 속성에 영향을 미침</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>영향을 주면 <strong>독립 변수</strong>, 받으면 <strong>종속 변수</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">잠재적 가치</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">potential value</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>사진 한 장에 <strong>시간 &middot; 위치 &middot; 얼굴 &middot; 카메라</strong> 속성이 함께 저장</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성을 <strong>연결</strong>하면 동선 &middot; 동행자까지 드러난다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>목적에 따라</strong> 필요한 속성이 달라진다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    이름 &middot; 학번 &middot; 점수 &middot; 등급 네 개의 열과 학생 5명의 행으로 이루어진 표가 있습니다.
+                    이 표의 <strong>데이터 포인트</strong>는 몇 개일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '4는 속성의 개수입니다. 데이터 포인트는 행의 개수입니다.')">
+                    ① 4개
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 각 행의 속성값이 모여 하나의 데이터 포인트를 이루므로, 행이 5개면 데이터 포인트도 5개입니다.')">
+                    ② 5개
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '9는 열과 행을 더한 수입니다. 데이터 포인트는 행의 개수만 셉니다.')">
+                    ③ 9개
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '20은 칸의 개수(4×5)입니다. 칸 하나하나는 속성값이지 데이터 포인트가 아닙니다.')">
+                    ④ 20개
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>범주형 데이터</strong>인 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '키는 수치로 측정되고 평균을 내는 것이 의미가 있으므로 수치형 데이터입니다.')">
+                    ① 키
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '불량품 개수는 수치로 세는 값이므로 수치형 데이터입니다.')">
+                    ② 불량품 개수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 혈액형은 A·B·O·AB라는 여러 범주 중 해당하는 하나의 값으로 표현되므로 범주형 데이터입니다.')">
+                    ③ 혈액형
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '몸무게는 수치로 측정되는 자료이므로 수치형 데이터입니다.')">
+                    ④ 몸무게
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    &lsquo;공부 시간에 따라 점수가 변한다&rsquo;고 볼 때,
+                    <strong>종속 변수</strong>에 해당하는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '공부 시간은 다른 속성에 영향을 받지 않는다고 가정하는 독립 변수입니다.')">
+                    ① 공부 시간
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 공부 시간에 따라 점수가 변하므로 점수가 종속 변수입니다.')">
+                    ② 점수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이름은 성적에 영향을 주지도 받지도 않는 속성입니다.')">
+                    ③ 이름
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이 문장에서 다루는 두 속성은 공부 시간과 점수입니다.')">
+                    ④ 출석 일수
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>상관관계와 인과 관계</strong>에 대한 설명으로 알맞지 <strong>않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '상관관계는 두 속성이 얼마나 관련되어 있는지를 말합니다.')">
+                    ① 상관관계는 두 속성이 얼마나 관련되어 있는지를 뜻한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '인과 관계는 한 속성이 다른 속성에 영향을 미치는 것을 말합니다.')">
+                    ② 인과 관계는 한 속성이 다른 속성에 영향을 미치는 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 두 값이 함께 움직여도 숨은 원인이 따로 있을 수 있습니다. 아이스크림과 음료수 판매량이 함께 오른 것은 기온 때문이었습니다.')">
+                    ③ 두 속성이 함께 늘어나면 언제나 한쪽이 다른 쪽의 원인이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '영향을 주는 속성을 독립 변수, 받는 속성을 종속 변수라고 합니다.')">
+                    ④ 영향을 주는 속성을 독립 변수, 받는 속성을 종속 변수라 한다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 5 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    오렌지에서 불러온 데이터의 속성을 표로 확인하려면
+                    <span class="font-mono">Datasets</span> 위젯에 어떤 위젯을 연결해야 할까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! Data Table 위젯을 연결하면 데이터의 속성과 값을 표로 확인할 수 있습니다.')">
+                    ① <span class="font-mono">Data Table</span>
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'Datasets는 데이터를 불러오는 위젯으로, 이미 앞 단계에서 사용했습니다.')">
+                    ② <span class="font-mono">Datasets</span>
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'Scatter Plot은 두 속성의 관계를 점으로 그리는 위젯입니다.')">
+                    ③ <span class="font-mono">Scatter Plot</span>
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'File은 내 컴퓨터에 있는 파일을 불러올 때 쓰는 위젯입니다.')">
+                    ④ <span class="font-mono">File</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="bg-slate-900 text-white py-12 px-6 mt-12">
+    <div class="max-w-6xl mx-auto text-center">
+        <p class="text-base text-slate-400">데이터 과학 · Ⅰ단원 데이터 과학의 이해</p>
+        <p class="font-bold text-base text-slate-300 mt-1">02. 데이터의 형태와 속성 — 2. 데이터 속성</p>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

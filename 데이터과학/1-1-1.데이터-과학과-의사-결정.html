@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 과학과 의사 결정</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 말풍선 — 교과서 [그림 Ⅰ-2]·[그림 Ⅰ-3]의 대화 장면을 대체한다 */
+        .speech {
+            position: relative;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .speech::after {
+            content: "";
+            position: absolute;
+            bottom: -9px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+        }
+
+        .speech-left::after {
+            left: 2rem;
+            border-top: 10px solid var(--tail, #e0e7ff);
+        }
+
+        .speech-right::after {
+            right: 2rem;
+            border-top: 10px solid var(--tail, #cffafe);
+        }
+
+        /* 문제 해결 6단계 흐름 — 좁은 화면에서는 세로로 접힌다 */
+        .flow-step {
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .flow-arrow::after {
+                content: "\f061"; /* fa-arrow-right */
+                font-family: "Font Awesome 6 Free";
+                font-weight: 900;
+                position: absolute;
+                right: -1.35rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #c7d2fe;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-database absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-lightbulb absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터 과학과 의사 결정
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            데이터 과학은 <strong>대량의 데이터에서 숨겨진 패턴</strong>을 찾아<br>
+            감정이나 직관이 아닌 <strong>사실에 근거한 결정</strong>을<br>
+            내릴 수 있게 해 줍니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터 과학의 개념을 설명하고, 여러 분야에서 데이터 과학이 어떻게 활용되는지 예를 들 수 있다.</li>
+                    <li>데이터 과학의 문제 해결 절차를 순서대로 설명할 수 있다.</li>
+                    <li>데이터 기반 의사 결정이 직관에 의한 결정과 어떻게 다른지 구분하고, 그 장점을 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-database text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 과학과 의사 결정</span>
+        </div>
+        <div class="hidden md:flex space-x-5 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-indigo-600 transition">데이터 과학</a>
+            <a href="#fields" class="hover:text-indigo-600 transition">활용 분야</a>
+            <a href="#process" class="hover:text-indigo-600 transition">문제 해결 절차</a>
+            <a href="#decision" class="hover:text-indigo-600 transition">의사 결정</a>
+            <a href="#judge" class="hover:text-indigo-600 transition">사례 판별</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 데이터 과학이란? ===== -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 과학이란 무엇일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터를 모으기만 하면 저절로 답이 나올까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">현대 사회는 모든 것이 데이터와 연결되어 있어 데이터를 중심으로 움직입니다.
+                개인 수준의 문제부터 전 지구적 수준의 문제까지 데이터를 이용해 본질을 파악하고 해결합니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 정의 -->
+            <div class="bg-indigo-50 border border-indigo-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-indigo-900 mb-2">데이터 과학 (data science)</h3>
+                        <p class="text-base text-indigo-800 leading-relaxed">
+                            <strong>대량의 데이터를 다양하게 분석하여 정보와 지식을 찾아내는 학문</strong>입니다.
+                            데이터에 숨겨진 <strong>패턴을 발견</strong>하고 <strong>예측</strong>하여, 이를 통한
+                            <strong>합리적인 결정</strong>을 할 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 데이터 → 정보 → 지식 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">
+                    <i class="fa-solid fa-arrow-trend-up text-indigo-500 mr-2"></i>&lsquo;정보와 지식을 찾아낸다&rsquo;는 게 무슨 뜻일까?
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed mb-5">
+                    데이터를 아무리 많이 모아도 그것만으로는 아무 일도 일어나지 않습니다.
+                    데이터 과학은 <strong>흩어진 기록(데이터)</strong>에서 <strong>의미(정보)</strong>를 읽어 내고,
+                    다시 <strong>다음에 무엇을 할지(지식)</strong>로 이어 가는 일입니다.
+                    학교 매점의 아이스크림 판매 기록으로 따라가 봅시다.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                        <span class="inline-block px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-base font-bold mb-3">1단계 · 데이터</span>
+                        <p class="text-base text-slate-700 leading-relaxed mb-2">그냥 쌓여 있는 기록</p>
+                        <p class="text-base text-slate-500 leading-relaxed">
+                            3월 2일 12개<br>3월 3일 5개<br>3월 4일 31개&hellip;
+                        </p>
+                        <p class="text-base text-slate-500 mt-3">→ 아직은 숫자일 뿐입니다.</p>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5">
+                        <span class="inline-block px-3 py-1 bg-sky-200 text-sky-800 rounded-full text-base font-bold mb-3">2단계 · 정보</span>
+                        <p class="text-base text-sky-800 leading-relaxed mb-2">기록에서 읽어 낸 의미</p>
+                        <p class="text-base text-sky-700 leading-relaxed">
+                            판매 기록에 그날 기온을 나란히 놓고 보니
+                            <strong>기온이 높은 날일수록 많이 팔렸다.</strong>
+                        </p>
+                        <p class="text-base text-sky-600 mt-3">→ 이렇게 반복해서 나타나는 관계를 <strong>패턴</strong>이라고 합니다.</p>
+                    </div>
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                        <span class="inline-block px-3 py-1 bg-indigo-200 text-indigo-800 rounded-full text-base font-bold mb-3">3단계 · 지식</span>
+                        <p class="text-base text-indigo-800 leading-relaxed mb-2">행동으로 이어지는 판단</p>
+                        <p class="text-base text-indigo-700 leading-relaxed">
+                            <strong>내일 기온이 25℃를 넘는다니 아이스크림을 평소보다 많이 준비하자.</strong>
+                        </p>
+                        <p class="text-base text-indigo-600 mt-3">→ 아직 오지 않은 내일을 <strong>예측</strong>해 결정을 내렸습니다.</p>
+                    </div>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mt-4">
+                    <p class="text-base text-indigo-900 leading-relaxed">
+                        <i class="fa-solid fa-lightbulb mr-1 text-indigo-500"></i>
+                        앞의 정의에 나온 <strong>&lsquo;패턴을 발견&rsquo;</strong>은 2단계, <strong>&lsquo;예측&rsquo;</strong>은 3단계,
+                        <strong>&lsquo;합리적인 결정&rsquo;</strong>도 3단계입니다. 정의가 어렵게 느껴졌다면
+                        이 세 칸을 떠올리면 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 융합 학문 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-5">
+                    <i class="fa-solid fa-puzzle-piece text-indigo-500 mr-2"></i>데이터 과학에 필요한 것들
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed mb-5">
+                    데이터 과학은 한 분야의 지식만으로는 할 수 없습니다. 실제 세계의 문제는 단편적이지 않고
+                    서로 다른 분야의 지식이 복잡하게 얽혀 있기 때문에, 여러 분야의 전문 지식이 융합되어 활용됩니다.
+                </p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-microchip text-indigo-500 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">컴퓨터 과학</p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-brain text-indigo-500 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">인공지능</p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-chart-pie text-indigo-500 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">통계학</p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-square-root-variable text-indigo-500 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">수학</p>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-300 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-book-open-reader text-sky-600 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-sky-800">도메인 지식</p>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-300 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-wand-magic-sparkles text-sky-600 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-sky-800">상상력</p>
+                    </div>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-xl p-4 mt-4">
+                    <p class="text-base text-sky-900 leading-relaxed">
+                        <i class="fa-solid fa-circle-info mr-1 text-sky-500"></i>
+                        <strong>도메인 지식</strong>이란 각 분야의 전문 지식을 말합니다. 예를 들어 농작물 데이터를 분석하려면
+                        농업에 대한 지식이 함께 있어야 데이터가 무엇을 뜻하는지 해석할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 데이터 과학의 발전 -->
+            <details class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <summary class="font-bold text-base text-slate-700 cursor-pointer">
+                    <i class="fa-solid fa-book text-indigo-500 mr-1"></i>더 알아보기: 데이터 과학은 왜 지금 중요해졌을까?
+                </summary>
+                <div class="mt-4 space-y-3 text-base text-slate-600 leading-relaxed">
+                    <p>
+                        다양한 형태의 데이터가 급속도로 증가하고, 데이터를 수집하고 처리하는 능력과 분석 능력이 크게 발전하면서
+                        데이터 과학의 역할이 넓어졌습니다. 이제 데이터 과학은 산업의 문제뿐만 아니라
+                        <strong>사회·경제적인 문제</strong>, 그리고 <strong>지속가능발전목표(SDGs)</strong>와 같은
+                        전 지구적 차원의 문제까지 포함합니다.
+                    </p>
+                    <p>
+                        실시간 교통 데이터를 분석해 최단 시간 이동 경로와 예상 도착 시간을 계산하는 <strong>개인의 영역</strong>부터,
+                        환경 변화 데이터로 위험을 인식하고 원인을 파악해 선제적으로 대응하는 <strong>지속가능한 발전 분야</strong>까지
+                        데이터가 있는 곳이라면 어디에서나 광범위하게 활용됩니다.
+                    </p>
+                </div>
+            </details>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+            <p class="font-bold text-slate-700 text-base mb-1">
+                <i class="fa-solid fa-circle-question text-sky-500 mr-1"></i>스스로 확인
+            </p>
+            <p class="text-base text-slate-600">
+                데이터 과학에 컴퓨터 과학·통계학 말고도 &lsquo;도메인 지식&rsquo;이 필요한 이유는 무엇일까요?
+                위 설명에서 그 까닭을 찾아보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 활용 분야 ===== -->
+    <section id="fields" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 과학은 어디에 쓰일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">내가 관심 있는 분야에도 데이터 과학이 들어와 있을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">데이터 과학이 적용된 현대 사회의 모습입니다.
+                각 분야가 <strong>어떤 데이터</strong>를 모아 <strong>무엇을 해결</strong>하는지에 주목해 봅시다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">교육</h3>
+                <p class="text-base text-slate-600 leading-relaxed">학업 성적, 학습 패턴, 학습 태도 등의 데이터를 분석하여
+                    <strong>맞춤형 교육 과정과 교육 방법</strong>을 제공합니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-seedling"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">농업</h3>
+                <p class="text-base text-slate-600 leading-relaxed">토양, 기상, 작물 성장 등의 데이터를 분석하여
+                    <strong>병충해를 예방</strong>하고 농작물의 생산량을 높입니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">환경</h3>
+                <p class="text-base text-slate-600 leading-relaxed">환경 오염 및 기후 변화 데이터를 분석하여
+                    <strong>환경 보호 정책이나 환경 개선 방안</strong>을 도출합니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-amber-500">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-coins"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">금융</h3>
+                <p class="text-base text-slate-600 leading-relaxed">고객의 소비 패턴 및 추세 분석 결과를 활용하여
+                    <strong>개인화된 금융 상품</strong>을 개발하고 <strong>금융 범죄 패턴</strong>을 파악합니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">재난 · 안전</h3>
+                <p class="text-base text-slate-600 leading-relaxed">기상, 지진 감지 등의 데이터를 분석하여
+                    <strong>재난의 위험을 사전에 예측</strong>하고 미리 대응 방안을 세웁니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-lime-500">
+                <div class="w-12 h-12 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">에너지 최적화</h3>
+                <p class="text-base text-slate-600 leading-relaxed"><strong>스마트 그리드</strong> 시스템에서 수집되는 데이터를
+                    분석하여 에너지를 효율적으로 관리합니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-red-500">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-stethoscope"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">의료</h3>
+                <p class="text-base text-slate-600 leading-relaxed">환자의 의료 기록 데이터를 분석하여
+                    <strong>진단, 치료 방법, 재발 가능성</strong> 등을 예측합니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-fuchsia-500">
+                <div class="w-12 h-12 bg-fuchsia-100 text-fuchsia-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">유통 및 마케팅</h3>
+                <p class="text-base text-slate-600 leading-relaxed">고객의 구매 패턴, 위치 데이터를 분석하여
+                    <strong>상품 추천과 마케팅</strong>에 활용합니다.</p>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-traffic-light"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">교통</h3>
+                <p class="text-base text-slate-600 leading-relaxed">실시간 교통 데이터를 분석하여
+                    <strong>교통 체증 완화</strong>에 활용할 수 있습니다.</p>
+            </div>
+        </div>
+
+        <details class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <summary class="font-bold text-base text-slate-700 cursor-pointer">
+                <i class="fa-solid fa-plug-circle-bolt text-indigo-500 mr-1"></i>더 알아보기: 스마트 그리드란?
+            </summary>
+            <p class="mt-4 text-base text-slate-600 leading-relaxed">
+                기존 전력망에 정보·통신 기술을 접목하여, 공급자와 수요자 간 <strong>양방향으로 실시간 정보를 교환</strong>함으로써
+                지능형 수요 관리, 신재생에너지 연계, 전기차 충전 등을 가능하게 하는 전력 인프라 시스템입니다.
+            </p>
+        </details>
+
+        <details class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <summary class="font-bold text-base text-slate-700 cursor-pointer">
+                <i class="fa-solid fa-earth-asia text-indigo-500 mr-1"></i>더 알아보기: 지속가능발전목표(SDGs)
+            </summary>
+            <p class="mt-4 text-base text-slate-600 leading-relaxed">
+                국제 연합(UN)에서 2030년까지 세계가 함께 실천해야 할
+                &lsquo;미래 세대의 필요를 충족시키는 동시에 현재의 필요도 만족시키는&rsquo; 목표로,
+                <strong>17개 목표와 169개의 세부 목표</strong>를 제시했습니다.
+                데이터 과학은 기후 변화, 빈곤 감소, 삶의 질 증진 등의 지속가능발전목표를 달성하기 위해
+                다양한 분야의 도메인 지식과 결합하여 발전하고 있습니다.
+            </p>
+        </details>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+            <p class="font-bold text-slate-700 text-base mb-1">
+                <i class="fa-solid fa-circle-question text-sky-500 mr-1"></i>스스로 확인
+            </p>
+            <p class="text-base text-slate-600">
+                위 아홉 개 분야 중 내 진로와 가장 가까운 분야를 하나 고르고, 그 분야가 <strong>어떤 데이터</strong>를 모으는지
+                카드에서 찾아 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 문제 해결 절차 ===== -->
+    <section id="process" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 과학은 어떤 순서로 문제를 해결할까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터를 구했다면 곧바로 결론을 내려도 될까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">우리 주변에서 일어나는 작은 문제부터 전 지구적인 큰 문제까지
+                데이터 과학은 다음 <strong>여섯 단계</strong>를 거쳐 해결합니다.</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-5">
+                <div class="flow-step flow-arrow bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base mb-3">
+                        1
+                    </div>
+                    <p class="font-bold text-base text-indigo-900">문제 정의하기</p>
+                    <p class="text-base text-indigo-700 mt-1 leading-relaxed">무엇을 알아내고 싶은지 분명히 정한다.</p>
+                </div>
+                <div class="flow-step flow-arrow bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base mb-3">
+                        2
+                    </div>
+                    <p class="font-bold text-base text-indigo-900">데이터 수집 및 특성 파악하기</p>
+                    <p class="text-base text-indigo-700 mt-1 leading-relaxed">문제 해결에 필요한 데이터를 모으고 살펴본다.</p>
+                </div>
+                <div class="flow-step bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base mb-3">
+                        3
+                    </div>
+                    <p class="font-bold text-base text-indigo-900">데이터 전처리하기</p>
+                    <p class="text-base text-indigo-700 mt-1 leading-relaxed">분석할 수 있는 형태로 데이터를 다듬는다.</p>
+                </div>
+                <div class="flow-step flow-arrow bg-sky-50 border border-sky-200 rounded-2xl p-5">
+                    <div class="w-9 h-9 bg-sky-600 text-white rounded-full flex items-center justify-center font-black text-base mb-3">
+                        4
+                    </div>
+                    <p class="font-bold text-base text-sky-900">탐색적 데이터 분석하기</p>
+                    <p class="text-base text-sky-700 mt-1 leading-relaxed">데이터의 패턴과 관계를 찾아본다.</p>
+                </div>
+                <div class="flow-step flow-arrow bg-sky-50 border border-sky-200 rounded-2xl p-5">
+                    <div class="w-9 h-9 bg-sky-600 text-white rounded-full flex items-center justify-center font-black text-base mb-3">
+                        5
+                    </div>
+                    <p class="font-bold text-base text-sky-900">데이터 모델링하기</p>
+                    <p class="text-base text-sky-700 mt-1 leading-relaxed">모델을 만들어 더 상세하게 확인한다.</p>
+                </div>
+                <div class="flow-step bg-sky-50 border border-sky-200 rounded-2xl p-5">
+                    <div class="w-9 h-9 bg-sky-600 text-white rounded-full flex items-center justify-center font-black text-base mb-3">
+                        6
+                    </div>
+                    <p class="font-bold text-base text-sky-900">결과 해석 및 공유하기</p>
+                    <p class="text-base text-sky-700 mt-1 leading-relaxed">알아낸 것을 해석하고 다른 사람과 나눈다.</p>
+                </div>
+            </div>
+
+            <!-- 지구 온난화 사례 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-4">
+                    <i class="fa-solid fa-temperature-arrow-up text-indigo-500 mr-2"></i>사례로 따라가기 &mdash; 지구 온난화
+                </h3>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table class="min-w-[560px]">
+                        <thead>
+                        <tr>
+                            <th>단계</th>
+                            <th>지구 온난화 문제에서는</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold text-indigo-700">1. 문제 정의하기</td>
+                            <td>북극의 빙하가 정말 녹고 있는지 알아본다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-indigo-700">2. 데이터 수집 및 특성 파악하기</td>
+                            <td>지구 온난화를 알기 위해 필요한 데이터(기온, 해수면 등)를 모은다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-indigo-700">3. 데이터 전처리하기</td>
+                            <td>기온은 섭씨(℃)인데 데이터가 화씨(℉)로 되어 있다면 속성값의 단위를 통일한다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-sky-700">4. 탐색적 데이터 분석하기</td>
+                            <td>&ldquo;시간이 지날수록 해수면은 상승할 것이다&rdquo;와 같은 관계를 찾아낸다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-sky-700">5. 데이터 모델링하기</td>
+                            <td>데이터 모델을 만들어 더 상세하게 확인한다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-sky-700">6. 결과 해석 및 공유하기</td>
+                            <td>지구 온난화에 대한 변화를 포스터로 만들어 게시판에 붙이고 심각성을 알린다.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-500 mt-3">
+                    <i class="fa-solid fa-circle-info mr-1 text-indigo-500"></i>
+                    3단계에서 단위를 통일하지 않으면 &ldquo;어느 해의 기온이 99℃&rdquo;와 같은 이상한 결과가 나옵니다.
+                    전처리가 왜 필요한지 보여 주는 대목입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+            <p class="font-bold text-slate-700 text-base mb-1">
+                <i class="fa-solid fa-circle-question text-sky-500 mr-1"></i>스스로 확인
+            </p>
+            <p class="text-base text-slate-600">
+                여섯 단계 중 &lsquo;데이터 전처리하기&rsquo;를 건너뛰면 어떤 문제가 생길까요?
+                위 표의 3단계 설명과 아래 안내 문장에서 근거를 찾아보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 데이터 기반 의사 결정 ===== -->
+    <section id="decision" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 기반 의사 결정이란?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">&lsquo;경험상 이럴 것 같다&rsquo;와 무엇이 다를까?</p>
+        </div>
+
+        <div class="section-card space-y-8">
+            <!-- 정의 -->
+            <div class="bg-indigo-50 border border-indigo-300 rounded-2xl p-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-indigo-900 mb-2">데이터 기반 의사 결정</h3>
+                        <p class="text-base text-indigo-800 leading-relaxed">
+                            단순히 <strong>직관에 의한 의사 결정</strong>이 아니라, 체계적으로
+                            데이터를 <strong>수집 &middot; 분석 &middot; 검증</strong>하는 과정을 거쳐
+                            <strong>전략적인 결정</strong>을 내리는 것입니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- △△마트 대화 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-5">
+                    <i class="fa-solid fa-store text-indigo-500 mr-2"></i>사례 1 &mdash; △△마트의 매출 올리기
+                </h3>
+                <div class="space-y-6">
+                    <div class="speech bg-slate-100 speech-left" style="--tail:#f1f5f9">
+                        <p class="font-bold text-base text-slate-500 mb-1">점장</p>
+                        <p class="text-base text-slate-800 leading-relaxed">&ldquo;△△마트 매출을 올리려면 어떻게 할까요?&rdquo;</p>
+                    </div>
+                    <div class="speech bg-rose-50 border border-rose-200 speech-left ml-0 md:ml-8"
+                         style="--tail:#ffe4e6">
+                        <p class="font-bold text-base text-rose-500 mb-1">
+                            <i class="fa-solid fa-circle-xmark mr-1"></i>직관에 의한 결정
+                        </p>
+                        <p class="text-base text-rose-900 leading-relaxed">&ldquo;글쎄요, 우선 할인 행사를 정해 볼까요? 아니면&hellip;&hellip;&rdquo;</p>
+                    </div>
+                    <div class="speech bg-indigo-50 border border-indigo-200 speech-left ml-0 md:ml-8"
+                         style="--tail:#e0e7ff">
+                        <p class="font-bold text-base text-indigo-600 mb-1">
+                            <i class="fa-solid fa-circle-check mr-1"></i>데이터 기반 의사 결정
+                        </p>
+                        <p class="text-base text-indigo-900 leading-relaxed mb-2">&ldquo;매출을 올릴 방법을 <strong>주말 오전 방문 데이터</strong>를 분석합시다.&rdquo;</p>
+                        <ul class="space-y-1.5 text-base text-indigo-800">
+                            <li class="flex gap-2">
+                                <i class="fa-solid fa-arrow-right text-indigo-400 mt-1 shrink-0"></i>
+                                <span>주말 오전에 고객들이 많으니 <strong>오픈 시간을 조정</strong>합시다.</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <i class="fa-solid fa-arrow-right text-indigo-400 mt-1 shrink-0"></i>
+                                <span>평일 저녁 간편식 매출이 높으니 <strong>8시 이후 간편식을 할인</strong>합시다.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 은행 사례 -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 mb-5">
+                    <i class="fa-solid fa-building-columns text-indigo-500 mr-2"></i>사례 2 &mdash; 은행의 자산 관리 상담
+                </h3>
+                <p class="text-base text-slate-600 leading-relaxed mb-5">
+                    고객이 &ldquo;자산 관리 상담을 받으려고요.&rdquo;라고 하면, 은행은 고객 데이터와 국내외 데이터를 함께 확인합니다.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                        <p class="font-bold text-base text-emerald-800 mb-2">
+                            <i class="fa-solid fa-piggy-bank mr-1"></i>상품 추천
+                        </p>
+                        <p class="text-base text-emerald-900 leading-relaxed">
+                            &ldquo;소비 내역을 보니 열심히 일해서 연체가 없네. <strong>새로운 저축형 예금</strong>이 좋겠어.&rdquo;
+                        </p>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                        <p class="font-bold text-base text-amber-800 mb-2">
+                            <i class="fa-solid fa-shield-halved mr-1"></i>이상 거래 감지
+                        </p>
+                        <p class="text-base text-amber-900 leading-relaxed">
+                            &ldquo;현금은 거의 사용하지 않는데, 왜 <strong>큰돈이 빠져나갔지?</strong>&rdquo;
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 효과 -->
+            <div class="bg-sky-50 border border-sky-300 rounded-2xl p-6">
+                <h3 class="text-xl font-bold text-sky-900 mb-3">
+                    <i class="fa-solid fa-thumbs-up mr-2"></i>데이터 기반 의사 결정의 좋은 점
+                </h3>
+                <p class="text-base text-sky-800 leading-relaxed mb-4">
+                    데이터 기반의 의사 결정은 <strong>객관적인 수치와 사실에 근거</strong>하므로
+                    주관적인 의견에 의한 오류를 최소화하여 판단할 수 있습니다.
+                    따라서 의사 결정에 대한 <strong>시행착오를 줄이고</strong>, <strong>책임감과 신뢰성을 높일 수</strong> 있습니다.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="bg-white rounded-xl p-4 border border-sky-200 text-center">
+                        <i class="fa-solid fa-crosshairs text-sky-600 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">오류 최소화</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-sky-200 text-center">
+                        <i class="fa-solid fa-route text-sky-600 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">시행착오 감소</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-sky-200 text-center">
+                        <i class="fa-solid fa-handshake text-sky-600 text-xl mb-2 block"></i>
+                        <p class="font-bold text-base text-slate-700">책임감 &middot; 신뢰성 향상</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+            <p class="font-bold text-slate-700 text-base mb-1">
+                <i class="fa-solid fa-circle-question text-sky-500 mr-1"></i>스스로 확인
+            </p>
+            <p class="text-base text-slate-600">
+                △△마트 사례에서 &lsquo;직관에 의한 결정&rsquo;과 &lsquo;데이터 기반 의사 결정&rsquo;의
+                가장 큰 차이는 무엇인가요? 두 말풍선을 다시 비교해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 사례 판별 ===== -->
+    <section id="judge" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이것도 데이터 과학 사례일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">무엇을 보고 데이터 과학인지 아닌지를 가릴 수 있을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">다음 두 사례가 데이터 과학 사례가 맞을지 생각해 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                <table class="min-w-[560px]">
+                    <thead>
+                    <tr>
+                        <th>사례</th>
+                        <th>데이터 과학 여부</th>
+                        <th>이유</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-700">프로 스포츠팀 전략 최적화</td>
+                        <td>
+                            <span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-base font-bold">
+                                <i class="fa-solid fa-circle-check mr-1"></i>맞다
+                            </span>
+                        </td>
+                        <td>상대 선수들의 패턴이나 스타일을 <strong>분석</strong>하여 유리한 전략을 세울 수 있다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-700">새로운 요리 메뉴 개발</td>
+                        <td>
+                            <span class="inline-block px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-base font-bold">
+                                <i class="fa-solid fa-circle-xmark mr-1"></i>아니다
+                            </span>
+                        </td>
+                        <td>경험과 취향을 근거로 재료와 맛의 조합을 예상하여 개발한다. <strong>데이터가 사용되지 않았다.</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-key text-indigo-500 mr-1"></i>
+                    <strong>판단의 열쇠</strong> &mdash; 결정을 내릴 때 <strong>실제로 데이터를 수집하고 분석했는지</strong>를 봅니다.
+                    결과가 그럴듯해 보여도 경험과 감에만 의존했다면 데이터 과학이라고 할 수 없습니다.
+                </p>
+            </div>
+
+            <details class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <summary class="font-bold text-base text-slate-700 cursor-pointer">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>더 알아보기: 데이터 과학으로 풀 수 있는 다른 문제들
+                </summary>
+                <ul class="mt-4 space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2">
+                        <i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i>
+                        <span>은행에서 고객의 거래 내역, 결제 이력, 시장 데이터 등을 활용하여 <strong>투자 포트폴리오를 최적화</strong>할 수 있다.</span>
+                    </li>
+                    <li class="flex gap-2">
+                        <i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i>
+                        <span>소셜 미디어 플랫폼에서 텍스트, 감정 등을 파악하여 <strong>제품 개선 및 마케팅</strong>에 활용할 수 있다.</span>
+                    </li>
+                    <li class="flex gap-2">
+                        <i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i>
+                        <span>도시 교통 흐름 데이터를 분석하여 <strong>교통 체증을 줄이고 교통 안전을 향상</strong>시킬 수 있다.</span>
+                    </li>
+                </ul>
+            </details>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+            <p class="font-bold text-slate-700 text-base mb-1">
+                <i class="fa-solid fa-circle-question text-sky-500 mr-1"></i>스스로 확인
+            </p>
+            <p class="text-base text-slate-600">
+                우리 학교 체육 대회에 데이터 과학을 활용한다면 어떤 주제가 좋을까요?
+                &lsquo;어떤 데이터를 모아 무엇을 결정할지&rsquo;의 형태로 한 문장을 만들어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: AI와 함께 정리 ===== -->
+    <section class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">데이터 과학은 무엇이고, 왜 데이터에 기반해 의사 결정을 해야 할까?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        데이터 과학은 <strong class="text-sky-200">대량의 데이터를 분석해 정보와 지식을 찾아내는 학문</strong>으로,
+                        데이터에 숨겨진 패턴을 발견하고 예측합니다.
+                        데이터에 기반한 의사 결정은 <strong class="text-sky-200">객관적인 수치와 사실에 근거</strong>하므로
+                        감정이나 직관보다 훨씬 <strong class="text-indigo-200">객관적이고 신뢰할 수 있으며</strong>,
+                        시행착오를 줄여 줍니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-magnifying-glass-chart text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">데이터 과학</p>
+                    <p class="text-base text-sky-100">패턴 발견 &middot; 예측 &middot; 합리적 결정</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-puzzle-piece text-indigo-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">융합 학문</p>
+                    <p class="text-base text-sky-100">컴퓨터 과학 &middot; 통계학 &middot; 수학 + 도메인 지식</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-scale-balanced text-violet-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">의사 결정</p>
+                    <p class="text-base text-sky-100">수집 &middot; 분석 &middot; 검증을 거친 전략적 결정</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">데이터 과학</h3>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>대량의 데이터를 분석해 <strong>정보와 지식</strong>을 찾아내는 학문</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>숨겨진 <strong>패턴 발견 &middot; 예측</strong>으로 합리적 결정</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>여러 분야의 전문 지식이 <strong>융합</strong>되어 활용</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">문제 해결 절차</h3>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>문제 정의 → 데이터 수집 및 특성 파악 → 전처리</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>탐색적 데이터 분석 → 모델링 → 결과 해석 및 공유</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>전처리를 건너뛰면 <strong>단위 불일치</strong> 같은 오류가 남는다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-3">데이터 기반 의사 결정</h3>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>수집 &middot; 분석 &middot; 검증을 거친 <strong>전략적 결정</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>객관적 수치와 사실 → <strong>주관적 오류 최소화</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>시행착오 감소, <strong>책임감 &middot; 신뢰성</strong> 향상</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>데이터 과학</strong>에 대한 설명으로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터를 저장하는 것만으로는 데이터 과학이라 할 수 없습니다. 분석하여 정보와 지식을 찾아내야 합니다.')">
+                    ① 데이터를 안전하게 저장하고 보관하는 기술
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 데이터 과학은 대량의 데이터를 다양하게 분석하여 정보와 지식을 찾아내는 학문입니다.')">
+                    ② 대량의 데이터를 분석하여 정보와 지식을 찾아내는 학문
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터 과학은 컴퓨터 과학뿐 아니라 통계학, 수학, 도메인 지식이 융합되는 분야입니다.')">
+                    ③ 컴퓨터 프로그램을 빠르게 만드는 방법만을 연구하는 분야
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터 과학은 개인 수준의 문제부터 전 지구적 수준의 문제까지 폭넓게 다룹니다.')">
+                    ④ 기업의 매출 문제만 전문적으로 다루는 경영 기법
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    데이터 과학의 문제 해결 절차에서 <strong>가장 먼저</strong> 해야 할 단계는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터 수집은 두 번째 단계입니다. 무엇을 알아낼지 정하지 않으면 어떤 데이터가 필요한지도 알 수 없습니다.')">
+                    ① 데이터 수집 및 특성 파악하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 문제 정의하기가 1단계입니다. 무엇을 알아내고 싶은지 분명히 정해야 필요한 데이터도 정해집니다.')">
+                    ② 문제 정의하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터 전처리는 세 번째 단계로, 수집한 데이터를 분석 가능한 형태로 다듬는 과정입니다.')">
+                    ③ 데이터 전처리하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과 해석 및 공유하기는 마지막 여섯 번째 단계입니다.')">
+                    ④ 결과 해석 및 공유하기
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>데이터 기반 의사 결정</strong>의 사례로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '경험과 취향에만 근거한 결정은 데이터가 사용되지 않았으므로 데이터 기반 의사 결정이 아닙니다.')">
+                    ① 요리사가 오랜 경험과 취향으로 재료 조합을 정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 주말 오전 방문 데이터를 수집·분석하여 결정했으므로 데이터 기반 의사 결정입니다.')">
+                    ② 마트가 주말 오전 방문 데이터를 분석해 오픈 시간을 조정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '다수결은 의견을 모으는 방법일 뿐, 데이터를 수집·분석·검증하는 과정이 없습니다.')">
+                    ③ 회의에서 다수결로 새 상품의 가격을 정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '직감에 의한 결정은 데이터 기반 의사 결정과 대비되는 방식입니다.')">
+                    ④ 점장이 직감으로 할인 행사 품목을 고른다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    데이터 기반 의사 결정의 <strong>효과</strong>로 알맞지 <strong>않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '객관적인 수치와 사실에 근거하므로 주관적인 의견에 의한 오류를 최소화할 수 있습니다.')">
+                    ① 주관적인 의견에 의한 오류를 최소화할 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '의사 결정에 대한 시행착오를 줄일 수 있습니다.')">
+                    ② 의사 결정에 대한 시행착오를 줄일 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 데이터 기반 의사 결정이 모든 예측을 100% 맞힌다고 보장하지는 않습니다. 오류를 최소화하고 신뢰성을 높이는 것이지, 오류가 사라지는 것은 아닙니다.')">
+                    ③ 어떤 상황에서도 100% 정확한 예측을 보장한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결정에 대한 책임감과 신뢰성을 높일 수 있습니다.')">
+                    ④ 결정에 대한 책임감과 신뢰성을 높일 수 있다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="bg-slate-900 text-white py-12 px-6 mt-12">
+    <div class="max-w-6xl mx-auto text-center">
+        <p class="text-base text-slate-400">데이터 과학 · Ⅰ단원 데이터 과학의 이해</p>
+        <p class="font-bold text-base text-slate-300 mt-1">01. 데이터 과학의 개념 — 1. 데이터 과학과 의사 결정</p>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

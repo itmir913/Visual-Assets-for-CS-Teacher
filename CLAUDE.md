@@ -62,6 +62,26 @@ body code, body kbd, body samp, body pre,
 body .font-mono { font-family: ui-monospace, …, "Pretendard Variable", …, monospace; }
 ```
 
+### 코드 블록 가로 넘침
+
+`<pre>`는 기본값이 `white-space: pre`라 **긴 줄이 줄바꿈되지 않고 화면 밖으로 빠져나간다.**
+`<pre>`를 쓰는 모든 파일에 아래 규칙을 넣는다.
+
+```css
+body pre {
+    overflow-x: auto;   /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+    max-width: 100%;
+    min-width: 0;       /* flex 자식일 때 정상적으로 줄어들도록 */
+}
+```
+
+- **`white-space: pre-wrap`으로 접지 않는다.** 코드는 들여쓰기가 의미를 가지므로 원형을 지키고,
+  스크롤은 코드 블록 안에 가둔다.
+- 래퍼 `div`를 끼우는 방식은 쓰지 않는다. 코드 블록 마크업이 `rounded-xl overflow-hidden`,
+  `flex-1`, 탭 콘텐츠 등으로 제각각이라 래퍼를 넣으면 둥근 모서리와 flex 레이아웃이 깨진다.
+- (2026-08-04 `<pre>` 사용 50개 파일 일괄 적용. 적용 전 39개 파일이 무방비였다.
+  적용 후 375px에서 50개 전부 가로 넘침 0 확인.)
+
 ---
 
 ## 시뮬레이터 검증 워크플로

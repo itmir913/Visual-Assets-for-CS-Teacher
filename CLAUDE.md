@@ -47,6 +47,26 @@
 - **CDN 의존은 의도된 설계다.** 학교 현장은 온라인 환경이므로 로컬 번들링·오프라인 대응을 제안하지 말 것.
 - 375px 폭에서 가로 스크롤이 생기지 않아야 한다.
 
+### 사이트 주소는 반드시 하이퍼링크로 단다
+
+`kaggle.com/datasets/...` 같은 주소를 **글자로만 적어 두지 않는다.** 학생이 손으로 옮겨 적게 된다.
+
+```css
+a.ext-link { color:#4338ca; font-weight:600; text-decoration:underline;
+             text-underline-offset:2px; word-break:break-all; }
+a.ext-link:hover { color:#312e81; }
+```
+
+```html
+<a class="ext-link" href="https://www.kaggle.com/datasets/geoffnel/evs-one-electric-vehicle-dataset"
+   target="_blank" rel="noopener noreferrer">kaggle.com/datasets/geoffnel/evs-one-electric-vehicle-dataset</a>
+```
+
+- `target="_blank"` + `rel="noopener noreferrer"`를 항상 붙인다.
+- `word-break: break-all`이 없으면 **긴 주소가 375px를 뚫는다.**
+- 표시 글자는 `https://www.`를 뺀 짧은 형태로 두되, `href`에는 전체 주소를 넣는다.
+- (2026-08-05 지적. 데이터과학 3개 파일 13곳 일괄 적용.)
+
 ### 표가 375px에서 눌려 찌그러지는 문제 — `table-prose`
 
 `overflow-x-auto` 래퍼가 있어도 **표는 넘치지 않는다.** `table { width: 100% }`가 표를

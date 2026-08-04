@@ -198,18 +198,34 @@
             background: #cbd5e1;
         }
 
+        /* 가로 바의 양 끝은 fitBranchBars()가 첫·마지막 자식의 중심에 맞춰 준다. */
         .branch::after {
             content: "";
             position: absolute;
             top: 1.25rem;
-            left: 18%;
-            right: 18%;
+            left: var(--bar-left, 18%);
+            right: var(--bar-right, 18%);
             height: 2px;
             background: #cbd5e1;
         }
 
         .branch > * {
             position: relative;
+        }
+
+        .branch.wide {
+            gap: 3rem;
+        }
+
+        /* 자식이 하나뿐이면 가로 연결 바를 그리지 않는다 */
+        .branch.single::after {
+            display: none;
+        }
+
+        .branch.on-dark::before,
+        .branch.on-dark::after,
+        .branch.on-dark > *::before {
+            background: #64748b;
         }
 
         .branch > *::before {
@@ -753,42 +769,40 @@
                 </div>
 
                 <!-- 트리 구조 시각화 -->
-                <div class="bg-slate-800 p-8 rounded-3xl flex flex-col items-center justify-center min-h-[280px]">
-                    <div class="text-white font-bold bg-blue-500 px-6 py-2 rounded-full shadow-lg">초기 상태</div>
-                    <div class="flex gap-16 mt-6">
-                        <!-- 왼쪽 가지 (실패) -->
-                        <div class="flex flex-col items-center">
-                            <div class="w-px h-6 bg-slate-500"></div>
-                            <div class="bg-slate-600 text-slate-200 px-4 py-2 rounded-lg text-base">중간 과정 A</div>
-                            <div class="w-px h-5 bg-slate-500"></div>
-                            <div class="flex gap-4">
-                                <div class="flex flex-col items-center">
-                                    <div class="w-px h-4 bg-slate-500"></div>
-                                    <div class="bg-slate-600 text-slate-400 px-3 py-1 rounded text-base opacity-50">실패
-                                    </div>
-                                </div>
-                                <div class="flex flex-col items-center">
-                                    <div class="w-px h-4 bg-slate-500"></div>
-                                    <div class="bg-slate-600 text-slate-400 px-3 py-1 rounded text-base opacity-50">실패
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 오른쪽 가지 (성공) -->
-                        <div class="flex flex-col items-center">
-                            <div class="w-px h-6 bg-slate-500"></div>
-                            <div class="bg-slate-600 text-slate-200 px-4 py-2 rounded-lg border-2 border-emerald-400 text-base">
-                                중간 과정 B
-                            </div>
-                            <div class="w-px h-5 bg-slate-500"></div>
-                            <div class="flex flex-col items-center">
-                                <div class="w-px h-4 bg-slate-500"></div>
-                                <div class="bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg shadow-lg text-base">
-                                    목표 상태!
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-slate-800 p-6 rounded-3xl">
+                    <svg class="w-full h-auto" viewBox="0 0 520 300" role="img"
+                         aria-label="초기 상태 아래 중간 과정 A와 B가 있고, A 아래에는 실패 두 개, B 아래에는 목표 상태가 있는 트리">
+                        <!-- 간선 -->
+                        <g stroke="#64748b" stroke-width="2" fill="none">
+                            <path d="M260 52 V85"/>
+                            <path d="M130 85 H390"/>
+                            <path d="M130 85 V118"/>
+                            <path d="M390 85 V118"/>
+                            <path d="M130 162 V200"/>
+                            <path d="M70 200 H190"/>
+                            <path d="M70 200 V231"/>
+                            <path d="M190 200 V231"/>
+                            <path d="M390 162 V229"/>
+                        </g>
+                        <!-- 노드 -->
+                        <rect x="195" y="8" width="130" height="44" rx="22" fill="#3b82f6"/>
+                        <text x="260" y="37" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">초기 상태</text>
+
+                        <rect x="55" y="118" width="150" height="44" rx="10" fill="#475569"/>
+                        <text x="130" y="147" font-size="18" font-weight="bold" fill="#e2e8f0" text-anchor="middle">중간 과정 A</text>
+
+                        <rect x="315" y="118" width="150" height="44" rx="10" fill="#475569" stroke="#34d399"
+                              stroke-width="2"/>
+                        <text x="390" y="147" font-size="18" font-weight="bold" fill="#e2e8f0" text-anchor="middle">중간 과정 B</text>
+
+                        <rect x="20" y="231" width="100" height="38" rx="8" fill="#475569" opacity="0.55"/>
+                        <text x="70" y="256" font-size="17" font-weight="bold" fill="#94a3b8" text-anchor="middle">실패</text>
+                        <rect x="140" y="231" width="100" height="38" rx="8" fill="#475569" opacity="0.55"/>
+                        <text x="190" y="256" font-size="17" font-weight="bold" fill="#94a3b8" text-anchor="middle">실패</text>
+
+                        <rect x="325" y="229" width="130" height="42" rx="10" fill="#10b981"/>
+                        <text x="390" y="257" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">목표 상태!</text>
+                    </svg>
                 </div>
             </div>
 
@@ -1759,12 +1773,37 @@
 </footer>
 
 <script>
+    /* 분기의 가로 연결 바를 첫·마지막 자식의 중심에 정확히 맞춘다.
+       (탭이 숨겨져 있으면 폭이 0이므로 표시된 뒤에 다시 호출해야 한다) */
+    function fitBranchBars() {
+        document.querySelectorAll('.branch').forEach(b => {
+            const kids = [...b.children];
+            if (kids.length < 2) {
+                b.classList.add('single');
+                return;
+            }
+            const box = b.getBoundingClientRect();
+            if (!box.width) return;
+            const center = k => {
+                const r = k.getBoundingClientRect();
+                return r.left + r.width / 2 - box.left;
+            };
+            b.style.setProperty('--bar-left', center(kids[0]) + 'px');
+            b.style.setProperty('--bar-right', (box.width - center(kids[kids.length - 1])) + 'px');
+        });
+    }
+
+    window.addEventListener('load', fitBranchBars);
+    window.addEventListener('resize', fitBranchBars);
+    fitBranchBars();
+
     /* ── 문제 모델링 탭 ── */
     document.getElementById('modelTabs').addEventListener('click', (e) => {
         const btn = e.target.closest('.tab-btn');
         if (!btn) return;
         document.querySelectorAll('#modelTabs .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + btn.dataset.tab));
+        fitBranchBars(); // 방금 보이게 된 패널의 분기 바를 다시 계산한다.
         // 탭을 바꾸면 탭 바가 상단 내비게이션 바로 아래에 오도록 스크롤한다.
         document.getElementById('modelTabsTop').scrollIntoView({behavior: 'smooth', block: 'start'});
     });

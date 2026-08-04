@@ -36,6 +36,32 @@
 - **CDN 의존은 의도된 설계다.** 학교 현장은 온라인 환경이므로 로컬 번들링·오프라인 대응을 제안하지 말 것.
 - 375px 폭에서 가로 스크롤이 생기지 않아야 한다.
 
+### 목록은 `list-outside`만 쓴다 (`list-inside` 금지)
+
+```html
+<ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+<ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+```
+
+- `list-inside`는 마커가 콘텐츠 박스 안에 들어가서 **줄바꿈된 둘째 줄이 번호 아래 맨 왼쪽으로
+  붙는다.** 좁은 화면일수록 줄바꿈이 잦아 더 자주 깨진다. `list-outside`라야 둘째 줄이 첫 줄
+  글자에 맞춰 들여쓰기된다(행잉 인덴트).
+- `list-outside`는 마커가 콘텐츠 박스 **밖**에 그려지므로 **왼쪽 패딩을 반드시 함께 준다.**
+  `pl-5`(1.25rem)가 기본이고, 이보다 작으면 두 자리 번호에서 마커가 잘린다.
+- **학습 목표 번호는 `①②③` 같은 원문자 대신 `list-decimal` 자동 번호를 쓴다.**
+  원문자는 보조기기가 읽는 방식이 제각각이고, 항목을 넣거나 빼면 손으로 다시 매겨야 하며,
+  글꼴 폴백 시 두부(□)로 깨진다. (2026-08-04 전 과목 24개 파일 일괄 교정 완료)
+
+### 코드 요소의 한글 글꼴
+
+`code, pre` 같은 **요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의 동일 특이도
+규칙에 밀려** 한글이 시스템 글꼴로 떨어진다. `body`를 붙여 특이도를 올려야 한다.
+
+```css
+body code, body kbd, body samp, body pre,
+body .font-mono { font-family: ui-monospace, …, "Pretendard Variable", …, monospace; }
+```
+
 ---
 
 ## 시뮬레이터 검증 워크플로

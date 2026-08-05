@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회귀 분석의 이해</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-chart-line absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-arrow-trend-up absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            회귀 분석의 이해
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            흩어진 점들 사이로 <strong>선 하나</strong>를 긋습니다.<br>
+            그 선이 <strong>아직 보지 못한 값</strong>을 알려 줍니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>회귀 분석이 독립 변수와 종속 변수의 관계를 수식으로 나타내는 방법임을 설명할 수 있다.</li>
+                    <li>독립 변수의 개수에 따라 단순 선형 회귀 분석과 다중 선형 회귀 분석을 구별할 수 있다.</li>
+                    <li>회귀식의 기울기와 절편이 각각 무엇을 뜻하는지 데이터의 맥락에 맞게 해석할 수 있다.</li>
+                    <li>로지스틱 회귀 분석이 이산적인 값을 예측하는 데 쓰이는 까닭을 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chart-line text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">회귀 분석의 이해</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#origin" class="hover:text-indigo-600 transition">이름의 유래</a>
+            <a href="#concept" class="hover:text-indigo-600 transition">회귀 분석</a>
+            <a href="#simple" class="hover:text-indigo-600 transition">단순 선형</a>
+            <a href="#multiple" class="hover:text-indigo-600 transition">다중 선형</a>
+            <a href="#logistic" class="hover:text-indigo-600 transition">로지스틱</a>
+            <a href="#cases" class="hover:text-indigo-600 transition">활용</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI와 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 이름의 유래 ===== -->
+    <section id="origin" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">왜 하필 &lsquo;회귀&rsquo;라는 이름일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>회귀(回歸)</strong>는 &lsquo;돌아간다&rsquo;는 뜻입니다. 예측하는 일에 왜 이런 이름이 붙었을까요?
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                19세기 영국의 학자 <strong>프랜시스 골턴(Francis Galton)</strong>은
+                부모의 키와 그 자녀의 키를 아주 많이 모아 나란히 놓아 보았습니다.
+                키가 큰 부모에게서 큰 자녀가 태어나는 경향은 분명히 있었습니다.
+                그런데 그가 눈여겨본 것은 그 경향의 <strong>세기</strong>였습니다.
+            </p>
+
+            <div class="bg-indigo-50 border border-indigo-200 border-l-4 border-l-indigo-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-indigo-900">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>골턴이 발견한 것
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>아주 큰 부모</strong>의 자녀는 부모보다는 <strong>작은</strong> 편이었고,
+                    <strong>아주 작은 부모</strong>의 자녀는 부모보다는 <strong>큰</strong> 편이었습니다.
+                    양쪽 끝이 모두 <strong>전체 평균 쪽으로 되돌아가는</strong> 것처럼 보였습니다.
+                    골턴은 이 &lsquo;되돌아감&rsquo;을 <strong>regression</strong>이라 불렀습니다.
+                </p>
+            </div>
+
+            <svg viewBox="0 0 620 270" role="img" class="chart-svg"
+                 aria-label="가로축은 부모의 평균 키, 세로축은 자녀의 키인 산점도. 부모와 키가 똑같아지는 점선 대각선보다 기울기가 완만한 실선 하나가 점들 사이를 지나간다.">
+                <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                    <line x1="80" y1="190" x2="580" y2="190"/>
+                    <line x1="80" y1="140" x2="580" y2="140"/>
+                    <line x1="80" y1="90" x2="580" y2="90"/>
+                </g>
+                <line x1="80" y1="30" x2="80" y2="235" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="80" y1="235" x2="590" y2="235" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="100" y1="216" x2="560" y2="46" stroke="#94a3b8" stroke-width="3"
+                      stroke-dasharray="9 7" stroke-linecap="round"/>
+                <g fill="#6366f1" fill-opacity="0.75">
+                    <circle cx="118" cy="168" r="6"/>
+                    <circle cx="134" cy="192" r="6"/>
+                    <circle cx="152" cy="160" r="6"/>
+                    <circle cx="176" cy="182" r="6"/>
+                    <circle cx="196" cy="150" r="6"/>
+                    <circle cx="214" cy="174" r="6"/>
+                    <circle cx="238" cy="142" r="6"/>
+                    <circle cx="262" cy="164" r="6"/>
+                    <circle cx="284" cy="128" r="6"/>
+                    <circle cx="306" cy="150" r="6"/>
+                    <circle cx="330" cy="118" r="6"/>
+                    <circle cx="352" cy="140" r="6"/>
+                    <circle cx="376" cy="106" r="6"/>
+                    <circle cx="398" cy="128" r="6"/>
+                    <circle cx="422" cy="96" r="6"/>
+                    <circle cx="446" cy="118" r="6"/>
+                    <circle cx="470" cy="86" r="6"/>
+                    <circle cx="494" cy="108" r="6"/>
+                    <circle cx="520" cy="74" r="6"/>
+                    <circle cx="544" cy="94" r="6"/>
+                </g>
+                <line x1="100" y1="185" x2="560" y2="75" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+            <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-indigo-500"></span>부모 평균 키(가로) &middot; 자녀 키(세로)</span>
+                <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-slate-400"></span>부모와 키가 똑같아지는 선</span>
+                <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-blue-700"></span>실제 데이터가 그리는 선</span>
+            </div>
+            <p class="text-base text-slate-700 leading-relaxed">
+                파란 선이 회색 점선보다 <strong>덜 기울어져</strong> 있습니다.
+                오른쪽 끝에서는 파란 선이 점선보다 <strong>아래</strong>에 있고,
+                왼쪽 끝에서는 점선보다 <strong>위</strong>에 있습니다.
+                바로 이 &lsquo;덜 기울어짐&rsquo;이 골턴이 본 <strong>평균으로의 되돌아감</strong>입니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>이름만 남았습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    오늘날의 회귀 분석은 <strong>평균으로 되돌아가는 현상을 연구하는 방법이 아닙니다.</strong>
+                    골턴이 두 속성을 하나의 함수 관계로 이어 본 그 방식이 널리 쓰이면서,
+                    <strong>속성과 속성 사이를 수식으로 잇는 일 전체</strong>를 회귀 분석이라 부르게 되었습니다.
+                    이름은 유래일 뿐이니 <strong>&ldquo;회귀 = 평균으로 돌아감&rdquo;으로 외우지 마세요.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 회귀 분석이란 ===== -->
+    <section id="concept" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">회귀 분석은 무엇을 하는 일일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                속성을 <strong>두 자리</strong>로 나누는 데에서 시작합니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>회귀 분석(regression analysis)</strong>은 데이터가 가진 속성들을
+                <strong>독립 변수</strong>와 <strong>종속 변수</strong>로 나누고,
+                두 쪽에 관련이 있다고 보고 그 관계를 <strong>하나의 수식</strong>으로 만드는 분석 방법입니다.
+                수식이 만들어지면 <strong>표에 없던 값</strong>을 넣어 답을 구할 수 있습니다.
+                이때 나오는 답은 언제나 <strong>숫자</strong>입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">독립 변수(independent variable)</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        수식에 <strong>넣는</strong> 쪽입니다. 우리가 이미 알고 있는 값이고,
+                        보통 <strong>x</strong>로 씁니다. 하나일 수도 있고 여럿일 수도 있습니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">종속 변수(dependent variable)</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        수식에서 <strong>얻는</strong> 쪽입니다. 우리가 알고 싶은 값이고,
+                        보통 <strong>y</strong>로 씁니다. 회귀 분석에서는 <strong>언제나 하나</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>&lsquo;독립&rsquo;과 &lsquo;종속&rsquo;은 원인과 결과라는 뜻이 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이름만 보면 독립 변수가 원인이고 종속 변수가 결과인 것처럼 읽힙니다.
+                    그러나 이 둘은 <strong>어느 쪽을 넣고 어느 쪽을 예측할지 우리가 정한 것</strong>일 뿐입니다.
+                    같은 데이터에서 <strong>x와 y를 서로 바꾸어</strong> 회귀 분석을 해도 계산은 그대로 됩니다.
+                    무엇이 무엇의 원인인지는 <strong>데이터가 아니라 사람이 따로 따져야</strong> 합니다.
+                </p>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">중고 자전거의 값을 매겨 봅시다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    중고 거래 앱에 올라온 자전거 여섯 대를 모았습니다.
+                    <strong>얼마나 오래 탔는지</strong>와 <strong>얼마에 팔렸는지</strong>를 나란히 적어 두었습니다.
+                    우리가 알고 싶은 것은 &ldquo;<strong>4년쯤 탄 자전거는 얼마쯤 받을 수 있을까</strong>&rdquo;입니다.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-40">사용 연수(년) &mdash; 독립 변수 x</th>
+                            <th>1</th>
+                            <th>2</th>
+                            <th>3</th>
+                            <th>4</th>
+                            <th>5</th>
+                            <th>6</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold">거래 가격(만 원) &mdash; 종속 변수 y</td>
+                            <td>41</td>
+                            <td>30</td>
+                            <td>28</td>
+                            <td>22</td>
+                            <td>12</td>
+                            <td>11</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-500">이해를 돕기 위해 만든 가상의 값입니다.</p>
+
+                <svg viewBox="0 0 620 260" role="img" class="chart-svg"
+                     aria-label="가로축은 사용 연수 1년부터 6년, 세로축은 거래 가격인 산점도. 여섯 개의 점이 오른쪽 아래로 내려가고, 그 사이를 지나는 직선 하나가 그려져 있다.">
+                    <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                        <line x1="80" y1="182" x2="580" y2="182"/>
+                        <line x1="80" y1="144" x2="580" y2="144"/>
+                        <line x1="80" y1="106" x2="580" y2="106"/>
+                        <line x1="80" y1="68" x2="580" y2="68"/>
+                    </g>
+                    <line x1="80" y1="30" x2="80" y2="220" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="80" y1="220" x2="590" y2="220" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="116" y1="60" x2="544" y2="197" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round"/>
+                    <g fill="#e11d48" fill-opacity="0.85">
+                        <circle cx="151" cy="64" r="7"/>
+                        <circle cx="223" cy="106" r="7"/>
+                        <circle cx="294" cy="114" r="7"/>
+                        <circle cx="366" cy="136" r="7"/>
+                        <circle cx="437" cy="174" r="7"/>
+                        <circle cx="509" cy="178" r="7"/>
+                    </g>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-rose-600"></span>실제 거래된 자전거 6대</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-blue-700"></span>여섯 점을 대표하는 직선</span>
+                </div>
+
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>어느 점도 직선 위에 정확히 놓여 있지 않습니다.</strong>
+                    그래도 직선은 여섯 점의 흐름을 <strong>하나의 규칙</strong>으로 요약해 줍니다.
+                    이 직선의 식이 <strong>y = &minus;6x + 45</strong> 입니다.
+                    이 식을 어떻게 찾아내는지는 <strong>다음 소절</strong>에서 직접 계산해 봅니다.
+                    여기서는 <strong>그런 직선이 있다</strong>는 것과, <strong>그 직선을 어떻게 읽는지</strong>만 다룹니다.
+                </p>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-slate-800">
+                        <i class="fa-solid fa-calculator text-indigo-500 mr-1"></i>3년 반 탄 자전거는 얼마쯤 받을까?
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        x 자리에 3.5를 넣으면 y = &minus;6 &times; 3.5 + 45 = <strong>24(만 원)</strong>입니다.
+                        표에는 3.5년짜리 자전거가 없었지만, <strong>수식이 있으니 답을 낼 수 있습니다.</strong>
+                        이것이 회귀 모델을 만드는 이유입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    같은 식에 <strong>x = 8</strong>을 넣으면 얼마가 나오나요? 직접 계산해 보세요.
+                    <strong>가격이 음수</strong>가 나왔을 것입니다. 자전거를 넘기면서 돈을 얹어 준다는 뜻일까요?
+                    우리가 모은 데이터의 <strong>사용 연수는 1년부터 6년까지</strong>였다는 점을 떠올려 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 단순 선형 회귀 분석 ===== -->
+    <section id="simple" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">독립 변수가 하나뿐이라면?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                회귀 분석은 <strong>독립 변수가 몇 개인가</strong>로 갈라집니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                독립 변수 <strong>하나</strong>로 종속 변수 하나를 예측하고, 그 관계를 <strong>직선</strong>으로
+                나타내는 것을 <strong>단순 선형 회귀 분석(simple linear regression)</strong>이라고 합니다.
+                방금 본 자전거 모델이 바로 여기에 해당합니다.
+            </p>
+
+            <div class="bg-indigo-600 rounded-2xl p-6 text-center space-y-3">
+                <p class="text-3xl md:text-4xl font-black text-white tracking-wide">y = a x + b</p>
+                <p class="text-base text-indigo-100 font-medium">
+                    a = 기울기 &nbsp;&middot;&nbsp; b = 절편 &nbsp;&middot;&nbsp; 이 둘을 묶어 <strong class="text-white">회귀 계수</strong>라고 부릅니다
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                회귀 분석이 하는 일은 결국 <strong>a와 b라는 두 숫자를 정하는 일</strong>입니다.
+                두 숫자만 정해지면 모델이 완성되고, 그다음부터는 x를 넣기만 하면 됩니다.
+                자전거 모델은 <strong>a = &minus;6, b = 45</strong> 였습니다. 각각을 읽어 봅시다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">기울기 a = &minus;6</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        x가 1 늘어날 때 선의 높이가 <strong>6만큼 내려간다</strong>는 뜻입니다.
+                        데이터의 말로 옮기면 &mdash;
+                        <strong>&ldquo;사용 연수가 1년 더 긴 자전거는 평균 6만 원 낮은 값에 거래되는 경향이 있다&rdquo;</strong>
+                        입니다. 기울기가 <strong>음수</strong>면 오른쪽으로 갈수록 값이 내려갑니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">절편 b = 45</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        x가 0일 때의 y값, 즉 <strong>선의 높이를 맞춰 주는 숫자</strong>입니다.
+                        여기서는 &lsquo;산 지 얼마 안 된 자전거의 값&rsquo;쯤으로 읽고 싶어지지만,
+                        우리 데이터에는 <strong>사용 연수 0년짜리가 없었습니다.</strong>
+                        선을 데이터 밖까지 늘였을 때 나온 값이므로 <strong>참고값</strong>으로만 두어야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-comment-slash mr-1"></i>&ldquo;1년 지나면 6만 원씩 떨어진다&rdquo;고 말하지 않기
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이렇게 말하면 <strong>한 대의 자전거가 시간이 흐르며 값을 잃는 이야기</strong>가 됩니다.
+                    그러나 우리가 잰 것은 <strong>서로 다른 여섯 대를 나란히 놓고 비교한 결과</strong>입니다.
+                    한 대를 6년 동안 지켜본 것이 아닙니다.
+                    그러니 <strong>&ldquo;1년 더 오래 탄 자전거가 6만 원 싸더라&rdquo;</strong>가 정확한 표현입니다.
+                    관찰한 데이터를 <strong>변화의 이야기로 바꿔 읽는 것</strong>은 회귀 분석에서 가장 흔한 실수입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-database text-indigo-500 mr-1"></i>직접 해 보고 싶다면
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학생의 <strong>공부 시간</strong>과 <strong>시험 점수</strong>가 담긴 공개 데이터가 있습니다.
+                    공부 시간 하나로 점수를 예측한다면 그것도 단순 선형 회귀 분석입니다.<br>
+                    <a class="ext-link" href="https://www.kaggle.com/datasets/kamleshsam/student-scores"
+                       target="_blank" rel="noopener noreferrer">kaggle.com/datasets/kamleshsam/student-scores</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 다중 선형 회귀 분석 ===== -->
+    <section id="multiple" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">독립 변수를 더 넣으면 어떻게 될까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                자전거 값을 정하는 것이 <strong>사용 연수뿐일까요?</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                같은 5년짜리 자전거라도 <strong>거의 안 탄 것</strong>과 <strong>매일 통학한 것</strong>은 값이 다릅니다.
+                사용 연수 말고 <strong>총 주행 거리</strong>도 함께 넣으면 예측이 나아질 것 같습니다.
+                이렇게 <strong>두 개 이상의 독립 변수</strong>로 하나의 종속 변수를 예측하는 것을
+                <strong>다중 선형 회귀 분석(multiple linear regression)</strong>이라고 합니다.
+            </p>
+
+            <div class="bg-indigo-600 rounded-2xl p-6 text-center space-y-3">
+                <p class="text-2xl md:text-3xl font-black text-white tracking-wide">
+                    y = a<sub>1</sub>x<sub>1</sub> + a<sub>2</sub>x<sub>2</sub> + &hellip; + a<sub>n</sub>x<sub>n</sub> + b
+                </p>
+                <p class="text-base text-indigo-100 font-medium">
+                    독립 변수 <strong class="text-white">x<sub>1</sub> &hellip; x<sub>n</sub></strong> 하나마다
+                    <strong class="text-white">회귀 계수</strong>가 하나씩 붙습니다
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">자전거 데이터에 주행 거리를 더해 만든 모델</p>
+                <p class="text-lg font-black text-indigo-900 leading-relaxed">
+                    가격 = 48 &minus; 4 &times; 사용 연수 &minus; 0.003 &times; 주행 거리(km)
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    3년 동안 2,000 km를 탄 자전거라면
+                    48 &minus; 12 &minus; 6 = <strong>30(만 원)</strong>으로 예측됩니다.
+                </p>
+                <p class="text-base text-slate-500">이해를 돕기 위해 만든 가상의 값입니다.</p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>사용 연수의 계수가 &minus;6에서 &minus;4로 바뀌었습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞의 단순 회귀에서는 &minus;6이었는데, 주행 거리를 넣자 &minus;4가 되었습니다.
+                    <strong>계산을 틀린 것이 아닙니다.</strong> 두 계수는 뜻하는 바가 다릅니다.
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>단순 회귀의 &minus;6</strong> &mdash; 오래 탄 자전거는 대개 주행 거리도 깁니다.
+                        그래서 &minus;6 안에는 <strong>주행 거리가 만든 값 하락까지 섞여</strong> 있습니다.
+                    </li>
+                    <li><strong>다중 회귀의 &minus;4</strong> &mdash; <strong>주행 거리가 같은 자전거끼리만 견주었을 때</strong>
+                        사용 연수 1년 차이가 만드는 값 차이입니다. 겹치던 몫이 주행 거리 쪽으로 떨어져 나간 것입니다.
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다중 회귀의 계수는 <strong>&ldquo;다른 변수를 모두 같은 값으로 두었을 때&rdquo;</strong>라는
+                    단서를 붙여서 읽어야 합니다. 그 단서를 빼고 읽으면 뜻이 달라집니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-scale-unbalanced mr-1"></i>계수의 크기로 중요도를 견주지 않기
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사용 연수의 계수는 &minus;4이고 주행 거리의 계수는 &minus;0.003입니다.
+                    그렇다고 사용 연수가 훨씬 중요한 것은 아닙니다.
+                    <strong>단위가 다르기 때문입니다.</strong> 사용 연수는 1씩 늘지만 주행 거리는 1,000씩 늘어납니다.
+                    <strong>계수의 크기만 보고 순위를 매기면 거의 언제나 틀립니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-sky-900">
+                    <i class="fa-solid fa-cube mr-1"></i>그림으로 그리면 무엇이 될까
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    독립 변수가 하나면 <strong>평면 위의 직선</strong>이었습니다.
+                    독립 변수가 둘이면 가로 &middot; 세로 &middot; 높이 세 축이 필요하므로
+                    <strong>공간 속의 평면</strong>이 됩니다.
+                    셋 이상이면 <strong>더 이상 그림으로 그릴 수 없습니다.</strong>
+                    수식은 똑같이 잘 돌아가지만, 눈으로 확인할 수단이 사라진다는 점은 기억해 둘 만합니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    자전거 값을 예측하려고 <strong>&lsquo;자전거 색깔&rsquo;</strong>을 독립 변수로 하나 더 넣었습니다.
+                    모델은 문제없이 계수를 하나 더 만들어 냅니다.
+                    <strong>독립 변수를 많이 넣을수록 좋은 모델이 될까요?</strong>
+                    넣기 전에 무엇을 따져 보아야 할지 이야기해 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 로지스틱 회귀 분석 ===== -->
+    <section id="logistic" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">답이 숫자가 아니라 &lsquo;예/아니오&rsquo;라면?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>「데이터 분석」에서 미뤄 두었던 분류</strong>를 여기서 이어 받습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지 회귀 모델이 내놓은 답은 모두 <strong>숫자</strong>였습니다.
+                24만 원, 30만 원처럼 그 사이의 어떤 값도 될 수 있는 값이었지요.
+                그런데 우리가 알고 싶은 것이 <strong>&ldquo;이 자전거가 3개월 안에 팔릴까, 안 팔릴까&rdquo;</strong>라면 어떨까요?
+                답은 <strong>둘 중 하나</strong>여야 합니다. &lsquo;0.7만큼 팔림&rsquo; 같은 답은 뜻이 없습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-slate-800">이산적(discrete)인 값</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>미리 정해진 몇 개 중 하나</strong>만 될 수 있는 값을 이산적인 값이라고 합니다.
+                    그 사이의 값이 존재하지 않는다는 것이 핵심입니다.
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>둘 중 하나</strong> &mdash; 0 또는 1, 합격 또는 불합격, 스팸 또는 스팸이 아닌 것</li>
+                    <li><strong>셋 이상 중 하나</strong> &mdash; 적합 &middot; 보통 &middot; 부적합, 낮음 &middot; 중간 &middot; 높음</li>
+                </ul>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-ban mr-1"></i>직선을 그대로 쓰면 왜 안 될까
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    &lsquo;팔림&rsquo;을 1, &lsquo;안 팔림&rsquo;을 0으로 두고 직선을 그어 봅시다.
+                    직선은 위아래로 <strong>끝없이 뻗어 나가므로</strong> 예측값이
+                    <strong>1.4</strong>나 <strong>&minus;0.3</strong>도 될 수 있습니다.
+                    &lsquo;1.4만큼 팔린다&rsquo;는 말은 뜻이 없습니다.
+                    그러니 <strong>0과 1 사이에 가둬 두는 장치</strong>가 필요합니다.
+                </p>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">시그모이드 함수가 값을 접어 넣습니다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>로지스틱 회귀 분석(logistic regression)</strong>은 직선이 내놓은 수치를
+                    <strong>시그모이드(sigmoid) 함수</strong>에 한 번 통과시킵니다.
+                    이 함수는 아무리 큰 수를 넣어도 <strong>1을 넘지 않고</strong>,
+                    아무리 작은 수를 넣어도 <strong>0 아래로 내려가지 않습니다.</strong>
+                    그래서 결과를 <strong>확률</strong>로 읽을 수 있습니다.
+                </p>
+
+                <svg viewBox="0 0 620 260" role="img" class="chart-svg"
+                     aria-label="가운데가 가파르고 양쪽 끝이 평평해지는 S자 곡선. 세로축 0.5 높이에 가로 점선이 그어져 있고 곡선은 0과 1 사이에 갇혀 있다.">
+                    <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                        <line x1="60" y1="40" x2="590" y2="40"/>
+                        <line x1="60" y1="220" x2="590" y2="220"/>
+                    </g>
+                    <line x1="60" y1="130" x2="590" y2="130" stroke="#f43f5e" stroke-width="2" stroke-dasharray="8 6"/>
+                    <line x1="320" y1="26" x2="320" y2="236" stroke="#94a3b8" stroke-width="1.5"/>
+                    <polyline fill="none" stroke="#4f46e5" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"
+                              points="60,220 103,219 147,217 190,212 233,199 277,172 320,130 363,88 407,62 450,49 493,43 537,41 580,40"/>
+                    <circle cx="320" cy="130" r="8" fill="#ffffff" stroke="#4f46e5" stroke-width="4"/>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-indigo-600"></span>시그모이드 곡선 &mdash; 위로는 1, 아래로는 0에 붙습니다</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-rose-500"></span>확률 0.5 &mdash; 두 답을 가르는 기준선</span>
+                </div>
+
+                <p class="text-base text-slate-700 leading-relaxed">
+                    곡선이 <strong>0.5를 지나는 지점</strong>이 판정이 뒤바뀌는 자리입니다.
+                    확률이 0.5보다 크면 한쪽으로, 작으면 다른 쪽으로 판정합니다.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">사용 연수</th>
+                            <th class="w-28">올린 가격</th>
+                            <th>직선이 내놓은 값</th>
+                            <th>시그모이드를 지난 확률</th>
+                            <th class="w-32">판정</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>1년</td>
+                            <td>40만 원</td>
+                            <td>2.1</td>
+                            <td class="font-bold">0.89</td>
+                            <td class="font-bold text-emerald-700">팔린다</td>
+                        </tr>
+                        <tr>
+                            <td>3년</td>
+                            <td>35만 원</td>
+                            <td>0.8</td>
+                            <td class="font-bold">0.69</td>
+                            <td class="font-bold text-emerald-700">팔린다</td>
+                        </tr>
+                        <tr>
+                            <td>4년</td>
+                            <td>33만 원</td>
+                            <td>&minus;0.4</td>
+                            <td class="font-bold">0.40</td>
+                            <td class="font-bold text-rose-700">안 팔린다</td>
+                        </tr>
+                        <tr>
+                            <td>6년</td>
+                            <td>30만 원</td>
+                            <td>&minus;2.3</td>
+                            <td class="font-bold">0.09</td>
+                            <td class="font-bold text-rose-700">안 팔린다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-500">이해를 돕기 위해 만든 가상의 값입니다.</p>
+
+                <p class="text-base text-slate-700 leading-relaxed">
+                    가운데 두 줄을 보세요. 직선이 내놓은 값은 <strong>0.8</strong>과 <strong>&minus;0.4</strong>로
+                    1.2밖에 차이 나지 않는데, 확률로 바뀌자 <strong>0.69와 0.40</strong>이 되어
+                    <strong>판정이 갈렸습니다.</strong> 0.5 근처에서는 작은 차이가 답을 바꾸고,
+                    양 끝으로 갈수록 웬만한 차이로는 답이 바뀌지 않습니다.
+                </p>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-violet-900">
+                    <i class="fa-solid fa-signs-post mr-1"></i>이름에 &lsquo;회귀&rsquo;가 들어 있지만 하는 일은 <strong>분류</strong>입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    로지스틱 회귀는 <strong>확률이라는 숫자를 구하는 단계</strong>까지가 회귀를 닮았고,
+                    <strong>그 확률로 범주를 가르는 마지막 단계</strong>가 분류입니다.
+                    회귀를 먼저 배운 사람이 분류로 넘어가기에 가장 자연스러운 다리라서,
+                    보통 회귀 분석을 익힌 다음에 배웁니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다만 <strong>분류가 회귀의 한 종류라는 뜻은 아닙니다.</strong>
+                    회귀가 내놓는 답은 숫자이고 분류가 내놓는 답은 범주라는 구별은 그대로입니다.
+                    로지스틱 회귀는 <strong>둘을 잇는 방법 하나</strong>일 뿐이고,
+                    분류에는 이 밖에도 의사결정트리 &middot; 인공신경망 같은 방법이 따로 있습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-bold text-base text-slate-800"><i class="fa-solid fa-envelope text-indigo-500 mr-1"></i>메일</p>
+                    <p class="text-base text-slate-600 leading-relaxed">스팸인지 아닌지 가른다</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-bold text-base text-slate-800"><i class="fa-solid fa-building-columns text-indigo-500 mr-1"></i>금융</p>
+                    <p class="text-base text-slate-600 leading-relaxed">고객의 신용을 우수와 불량으로 나눈다</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-bold text-base text-slate-800"><i class="fa-solid fa-stethoscope text-indigo-500 mr-1"></i>의학</p>
+                    <p class="text-base text-slate-600 leading-relaxed">검사 수치로 질병이 있는지 예측한다</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-database text-indigo-500 mr-1"></i>직접 해 보고 싶다면
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 과목의 점수와 <strong>합격 여부</strong>가 함께 담긴 공개 데이터가 있습니다.
+                    점수 두 개를 독립 변수로, 합격 여부를 종속 변수로 두면 로지스틱 회귀 분석의 예가 됩니다.<br>
+                    <a class="ext-link"
+                       href="https://www.kaggle.com/datasets/abhishekdhule/exam-marks-of-two-subjectclassification-passfail"
+                       target="_blank" rel="noopener noreferrer">kaggle.com/datasets/abhishekdhule/exam-marks-of-two-subjectclassification-passfail</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 활용 ===== -->
+    <section id="cases" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">회귀 분석은 어디에 쓰일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                묻는 방식은 달라 보여도 <strong>세 갈래</strong>로 모입니다.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="section-card space-y-3">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">얼마나 될까</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    아직 값을 모르는 대상에 대해 <strong>숫자를 내놓습니다.</strong>
+                    회귀 분석이 가장 많이 쓰이는 자리입니다.
+                    다음 달 전기 사용량, 내일 방문객 수 같은 것들입니다.
+                </p>
+            </div>
+            <div class="section-card space-y-3">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">어떻게 변해 왔나</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>시간을 독립 변수 자리에</strong> 두면, 값이 길게 보아 오르는 중인지
+                    내리는 중인지가 선 하나로 요약됩니다.
+                    이렇게 흐름을 읽는 것을 <strong>추세 분석</strong>이라고 합니다.
+                </p>
+            </div>
+            <div class="section-card space-y-3">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">무엇이 얼마나 관련될까</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    여러 속성을 함께 넣어 <strong>어느 속성이 결과와 강하게 이어져 있는지</strong> 견줍니다.
+                    예측보다 <strong>이해</strong>가 목적일 때 쓰는 방식입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <h3 class="text-2xl font-black text-slate-800">어떤 물음이 회귀 분석이 될까</h3>
+            <p class="text-base text-slate-700 leading-relaxed">
+                회귀 분석을 설계한다는 것은 결국 <strong>무엇을 독립 변수 자리에 놓고 무엇을 종속 변수 자리에
+                놓을지 정하는 일</strong>입니다. 아래 표를 소리 내어 읽어 보면 감이 잡힙니다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">알고 싶은 것</th>
+                        <th>독립 변수 &mdash; 넣는 값</th>
+                        <th class="w-36">종속 변수 &mdash; 얻는 값</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">급식 재료를 얼마나 준비할까</td>
+                        <td>요일, 메뉴 종류, 그날 등교한 학생 수</td>
+                        <td>남는 음식의 양</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">이 지역 집값은 얼마쯤 할까</td>
+                        <td>면적, 층수, 가장 가까운 역까지의 거리, 지은 지 몇 해</td>
+                        <td>거래 가격</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">내일 자전거를 몇 대 둘까</td>
+                        <td>기온, 강수량, 요일, 공휴일 여부</td>
+                        <td>대여 건수</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">이 약을 얼마나 써야 할까</td>
+                        <td>투여량, 나이, 몸무게, 앓아 온 기간</td>
+                        <td>증상이 나아진 정도</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    표에서 하나를 골라 <strong>독립 변수를 하나 더 보태</strong> 보세요.
+                    그리고 그 회귀 모델이 예측을 아주 잘 맞히더라도
+                    <strong>&ldquo;이것이 저것의 원인이다&rdquo;라고 말할 수 없는 까닭</strong>을 설명해 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">직선 하나 긋는 게 그렇게 대단한 일인가?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">직선을 긋는 순간 데이터가 규칙으로 바뀌기 때문입니다.</strong>
+                        표에 적힌 여섯 대의 자전거는 여섯 개의 사실일 뿐이지만,
+                        <strong class="text-indigo-200">y = &minus;6x + 45</strong>가 되는 순간
+                        표에 없던 3.5년짜리 자전거에도 답을 줄 수 있게 됩니다.
+                        기록이 <strong class="text-sky-200">예측</strong>으로 바뀌는 것입니다.
+                        게다가 이 형태는 놀랄 만큼 멀리까지 갑니다 &mdash;
+                        독립 변수를 여러 개로 늘리면 <strong class="text-indigo-200">다중 회귀</strong>가 되고,
+                        결과를 확률로 접어 넣으면 <strong class="text-indigo-200">로지스틱 회귀</strong>가 되어
+                        분류까지 할 수 있습니다.
+                        오늘날의 인공지능이 하는 일도 크게 보면
+                        <strong class="text-sky-200">더 복잡한 모양의 선을 긋는 일</strong>입니다.
+                        다만 계산은 프로그램이 대신해 주어도
+                        <strong class="text-sky-200">기울기가 무슨 뜻인지, 이 결과를 인과로 읽어도 되는지</strong>는
+                        끝까지 사람이 판단해야 합니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-slash text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">단순 선형 회귀</p>
+                    <p class="text-base text-sky-100">독립 변수 하나, 직선 하나</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-layer-group text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">다중 선형 회귀</p>
+                    <p class="text-base text-sky-100">독립 변수 여럿, 계수도 여럿</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-code-branch text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">로지스틱 회귀</p>
+                    <p class="text-base text-sky-100">확률로 접어 범주를 가른다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">회귀 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">regression analysis</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성을 <strong>독립 변수</strong>와 <strong>종속 변수</strong>로 나눈다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>둘의 관계를 <strong>수식</strong>으로 만들어 <strong>숫자를 예측</strong>한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>이름은 골턴의 <strong>&lsquo;평균으로 되돌아감&rsquo;</strong>에서 왔지만 뜻은 넓어졌다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">단순 선형 회귀 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">simple linear regression</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>독립 변수가 <strong>하나</strong>. <strong>y = ax + b</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>a와 b를 묶어 <strong>회귀 계수</strong>라고 한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>기울기는 <strong>비교 화법</strong>으로, 절편은 <strong>참고값</strong>으로 읽는다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">다중 선형 회귀 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">multiple linear regression</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>독립 변수가 <strong>둘 이상</strong>. 계수도 그만큼 늘어난다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>계수는 <strong>&ldquo;다른 변수를 같게 두었을 때&rdquo;</strong>를 붙여 읽는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>단위가 다르므로 <strong>계수 크기로 중요도를 견주지 않는다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">로지스틱 회귀 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">logistic regression</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>종속 변수가 <strong>이산적</strong>일 때 쓴다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>시그모이드 함수</strong>가 값을 <strong>0~1 확률</strong>로 접어 넣는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>이름은 회귀지만 <strong>하는 일은 분류</strong>다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    회귀 분석에서 <strong>우리가 알고 싶어서 예측하려는 쪽</strong>의 변수를 무엇이라고 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '독립 변수는 수식에 넣는 쪽, 우리가 이미 알고 있는 값입니다.')">
+                    ① 독립 변수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 수식에서 얻는 쪽이며, 회귀 분석에서는 언제나 하나입니다.')">
+                    ② 종속 변수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '회귀 계수는 기울기와 절편, 즉 a와 b를 함께 부르는 말입니다.')">
+                    ③ 회귀 계수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이산적인 값은 미리 정해진 몇 개 중 하나만 될 수 있는 값을 뜻합니다.')">
+                    ④ 이산적인 값
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    중고 자전거 모델 <strong>y = &minus;6x + 45</strong>(x는 사용 연수, y는 가격)에서
+                    <strong>기울기 &minus;6</strong>을 가장 정확하게 읽은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 대를 6년 동안 지켜본 데이터가 아닙니다. 서로 다른 자전거를 나란히 비교한 결과입니다.')">
+                    ① 자전거 한 대를 1년 더 타면 값이 6만 원 떨어진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 관찰한 데이터는 변화가 아니라 비교로 읽어야 합니다.')">
+                    ② 사용 연수가 1년 더 긴 자전거는 평균 6만 원 낮은 값에 거래되는 경향이 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '6만 원은 값의 차이이지 예측이 빗나가는 정도가 아닙니다.')">
+                    ③ 이 모델의 예측은 평균 6만 원씩 빗나간다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 싸게 팔린 자전거는 11만 원이었습니다. 기울기와는 관계가 없습니다.')">
+                    ④ 가장 싸게 팔린 자전거가 6만 원이었다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    사용 연수만 쓴 모델에서는 계수가 <strong>&minus;6</strong>이었는데,
+                    주행 거리를 함께 넣자 <strong>&minus;4</strong>가 되었습니다. 그 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 값 모두 각자의 조건에서 올바르게 구해진 값입니다. 계산 오류가 아닙니다.')">
+                    ① 둘 중 하나는 계산이 틀린 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! −6에는 주행 거리가 만든 값 하락까지 섞여 있었고, 그 몫이 주행 거리 쪽으로 떨어져 나간 것입니다.')">
+                    ② &minus;4는 주행 거리가 같은 자전거끼리 견주었을 때의 차이라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '독립 변수를 늘린다고 계수가 반드시 작아지지는 않습니다. 커질 수도, 부호가 바뀔 수도 있습니다.')">
+                    ③ 독립 변수를 늘리면 계수는 언제나 작아지기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '주행 거리의 단위가 km인 것은 맞지만, 그것이 사용 연수의 계수를 바꾼 까닭은 아닙니다.')">
+                    ④ 주행 거리의 단위가 km이기 때문에
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    로지스틱 회귀 분석에서 <strong>시그모이드 함수</strong>가 하는 일은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기울기와 절편을 구하는 것은 최소 제곱법이 하는 일입니다.')">
+                    ① 기울기와 절편을 가장 잘 맞는 값으로 정해 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 아무리 큰 수를 넣어도 1을 넘지 않고, 아무리 작은 수를 넣어도 0 아래로 가지 않습니다.')">
+                    ② 직선이 내놓은 값을 0과 1 사이의 확률로 바꾼다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '독립 변수의 개수를 늘리는 것은 다중 선형 회귀 분석입니다.')">
+                    ③ 독립 변수의 개수를 늘려 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결측치 처리는 전처리 단계에서 하는 일이고, 시그모이드 함수와는 관계가 없습니다.')">
+                    ④ 빠진 값을 채워 준다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 5 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    로지스틱 회귀 분석에 대한 설명으로 <strong>옳은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '반대입니다. 이름에 회귀가 들어 있을 뿐, 실제로 하는 일은 분류입니다.')">
+                    ① 이름 그대로 숫자를 예측하는 회귀 방법이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분류는 회귀의 하위 갈래가 아닙니다. 회귀는 숫자를, 분류는 범주를 내놓습니다.')">
+                    ② 분류가 회귀 분석의 한 종류임을 보여 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 확률을 구하는 앞 단계는 회귀를 닮았고, 그 확률로 범주를 가르는 뒤 단계가 분류입니다.')">
+                    ③ 확률이라는 숫자를 먼저 구한 뒤 그 확률로 범주를 가른다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 가지뿐 아니라 세 가지 이상의 범주에도 쓸 수 있습니다.')">
+                    ④ 답이 두 가지인 경우에만 쓸 수 있다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

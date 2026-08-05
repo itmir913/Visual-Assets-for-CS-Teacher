@@ -135,6 +135,24 @@
             content: '';
         }
 
+        /* 본문이 긴 셀이나 열이 4개 이상인 표는 375px에서 눌려 찌그러진다.
+           최소 너비를 주면 눌리는 대신 래퍼 안에서 가로로 스크롤된다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        a.ext-link {
+            color: #0f766e;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #115e59;
+        }
+
         .sticky-nav {
             position: sticky;
             top: 0;
@@ -160,8 +178,8 @@
             모델 생성과 성능 평가
         </h1>
         <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            어떤 문제를 기계학습으로 풀어야 할까?<br>
-            <strong>모델 구현 5단계</strong>와 스팸 분류 실습으로 성능 평가까지 알아봅니다.
+            잘 만든 모델인지는 무엇을 보고 판단할까?<br>
+            <strong>모델 구현 5단계</strong>와 실습을 거쳐, 회귀·분류·군집의 성능 평가 지표까지 읽어 봅니다.
         </p>
     </div>
 </header>
@@ -178,7 +196,9 @@
                 <ol class="space-y-1.5 text-slate-600 text-base list-decimal list-outside pl-5">
                     <li>인공지능으로 해결할 수 있는 문제의 특징을 설명할 수 있다.</li>
                     <li>기계학습 모델 구현의 5단계 과정을 이해한다.</li>
+                    <li>훈련 데이터·검증 데이터·테스트 데이터를 나누어 쓰는 까닭을 설명할 수 있다.</li>
                     <li>스팸 분류 실습을 통해 기계학습 모델의 성능을 평가할 수 있다.</li>
+                    <li>회귀·분류·군집의 성능 평가 지표를 문제 상황에 맞게 골라 해석할 수 있다.</li>
                 </ol>
             </div>
         </div>
@@ -193,11 +213,16 @@
             </div>
             <span class="font-black text-xl tracking-tight text-slate-800">모델 생성과 성능 평가</span>
         </div>
-        <div class="hidden md:flex space-x-5 text-base font-bold text-slate-500">
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-base font-bold text-slate-500">
             <a href="#sec1" class="hover:text-emerald-600 transition">AI 적용 문제</a>
             <a href="#sec2" class="hover:text-emerald-600 transition">구현 5단계</a>
+            <a href="#validation" class="hover:text-emerald-600 transition">나누는 까닭</a>
             <a href="#sec3" class="hover:text-emerald-600 transition">스팸 분류 실습</a>
-            <a href="#sec4" class="hover:text-emerald-600 transition">성능 평가</a>
+            <a href="#sec3c" class="hover:text-indigo-600 transition">모델 비교</a>
+            <a href="#sec3b" class="hover:text-emerald-600 transition">회귀 실습</a>
+            <a href="#sec4b" class="hover:text-rose-600 transition">정확도의 함정</a>
+            <a href="#sec4" class="hover:text-emerald-600 transition">분류 평가</a>
+            <a href="#sec5" class="hover:text-emerald-600 transition">회귀·군집 평가</a>
             <a href="#summary" class="hover:text-emerald-600 transition">핵심 정리</a>
             <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
         </div>
@@ -481,6 +506,14 @@
                             <p class="text-base text-slate-500">→ 더 복잡한 모델 선택, 충분히 학습시키기</p>
                         </div>
                     </div>
+                    <div class="bg-slate-100 border-l-4 border-slate-400 rounded-xl p-4 mt-3">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <i class="fa-solid fa-triangle-exclamation mr-2 text-slate-500"></i>
+                            두 상태는 <strong>훈련 데이터 성적과 새 데이터 성적을 나란히 놓아야</strong> 구별된다.
+                            훈련 데이터 성적만 보고 있으면 과대적합은 오히려 <strong>성적이 좋은 것처럼</strong> 보인다.
+                            그래서 훈련에 쓰지 않은 데이터를 따로 남겨 두는 것이다.
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -528,6 +561,205 @@
             </span>
             <p class="text-base text-sky-900 font-medium leading-relaxed">
                 기계학습 모델 구현 5단계를 순서대로 말할 수 있나요? 화면을 가리고 떠올려 본 뒤 위 단계 카드에서 다시 확인해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== SECTION 2-1: 검증 데이터와 교차 검증 ===== -->
+    <section id="validation" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터를 왜 굳이 나누어 둘까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">외운 것을 그대로 물어보면 잘하는 것이 당연하다는 데서 출발합니다.</p>
+        </div>
+
+        <!-- 시험지 비유 -->
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">외운 문제를 다시 내면 점수는 언제나 높다</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                학생 A가 문제집을 통째로 외웠다고 하자. 그 문제집에서 그대로 낸 시험은 만점이 나올 것이다.
+                하지만 우리가 알고 싶은 것은 <strong>문제집을 얼마나 외웠는가</strong>가 아니라
+                <strong>처음 보는 문제도 풀 수 있는가</strong>이다.
+                모델도 똑같다. 학습에 쓴 데이터로 성적을 재면 그 성적은 <strong>실력과 암기를 구별해 주지 못한다.</strong>
+            </p>
+            <div class="bg-teal-50 border border-teal-200 rounded-xl p-5">
+                <p class="text-base font-bold text-teal-800 mb-1">일반화(generalization)</p>
+                <p class="text-base text-teal-900 leading-relaxed">
+                    학습에 쓴 데이터뿐 아니라 <strong>학습할 때 본 적 없는 데이터에서도 제 역할을 하는 성질</strong>이다.
+                    기계학습에서 「성능이 좋다」는 말은 대개 이 성질을 가리킨다.
+                    그래서 성능은 <strong>훈련에 쓰지 않고 남겨 둔 데이터로만</strong> 잰다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 테스트 데이터 누수 -->
+        <div class="section-card space-y-5 border-rose-200">
+            <h3 class="text-xl font-bold text-slate-800">그런데 테스트 데이터도 닳는다</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                모델을 한 번 만들고 끝내는 경우는 거의 없다. 설정값을 조금씩 바꿔 가며 여러 번 만들어 보고,
+                그때마다 테스트 데이터로 점수를 재어 더 나은 쪽을 고르게 된다.
+                문제는 <strong>「더 나은 쪽을 고르는 일」 자체가 이미 학습</strong>이라는 점이다.
+                테스트 데이터의 점수를 보고 사람이 설정을 고쳤다면, 그 데이터의 정보는 이미 모델에 흘러 들어간 것이다.
+            </p>
+            <div class="bg-rose-50 border-l-4 border-rose-400 rounded-xl p-5">
+                <p class="text-base font-bold text-rose-800 mb-1">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>테스트 데이터로 모델을 고르지 않는다
+                </p>
+                <p class="text-base text-rose-900 leading-relaxed">
+                    테스트 데이터를 여러 번 들여다보며 모델을 고르면, 그 데이터는 더 이상 <strong>「본 적 없는 데이터」가 아니다.</strong>
+                    시험 문제를 미리 보고 공부한 뒤 그 시험으로 실력을 재는 셈이라, 점수는 실제보다 높게 나온다.
+                    <strong>고르는 일에 쓸 데이터는 따로 마련하고, 테스트 데이터는 마지막 채점에 한 번만 쓴다.</strong>
+                </p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                <p class="text-base font-bold text-amber-800 mb-1">
+                    <i class="fa-solid fa-link mr-2"></i>전처리 기준값을 학습 데이터에서만 정했던 까닭도 같다
+                </p>
+                <p class="text-base text-amber-900 leading-relaxed">
+                    앞서 정규화·표준화를 배울 때, 기준으로 삼는 값(최솟값·최댓값, 평균·표준 편차)은
+                    <strong>학습에 쓴 데이터에서 한 번만 정해 새 데이터에도 그대로 쓴다</strong>고 해 두었다.
+                    그 까닭이 여기에 있다. 테스트 데이터까지 합쳐서 평균을 구하면,
+                    <strong>테스트 데이터의 값이 이미 전처리 단계에서 모델에 반영되어</strong> 채점이 후해진다.
+                    새 데이터가 한 건씩 들어오는 실제 상황에서는 애초에 평균을 다시 구할 수도 없다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 홀드아웃 교차 검증 -->
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">해결책 하나 — 검증 데이터를 따로 떼어 둔다 (홀드아웃 교차 검증)</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                훈련 데이터에서 일부를 다시 떼어 <strong>검증 데이터(validation data)</strong>로 삼는 방법이다.
+                설정을 바꿔 가며 성능을 견주는 일은 <strong>검증 데이터로</strong> 하고,
+                이제 더 손대지 않겠다고 정한 다음에야 <strong>테스트 데이터로 마지막 점수를 낸다.</strong>
+                이렇게 한 번 갈라 두고 쓰는 방식을 홀드아웃 교차 검증이라고 한다.
+            </p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 540 210" role="img" style="min-width:520px; width:100%; height:auto;"
+                     aria-label="전체 데이터를 훈련·검증·테스트 세 부분으로 나누고, 훈련과 검증은 모델을 다듬는 데 반복해서 쓰이며 테스트는 마지막 한 번만 쓰이는 것을 나타낸 그림.">
+                    <rect x="20" y="16" width="500" height="30" rx="8" fill="#e2e8f0"/>
+                    <text x="270" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#334155">전체 데이터</text>
+
+                    <rect x="20" y="62" width="300" height="34" rx="8" fill="#99f6e4" stroke="#0d9488"/>
+                    <text x="170" y="85" text-anchor="middle" font-size="15" font-weight="700" fill="#115e59">훈련 데이터</text>
+                    <rect x="326" y="62" width="110" height="34" rx="8" fill="#ddd6fe" stroke="#7c3aed"/>
+                    <text x="381" y="85" text-anchor="middle" font-size="15" font-weight="700" fill="#5b21b6">검증</text>
+                    <rect x="442" y="62" width="78" height="34" rx="8" fill="#fecdd3" stroke="#e11d48"/>
+                    <text x="481" y="85" text-anchor="middle" font-size="15" font-weight="700" fill="#9f1239">테스트</text>
+
+                    <path d="M170 100 L170 128 L381 128 L381 104" fill="none" stroke="#0d9488" stroke-width="2"/>
+                    <path d="M381 104 l-5 8 h10 z" fill="#0d9488"/>
+                    <text x="276" y="147" text-anchor="middle" font-size="14" fill="#0f766e">학습 → 검증 점수 확인 → 설정 고치기 (여러 번)</text>
+
+                    <path d="M481 100 L481 170 L276 170" fill="none" stroke="#e11d48" stroke-width="2"
+                          stroke-dasharray="6 4"/>
+                    <path d="M276 170 l8 -5 v10 z" fill="#e11d48"/>
+                    <text x="270" y="192" text-anchor="middle" font-size="14" fill="#9f1239">더 고치지 않기로 정한 뒤, 마지막 채점에 한 번만</text>
+                </svg>
+            </div>
+            <p class="text-base text-slate-500">
+                <i class="fa-solid fa-circle-info mr-1"></i>
+                한 번만 갈라 두므로 빠르지만, <strong>어디를 잘라 검증 데이터로 삼았느냐에 따라 점수가 흔들린다.</strong>
+                특히 데이터가 적을수록 흔들림이 크다.
+            </p>
+        </div>
+
+        <!-- k-폴드 교차 검증 -->
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">해결책 둘 — 자리를 바꿔 가며 여러 번 잰다 (k-폴드 교차 검증)</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                데이터를 k개의 덩어리(폴드, fold)로 나눈 뒤, <strong>한 덩어리씩 돌아가며 검증에 쓰고 나머지로 학습</strong>하는 방법이다.
+                k가 5면 이 과정을 다섯 번 되풀이하고, 다섯 번의 점수를 <strong>평균</strong> 내어 성능으로 삼는다.
+                어느 한 번의 갈라짐에 점수가 휘둘리지 않게 하려는 것이다.
+            </p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 540 210" role="img" style="min-width:520px; width:100%; height:auto;"
+                     aria-label="다섯 개의 폴드를 다섯 줄로 늘어놓고, 줄마다 검증에 쓰이는 폴드가 한 칸씩 오른쪽으로 옮겨 가는 것을 나타낸 그림.">
+                    <text x="16" y="20" font-size="14" font-weight="700" fill="#475569">회차</text>
+                    <text x="300" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="#475569">
+                        폴드 1 ~ 폴드 5 (■ 검증에 사용, ■ 학습에 사용)
+                    </text>
+                    <g font-size="14" fill="#334155">
+                        <text x="20" y="52">1</text>
+                        <text x="20" y="86">2</text>
+                        <text x="20" y="120">3</text>
+                        <text x="20" y="154">4</text>
+                        <text x="20" y="188">5</text>
+                    </g>
+                    <g>
+                        <rect x="50" y="34" width="90" height="24" rx="5" fill="#ddd6fe" stroke="#7c3aed"/>
+                        <rect x="146" y="34" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="242" y="34" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="338" y="34" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="434" y="34" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+
+                        <rect x="50" y="68" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="146" y="68" width="90" height="24" rx="5" fill="#ddd6fe" stroke="#7c3aed"/>
+                        <rect x="242" y="68" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="338" y="68" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="434" y="68" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+
+                        <rect x="50" y="102" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="146" y="102" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="242" y="102" width="90" height="24" rx="5" fill="#ddd6fe" stroke="#7c3aed"/>
+                        <rect x="338" y="102" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="434" y="102" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+
+                        <rect x="50" y="136" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="146" y="136" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="242" y="136" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="338" y="136" width="90" height="24" rx="5" fill="#ddd6fe" stroke="#7c3aed"/>
+                        <rect x="434" y="136" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+
+                        <rect x="50" y="170" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="146" y="170" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="242" y="170" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="338" y="170" width="90" height="24" rx="5" fill="#ccfbf1" stroke="#0d9488"/>
+                        <rect x="434" y="170" width="90" height="24" rx="5" fill="#ddd6fe" stroke="#7c3aed"/>
+                    </g>
+                </svg>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table-prose w-full text-base border-collapse">
+                    <thead>
+                    <tr class="bg-teal-50">
+                        <th class="text-left px-4 py-3 font-bold text-teal-800 rounded-tl-xl w-36">방법</th>
+                        <th class="text-left px-4 py-3 font-bold text-teal-800">이럴 때 쓴다</th>
+                        <th class="text-left px-4 py-3 font-bold text-teal-800 rounded-tr-xl">함께 따라오는 조건</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">홀드아웃<br>교차 검증</td>
+                        <td class="px-4 py-3 text-slate-600">데이터가 넉넉하고, 성능을 빠르게 훑어보고 싶을 때</td>
+                        <td class="px-4 py-3 text-slate-600">어디서 잘랐느냐에 따라 점수가 달라진다. 데이터가 적으면 흔들림이 크다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">k-폴드<br>교차 검증</td>
+                        <td class="px-4 py-3 text-slate-600">데이터가 적거나, 점수를 좀 더 믿을 만하게 내고 싶을 때</td>
+                        <td class="px-4 py-3 text-slate-600">학습을 k번 되풀이하므로 시간이 k배로 든다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-100 border-l-4 border-slate-400 rounded-xl p-4">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-scale-balanced mr-2 text-slate-500"></i>
+                    <strong>둘 중 어느 쪽이 더 좋은 방법이라고 정해져 있지 않다.</strong>
+                    오른쪽 칸이 곧 대가이므로, 데이터의 양과 쓸 수 있는 시간을 보고 고른다.
+                    또 어느 쪽을 쓰든 <strong>테스트 데이터를 마지막까지 아껴 둔다</strong>는 원칙은 달라지지 않는다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                설정을 바꿔 가며 테스트 데이터로 여러 번 점수를 재면 무엇이 문제가 될까요? 검증 데이터가 하는 일을 떠올려 보세요.
             </p>
         </div>
     </section>
@@ -742,13 +974,35 @@
                     <p class="font-bold text-amber-700 mb-1"><i class="fa-solid fa-rotate mr-2"></i>교차 검증 (Cross
                         Validation)이란?</p>
                     <p class="text-amber-800 leading-relaxed">
-                        훈련 데이터의 일부를 여러 번 나누어 검증 데이터로 사용하는 방법이다.
-                        k-폴드 교차 검증(k-fold Cross Validation)의 경우, k=5이면 전체 훈련 데이터를 5등분하여
-                        한 번씩 검증 데이터로 사용하고 나머지로 학습하는 과정을 5번 반복한다.
-                        고정된 테스트 데이터로 인해 성능이 오히려 떨어지는 것을 개선하기 위해 사용한다.
+                        Random sampling 대신 <strong>Cross validation</strong>을 고르면 k-폴드 교차 검증으로 성능을 잰다.
+                        데이터를 k등분해 한 덩어리씩 돌아가며 검증에 쓰고 나머지로 학습하는 과정을 k번 되풀이한 뒤,
+                        k번의 점수를 평균 내는 방식이다.
+                        <a href="#validation" class="underline font-bold">앞 절 「데이터를 왜 굳이 나누어 둘까?」</a>에서
+                        홀드아웃 교차 검증과 나란히 다루었다.
+                        데이터가 80개뿐인 이 실습처럼 <strong>데이터가 적을 때</strong> 특히 도움이 된다.
                     </p>
                 </div>
             </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                훈련 데이터와 테스트 데이터를 나눌 때, 나누기 전에 해도 되는 일과 나눈 뒤에 해야 하는 일은 각각 무엇인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section: 모델을 만들고 견주어 보기 ===== -->
+    <section id="sec3c" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">모델을 만들고 견주어 보기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">준비한 데이터로 모델 둘을 만들어 성능을 비교해 봅시다.</p>
         </div>
 
         <!-- 4단계: 모델링 및 성능 평가 -->
@@ -816,7 +1070,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        <p class="text-base text-emerald-600">신경망 모델이 더 높은 정확도 → 최종 분류 모델로 선택</p>
+                        <p class="text-base text-emerald-600">정확도와 재현율이 모두 앞서므로 이 실습에서는 이쪽을 골랐다</p>
                     </div>
                     <div class="border border-slate-200 rounded-2xl p-5 space-y-3 bg-slate-50">
                         <p class="text-base font-black text-slate-600">Logistic Regression (로지스틱 회귀)</p>
@@ -842,8 +1096,29 @@
                                 </tbody>
                             </table>
                         </div>
-                        <p class="text-base text-slate-500">신경망 대비 정확도, 재현율이 낮음</p>
+                        <p class="text-base text-slate-500">정확도와 재현율은 낮지만 AUC는 오히려 이쪽이 높다</p>
                     </div>
+                </div>
+                <div class="bg-slate-100 border-l-4 border-slate-400 rounded-xl p-4 mt-4 space-y-2">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-circle-info mr-2 text-slate-500"></i>
+                        <strong>AUC</strong>는 아직 다루지 않은 지표다. 스팸이라고 판정할 문턱을 이리저리 옮겨 가며 재어 본
+                        성적을 하나로 모은 값이라고만 알아 두자. 0.5면 찍은 것과 다를 바 없고 1에 가까울수록 좋다.
+                        <strong>이름까지 외울 필요는 없다.</strong>
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation mr-2 text-slate-500"></i>
+                        <strong>「정확도가 더 높으니 더 좋은 모델」이라고 잘라 말할 수는 없다.</strong>
+                        위에서도 AUC는 로지스틱 회귀 쪽이 더 높다. 어느 지표를 앞에 둘지는 <strong>문제가 정한다</strong>
+                        &mdash; 스팸을 한 통도 놓치고 싶지 않다면 재현율을, 중요한 메시지가 스팸함으로 가는 일을 막고 싶다면
+                        정밀도를 먼저 본다. 게다가 이 점수들은 데이터 80개로 세 번 나눠 잰 결과라,
+                        데이터가 바뀌면 순서도 바뀔 수 있다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-flask mr-2 text-slate-500"></i>
+                        그리고 이렇게 <strong>여러 모델을 견주어 하나를 고르는 일</strong>은 원래 검증 데이터가 맡는 일이다.
+                        고른 뒤에 남겨 둔 테스트 데이터로 채점해야 그 점수를 믿을 수 있다.
+                    </p>
                 </div>
             </div>
         </div>
@@ -873,6 +1148,26 @@
                     Predictions 위젯을 열면 각 새 메시지에 대해 분류 모델이 판정한 결과(spam/ham)를 확인할 수 있다.
                 </p>
             </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                스팸 메시지 분류 실습에서 &lsquo;데이터 탐색&rsquo; 단계는 무엇을 확인하기 위한 것이었나요? 위 구현 흐름을 다시 짚어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== SECTION 3-1: 회귀 모델 실습 ===== -->
+    <section id="sec3b" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이번에는 값을 예측해 볼까?</h2>
+            <div class="w-20 h-1.5 bg-sky-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">같은 5단계를 회귀 문제에 그대로 적용해 봅시다.</p>
         </div>
 
         <!-- 실습 2: 이산화탄소 배경 대기 농도 예측 (회귀) -->
@@ -928,9 +1223,21 @@
                 </div>
             </div>
 
+            <p class="text-base text-slate-500">
+                <i class="fa-solid fa-circle-info mr-1"></i>
+                앞에서 본 5단계와 다른 흐름이 아니다. 「데이터 탐색」을 전처리와 알고리즘 선정으로 갈라 세었을 뿐,
+                문제 정의에서 시작해 성능을 재고 필요하면 앞 단계로 되돌아가는 <strong>같은 흐름</strong>이다.
+                단계를 몇 칸으로 세느냐는 자료마다 다르므로 <strong>칸의 개수를 외울 필요는 없다.</strong>
+            </p>
+
             <!-- 수집 데이터 예시 -->
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <p class="text-base font-bold text-slate-700 mb-2">안면도 평균 이산화탄소 배경 대기 농도 데이터 (예시)</p>
+                <p class="text-base text-slate-500 mb-2">
+                    원출처 — 기상청 기상자료개방포털
+                    <a class="ext-link" href="https://data.kma.go.kr" target="_blank"
+                       rel="noopener noreferrer">data.kma.go.kr</a>
+                </p>
                 <div class="overflow-x-auto">
                     <table class="min-w-[600px] w-full text-base border-collapse">
                         <thead>
@@ -995,6 +1302,15 @@
                     CO₂ 농도는 연도에 따라 거의 일정하게 증가하는 뚜렷한 경향을 보이므로 결정 계수가 매우 높게 나타난다.
                     성능을 더 개선하려면 상관계수가 높은 독립 변수를 추가하거나, 데이터를 더 수집하거나, 릿지·라쏘 등 정규화 회귀와 옵션값을 시도해 볼 수 있다.
                 </p>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-3">
+                    <p class="text-base text-amber-900 leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation mr-2 text-amber-600"></i>
+                        <strong>0.997이 나왔다고 해서 미래의 농도까지 잘 맞힌다는 뜻은 아니다.</strong>
+                        이 값은 <strong>1999~2021년이라는 관측한 구간 안</strong>에서 선이 점들을 얼마나 잘 따라갔는지를 말할 뿐이다.
+                        데이터가 없는 2050년까지 선을 늘여 읽는 것은 <strong>관측한 적 없는 구간까지 선을 늘여 값을 읽는 일</strong>이라
+                        위험이 따른다. 그 구간에서도 같은 기울기가 이어진다는 보장은 데이터 안에 없다.
+                    </p>
+                </div>
             </div>
 
             <div class="flex justify-center">
@@ -1011,7 +1327,7 @@
                 <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
             </span>
             <p class="text-base text-sky-900 font-medium leading-relaxed">
-                스팸 메시지 분류 실습에서 '데이터 탐색' 단계는 무엇을 확인하기 위한 것이었나요? 위 구현 흐름을 다시 짚어 보세요.
+                같은 5단계를 밟았는데 스팸 분류는 「맞혔나 틀렸나」로, 농도 예측은 「얼마나 빗나갔나」로 성능을 쟀습니다. 무엇이 달라서일까요?
             </p>
         </div>
     </section>
@@ -1019,10 +1335,19 @@
     <!-- ===== SECTION 4: 성능 평가 지표 ===== -->
     <section id="sec4" class="scroll-mt-24 space-y-8">
         <div class="text-center space-y-4">
-            <h2 class="text-3xl font-black text-slate-900">성능 평가 지표</h2>
+            <h2 class="text-3xl font-black text-slate-900">분류 모델의 성능 평가</h2>
             <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
-            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">모델이 얼마나 잘 맞혔는지는 무엇으로 판단할까?</p>
-            <p class="text-lg text-slate-600 max-w-2xl mx-auto">혼동 행렬에서 출발해 정확도·정밀도·재현율을 읽어 봅시다.</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">모델이 얼마나 잘 맞혔는지는 무엇을 보고 판단할까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">혼동 행렬에서 출발해 정확도·정밀도·재현율·특이도를 읽어 봅시다.</p>
+        </div>
+
+        <div class="section-card bg-teal-50 border border-teal-200">
+            <p class="text-base leading-relaxed text-teal-900">
+                <strong>맞히려는 것이 무엇이냐에 따라 재는 방법도 달라진다.</strong>
+                분류는 갈래를 <strong>맞혔는지 틀렸는지 세고</strong>, 회귀는 값이 <strong>얼마나 빗나갔는지 재며</strong>,
+                군집은 정답이 없으므로 <strong>묶인 모양이 얼마나 그럴듯한지</strong>를 본다.
+                이 절에서는 분류를 먼저 보고, 회귀와 군집은 다음 절에서 이어 본다.
+            </p>
         </div>
 
         <!-- 혼동 행렬 -->
@@ -1031,6 +1356,18 @@
             <p class="text-base text-slate-600">
                 기계학습 모델의 예측 오류가 얼마인지, 어떤 유형의 오류가 발생했는지를 한눈에 보여주는 표이다.
             </p>
+            <div class="bg-teal-50 border border-teal-200 rounded-xl p-5 space-y-2">
+                <p class="text-base font-bold text-teal-800">네 칸의 이름은 두 글자로 읽는다</p>
+                <ul class="space-y-1 text-base text-teal-900 list-disc list-outside pl-5">
+                    <li><strong>앞 글자 T/F</strong> — 모델의 판정이 실제와 맞았으면 T(True), 어긋났으면 F(False)</li>
+                    <li><strong>뒤 글자 P/N</strong> — 모델이 <strong>양성</strong>이라 판정했으면 P(Positive), <strong>음성</strong>이라 판정했으면 N(Negative)</li>
+                </ul>
+                <p class="text-base text-teal-900 leading-relaxed">
+                    여기서 <strong>양성(P)은 우리가 찾아내려는 쪽</strong>을 가리키는 이름일 뿐, 좋다는 뜻이 아니다.
+                    스팸 분류라면 스팸이 양성이고, 불량품 판별이라면 불량이 양성이다.
+                    <strong>무엇을 양성으로 두느냐를 먼저 정해야</strong> 아래 지표들이 말이 된다.
+                </p>
+            </div>
             <p class="text-base text-slate-500">
                 <i class="fa-solid fa-circle-info mr-1"></i>
                 아래 수치는 지표의 계산 방법을 보여주기 위해 든 <strong>가상의 예시</strong>이며, 앞서 제시한 스팸 분류 모델의 실제 성능 수치와는 별개이다.
@@ -1078,10 +1415,10 @@
         <div class="section-card space-y-5">
             <h3 class="text-xl font-bold text-slate-800">주요 성능 평가 지표</h3>
             <div class="overflow-x-auto">
-                <table class="min-w-[480px] w-full text-base border-collapse">
+                <table class="table-prose w-full text-base border-collapse">
                     <thead>
                     <tr class="bg-teal-50">
-                        <th class="text-left px-4 py-3 font-bold text-teal-800 rounded-tl-xl w-40">지표</th>
+                        <th class="text-left px-4 py-3 font-bold text-teal-800 rounded-tl-xl w-36">지표</th>
                         <th class="text-left px-4 py-3 font-bold text-teal-800">수식</th>
                         <th class="text-left px-4 py-3 font-bold text-teal-800">스팸 예시 적용</th>
                         <th class="text-left px-4 py-3 font-bold text-teal-800 rounded-tr-xl">의미</th>
@@ -1107,6 +1444,12 @@
                         <td class="px-4 py-3 text-slate-600">실제 스팸 중 스팸으로 올바르게 판정한 비율</td>
                     </tr>
                     <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-bold text-slate-700">특이도<br>(Specificity)</td>
+                        <td class="px-4 py-3 font-mono text-slate-600">TN / (TN + FP)</td>
+                        <td class="px-4 py-3 text-slate-600">40 / (40+2) ≈ 0.952</td>
+                        <td class="px-4 py-3 text-slate-600">실제 정상 중 정상으로 올바르게 판정한 비율. 재현율이 양성 쪽을 본다면 특이도는 음성 쪽을 본다</td>
+                    </tr>
+                    <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-bold text-slate-700">F1-점수<br>(F1 Score)</td>
                         <td class="px-4 py-3 font-mono text-slate-600">2 × (정밀도×재현율) / (정밀도+재현율)</td>
                         <td class="px-4 py-3 text-slate-600">정밀도와 재현율의 조화 평균</td>
@@ -1115,39 +1458,181 @@
                     </tbody>
                 </table>
             </div>
-            <!-- 정밀도 vs 재현율 설명 -->
+            <p class="text-base text-slate-500">
+                위 지표들은 모두 0에서 1 사이의 값을 갖고 1에 가까울수록 좋다. 다만 <strong>어느 값을 먼저 보아야 하는지는 지표가 아니라 문제가 정한다.</strong>
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                혼동 행렬의 네 칸은 각각 무엇을 센 값인가요? 정확도는 그중 어느 칸들로 계산하나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section: 정확도만 보면 안 되는 까닭 ===== -->
+    <section id="sec4b" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">정확도만 보면 안 되는 까닭</h2>
+            <div class="w-20 h-1.5 bg-rose-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">숫자 하나로 모델을 판단할 때 생기는 함정을 봅시다.</p>
+        </div>
+
+        <!-- 정확도의 함정 -->
+        <div class="section-card space-y-5 border-rose-200">
+            <h3 class="text-xl font-bold text-slate-800">정확도가 99%인데 쓸모없는 모델</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                어떤 희귀병이 <strong>1,000명 중 3명</strong>에게 나타난다고 하자.
+                「누가 와도 병이 아니라고 답하는」 모델을 만들어 보면 어떻게 될까.
+                1,000명 중 997명을 맞히므로 <strong>정확도는 99.7%</strong>다.
+                그런데 이 모델은 <strong>환자를 단 한 명도 찾아내지 못한다.</strong>
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose w-full text-base border-collapse">
+                    <thead>
+                    <tr class="bg-rose-50">
+                        <th class="text-left px-4 py-3 font-bold text-rose-800 rounded-tl-xl w-28">지표</th>
+                        <th class="text-left px-4 py-3 font-bold text-rose-800 w-44">이 모델의 값</th>
+                        <th class="text-left px-4 py-3 font-bold text-rose-800 rounded-tr-xl">무엇을 말하고 있나</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">정확도</td>
+                        <td class="px-4 py-3 font-mono text-slate-600">997 / 1000 = 0.997</td>
+                        <td class="px-4 py-3 text-slate-600">거의 다 맞힌 것처럼 보인다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">재현율</td>
+                        <td class="px-4 py-3 font-mono text-slate-600">0 / 3 = 0</td>
+                        <td class="px-4 py-3 text-slate-600">실제 환자 세 명 중 아무도 찾지 못했다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">정밀도</td>
+                        <td class="px-4 py-3 font-mono text-slate-600">구할 수 없음</td>
+                        <td class="px-4 py-3 text-slate-600">양성이라 판정한 적이 없어 나눗셈의 분모가 0이 된다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-rose-50 border-l-4 border-rose-400 rounded-xl p-5">
+                <p class="text-base text-rose-900 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                    한쪽 갈래가 훨씬 많은 데이터를 <strong>불균형 데이터</strong>라고 한다.
+                    이런 데이터에서는 <strong>정확도만 보아서는 안 된다.</strong> 많은 쪽으로만 답해도 값이 높게 나오기 때문이다.
+                    그래서 <strong>정밀도·재현율·특이도가 따로 있는 것</strong>이고, 혼동 행렬의 네 칸을 직접 들여다보아야 하는 것이다.
+                    거꾸로 두 갈래의 수가 비슷하다면 정확도는 여전히 읽기 쉽고 쓸모 있는 지표다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 정밀도 vs 재현율 -->
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">정밀도와 재현율은 함께 올리기 어렵다</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                두 지표는 모두 TP(제대로 찾아낸 양성)를 늘리려 하지만, 줄이려는 실수가 서로 다르다.
+                <strong>정밀도는 FP를 줄이는 쪽</strong>이고 <strong>재현율은 FN을 줄이는 쪽</strong>이다.
+                의심스러우면 일단 양성이라 판정하도록 문턱을 낮추면 놓치는 것(FN)이 줄어 재현율은 오르지만,
+                애먼 것까지 양성이라 하게 되어(FP) 정밀도는 떨어진다. 문턱을 높이면 반대가 된다.
+                <strong>한쪽을 올리면 다른 쪽이 내려가기 쉬운 사이</strong>라, 어느 실수가 더 아픈지를 보고 균형점을 정한다.
+            </p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-base">
-                    <p class="font-bold text-blue-700 mb-1">정밀도가 중요한 경우</p>
-                    <p class="text-blue-800">정상 메시지를 스팸으로 잘못 판단하면 중요 메시지를 놓칠 수 있는 경우.
-                        스팸 분류 문제에서 <strong>정밀도</strong>를 중요 지표로 삼는다.</p>
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 text-base space-y-1">
+                    <p class="font-bold text-blue-700">정밀도를 먼저 보는 경우 — 스팸 분류</p>
+                    <p class="text-blue-800">
+                        스팸을 몇 통 놓치면 지우는 수고로 끝나지만, 합격 통보 메일이 스팸함으로 가면 되돌리기 어렵다.
+                        <strong>정상을 스팸이라 하는 실수(FP)가 더 아프므로</strong> 정밀도를 먼저 본다.
+                    </p>
                 </div>
-                <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-base">
-                    <p class="font-bold text-rose-700 mb-1">재현율이 중요한 경우</p>
-                    <p class="text-rose-800">실제 양성(예: 금융 사기 탐지)을 음성으로 잘못 판단하면 큰 손해.
-                        금융 사기 탐지 같은 문제에서 <strong>재현율</strong>을 중요 지표로 삼는다.</p>
+                <div class="bg-rose-50 border border-rose-200 rounded-xl p-5 text-base space-y-1">
+                    <p class="font-bold text-rose-700">재현율을 먼저 보는 경우 — 산불 감지</p>
+                    <p class="text-rose-800">
+                        연기가 아닌 것을 연기라 해서 헛출동하면 인력과 비용이 들지만, 실제 산불을 놓치면 되돌릴 수 없다.
+                        <strong>양성을 음성이라 하는 실수(FN)가 더 아프므로</strong> 재현율을 먼저 본다.
+                    </p>
                 </div>
             </div>
+            <div class="bg-slate-100 border-l-4 border-slate-400 rounded-xl p-4">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-scale-balanced mr-2 text-slate-500"></i>
+                    <strong>둘 중 하나가 더 중요한 지표라고 정해져 있지 않다.</strong>
+                    같은 지표라도 문제가 바뀌면 순위가 뒤집힌다. 두 지표를 한 숫자로 함께 보고 싶을 때 F1-점수를 쓰지만,
+                    F1은 <strong>어느 쪽 실수가 더 아픈지를 대신 판단해 주지는 않는다.</strong>
+                </p>
+            </div>
+        </div>
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                공항 보안 검색에서 위험물을 가려내는 모델이라면 정밀도와 재현율 중 어느 쪽을 먼저 보아야 할까요?
+                어느 실수가 더 아픈지부터 따져 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== SECTION 5: 회귀와 군집의 성능 평가 ===== -->
+    <section id="sec5" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">회귀와 군집은 무엇으로 평가할까?</h2>
+            <div class="w-20 h-1.5 bg-sky-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">맞았다·틀렸다를 셀 수 없는 문제에는 다른 잣대가 필요합니다.</p>
         </div>
 
         <!-- 회귀 모델의 성능 평가 지표 -->
         <div class="section-card space-y-5">
-            <h3 class="text-xl font-bold text-slate-800">회귀 모델의 성능 평가 지표</h3>
-            <details class="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
-                <summary class="font-bold text-base text-slate-700 cursor-pointer">
-                    더 알아보기: 회귀 모델의 오차 지표(MSE·RMSE·MAE·R²)
-                </summary>
-                <div class="mt-3 text-base text-slate-600 space-y-2">
+            <h3 class="text-xl font-bold text-slate-800">회귀 — 얼마나 빗나갔는지를 잰다</h3>
             <p class="text-base text-slate-600 leading-relaxed">
-                선형 회귀처럼 연속적인 값을 예측하는 회귀 모델은 예측값과 실제값의 차이인 <strong>오차(error)</strong>를 기준으로 성능을
-                평가한다.
-                이산화탄소 배경 대기 농도 예측 실습에서도 아래 지표로 모델의 성능을 확인했다.
+                회귀는 연속적인 값을 맞히는 문제라 <strong>맞았다·틀렸다로 셀 수가 없다.</strong>
+                398건을 예측했는데 실제가 401건이라면 틀린 것이지만, 500건이라 예측한 경우와 같은 취급을 할 수는 없다.
+                그래서 회귀는 <strong>얼마나 빗나갔는지를 재고</strong>, 그 빗나간 양을 <strong>오차(error)</strong>라고 한다.
+                점이 여러 개면 오차도 여러 개이므로, 이를 하나의 숫자로 모아야 두 모델을 견줄 수 있다.
             </p>
             <div class="overflow-x-auto">
-                <table class="min-w-[440px] w-full text-base border-collapse">
+                <svg viewBox="0 0 400 220" role="img" style="min-width:360px; width:100%; height:auto;"
+                     aria-label="산점도 위에 회귀 직선이 그어져 있고, 각 점에서 직선까지의 세로 거리가 오차로 표시된 그림.">
+                    <line x1="46" y1="20" x2="46" y2="180" stroke="#94a3b8" stroke-width="2"/>
+                    <line x1="46" y1="180" x2="378" y2="180" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="14" y="26" font-size="14" fill="#475569">값</text>
+                    <text x="330" y="204" font-size="14" fill="#475569">입력값</text>
+
+                    <line x1="60" y1="158" x2="366" y2="44" stroke="#0284c7" stroke-width="2.5"/>
+                    <text x="286" y="42" font-size="14" font-weight="700" fill="#0369a1">모델이 그은 선</text>
+
+                    <line x1="110" y1="140" x2="110" y2="112" stroke="#f43f5e" stroke-width="2"
+                          stroke-dasharray="4 3"/>
+                    <line x1="190" y1="110" x2="190" y2="140" stroke="#f43f5e" stroke-width="2"
+                          stroke-dasharray="4 3"/>
+                    <line x1="270" y1="80" x2="270" y2="58" stroke="#f43f5e" stroke-width="2"
+                          stroke-dasharray="4 3"/>
+
+                    <circle cx="110" cy="112" r="5" fill="#0f172a"/>
+                    <circle cx="190" cy="140" r="5" fill="#0f172a"/>
+                    <circle cx="270" cy="58" r="5" fill="#0f172a"/>
+
+                    <text x="118" y="130" font-size="14" fill="#be123c">오차</text>
+                    <text x="198" y="130" font-size="14" fill="#be123c">오차</text>
+                    <text x="278" y="74" font-size="14" fill="#be123c">오차</text>
+                    <text x="46" y="212" font-size="14" fill="#64748b">● 실제값 &nbsp;&nbsp; ┃ 선 위의 높이가 예측값</text>
+                </svg>
+            </div>
+            <p class="text-base text-slate-600 leading-relaxed">
+                오차를 하나로 모으는 방식이 여러 가지라 이름도 여럿이다.
+                이산화탄소 배경 대기 농도 예측 실습에서 본 지표들이 그것이다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose w-full text-base border-collapse">
                     <thead>
                     <tr class="bg-sky-50">
-                        <th class="text-left px-4 py-3 font-bold text-sky-800 rounded-tl-xl w-48">지표</th>
+                        <th class="text-left px-4 py-3 font-bold text-sky-800 rounded-tl-xl w-40">지표</th>
                         <th class="text-left px-4 py-3 font-bold text-sky-800">의미</th>
                         <th class="text-center px-4 py-3 font-bold text-sky-800 rounded-tr-xl">좋은 모델의 조건</th>
                     </tr>
@@ -1160,7 +1645,7 @@
                     </tr>
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-bold text-slate-700">평균제곱근오차<br>(RMSE)</td>
-                        <td class="px-4 py-3 text-slate-600">MSE의 제곱근. 오차가 커지는 것을 방지해 원래 단위로 해석하기 쉽게 한 값</td>
+                        <td class="px-4 py-3 text-slate-600">MSE의 제곱근. 제곱하며 부풀었던 값을 되돌려, 원래 단위(ppm·건·분)로 읽을 수 있게 한 값</td>
                         <td class="px-4 py-3 text-center text-slate-600">값이 <strong>작을수록</strong> 좋음</td>
                     </tr>
                     <tr class="hover:bg-slate-50">
@@ -1170,7 +1655,7 @@
                     </tr>
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-bold text-slate-700">결정 계수<br>(R²)</td>
-                        <td class="px-4 py-3 text-slate-600">예측값이 종속 변수의 분산을 얼마나 잘 설명하는지 나타내는 지표</td>
+                        <td class="px-4 py-3 text-slate-600">맞히려는 값이 오르내리는 폭 가운데 모델이 설명해 낸 몫. 비율이라 단위가 없다</td>
                         <td class="px-4 py-3 text-center text-slate-600">값이 <strong>1에 가까울수록</strong> 좋음</td>
                     </tr>
                     </tbody>
@@ -1178,11 +1663,131 @@
             </div>
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-base text-amber-800">
                 <i class="fa-solid fa-circle-info mr-2 text-amber-600"></i>
-                MSE·RMSE는 오차를 제곱하기 때문에 <strong>큰 오차(극단값)에 민감</strong>하고, MAE는 오차 크기를 그대로 반영해
-                <strong>전반적인 정확도</strong>를 보여 준다. 한 가지 지표만 보기보다 여러 지표를 함께 살펴보는 것이 좋다.
+                MSE·RMSE는 오차를 제곱하기 때문에 <strong>크게 빗나간 점 하나에 크게 흔들리고</strong>, MAE는 오차 크기를 그대로 더하므로
+                <strong>점들이 평균적으로 얼마나 빗나갔는지</strong>를 보여 준다. 어느 쪽이 옳은 지표라기보다,
+                크게 빗나가는 것을 특히 막아야 하는 문제라면 MSE·RMSE를, 전반을 고르게 보고 싶다면 MAE를 앞세운다.
             </div>
+            <div class="bg-slate-100 border-l-4 border-slate-400 rounded-xl p-4 space-y-2">
+                <p class="text-base font-bold text-slate-700">
+                    <i class="fa-solid fa-triangle-exclamation mr-2 text-slate-500"></i>결정 계수가 「언제나 0에서 1 사이」는 아니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>모델을 만들 때 쓴 데이터로 재면</strong> 0에서 1 사이가 나온다.
+                    그런데 <strong>본 적 없는 데이터로 채점하면 0보다 작아질 수도 있다.</strong>
+                    0은 「그냥 평균값으로 답하는 것과 다를 바 없다」는 뜻이고, 음수는 「평균으로 답하느니만 못하다」는 뜻이다.
+                    테스트 데이터에서 결정 계수가 음수로 나왔다면 계산이 틀린 것이 아니라,
+                    <strong>그 모델이 새 데이터에서 제 몫을 못 하고 있다</strong>는 신호다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 군집화의 성능 평가 -->
+        <div class="section-card space-y-5 border-violet-200">
+            <h3 class="text-xl font-bold text-slate-800">군집 — 정답이 없는데 무엇을 재나</h3>
+            <p class="text-base text-slate-600 leading-relaxed">
+                군집화는 레이블(정답표) 없이 비슷한 것끼리 묶는 일이라,
+                <strong>맞았는지 견주어 볼 정답 자체가 없다.</strong>
+                그래서 <strong>묶인 모양</strong>을 본다. 잘 묶였다면 두 가지가 동시에 성립해야 한다 &mdash;
+                같은 덩어리 안의 것들은 서로 <strong>가깝고</strong>, 다른 덩어리와는 <strong>멀리 떨어져 있어야</strong> 한다.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-5 space-y-1">
+                    <p class="text-base font-bold text-violet-800">a — 우리 편과의 거리</p>
+                    <p class="text-base text-violet-900">어떤 점에서 <strong>같은 군집에 있는 다른 점들</strong>까지의 평균 거리.
+                        작을수록 좋다.</p>
                 </div>
-            </details>
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-5 space-y-1">
+                    <p class="text-base font-bold text-violet-800">b — 가장 가까운 옆 동네와의 거리</p>
+                    <p class="text-base text-violet-900">그 점에서 <strong>가장 가까운 다른 군집의 점들</strong>까지의 평균 거리.
+                        클수록 좋다.</p>
+                </div>
+            </div>
+            <div class="bg-violet-600 text-white rounded-2xl p-5 space-y-2">
+                <p class="text-base font-bold text-violet-100">실루엣 계수(silhouette coefficient)</p>
+                <p class="text-lg font-black">(b &minus; a) &divide; (a와 b 중 큰 값)</p>
+                <p class="text-base text-violet-50 leading-relaxed">
+                    점 하나하나에게 <strong>「지금 있는 군집이 맞느냐」</strong>고 묻는 값이다.
+                    큰 값으로 나누는 것은 결과를 &minus;1에서 1 사이로 가두기 위해서다.
+                </p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table-prose w-full text-base border-collapse">
+                    <thead>
+                    <tr class="bg-violet-50">
+                        <th class="text-left px-4 py-3 font-bold text-violet-800 rounded-tl-xl w-28">값</th>
+                        <th class="text-left px-4 py-3 font-bold text-violet-800 rounded-tr-xl">그 점이 어떤 상태인가</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">1에 가까움</td>
+                        <td class="px-4 py-3 text-slate-600">우리 편은 가깝고 남은 멀다. 제자리에 잘 들어가 있다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">0 근처</td>
+                        <td class="px-4 py-3 text-slate-600">양쪽이 비슷하게 멀다. 두 군집의 경계에 걸쳐 있다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">&minus;1에 가까움</td>
+                        <td class="px-4 py-3 text-slate-600">남이 우리 편보다 가깝다. 엉뚱한 군집에 들어가 있다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-100 border-l-4 border-slate-400 rounded-xl p-4">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-2 text-slate-500"></i>
+                    점 하나의 실루엣 계수가 높다고 <strong>전체 군집화가 잘된 것은 아니다.</strong>
+                    보통은 모든 점의 값을 평균 내어 보고, 군집마다의 평균이 전체 평균에서 크게 벗어나지 않는지도 함께 살핀다.
+                    군집을 몇 개로 나눌지(k)를 정할 때 참고하기도 한다.
+                    다만 이 값은 <strong>데이터 안의 거리만 보고 만들어진 값</strong>이라,
+                    나뉜 덩어리가 <strong>사람에게 쓸모 있는 구분인지까지 말해 주지는 못한다.</strong>
+                    그 판단은 결국 사람의 몫이다.
+                </p>
+            </div>
+            <div class="flex justify-center">
+                <a href="../simulator/ai/unsupervised-k-means.html" target="_blank"
+                   class="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition shadow-sm">
+                    <i class="fa-solid fa-laptop-code"></i> k-평균 군집 시뮬레이터로 확인하기
+                </a>
+            </div>
+        </div>
+
+        <!-- 세 갈래 한눈에 -->
+        <div class="section-card space-y-5">
+            <h3 class="text-xl font-bold text-slate-800">한눈에 견주기</h3>
+            <div class="overflow-x-auto">
+                <table class="table-prose w-full text-base border-collapse">
+                    <thead>
+                    <tr class="bg-slate-100">
+                        <th class="text-left px-4 py-3 font-bold text-slate-700 rounded-tl-xl w-28">유형</th>
+                        <th class="text-left px-4 py-3 font-bold text-slate-700">무엇을 재나</th>
+                        <th class="text-left px-4 py-3 font-bold text-slate-700">대표 지표</th>
+                        <th class="text-left px-4 py-3 font-bold text-slate-700 rounded-tr-xl">읽을 때 조심할 것</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">회귀</td>
+                        <td class="px-4 py-3 text-slate-600">값이 얼마나 빗나갔는지</td>
+                        <td class="px-4 py-3 text-slate-600">MSE·RMSE·MAE, 결정 계수</td>
+                        <td class="px-4 py-3 text-slate-600">오차 지표는 단위가 붙으므로 다른 데이터끼리는 곧바로 견줄 수 없다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">분류</td>
+                        <td class="px-4 py-3 text-slate-600">맞혔는지 틀렸는지, 어떤 유형으로 틀렸는지</td>
+                        <td class="px-4 py-3 text-slate-600">정확도, 정밀도, 재현율, 특이도, F1-점수</td>
+                        <td class="px-4 py-3 text-slate-600">갈래의 수가 크게 치우쳐 있으면 정확도만으로 판단하지 않는다</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-slate-700">군집</td>
+                        <td class="px-4 py-3 text-slate-600">묶인 모양이 얼마나 그럴듯한지</td>
+                        <td class="px-4 py-3 text-slate-600">실루엣 계수</td>
+                        <td class="px-4 py-3 text-slate-600">정답과 견준 값이 아니므로, 나뉜 결과가 쓸모 있는지는 사람이 따로 해석한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
         <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
                     border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
@@ -1191,7 +1796,7 @@
                 <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
             </span>
             <p class="text-base text-sky-900 font-medium leading-relaxed">
-                혼동 행렬의 네 칸 중 정밀도와 재현율은 각각 어느 칸을 이용해 계산하나요? 위 표를 다시 보고 확인해 보세요.
+                회귀에는 왜 정밀도·재현율을 쓸 수 없고, 군집에는 왜 정확도를 쓸 수 없을까요? 세 유형이 각각 무엇을 재는지 다시 떠올려 보세요.
             </p>
         </div>
     </section>
@@ -1212,6 +1817,8 @@
                     각 단계는 반드시 순서대로 한 번에 끝내는 것이 아니라,
                     성능이 충분하지 않으면 이전 단계로 돌아가 수정할 수 있다.
                     훈련 데이터와 테스트 데이터를 나누는 것은 <strong>과적합을 막고 일반화 성능을 확인</strong>하기 위해서이다.
+                    설정을 바꿔 가며 모델을 고르는 일은 <strong>검증 데이터</strong>로 하고,
+                    테스트 데이터는 <strong>마지막 채점에 한 번만</strong> 쓴다.
                 </p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1219,25 +1826,28 @@
                     <p class="font-black text-base text-yellow-200 mb-2">핵심 용어</p>
                     <ul class="space-y-1 text-base">
                         <li><strong>훈련 데이터</strong> — 모델 학습에 사용</li>
-                        <li><strong>테스트 데이터</strong> — 성능 평가에 사용</li>
-                        <li><strong>과적합</strong> — 훈련 데이터에만 최적화</li>
-                        <li><strong>일반화</strong> — 새 데이터에서도 잘 작동</li>
+                        <li><strong>검증 데이터</strong> — 설정을 바꿔 가며 모델을 고를 때 사용</li>
+                        <li><strong>테스트 데이터</strong> — 마지막 성능 평가에 한 번만 사용</li>
+                        <li><strong>과적합</strong> — 훈련 데이터에서는 잘하는데 새 데이터에서는 못함</li>
+                        <li><strong>일반화</strong> — 본 적 없는 데이터에서도 제 역할을 함</li>
                     </ul>
                 </div>
                 <div class="bg-white/10 rounded-2xl p-4">
                     <p class="font-black text-base text-yellow-200 mb-2">분류 성능 지표</p>
                     <ul class="space-y-1 text-base">
-                        <li><strong>정확도(CA)</strong> — 전체 정답 비율</li>
+                        <li><strong>정확도(CA)</strong> — 전체 정답 비율. 갈래가 치우친 데이터에서는 이것만 보지 않음</li>
                         <li><strong>정밀도</strong> — 양성 판정 중 실제 양성</li>
-                        <li><strong>재현율</strong> — 실제 양성 중 발견율</li>
-                        <li><strong>F1-점수</strong> — 정밀도·재현율 조화 평균</li>
+                        <li><strong>재현율</strong> — 실제 양성 중 찾아낸 비율</li>
+                        <li><strong>특이도</strong> — 실제 음성 중 음성으로 맞힌 비율</li>
+                        <li><strong>F1-점수</strong> — 정밀도·재현율 조화 평균. 어느 실수가 더 아픈지는 알려 주지 않음</li>
                     </ul>
                 </div>
                 <div class="bg-white/10 rounded-2xl p-4">
-                    <p class="font-black text-base text-yellow-200 mb-2">회귀 성능 지표</p>
+                    <p class="font-black text-base text-yellow-200 mb-2">회귀·군집 성능 지표</p>
                     <ul class="space-y-1 text-base">
-                        <li><strong>MSE·RMSE·MAE</strong> — 작을수록 좋음</li>
-                        <li><strong>결정 계수(R²)</strong> — 1에 가까울수록 좋음</li>
+                        <li><strong>MSE·RMSE·MAE</strong> — 오차를 모은 값. 작을수록 좋음</li>
+                        <li><strong>결정 계수(R²)</strong> — 클수록 좋음. 만들 때 쓴 데이터로 재면 0~1, 본 적 없는 데이터로 재면 음수도 가능</li>
+                        <li><strong>실루엣 계수</strong> — 군집용. &minus;1~1, 클수록 제자리에 잘 들어간 것</li>
                     </ul>
                 </div>
                 <div class="bg-white/10 rounded-2xl p-4">
@@ -1326,6 +1936,55 @@
                 <button class="quiz-btn" onclick="checkAnswer(this,'q4',false)">④ 평균절대오차 (MAE)</button>
             </div>
             <div id="q4-feedback" class="hidden rounded-xl p-4 text-base font-medium"></div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="section-card space-y-5" id="q5-card">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-black text-base shrink-0">Q5</span>
+                <h3 class="text-xl font-bold text-slate-800">1,000명 중 3명만 걸리는 병을 판별하는 모델이 <strong>모든 사람을 「병이 아니다」로
+                    판정</strong>했다. 이 모델에 대한 설명으로 옳은 것은?</h3>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn" onclick="checkAnswer(this,'q5',false)">① 정확도가 낮게 나오므로 문제가 곧바로 드러난다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q5',true)">② 정확도는 99.7%로 높지만 재현율이 0이므로 환자를 전혀 찾아내지 못한다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q5',false)">③ 정확도가 높으므로 성능이 좋은 모델이라고 볼 수 있다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q5',false)">④ 훈련 데이터를 더 모으면 정확도는 반드시 100%가 된다</button>
+            </div>
+            <div id="q5-feedback" class="hidden rounded-xl p-4 text-base font-medium"></div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="section-card space-y-5" id="q6-card">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-black text-base shrink-0">Q6</span>
+                <h3 class="text-xl font-bold text-slate-800">설정값을 바꿔 가며 만든 모델 여러 개 중 하나를 고르려고 한다. 어느 데이터로 견주는 것이
+                    옳을까?</h3>
+            </div>
+            <div class="space-y-3" id="q6">
+                <button class="quiz-btn" onclick="checkAnswer(this,'q6',false)">① 훈련 데이터 — 학습에 쓴 데이터라 점수가 가장 정확하다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q6',false)">② 테스트 데이터 — 새로운 데이터이므로 여러 번 재어도 괜찮다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q6',true)">③ 검증 데이터 — 고르는 일에 쓰고, 테스트 데이터는 마지막 채점에 남겨 둔다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q6',false)">④ 전체 데이터 — 많을수록 좋으므로 모두 합쳐서 잰다</button>
+            </div>
+            <div id="q6-feedback" class="hidden rounded-xl p-4 text-base font-medium"></div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="section-card space-y-5" id="q7-card">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-black text-base shrink-0">Q7</span>
+                <h3 class="text-xl font-bold text-slate-800">성능 평가 지표에 대한 설명으로 옳지 <u>않은</u> 것은?</h3>
+            </div>
+            <div class="space-y-3" id="q7">
+                <button class="quiz-btn" onclick="checkAnswer(this,'q7',false)">① 재현율은 실제 양성 중 양성으로 찾아낸 비율이다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q7',false)">② 특이도는 실제 음성 중 음성으로 맞힌 비율이다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q7',true)">③ 정밀도와 재현율은 언제나 함께 오르내리므로 하나만 보면 된다</button>
+                <button class="quiz-btn" onclick="checkAnswer(this,'q7',false)">④ 군집화는 정답이 없으므로 실루엣 계수처럼 묶인 모양을 보는 지표를 쓴다</button>
+            </div>
+            <div id="q7-feedback" class="hidden rounded-xl p-4 text-base font-medium"></div>
         </div>
     </section>
 

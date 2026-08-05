@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>k-평균 군집 분석</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-bullseye absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-arrows-rotate absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            k-평균 군집 분석
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>중심점을 찍고</strong>, 가까운 것을 모으고,<br>
+            <strong>중심점을 다시 옮기고</strong>. 이것을 멈출 때까지 되풀이합니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>k-평균 군집 분석에서 k와 평균이 각각 무엇을 뜻하는지 설명할 수 있다.</li>
+                    <li>k-평균 군집화 과정을 순서대로 말하고, 간단한 데이터에 직접 적용할 수 있다.</li>
+                    <li>군집 분석에서 정규화가 필요한 까닭을 설명할 수 있다.</li>
+                    <li>오렌지로 데이터를 만들어 군집 모델을 생성하고 결과를 확인할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-bullseye text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">k-평균 군집 분석</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#concept" class="hover:text-indigo-600 transition">k와 평균</a>
+            <a href="#distance" class="hover:text-indigo-600 transition">거리 재기</a>
+            <a href="#process" class="hover:text-indigo-600 transition">군집화 과정</a>
+            <a href="#trace" class="hover:text-indigo-600 transition">직접 따라가기</a>
+            <a href="#normalize" class="hover:text-indigo-600 transition">정규화</a>
+            <a href="#practice" class="hover:text-indigo-600 transition">오렌지 실습</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI와 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: k와 평균 ===== -->
+    <section id="concept" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이름에 답이 들어 있습니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>k</strong>가 무엇이고 <strong>평균</strong>이 무엇인지만 알면 절반은 이해한 것입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 소절에서 <strong>중심에서 가까운 것끼리 묶는 방법</strong>을 잠깐 보았습니다.
+                그 방법의 이름이 <strong>k-평균 군집 분석(k-means clustering)</strong>입니다.
+                군집 분석에서 가장 널리 쓰이는 방법이고, 이름 두 조각이 곧 설명입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-indigo-900">k &mdash; 군집의 개수</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        몇 무리로 나눌지를 <strong>우리가 미리 정해</strong> 넣는 숫자입니다.
+                        k = 3이면 무슨 일이 있어도 <strong>세 무리</strong>가 나옵니다.
+                        데이터가 알려 주는 것이 아니라 <strong>우리가 주는 값</strong>이라는 점이 중요합니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">평균(means) &mdash; 중심점을 정하는 방법</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        각 군집의 <strong>중심점(centroid)</strong>을
+                        그 군집에 속한 데이터들의 <strong>평균 위치</strong>에 둡니다.
+                        평균이 여기서 하는 일이 바로 그것입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-location-crosshairs text-indigo-500 mr-1"></i>중심점은 데이터가 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    중심점은 <strong>계산으로 만들어 낸 가상의 지점</strong>입니다.
+                    실제 데이터 위에 놓일 수도 있지만, 대개는 <strong>아무 데이터도 없는 빈자리</strong>에 놓입니다.
+                    반 학생들의 평균 키가 반드시 누군가의 키와 같지는 않은 것과 같습니다.
+                    <strong>중심점은 그 군집을 대표하는 자리</strong>일 뿐입니다.
+                </p>
+            </div>
+
+            <div class="bg-indigo-600 rounded-2xl p-6 text-center space-y-3">
+                <p class="text-base font-bold text-indigo-100">한 문장으로 줄이면</p>
+                <p class="text-lg md:text-xl font-black text-white leading-relaxed">
+                    군집 개수 <strong>k</strong>를 정하고, <strong>중심점</strong>을 찾아,<br>
+                    각 데이터를 <strong>가장 가까운 중심점</strong>에 딸려 보낸다
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 거리 재기 ===== -->
+    <section id="distance" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">&lsquo;가깝다&rsquo;를 어떻게 재나?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>k-최근접 이웃</strong>에서 이미 만난 이야기입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                &ldquo;가장 가까운 중심점&rdquo;을 찾으려면 <strong>거리를 잴 줄 알아야</strong> 합니다.
+                재는 방법은 여러 가지인데, 두 가지가 널리 쓰입니다.
+                <strong>회귀 분석에서 k-최근접 이웃을 배울 때 이미 본 것들</strong>입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">유클리드 거리</h3>
+                    <svg viewBox="0 0 360 220" role="img" class="chart-svg"
+                         aria-label="좌표평면 위의 두 점을 곧게 잇는 대각선 하나가 그려져 있다.">
+                        <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                            <line x1="60" y1="60" x2="330" y2="60"/>
+                            <line x1="60" y1="110" x2="330" y2="110"/>
+                            <line x1="60" y1="160" x2="330" y2="160"/>
+                            <line x1="130" y1="30" x2="130" y2="190"/>
+                            <line x1="200" y1="30" x2="200" y2="190"/>
+                            <line x1="270" y1="30" x2="270" y2="190"/>
+                        </g>
+                        <line x1="60" y1="25" x2="60" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="60" y1="190" x2="340" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="130" y1="160" x2="270" y2="60" stroke="#1d4ed8" stroke-width="5" stroke-linecap="round"/>
+                        <circle cx="130" cy="160" r="9" fill="#0f172a"/>
+                        <circle cx="270" cy="60" r="9" fill="#0f172a"/>
+                    </svg>
+                    <div class="bg-sky-50 border border-sky-200 rounded-xl p-4 space-y-2">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            두 점을 <strong>곧게 이은 직선의 길이</strong>입니다.
+                            가로 차이와 세로 차이를 각각 제곱해 더한 뒤 <strong>제곱근</strong>을 씌웁니다.
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            (1,&nbsp;1)에서 (3,&nbsp;3)까지라면
+                            <strong>&radic;(2&sup2; + 2&sup2;) = &radic;8 &approx; 2.83</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">맨해튼 거리</h3>
+                    <svg viewBox="0 0 360 220" role="img" class="chart-svg"
+                         aria-label="같은 두 점 사이를 가로와 세로로만 꺾어 이동하는 계단 모양 경로가 그려져 있다.">
+                        <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                            <line x1="60" y1="60" x2="330" y2="60"/>
+                            <line x1="60" y1="110" x2="330" y2="110"/>
+                            <line x1="60" y1="160" x2="330" y2="160"/>
+                            <line x1="130" y1="30" x2="130" y2="190"/>
+                            <line x1="200" y1="30" x2="200" y2="190"/>
+                            <line x1="270" y1="30" x2="270" y2="190"/>
+                        </g>
+                        <line x1="60" y1="25" x2="60" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="60" y1="190" x2="340" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+                        <polyline fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"
+                                  points="130,160 270,160 270,60"/>
+                        <circle cx="130" cy="160" r="9" fill="#0f172a"/>
+                        <circle cx="270" cy="60" r="9" fill="#0f172a"/>
+                    </svg>
+                    <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>축을 따라 꺾어 간 길이</strong>입니다.
+                            가로 차이와 세로 차이의 <strong>절댓값을 그냥 더합니다.</strong>
+                            바둑판처럼 난 길을 걸어가는 것과 같습니다.
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            같은 두 점이라면
+                            <strong>|3&minus;1| + |3&minus;1| = 4</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                    같은 두 점인데 <strong>2.83과 4</strong>로 값이 다릅니다.
+                    거리를 재는 방법이 다르면 <strong>&lsquo;가장 가까운 것&rsquo;도 달라질 수 있고</strong>,
+                    그러면 군집도 달라집니다.
+                    보통은 <strong>유클리드 거리</strong>를 씁니다.
+                    아래 설명도 모두 유클리드 거리를 쓴 것입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>거리를 재려면 <strong>숫자</strong>여야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    k-평균 군집 분석은 거리를 계산해야 하므로
+                    <strong>속성값이 수치형이어야</strong> 합니다.
+                    &lsquo;좋아하는 색&rsquo;이나 &lsquo;사는 동네&rsquo; 같은 값은
+                    <strong>그대로는 뺄셈이 되지 않으므로</strong> 쓸 수 없습니다.
+                    이런 속성을 쓰려면 먼저 숫자로 바꾸는 처리가 필요합니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 군집화 과정 ===== -->
+    <section id="process" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">중심점을 어떻게 찾아낼까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                놀랍게도 <strong>아무 데나 찍고 시작합니다.</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                중심점을 알면 군집을 나눌 수 있고, 군집을 알면 중심점을 구할 수 있습니다.
+                <strong>둘 다 모르는데 어느 쪽을 먼저 해야 할까요?</strong>
+                k-평균은 이 곤란을 아주 단순하게 넘어갑니다 &mdash;
+                <strong>중심점을 아무 데나 찍어 놓고 시작한 뒤, 번갈아 고쳐 나갑니다.</strong>
+            </p>
+
+            <ol class="list-none space-y-0">
+                <li class="flex gap-4">
+                    <div class="flex flex-col items-center shrink-0">
+                        <span class="w-11 h-11 rounded-full bg-indigo-600 text-white border-2 border-indigo-600 flex items-center justify-center font-black text-base">1</span>
+                        <span class="w-1 flex-1 bg-slate-200 my-1 rounded-full"></span>
+                    </div>
+                    <div class="pb-5 pt-1.5 space-y-1">
+                        <p class="font-black text-lg text-slate-800">군집의 개수 k를 정한다</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            몇 무리로 나눌지 사람이 정합니다. 여기서는 k = 2로 하겠습니다.
+                        </p>
+                    </div>
+                </li>
+                <li class="flex gap-4">
+                    <div class="flex flex-col items-center shrink-0">
+                        <span class="w-11 h-11 rounded-full bg-indigo-600 text-white border-2 border-indigo-600 flex items-center justify-center font-black text-base">2</span>
+                        <span class="w-1 flex-1 bg-slate-200 my-1 rounded-full"></span>
+                    </div>
+                    <div class="pb-5 pt-1.5 space-y-1">
+                        <p class="font-black text-lg text-slate-800">초기 중심점 k개를 무작위로 찍는다</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>아무렇게나 놓아도 됩니다.</strong> 어차피 다음 단계부터 고쳐 나가기 때문입니다.
+                        </p>
+                    </div>
+                </li>
+                <li class="flex gap-4">
+                    <div class="flex flex-col items-center shrink-0">
+                        <span class="w-11 h-11 rounded-full bg-sky-500 text-white border-2 border-sky-500 flex items-center justify-center font-black text-base">3</span>
+                        <span class="w-1 flex-1 bg-sky-300 my-1 rounded-full"></span>
+                    </div>
+                    <div class="pb-5 pt-1.5 space-y-1">
+                        <p class="font-black text-lg text-sky-800">데이터를 가장 가까운 중심점에 할당한다</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            점 하나하나마다 <strong>어느 중심점이 더 가까운지</strong> 재어 그쪽 군집에 넣습니다.
+                        </p>
+                    </div>
+                </li>
+                <li class="flex gap-4">
+                    <div class="flex flex-col items-center shrink-0">
+                        <span class="w-11 h-11 rounded-full bg-sky-500 text-white border-2 border-sky-500 flex items-center justify-center font-black text-base">4</span>
+                        <span class="w-1 flex-1 bg-slate-200 my-1 rounded-full"></span>
+                    </div>
+                    <div class="pb-5 pt-1.5 space-y-1">
+                        <p class="font-black text-lg text-sky-800">중심점을 그 군집의 평균 위치로 옮긴다</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            방금 모인 점들의 <strong>평균 자리</strong>로 중심점을 다시 놓습니다.
+                        </p>
+                    </div>
+                </li>
+                <li class="flex gap-4">
+                    <div class="flex flex-col items-center shrink-0">
+                        <span class="w-11 h-11 rounded-full bg-emerald-600 text-white border-2 border-emerald-600 flex items-center justify-center font-black text-base">5</span>
+                    </div>
+                    <div class="pt-1.5 space-y-1">
+                        <p class="font-black text-lg text-emerald-800">중심점이 더 움직이지 않을 때까지 3과 4를 되풀이한다</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            중심점이 옮겨졌으니 <strong>가장 가까운 중심점이 바뀐 점</strong>이 생길 수 있습니다.
+                            그러면 다시 나누고, 다시 옮깁니다.
+                            <strong>더 이상 움직이지 않으면 끝</strong>입니다.
+                        </p>
+                    </div>
+                </li>
+            </ol>
+
+            <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-sky-900">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i>3과 4가 서로를 고쳐 줍니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>3번</strong>은 중심점이 정해졌다고 보고 군집을 고칩니다.
+                    <strong>4번</strong>은 군집이 정해졌다고 보고 중심점을 고칩니다.
+                    한쪽을 고치면 다른 쪽이 어긋나므로 다시 고쳐야 하고,
+                    이것을 되풀이하면 <strong>차츰 어긋남이 줄어들다가 결국 멈춥니다.</strong>
+                    <strong>멈춘다는 것이 이 방법의 보장</strong>입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 직접 따라가기 ===== -->
+    <section id="trace" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">손으로 한 번 돌려 봅시다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                점 여섯 개면 <strong>연필로 끝까지</strong> 따라갈 수 있습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-store mr-1"></i>상황
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학교 축제에 <strong>부스 여섯 개</strong>가 운동장 여기저기에 섭니다.
+                    짐을 맡아 줄 <strong>물품 보관소를 두 곳</strong> 두려고 합니다.
+                    <strong>어느 부스를 어느 보관소가 맡고, 보관소는 어디에 두어야 할까요?</strong>
+                    k = 2인 k-평균 군집 분석이 정확히 이 문제를 풉니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-24">부스</th>
+                        <th>가&nbsp;</th><th>나</th><th>다</th><th>라</th><th>마</th><th>바</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td class="font-bold">가로 위치</td><td>1</td><td>3</td><td>2</td><td>7</td><td>9</td><td>8</td></tr>
+                    <tr><td class="font-bold">세로 위치</td><td>1</td><td>1</td><td>4</td><td>6</td><td>6</td><td>9</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-500">이해를 돕기 위해 만든 가상의 값입니다.</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                초기 중심점은 <strong>일부러 나쁘게</strong> 잡아 보겠습니다.
+                둘 다 왼쪽에 몰아서 <strong>(1,&nbsp;1)</strong>과 <strong>(2,&nbsp;4)</strong>에 찍습니다.
+                이렇게 시작해도 제자리를 찾아가는지 보는 것이 목적입니다.
+            </p>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-xl font-black text-slate-800">첫 번째 되풀이</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    각 부스에서 두 중심점까지의 거리를 재어 <strong>가까운 쪽</strong>에 넣습니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-24">부스</th>
+                            <th>(1,&nbsp;1)까지</th>
+                            <th>(2,&nbsp;4)까지</th>
+                            <th class="w-28">가까운 쪽</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold">가 (1,&nbsp;1)</td><td>0</td><td>3.16</td><td class="font-bold text-sky-700">1군집</td></tr>
+                        <tr><td class="font-bold">나 (3,&nbsp;1)</td><td>2</td><td>3.16</td><td class="font-bold text-sky-700">1군집</td></tr>
+                        <tr><td class="font-bold">다 (2,&nbsp;4)</td><td>3.16</td><td>0</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        <tr><td class="font-bold">라 (7,&nbsp;6)</td><td>7.81</td><td>5.39</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        <tr><td class="font-bold">마 (9,&nbsp;6)</td><td>9.43</td><td>7.28</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        <tr><td class="font-bold">바 (8,&nbsp;9)</td><td>10.63</td><td>7.81</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        이제 중심점을 <strong>각 군집의 평균 자리</strong>로 옮깁니다.
+                    </p>
+                    <p class="text-base text-slate-800 leading-relaxed">
+                        <strong>1군집</strong> = 가, 나 &rarr; 가로 (1+3)&divide;2 = <strong>2</strong>,
+                        세로 (1+1)&divide;2 = <strong>1</strong> &rarr; 중심점 <strong>(2,&nbsp;1)</strong><br>
+                        <strong>2군집</strong> = 다, 라, 마, 바 &rarr; 가로 (2+7+9+8)&divide;4 = <strong>6.5</strong>,
+                        세로 (4+6+6+9)&divide;4 = <strong>6.25</strong> &rarr; 중심점 <strong>(6.5,&nbsp;6.25)</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-xl font-black text-slate-800">두 번째 되풀이</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    중심점이 움직였으니 <strong>다시 나눕니다.</strong>
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-24">부스</th>
+                            <th>(2,&nbsp;1)까지</th>
+                            <th>(6.5,&nbsp;6.25)까지</th>
+                            <th class="w-28">가까운 쪽</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold">가 (1,&nbsp;1)</td><td>1</td><td>7.60</td><td class="font-bold text-sky-700">1군집</td></tr>
+                        <tr><td class="font-bold">나 (3,&nbsp;1)</td><td>1</td><td>6.31</td><td class="font-bold text-sky-700">1군집</td></tr>
+                        <tr class="bg-amber-50"><td class="font-bold">다 (2,&nbsp;4)</td><td>3</td><td>5.03</td><td class="font-bold text-sky-700">1군집 &larr; 바뀜</td></tr>
+                        <tr><td class="font-bold">라 (7,&nbsp;6)</td><td>7.07</td><td>0.56</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        <tr><td class="font-bold">마 (9,&nbsp;6)</td><td>8.60</td><td>2.51</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        <tr><td class="font-bold">바 (8,&nbsp;9)</td><td>10.00</td><td>3.13</td><td class="font-bold text-orange-700">2군집</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>부스 &lsquo;다&rsquo;가 2군집에서 1군집으로 옮겨 갔습니다.</strong>
+                        처음에는 중심점이 마침 &lsquo;다&rsquo; 위에 놓여 있어서 2군집이었지만,
+                        중심점이 오른쪽 위로 멀어지자 이제는 왼쪽 무리가 더 가까워진 것입니다.
+                        <strong>이것이 되풀이가 필요한 이유</strong>입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="text-base text-slate-800 leading-relaxed">
+                        <strong>1군집</strong> = 가, 나, 다 &rarr; (1+3+2)&divide;3 = <strong>2</strong>,
+                        (1+1+4)&divide;3 = <strong>2</strong> &rarr; 중심점 <strong>(2,&nbsp;2)</strong><br>
+                        <strong>2군집</strong> = 라, 마, 바 &rarr; (7+9+8)&divide;3 = <strong>8</strong>,
+                        (6+6+9)&divide;3 = <strong>7</strong> &rarr; 중심점 <strong>(8,&nbsp;7)</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-xl font-black text-slate-800">세 번째 되풀이 &mdash; 그리고 끝</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    새 중심점 (2,&nbsp;2)와 (8,&nbsp;7)로 다시 나누어 보면
+                    <strong>가 &middot; 나 &middot; 다는 그대로 1군집, 라 &middot; 마 &middot; 바는 그대로 2군집</strong>입니다.
+                    군집이 그대로이니 평균도 그대로이고,
+                    <strong>중심점이 더 이상 움직이지 않습니다. 여기서 멈춥니다.</strong>
+                </p>
+
+                <svg viewBox="0 0 620 320" role="img" class="chart-svg"
+                     aria-label="좌표평면에 여섯 개의 점이 왼쪽 아래와 오른쪽 위 두 무리로 나뉘어 서로 다른 색으로 칠해져 있고, 각 무리 안에 별 모양의 중심점이 하나씩 놓여 있다.">
+                    <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                        <line x1="70" y1="234" x2="580" y2="234"/>
+                        <line x1="70" y1="178" x2="580" y2="178"/>
+                        <line x1="70" y1="122" x2="580" y2="122"/>
+                        <line x1="70" y1="66" x2="580" y2="66"/>
+                        <line x1="174" y1="30" x2="174" y2="290"/>
+                        <line x1="278" y1="30" x2="278" y2="290"/>
+                        <line x1="382" y1="30" x2="382" y2="290"/>
+                        <line x1="486" y1="30" x2="486" y2="290"/>
+                    </g>
+                    <line x1="70" y1="25" x2="70" y2="290" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="70" y1="290" x2="590" y2="290" stroke="#94a3b8" stroke-width="1.5"/>
+                    <g fill="#0ea5e9" fill-opacity="0.9">
+                        <circle cx="122" cy="262" r="10"/>
+                        <circle cx="226" cy="262" r="10"/>
+                        <circle cx="174" cy="178" r="10"/>
+                    </g>
+                    <g fill="#f97316" fill-opacity="0.9">
+                        <circle cx="434" cy="122" r="10"/>
+                        <circle cx="538" cy="122" r="10"/>
+                        <circle cx="486" cy="38" r="10"/>
+                    </g>
+                    <polygon transform="translate(174 234)" fill="#0369a1" stroke="#ffffff" stroke-width="2"
+                             points="0,-16 3.8,-5.2 15.2,-4.9 6.1,2 9.4,12.9 0,6.4 -9.4,12.9 -6.1,2 -15.2,-4.9 -3.8,-5.2"/>
+                    <polygon transform="translate(486 94)" fill="#c2410c" stroke="#ffffff" stroke-width="2"
+                             points="0,-16 3.8,-5.2 15.2,-4.9 6.1,2 9.4,12.9 0,6.4 -9.4,12.9 -6.1,2 -15.2,-4.9 -3.8,-5.2"/>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-sky-500"></span>1군집 &mdash; 부스 가 &middot; 나 &middot; 다</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-orange-500"></span>2군집 &mdash; 부스 라 &middot; 마 &middot; 바</span>
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-star text-slate-600"></i>중심점 &mdash; 보관소를 둘 자리</span>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-emerald-900">
+                        <i class="fa-solid fa-flag-checkered mr-1"></i>답이 나왔습니다
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        보관소는 <strong>(2,&nbsp;2)</strong>와 <strong>(8,&nbsp;7)</strong>에 두고,
+                        <strong>가 &middot; 나 &middot; 다</strong>는 첫 번째 보관소가,
+                        <strong>라 &middot; 마 &middot; 바</strong>는 두 번째 보관소가 맡습니다.
+                        중심점 두 곳 모두 <strong>부스가 없는 빈자리</strong>라는 점을 눈여겨보세요.
+                        중심점은 데이터가 아니라 <strong>계산으로 만든 대표 지점</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-violet-900">
+                    <i class="fa-solid fa-shuffle mr-1"></i>여기서는 거리가 <strong>진짜 거리</strong>였습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    부스의 가로 &middot; 세로 위치였으니 거리도 운동장 위의 실제 거리였지요.
+                    그래서 이해하기 쉬웠습니다.
+                    하지만 <strong>대부분의 군집 분석에서 두 축은 장소가 아닙니다.</strong>
+                    가로축이 <strong>대출 권수</strong>, 세로축이 <strong>방문 횟수</strong>일 수도 있습니다.
+                    그때의 &lsquo;거리&rsquo;는 <strong>두 이용자가 얼마나 다른가</strong>를 뜻하고,
+                    중심점은 <strong>그 무리의 평균적인 이용 습관</strong>을 뜻합니다.
+                    <strong>계산은 똑같고, 뜻만 바뀝니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-gamepad text-indigo-500 mr-1"></i>움직이는 것으로 보고 싶다면
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 저장소의 <a href="../simulator/ai/unsupervised-k-means.html"
+                                   class="text-indigo-600 font-bold underline hover:text-indigo-800">k-평균 군집화 시뮬레이터</a>에서
+                    <strong>점을 직접 찍고 한 단계씩</strong> 돌려 볼 수 있습니다.
+                    중심점이 어떻게 옮겨 다니다 멈추는지 눈으로 보면 훨씬 잘 남습니다.
+                    <strong>초기 중심점을 다르게 놓아 보는 것</strong>을 꼭 해 보세요.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    같은 여섯 부스에 <strong>k = 3</strong>으로 하면 어떻게 될까요?
+                    <strong>k = 6</strong>이면요?
+                    k를 키울수록 각 부스와 보관소 사이의 거리는 짧아집니다.
+                    그렇다면 <strong>k는 크면 클수록 좋은 걸까요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 정규화 ===== -->
+    <section id="normalize" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단위가 다르면 무슨 일이 벌어질까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                군집 분석에서 <strong>가장 자주 빠뜨리는 준비 작업</strong>입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞의 부스 예에서는 가로 위치와 세로 위치가 <strong>둘 다 같은 단위</strong>였습니다.
+                그래서 아무 문제가 없었지요.
+                그런데 실제 데이터에서는 <strong>속성마다 값의 크기가 딴판</strong>인 경우가 흔합니다.
+            </p>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>도서관 이용자를 묶어 본다면
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-36">속성</th>
+                            <th>값의 범위</th>
+                            <th class="w-40">두 사람의 차이</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold">한 해 대출 권수</td>
+                            <td>1 ~ 100권</td>
+                            <td>많아야 <strong>99</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">머문 시간</td>
+                            <td>1,000 ~ 10,000분</td>
+                            <td>많으면 <strong>9,000</strong></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거리를 계산하면 <strong>머문 시간의 차이가 대출 권수의 차이를 완전히 덮어 버립니다.</strong>
+                    권수에서 아무리 크게 차이 나도 <strong>고작 99</strong>인데,
+                    시간 쪽은 <strong>수천</strong>씩 벌어지기 때문입니다.
+                    결국 <strong>머문 시간 하나만 보고 묶은 것과 다름없는</strong> 결과가 나옵니다.
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-arrows-left-right-to-line mr-1"></i>정규화 &mdash; 눈금을 맞춰 준다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>정규화</strong>는 서로 다른 속성값의 범위를 <strong>같게 맞추는</strong> 작업입니다.
+                    예를 들어 모든 속성을 <strong>0에서 1 사이</strong>로 다시 늘어놓으면,
+                    권수든 시간이든 <strong>똑같은 크기의 목소리</strong>를 갖게 됩니다.
+                    <strong>「데이터 전처리」에서 배운 그 정규화</strong>가 여기서 반드시 필요합니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                    <strong>회귀 분석에서는 정규화를 하지 않아도 크게 문제되지 않았습니다.</strong>
+                    속성마다 계수가 따로 붙어서, 단위가 크면 계수가 작아지며 저절로 맞춰지기 때문입니다.
+                    그러나 군집 분석은 <strong>모든 속성을 한 덩어리로 묶어 거리 하나</strong>를 냅니다.
+                    조절해 줄 계수가 없으니 <strong>큰 숫자를 가진 속성이 그대로 이깁니다.</strong>
+                    <strong>방법이 다르면 준비 작업도 달라집니다.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 오렌지 실습 ===== -->
+    <section id="practice" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">실습 &mdash; 점을 직접 찍어 묶어 보기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이번 실습은 <strong>데이터를 내려받지 않습니다.</strong> 우리가 그립니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                오렌지에는 <span class="widget-name">Paint Data</span>라는 위젯이 있습니다.
+                <strong>빈 좌표평면에 마우스를 끌어 점을 찍으면 그것이 곧 데이터</strong>가 됩니다.
+                내가 만든 모양을 k-평균이 어떻게 묶는지 <strong>바로 확인할 수 있어</strong>
+                이 방법을 익히기에 가장 좋습니다.
+            </p>
+
+            <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                <div class="widget-node">
+                    <i class="fa-solid fa-paintbrush text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Paint Data</p>
+                    <p class="text-base text-slate-500">점을 직접 찍는다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-bullseye text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">k-Means</p>
+                    <p class="text-base text-slate-500">군집으로 묶는다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-chart-simple text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Scatter Plot</p>
+                    <p class="text-base text-slate-500">색으로 확인한다</p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-5">
+                <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        1
+                    </div>
+                    <div class="space-y-3 pt-1.5 min-w-0">
+                        <h3 class="text-xl font-black text-slate-800">데이터 만들기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="widget-name">Data</span> 묶음에서
+                            <span class="widget-name">Paint Data</span>를 꺼내 엽니다.
+                            <span class="widget-name">Brush</span>를 골라 좌표평면에
+                            <strong>마우스를 끌면 점이 뿌려집니다.</strong>
+                        </p>
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p class="text-base text-slate-700 leading-relaxed">
+                                <strong>동글동글한 무리를 서너 개</strong> 만들어 두세요.
+                                그리고 나중에 <strong>초승달 모양</strong>도 한 번 그려 볼 것입니다.
+                                <span class="widget-name">Data Table</span>을 이어 붙이면
+                                내가 찍은 점들이 <strong>x와 y 두 속성을 가진 표</strong>로
+                                바뀐 것을 확인할 수 있습니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4 border-t border-slate-100 pt-5">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        2
+                    </div>
+                    <div class="space-y-3 pt-1.5 min-w-0">
+                        <h3 class="text-xl font-black text-slate-800">군집으로 묶기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="widget-name">Paint Data</span>에
+                            <span class="widget-name">k-Means</span>를 잇습니다. 설정할 것이 두 가지입니다.
+                        </p>
+                        <div class="overflow-x-auto">
+                            <table class="table-prose">
+                                <thead>
+                                <tr>
+                                    <th class="w-48">설정</th>
+                                    <th>하는 일</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td><span class="widget-name">From X to Y</span></td>
+                                    <td>k를 하나로 못 박지 않고 <strong>범위로 준다.</strong>
+                                        예를 들어 2에서 8까지로 두면 오렌지가 <strong>각각 해 보고 가장 나은 k를 골라</strong> 준다
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="widget-name">Normalize columns</span></td>
+                                    <td>속성값의 <strong>눈금을 맞춰 준다.</strong> 앞에서 본 정규화가 이것이다</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+                            <p class="text-base text-slate-700 leading-relaxed">
+                                <strong>가장 나은 k</strong>는 무엇을 보고 고를까요?
+                                오렌지는 <strong>실루엣 점수</strong>라는 값을 씁니다.
+                                각 군집 안은 비슷하고 군집끼리는 잘 구분되었는지를 재는 숫자로,
+                                <strong>1에 가까울수록 좋습니다.</strong>
+                                이 값이 어떻게 계산되는지는 <strong>다음 소절에서 다룹니다.</strong>
+                                지금은 <strong>k를 고르는 데 쓰이는 잣대가 있다</strong>는 것만 알면 됩니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4 border-t border-slate-100 pt-5">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        3
+                    </div>
+                    <div class="space-y-3 pt-1.5 min-w-0">
+                        <h3 class="text-xl font-black text-slate-800">결과 확인하기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="widget-name">k-Means</span>에
+                            <span class="widget-name">Scatter Plot</span>을 잇습니다.
+                            데이터에 <span class="attr-name">Cluster</span>와
+                            <span class="attr-name">Silhouette</span>이라는
+                            <strong>새 열이 만들어져</strong> 있을 것입니다.
+                            <span class="widget-name">Color</span>를
+                            <span class="attr-name">Cluster</span>로 바꾸면
+                            <strong>군집이 색으로 나뉘어</strong> 보입니다.
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            어느 한 군집만 따로 들여다보고 싶다면
+                            <span class="widget-name">k-Means</span>에
+                            <span class="widget-name">Select Rows</span>와
+                            <span class="widget-name">Data Table</span>을 차례로 잇고,
+                            조건을 <strong>Cluster is C1</strong>처럼 주면 됩니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-flask mr-1"></i>꼭 해 볼 것 세 가지
+                </p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>초승달 두 개를 그려 보세요.</strong>
+                        k-평균이 앞 소절에서 본 것처럼 <strong>가운데를 잘라 버리는지</strong> 확인합니다.
+                    </li>
+                    <li><strong>같은 그림에 k만 바꿔 보세요.</strong>
+                        k = 2, 3, 5로 두면 군집이 어떻게 달라지나요?
+                        <strong>뭉침이 세 덩어리인데 k = 5를 주면</strong> 무슨 일이 벌어지나요?
+                    </li>
+                    <li><strong>점을 아주 고르게, 뭉침 없이 흩뿌려 보세요.</strong>
+                        그래도 오렌지는 <strong>k개의 군집을 만들어 냅니다.</strong>
+                        이 결과에 뜻이 있을까요?
+                    </li>
+                </ol>
+                <div class="bg-white border border-emerald-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        세 번째가 가장 중요합니다 &mdash;
+                        <strong class="text-emerald-800">k-평균은 뭉침이 없어도 반드시 답을 내놓습니다.</strong>
+                        나온 군집이 진짜인지 판단하는 것은 프로그램이 아니라 사람입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    <strong>똑같은 점 그림에 k-Means를 여러 번 돌려</strong> 보세요.
+                    결과가 <strong>매번 똑같이 나오나요?</strong>
+                    초기 중심점을 무작위로 찍는다는 것을 떠올리면
+                    <strong>왜 그럴 수 있는지</strong> 짐작할 수 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        중심점을 아무 데나 찍고 시작하는데, 어떻게 늘 제자리를 찾아가지?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">사실 늘 찾아가지는 않습니다.</strong>
+                        되풀이할 때마다 <strong class="text-indigo-200">각 점과 중심점 사이의 거리 총합이 줄어들기</strong> 때문에
+                        <strong class="text-sky-200">언젠가 반드시 멈추기는 합니다.</strong>
+                        하지만 멈춘 자리가 <strong class="text-indigo-200">가장 좋은 자리라는 보장은 없습니다.</strong>
+                        더 나은 답이 있는데도 <strong class="text-sky-200">주변보다 낫다는 이유로 그 자리에 눌러앉을</strong> 수 있습니다.
+                        초기 중심점을 어디에 찍었느냐에 따라 <strong class="text-indigo-200">다른 답에서 멈추는</strong> 것도 그래서입니다.
+                        그래서 실제로는 <strong class="text-sky-200">시작점을 바꿔 가며 여러 번 돌려 보고</strong>
+                        가장 나은 결과를 고릅니다.
+                        오렌지가 같은 데이터에 대해 실행할 때마다 조금씩 다른 답을 주는 것도
+                        <strong class="text-indigo-200">고장이 아니라 원래 그런 방법</strong>이기 때문입니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-hashtag text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">k</p>
+                    <p class="text-base text-sky-100">군집의 개수 &middot; 사람이 정한다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrows-rotate text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">되풀이</p>
+                    <p class="text-base text-sky-100">할당과 이동을 번갈아</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-dice text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">무작위 시작</p>
+                    <p class="text-base text-sky-100">답이 매번 같지 않을 수 있다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">k-평균 군집 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">k-means clustering</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>k</strong> &mdash; 군집의 개수. 데이터가 아니라 <strong>사람이 정한다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>평균</strong> &mdash; 중심점을 그 군집의 <strong>평균 위치</strong>에 둔다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>중심점은 데이터가 아니라 <strong>계산으로 만든 대표 지점</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">군집화 과정</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">멈출 때까지 되풀이</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>k를 정하고 중심점을 <strong>무작위로</strong> 찍는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>가장 가까운 중심점에 <strong>할당</strong> &rarr; 중심점을 평균으로 <strong>이동</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>중심점이 <strong>움직이지 않으면</strong> 끝</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">거리와 정규화</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">준비하지 않으면 망친다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>거리를 재야 하므로 속성값이 <strong>수치형</strong>이어야 한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>범위가 큰 속성이 <strong>거리를 독차지</strong>한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>그래서 <strong>정규화</strong>로 눈금을 맞춘 뒤 묶는다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">실습에서 쓴 위젯</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">점을 찍어 바로 확인</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><span class="widget-name">Paint Data</span> &rarr; <span class="widget-name">k-Means</span> &rarr; <span class="widget-name">Scatter Plot</span></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><span class="widget-name">From X to Y</span>로 k의 범위, <span class="widget-name">Normalize columns</span>로 정규화</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>뭉침이 없어도 <strong>k개의 군집은 반드시 나온다</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    k-평균 군집 분석에서 <strong>k</strong>는 무엇인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터의 개수가 아닙니다. 데이터가 100개여도 k는 3일 수 있습니다.')">
+                    ① 데이터 포인트의 개수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 그리고 데이터가 알려 주는 값이 아니라 사람이 미리 정해 넣는 값입니다.')">
+                    ② 나눌 군집의 개수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '속성의 개수도 아닙니다. 부스 예에서는 속성이 가로·세로 둘이었지만 k는 2였을 뿐 우연입니다.')">
+                    ③ 속성의 개수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '되풀이 횟수는 미리 정하는 것이 아니라 중심점이 멈출 때까지 이어집니다.')">
+                    ④ 되풀이하는 횟수
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>중심점(centroid)</strong>에 대한 설명으로 옳은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '중심점은 실제 데이터가 아닙니다. 부스 예에서 (2, 2)와 (8, 7)에는 부스가 없었습니다.')">
+                    ① 그 군집에서 가장 가운데에 있는 실제 데이터 하나다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 반 학생들의 평균 키가 꼭 누군가의 키는 아닌 것과 같습니다.')">
+                    ② 그 군집에 속한 데이터들의 평균 위치이며 대개 빈자리에 놓인다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '중심점은 되풀이할 때마다 옮겨집니다. 움직이지 않게 되었을 때 끝납니다.')">
+                    ③ 한 번 정하면 끝까지 움직이지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '중심점의 개수는 k와 같습니다. 군집마다 하나씩입니다.')">
+                    ④ 데이터의 개수만큼 만들어진다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    k-평균 군집화가 <strong>멈추는 시점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '되풀이 횟수를 미리 정해 두는 것이 아닙니다. 데이터에 따라 두 번에 끝날 수도, 여러 번 걸릴 수도 있습니다.')">
+                    ① 정해 둔 횟수만큼 되풀이했을 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '군집의 크기가 같아질 이유는 없습니다. 부스 예에서도 3개와 3개가 된 것은 우연입니다.')">
+                    ② 모든 군집의 데이터 개수가 같아졌을 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 중심점이 그대로면 군집도 그대로이므로 더 계산해도 달라질 것이 없습니다.')">
+                    ③ 중심점이 더 이상 움직이지 않을 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모든 점이 중심점과 정확히 겹치는 일은 거의 없습니다. 그것을 기다리면 끝나지 않습니다.')">
+                    ④ 모든 데이터가 중심점과 정확히 겹쳤을 때
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    대출 권수(1~100)와 머문 시간(1,000~10,000분)으로 이용자를 묶으려 합니다.
+                    <strong>정규화를 하지 않으면</strong> 어떤 일이 벌어지나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오류가 나지는 않습니다. 계산은 잘 되고 결과도 나옵니다. 그래서 더 위험합니다.')">
+                    ① 계산이 되지 않아 오류가 난다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 권수 차이는 많아야 99인데 시간 차이는 수천이라 거리를 독차지합니다.')">
+                    ② 머문 시간이 거리를 독차지해 대출 권수가 묻힌다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '반대입니다. 값의 범위가 작은 대출 권수 쪽이 묻힙니다.')">
+                    ③ 대출 권수가 거리를 독차지해 머문 시간이 묻힌다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 속성의 영향력이 같아지려면 정규화가 필요합니다. 저절로 맞춰지지 않습니다.')">
+                    ④ 두 속성이 똑같은 영향을 주므로 문제없다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    점을 <strong>뭉침 없이 고르게</strong> 흩뿌린 데이터에 k = 3으로 k-평균을 돌렸습니다.
+                    결과는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'k-평균은 뭉침이 없다고 알려 주지 않습니다. 그런 판단 기능이 없습니다.')">
+                    ① 뭉침이 없다는 경고가 나온다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '군집을 만들지 못하는 일은 없습니다. k를 주면 반드시 k개를 만듭니다.')">
+                    ② 군집을 만들지 못하고 멈춘다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 그래서 나온 군집이 진짜 의미 있는 뭉침인지 판단하는 것은 사람의 몫입니다.')">
+                    ③ 뭉침이 없어도 세 개의 군집을 만들어 낸다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'k는 사람이 준 값이므로 프로그램이 마음대로 1로 바꾸지 않습니다.')">
+                    ④ 군집의 개수를 저절로 1로 줄인다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

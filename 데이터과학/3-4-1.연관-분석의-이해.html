@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연관 분석의 이해</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-basket-shopping absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-link absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            연관 분석의 이해
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            우유 옆에 빵을 놓아 둔 것은 <strong>우연이 아닙니다.</strong><br>
+            영수증 더미가 <strong>알려 준 자리</strong>입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>장바구니 분석이 무엇인지 사례를 들어 설명할 수 있다.</li>
+                    <li>연관 분석에 쓰는 데이터가 지금까지 다룬 표와 어떻게 다른지 말할 수 있다.</li>
+                    <li>군집 분석과 연관 분석이 각각 무엇을 묶는 방법인지 구별할 수 있다.</li>
+                    <li>함께 나타나는 것과 원인이 되는 것을 구별하여 결과를 해석할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-basket-shopping text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">연관 분석의 이해</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#basket" class="hover:text-indigo-600 transition">장바구니 분석</a>
+            <a href="#shape" class="hover:text-indigo-600 transition">데이터의 모양</a>
+            <a href="#vs" class="hover:text-indigo-600 transition">군집과 비교</a>
+            <a href="#cases" class="hover:text-indigo-600 transition">활용 사례</a>
+            <a href="#caution" class="hover:text-indigo-600 transition">주의할 점</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 장바구니 분석 ===== -->
+    <section id="basket" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">마트의 상품 배치는 누가 정할까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                무엇과 무엇을 <strong>가까이 놓을지</strong>를 영수증이 알려 줍니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                마트에 가면 <strong>우유 근처에 빵</strong>이 있고, <strong>맥주 근처에 안주</strong>가 있습니다.
+                그냥 비슷한 것끼리 모아 둔 것처럼 보이지만,
+                큰 마트일수록 이 배치는 <strong>계산대에서 쌓인 데이터로 정합니다.</strong>
+                누가 무엇을 샀는지가 <strong>결제할 때마다 한 줄씩 기록</strong>되기 때문입니다.
+            </p>
+
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-basket-shopping mr-1"></i>장바구니 분석
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>고객이 한 번에 무엇과 무엇을 함께 샀는지</strong>를 모아
+                    <strong>자주 같이 담기는 짝</strong>을 찾아내는 일입니다.
+                    장바구니 속을 들여다본다는 뜻에서 붙은 이름입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 방법은 장바구니에만 쓰이지 않습니다.
+                <strong>&lsquo;한 번에 함께 일어난 것들&rsquo;의 기록</strong>이기만 하면 무엇이든 같은 방법으로 볼 수 있습니다.
+                한 사람이 <strong>같은 날 검색한 낱말들</strong>, 한 환자에게 <strong>같이 처방된 약들</strong>&hellip;
+                이렇게 <strong>데이터 안에서 항목들이 서로 어떻게 얽혀 있는지 찾는 방법</strong>을
+                <strong>연관 분석</strong>이라고 합니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-rotate-left text-indigo-500 mr-1"></i>
+                    <a href="3-1-2.데이터-분석.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「데이터 분석」</a>에서
+                    학교 매점 이야기를 하며 <strong>따뜻한 음료를 산 학생의 72%가 호빵도 샀다</strong>는
+                    가상의 숫자를 보았습니다. 그때는 <strong>&ldquo;이런 것을 찾는 분석이 있다&rdquo;</strong>는 정도로
+                    지나갔지요. 이번 절에서는 <strong>그 72%가 어떤 숫자이고 어떻게 구하는지</strong>까지 다룹니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 데이터의 모양 ===== -->
+    <section id="shape" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이 데이터는 생김새부터 다릅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                여기서부터 <strong>왜 새로운 방법이 필요한지</strong>가 드러납니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지 다룬 데이터를 떠올려 봅시다.
+                선수 데이터는 <strong>선수마다 잠재력 &middot; 능력치 &middot; 나이가 하나씩</strong> 있었습니다.
+                음악 데이터도 <strong>곡마다 빠르기 &middot; 에너지가 하나씩</strong> 있었습니다.
+                <strong>어느 행을 봐도 칸의 개수가 똑같았습니다.</strong>
+                영수증은 그렇지 않습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">지금까지의 표</h3>
+                    <svg viewBox="0 0 300 250" role="img" class="chart-svg"
+                         aria-label="가지런한 표. 여섯 줄이 모두 네 칸씩으로 채워져 전체가 반듯한 직사각형을 이룬다.">
+                        <g fill="#dbeafe" stroke="#60a5fa" stroke-width="2">
+                            <rect x="20" y="20" width="62" height="30" rx="5"/>
+                            <rect x="88" y="20" width="62" height="30" rx="5"/>
+                            <rect x="156" y="20" width="62" height="30" rx="5"/>
+                            <rect x="224" y="20" width="62" height="30" rx="5"/>
+                        </g>
+                        <g fill="#ffffff" stroke="#93c5fd" stroke-width="2">
+                            <rect x="20" y="58" width="62" height="30" rx="5"/>
+                            <rect x="88" y="58" width="62" height="30" rx="5"/>
+                            <rect x="156" y="58" width="62" height="30" rx="5"/>
+                            <rect x="224" y="58" width="62" height="30" rx="5"/>
+                            <rect x="20" y="96" width="62" height="30" rx="5"/>
+                            <rect x="88" y="96" width="62" height="30" rx="5"/>
+                            <rect x="156" y="96" width="62" height="30" rx="5"/>
+                            <rect x="224" y="96" width="62" height="30" rx="5"/>
+                            <rect x="20" y="134" width="62" height="30" rx="5"/>
+                            <rect x="88" y="134" width="62" height="30" rx="5"/>
+                            <rect x="156" y="134" width="62" height="30" rx="5"/>
+                            <rect x="224" y="134" width="62" height="30" rx="5"/>
+                            <rect x="20" y="172" width="62" height="30" rx="5"/>
+                            <rect x="88" y="172" width="62" height="30" rx="5"/>
+                            <rect x="156" y="172" width="62" height="30" rx="5"/>
+                            <rect x="224" y="172" width="62" height="30" rx="5"/>
+                            <rect x="20" y="210" width="62" height="30" rx="5"/>
+                            <rect x="88" y="210" width="62" height="30" rx="5"/>
+                            <rect x="156" y="210" width="62" height="30" rx="5"/>
+                            <rect x="224" y="210" width="62" height="30" rx="5"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>모든 행의 칸 수가 같습니다.</strong>
+                        그래서 각 행을 <strong>좌표로 볼 수 있었고</strong>, 좌표니까 <strong>거리를 잴 수 있었습니다.</strong>
+                        k-평균이 돌아갔던 것도 이 덕분입니다.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">영수증 더미</h3>
+                    <svg viewBox="0 0 300 250" role="img" class="chart-svg"
+                         aria-label="들쭉날쭉한 표. 여섯 줄의 칸 수가 각각 둘, 셋, 하나, 넷, 둘, 셋으로 달라 오른쪽 끝이 고르지 않다.">
+                        <g fill="#ffedd5" stroke="#fb923c" stroke-width="2">
+                            <rect x="20" y="20" width="62" height="30" rx="5"/>
+                            <rect x="88" y="20" width="62" height="30" rx="5"/>
+                            <rect x="20" y="58" width="62" height="30" rx="5"/>
+                            <rect x="88" y="58" width="62" height="30" rx="5"/>
+                            <rect x="156" y="58" width="62" height="30" rx="5"/>
+                            <rect x="20" y="96" width="62" height="30" rx="5"/>
+                            <rect x="20" y="134" width="62" height="30" rx="5"/>
+                            <rect x="88" y="134" width="62" height="30" rx="5"/>
+                            <rect x="156" y="134" width="62" height="30" rx="5"/>
+                            <rect x="224" y="134" width="62" height="30" rx="5"/>
+                            <rect x="20" y="172" width="62" height="30" rx="5"/>
+                            <rect x="88" y="172" width="62" height="30" rx="5"/>
+                            <rect x="20" y="210" width="62" height="30" rx="5"/>
+                            <rect x="88" y="210" width="62" height="30" rx="5"/>
+                            <rect x="156" y="210" width="62" height="30" rx="5"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>행마다 칸 수가 다릅니다.</strong> 손님마다 산 물건의 개수가 다르니까요.
+                        게다가 칸에 든 것은 숫자가 아니라 <strong>물건 이름</strong>입니다.
+                        <strong>좌표로 놓을 수 없고, 거리도 잴 수 없습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-key mr-1"></i>그래서 방법이 달라집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    회귀는 <strong>선을 그었고</strong>, 군집은 <strong>거리를 쟀습니다.</strong>
+                    연관 분석은 <strong>둘 다 하지 않습니다.</strong> 대신 <strong>셉니다.</strong>
+                    이 물건이 몇 장의 영수증에 나왔는지, 저 둘이 같은 영수증에 몇 번 함께 나왔는지를
+                    <strong>세어서 비율로 바꾸는 것</strong>이 전부입니다.
+                    다음 소절에서 배울 <strong>지지도 &middot; 향상도 &middot; 신뢰도</strong>는
+                    모두 <strong>이렇게 센 숫자를 나눈 값</strong>입니다.
+                </p>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-3">
+                <h3 class="text-xl font-black text-slate-800">앞으로 계속 쓸 데이터 &mdash; 매점 영수증 10장</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    영수증 한 장, 즉 <strong>한 번의 거래 기록을 트랜잭션(transaction)</strong>이라고 부릅니다.
+                    &lsquo;거래&rsquo;라는 뜻의 영어 낱말인데, 데이터 과학에서는
+                    <strong>한 번에 함께 담긴 항목들의 묶음</strong>을 가리키는 말로 씁니다.
+                    아래는 어느 날 점심시간에 나온 <strong>트랜잭션 10개</strong>입니다.
+                    <strong>다음 두 소절에서 이 데이터를 계속 씁니다.</strong>
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">트랜잭션</th>
+                            <th>함께 담긴 항목</th>
+                            <th class="w-24">항목 수</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold">T1</td><td>삼각김밥, 우유</td><td>2</td></tr>
+                        <tr><td class="font-bold">T2</td><td>삼각김밥, 우유, 초콜릿</td><td>3</td></tr>
+                        <tr><td class="font-bold">T3</td><td>삼각김밥, 컵라면, 이온음료</td><td>3</td></tr>
+                        <tr><td class="font-bold">T4</td><td>삼각김밥, 초콜릿</td><td>2</td></tr>
+                        <tr><td class="font-bold">T5</td><td>삼각김밥, 컵라면</td><td>2</td></tr>
+                        <tr><td class="font-bold">T6</td><td>우유, 컵라면</td><td>2</td></tr>
+                        <tr><td class="font-bold">T7</td><td>우유, 초콜릿</td><td>2</td></tr>
+                        <tr><td class="font-bold">T8</td><td>컵라면, 이온음료</td><td>2</td></tr>
+                        <tr><td class="font-bold">T9</td><td>컵라면, 이온음료, 초콜릿</td><td>3</td></tr>
+                        <tr class="bg-amber-50"><td class="font-bold">T10</td><td>초콜릿</td><td class="font-bold">1</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>T10을 눈여겨보세요.</strong> 초콜릿 하나만 사 간 손님입니다.
+                        이런 트랜잭션은 <strong>어떤 짝도 만들지 못합니다.</strong>
+                        그래도 <strong>전체 개수에는 들어갑니다.</strong>
+                        &ldquo;열 장 중 몇 장&rdquo;을 셀 때 분모에 포함된다는 뜻입니다.
+                        빼야 할까요, 남겨야 할까요? <strong>남겨 둡니다.</strong>
+                        초콜릿을 <strong>혼자 사 가는 일이 실제로 있었다</strong>는 것도 데이터이기 때문입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    위 표에서 <strong>이온음료가 담긴 트랜잭션</strong>을 모두 찾아보세요.
+                    그 트랜잭션에는 <strong>공통으로 들어 있는 다른 항목</strong>이 있나요?
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 군집과 비교 ===== -->
+    <section id="vs" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">군집 분석과 무엇이 다를까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                둘 다 <strong>정답 없이</strong> 하는 분석이라 헷갈리기 쉽습니다.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="section-card space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">군집 분석 &mdash; 손님을 묶는다</h3>
+                <svg viewBox="0 0 300 230" role="img" class="chart-svg"
+                     aria-label="점들이 흩어져 있고, 왼쪽 아래 무리와 오른쪽 위 무리를 각각 점선 타원이 감싸고 있다.">
+                    <ellipse cx="92" cy="152" rx="62" ry="48" fill="#dbeafe" fill-opacity="0.7"
+                             stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="7 5"/>
+                    <ellipse cx="208" cy="76" rx="58" ry="44" fill="#dcfce7" fill-opacity="0.7"
+                             stroke="#22c55e" stroke-width="2.5" stroke-dasharray="7 5"/>
+                    <g fill="#1d4ed8">
+                        <circle cx="64" cy="132" r="8"/><circle cx="96" cy="120" r="8"/>
+                        <circle cx="118" cy="148" r="8"/><circle cx="72" cy="172" r="8"/>
+                        <circle cx="104" cy="180" r="8"/><circle cx="52" cy="158" r="8"/>
+                    </g>
+                    <g fill="#15803d">
+                        <circle cx="184" cy="56" r="8"/><circle cx="216" cy="48" r="8"/>
+                        <circle cx="238" cy="76" r="8"/><circle cx="196" cy="94" r="8"/>
+                        <circle cx="228" cy="104" r="8"/>
+                    </g>
+                </svg>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>행을 묶습니다.</strong> 소비 성향이 비슷한 손님끼리 한 덩어리가 됩니다.
+                    묶는 잣대는 <strong>거리</strong>입니다.
+                    결과는 <strong>&ldquo;이 손님들은 한 무리다&rdquo;</strong>입니다.
+                </p>
+            </div>
+            <div class="section-card space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">연관 분석 &mdash; 물건을 묶는다</h3>
+                <svg viewBox="0 0 300 230" role="img" class="chart-svg"
+                     aria-label="다섯 개의 동그라미가 오각형으로 배치되어 있고, 서로를 잇는 선의 굵기가 제각각이다. 오른쪽 아래 두 동그라미를 잇는 선이 가장 굵다.">
+                    <g stroke="#d97706" fill="none" stroke-linecap="round">
+                        <line x1="150" y1="40" x2="60" y2="106" stroke-width="7"/>
+                        <line x1="150" y1="40" x2="240" y2="106" stroke-width="2"/>
+                        <line x1="60" y1="106" x2="96" y2="196" stroke-width="3"/>
+                        <line x1="240" y1="106" x2="204" y2="196" stroke-width="14"/>
+                        <line x1="96" y1="196" x2="204" y2="196" stroke-width="2"/>
+                        <line x1="150" y1="40" x2="204" y2="196" stroke-width="4"/>
+                    </g>
+                    <g fill="#fff7ed" stroke="#ea580c" stroke-width="3">
+                        <circle cx="150" cy="40" r="24"/>
+                        <circle cx="60" cy="106" r="24"/>
+                        <circle cx="240" cy="106" r="24"/>
+                        <circle cx="96" cy="196" r="24"/>
+                        <circle cx="204" cy="196" r="24"/>
+                    </g>
+                </svg>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>항목을 잇습니다.</strong> 자주 함께 담기는 물건 사이에 굵은 선이 놓입니다.
+                    잇는 잣대는 <strong>함께 나온 횟수</strong>입니다.
+                    결과는 <strong>&ldquo;이 둘은 같이 나간다&rdquo;</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-key mr-1"></i>같은 영수증 더미, 다른 질문
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 방법은 <strong>똑같은 데이터에 쓸 수 있습니다.</strong> 다른 것은 <strong>무엇을 묶느냐</strong>입니다.
+                    군집 분석은 <strong>표를 가로로 잘라 손님을 묶고</strong>,
+                    연관 분석은 <strong>표를 세로로 훑어 물건을 묶습니다.</strong>
+                    그래서 나오는 답의 종류가 다릅니다 &mdash;
+                    앞은 <strong>&ldquo;이런 손님층이 있다&rdquo;</strong>, 뒤는 <strong>&ldquo;이 물건 옆에 저 물건을 놓아라&rdquo;</strong>.
+                </p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">견주는 점</th>
+                        <th>군집 분석</th>
+                        <th>연관 분석</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">무엇을 묶나</td>
+                        <td>데이터 하나하나(손님, 곡, 나라)</td>
+                        <td>항목과 항목(물건, 검색어, 약)</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">무엇으로 재나</td>
+                        <td><strong>거리</strong> &mdash; 가까울수록 한 무리</td>
+                        <td><strong>함께 나온 횟수</strong> &mdash; 잦을수록 연관</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">데이터 모양</td>
+                        <td>행마다 칸 수가 같은 <strong>수치형 표</strong></td>
+                        <td>행마다 칸 수가 다른 <strong>항목 목록</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">답의 생김새</td>
+                        <td>군집 번호가 붙은 데이터</td>
+                        <td><strong>규칙</strong> &mdash; &ldquo;A를 사면 B도 산다&rdquo;</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">같은 점</td>
+                        <td colspan="2" class="font-bold">둘 다 <strong>맞혀야 할 정답이 주어지지 않는다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 활용 사례 ===== -->
+    <section id="cases" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어디에 쓰이고 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>&lsquo;한 번에 함께 일어난 기록&rsquo;</strong>이 있는 곳이면 어디든 쓰입니다.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">상품 추천과 진열</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    쇼핑몰에서 상품을 하나 보면 아래에 <strong>&ldquo;이 상품을 산 사람들이 함께 산 상품&rdquo;</strong>이
+                    줄지어 뜹니다. 그 줄은 사람이 고른 것이 아니라
+                    <strong>주문 기록을 연관 분석한 결과</strong>입니다.
+                    오프라인 매장에서는 같은 결과가 <strong>선반 배치와 묶음 할인</strong>으로 나타납니다.
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">연관 검색어</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    검색창에 한 낱말을 넣으면 <strong>같이 찾아볼 만한 낱말</strong>이 딸려 나옵니다.
+                    <strong>한 사람이 한자리에서 이어 검색한 낱말들</strong>을 하나의 묶음으로 보면,
+                    영수증과 똑같은 모양의 데이터가 됩니다.
+                    그 묶음에서 <strong>자주 붙어 다니는 낱말 짝</strong>을 찾아낸 것입니다.
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-suitcase-medical"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">약과 증상</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 환자에게 <strong>같은 시기에 처방된 약과 함께 먹은 음식</strong>을 한 묶음으로 봅니다.
+                    특정한 조합에서 <strong>같은 부작용이 되풀이해 나타난다면</strong>
+                    <strong>먼저 살펴볼 후보</strong>가 됩니다.
+                    한 증상에 <strong>다른 증상이 자주 딸려 오는지</strong>를 찾는 데에도 씁니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-3">
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 사례에서 <strong>&lsquo;장바구니&rsquo;에 해당하는 것</strong>이 무엇인지 견주어 보면
+                이 방법이 어디에 쓸 수 있는지가 분명해집니다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">분야</th>
+                        <th>장바구니에 해당하는 것</th>
+                        <th>항목에 해당하는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td class="font-bold">유통</td><td>영수증 한 장</td><td>상품</td></tr>
+                    <tr><td class="font-bold">정보 검색</td><td>한 사람이 이어서 검색한 기록</td><td>검색어</td></tr>
+                    <tr><td class="font-bold">의료</td><td>한 환자의 처방 기록</td><td>약 &middot; 음식 &middot; 증상</td></tr>
+                    <tr class="bg-indigo-50"><td class="font-bold">학교</td><td>한 학생이 고른 과목 묶음</td><td>과목</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 줄은 이 절의 <strong>마지막 소절에서 실제로 해 볼 것</strong>입니다.
+                학생들이 <strong>어떤 과목을 함께 고르는지</strong>를 찾으면
+                <strong>시간표를 짤 때</strong> 쓸 수 있습니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 주의할 점 ===== -->
+    <section id="caution" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">함께 나온다고 원인은 아닙니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                연관 분석이 찾아 주는 것은 <strong>규칙이지 이유가 아닙니다.</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>&ldquo;A를 사면 B도 산다&rdquo;</strong>는 결과가 나왔다고 해서
+                <strong>A를 사기 때문에 B를 사는 것</strong>은 아닙니다.
+                <a href="3-1-2.데이터-분석.html"
+                   class="text-indigo-600 font-bold underline hover:text-indigo-800">「데이터 분석」</a>에서
+                상관관계를 두고 했던 이야기가 여기서도 그대로 적용됩니다.
+                <strong>함께 나타났다는 것과 하나가 다른 하나를 일으켰다는 것은 다릅니다.</strong>
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">숨은 세 번째 이유</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        매점에서 <strong>우산과 따뜻한 음료</strong>가 자주 함께 팔렸다고 합시다.
+                        우산이 음료를 부르는 것도, 음료가 우산을 부르는 것도 아닙니다.
+                        <strong>비 오는 추운 날</strong>이라는 <strong>세 번째 사정</strong>이
+                        둘을 동시에 밀어 올렸을 뿐입니다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">그래도 쓸모는 있습니다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        이유를 몰라도 <strong>둘을 가까이 놓으면 매출은 오릅니다.</strong>
+                        <strong>예측과 배치에는 규칙만으로 충분합니다.</strong>
+                        다만 <strong>&ldquo;왜 그런가&rdquo;를 설명하거나 무언가를 바꾸려 할 때</strong>는
+                        규칙만으로 부족합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>의료 사례에서 특히 중요합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    어떤 약과 어떤 음식이 자주 함께 기록되고 그때마다 같은 증상이 보였다고 해서,
+                    <strong>그 음식이 약효를 떨어뜨렸다고 결론지을 수는 없습니다.</strong>
+                    그 음식을 즐겨 먹는 사람들이 <strong>원래 그 증상을 겪기 쉬웠을</strong> 수도 있으니까요.
+                    연관 분석이 하는 일은 <strong>&ldquo;여기를 살펴보라&rdquo;고 후보를 좁혀 주는 것</strong>까지입니다.
+                    <strong>정말 그런지는 조건을 통제한 실험으로 확인</strong>해야 합니다.
+                    <strong>연관 분석은 조사의 끝이 아니라 시작</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    매점 데이터에서 <strong>삼각김밥과 우유가 자주 함께</strong> 팔렸다고 해 봅시다.
+                    이것이 <strong>둘 사이에 관계가 있다는 뜻</strong>일까요?
+                    아니면 <strong>그냥 둘 다 많이 팔리는 물건</strong>이어서일까요?
+                    <strong>어떻게 하면 구별할 수 있을까요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        그냥 자주 같이 팔리는 짝을 세면 끝 아닌가? 뭐가 어렵지?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">개수가 문제입니다.</strong>
+                        매점처럼 항목이 다섯 개면 짝은 열 개뿐이라 손으로도 셀 수 있습니다.
+                        그런데 <strong class="text-indigo-200">셋씩 묶은 조합, 넷씩 묶은 조합</strong>까지 봐야 하고,
+                        큰 마트라면 <strong class="text-sky-200">항목이 수만 가지</strong>입니다.
+                        만들 수 있는 묶음의 수가 <strong class="text-indigo-200">항목이 하나 늘 때마다 두 배씩</strong> 불어나기 때문에,
+                        전부 세어 보는 것은 <strong class="text-sky-200">아무리 빠른 컴퓨터로도 불가능</strong>해집니다.
+                        그래서 실제 연관 분석은 <strong class="text-indigo-200">&ldquo;세어 볼 값어치가 없는 묶음을 미리 걷어 내는 것&rdquo;</strong>부터 합니다.
+                        다음 소절에서 배울 <strong class="text-sky-200">최소 지지도</strong>가 바로 그 체입니다.
+                        <strong class="text-indigo-200">세는 일보다 안 세는 일이 이 방법의 핵심</strong>인 셈이지요.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-receipt text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">트랜잭션</p>
+                    <p class="text-base text-sky-100">한 번에 함께 담긴 묶음</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-link text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">연관 규칙</p>
+                    <p class="text-base text-sky-100">&ldquo;A를 사면 B도 산다&rdquo;</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">함께 &ne; 원인</p>
+                    <p class="text-base text-sky-100">규칙은 찾아도 이유는 아니다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">연관 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">association analysis</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>데이터에서 <strong>항목끼리 얽힌 관계</strong>를 찾는 방법</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>영수증에 쓰면 <strong>장바구니 분석</strong>이라 부른다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>결과는 <strong>&ldquo;A를 사면 B도 산다&rdquo;</strong>는 규칙</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">트랜잭션</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">transaction</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>한 번에 함께 담긴 항목</strong>들의 묶음</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>행마다 항목 수가 다르다.</strong> 지금까지의 표와 다른 점</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>좌표가 아니므로 <strong>거리를 잴 수 없다. 대신 센다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">군집과의 차이</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">clustering vs association</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>군집은 <strong>데이터 하나하나</strong>를, 연관은 <strong>항목과 항목</strong>을 묶는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>군집은 <strong>거리</strong>로, 연관은 <strong>함께 나온 횟수</strong>로 잰다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>둘 다 <strong>정답이 주어지지 않는</strong> 분석이다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">해석의 한계</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">what a rule does not say</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>함께 나타난 것</strong>과 <strong>원인이 된 것</strong>은 다르다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>둘을 동시에 밀어 올린 <strong>세 번째 사정</strong>이 있을 수 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>규칙은 <strong>살펴볼 후보를 좁혀 줄</strong> 뿐이다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>장바구니 분석</strong>이 하는 일로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '손님을 비슷한 무리로 나누는 것은 군집 분석입니다.')">
+                    ① 비슷한 소비를 하는 손님끼리 무리로 나눈다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 한 번에 함께 담긴 물건들을 모아 자주 붙어 다니는 짝을 찾습니다.')">
+                    ② 한 번에 함께 산 물건들을 모아 자주 같이 담기는 짝을 찾는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '판매량을 숫자로 예측하는 것은 회귀 분석입니다.')">
+                    ③ 다음 달 판매량이 얼마일지 숫자로 예측한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가격을 정하는 일과는 다릅니다. 무엇과 무엇이 함께 팔리는지를 찾는 방법입니다.')">
+                    ④ 상품의 알맞은 가격을 계산한다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    연관 분석에 쓰는 데이터가 <strong>회귀나 군집에 쓰던 표와 다른 점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터의 양과는 관계가 없습니다. 적어도 많아도 생김새는 그대로입니다.')">
+                    ① 데이터의 개수가 훨씬 많다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 손님마다 산 물건 수가 다르므로 행마다 항목 수가 다릅니다.')">
+                    ② 행마다 들어 있는 항목의 개수가 다르다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결측치가 있는 것과는 다릅니다. 애초에 칸의 개수가 정해져 있지 않습니다.')">
+                    ③ 빈칸이 많아 결측치를 채워야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '정답 열이 없는 것은 군집 분석도 마찬가지입니다. 두 방법을 가르는 차이가 아닙니다.')">
+                    ④ 맞혀야 할 정답 열이 없다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    같은 영수증 더미에 <strong>군집 분석과 연관 분석을 각각</strong> 했습니다. 무엇이 다른가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 군집은 손님을 묶고, 연관은 물건을 잇습니다. 묶는 대상이 다릅니다.')">
+                    ① 군집은 손님을 묶고, 연관은 물건과 물건을 잇는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '둘 다 정답이 주어지지 않는 분석입니다. 이것은 공통점입니다.')">
+                    ② 군집은 정답이 필요하고, 연관은 필요 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '연관 분석도 데이터가 많을수록 믿을 만한 규칙이 나옵니다.')">
+                    ③ 군집은 데이터가 많아야 하고, 연관은 적어도 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 방법 모두 결과를 사람이 해석해야 합니다. 자동으로 뜻이 붙지 않습니다.')">
+                    ④ 군집은 사람이 해석해야 하고, 연관은 그럴 필요가 없다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>트랜잭션</strong>이 무엇인지 바르게 설명한 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '상품 하나가 아니라 함께 담긴 여러 항목의 묶음입니다.')">
+                    ① 데이터에 들어 있는 상품 이름 하나
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 영수증 한 장처럼 한 번에 함께 담긴 항목들의 묶음입니다.')">
+                    ② 한 번에 함께 담긴 항목들의 묶음
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '연관 규칙은 분석 결과로 나오는 것입니다. 트랜잭션은 분석에 넣는 데이터입니다.')">
+                    ③ 분석 결과로 나온 연관 규칙 하나
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '손님 한 사람이 아니라 한 번의 거래입니다. 한 손님이 여러 번 살 수도 있습니다.')">
+                    ④ 데이터에 등장하는 손님 한 사람
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    매점에서 <strong>우산과 따뜻한 음료가 자주 함께</strong> 팔렸습니다. 옳은 해석은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '우산을 산 것이 음료를 사게 만들었다고 볼 근거는 없습니다.')">
+                    ① 우산을 사면 목이 말라져서 음료를 사게 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 비 오는 추운 날이라는 세 번째 사정이 둘을 동시에 밀어 올렸을 수 있습니다.')">
+                    ② 두 물건을 동시에 밀어 올린 다른 사정이 있을 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '함께 팔린 기록이 있으므로 우연이라고 잘라 말할 수도 없습니다. 살펴볼 값어치는 있습니다.')">
+                    ③ 아무 뜻도 없는 우연이므로 무시해도 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규칙을 찾았다고 원인까지 밝혀진 것은 아닙니다. 원인은 따로 확인해야 합니다.')">
+                    ④ 연관 분석이 두 물건이 함께 팔리는 원인을 밝혀 준 것이다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

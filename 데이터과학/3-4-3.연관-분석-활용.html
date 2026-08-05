@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연관 분석 활용</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-cart-flatbed absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-diagram-project absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            연관 분석 활용
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            손으로 구한 값과 <strong>프로그램이 낸 값</strong>을 맞춰 봅니다.<br>
+            그리고 <strong>프로그램이 걸러 주지 않는 것</strong>을 알게 됩니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>항목 목록 형태의 데이터를 분석 도구가 읽을 수 있는 표로 바꿀 수 있다.</li>
+                    <li>분석 도구로 연관 규칙을 찾아내고 손으로 구한 값과 견주어 확인할 수 있다.</li>
+                    <li>최소 지지도와 최소 신뢰도를 바꾸며 규칙 수가 어떻게 달라지는지 설명할 수 있다.</li>
+                    <li>도구가 걸러 주지 않는 것을 알고 결과를 스스로 판단할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-cart-flatbed text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">연관 분석 활용</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#goal" class="hover:text-indigo-600 transition">문제 상황</a>
+            <a href="#reshape" class="hover:text-indigo-600 transition">표로 바꾸기</a>
+            <a href="#addon" class="hover:text-indigo-600 transition">위젯 준비</a>
+            <a href="#run" class="hover:text-indigo-600 transition">돌려 보기</a>
+            <a href="#threshold" class="hover:text-indigo-600 transition">문턱 바꾸기</a>
+            <a href="#own" class="hover:text-indigo-600 transition">우리 반 데이터</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 문제 상황 ===== -->
+    <section id="goal" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">손계산이 맞았는지 확인해 봅시다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>이미 답을 아는 데이터</strong>로 도구를 배웁니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-flag mr-1"></i>문제 상황
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    매점에서 <strong>무엇을 어디에 놓으면</strong> 판매가 늘까요?
+                    앞 소절에서 <strong>영수증 열 장을 손으로 계산해</strong> 규칙을 하나 찾아냈습니다.
+                    이번에는 <strong>같은 데이터를 분석 도구에 넣어</strong>
+                    <strong>같은 답이 나오는지</strong> 확인합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                새 데이터를 쓰지 않는 데는 이유가 있습니다.
+                <strong>답을 모르는 데이터로 도구를 처음 써 보면</strong>
+                결과가 이상해도 <strong>도구를 잘못 쓴 것인지 데이터가 그런 것인지 알 수 없습니다.</strong>
+                <strong>답을 아는 데이터로 먼저 맞춰 보고</strong> 나서
+                새 데이터로 넘어가는 것이 순서입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">1</div>
+                    <p class="text-base text-slate-700 leading-relaxed pt-1"><strong>데이터 만들기</strong> &mdash; 영수증을 표로 바꿔 저장한다</p>
+                </div>
+                <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">2</div>
+                    <p class="text-base text-slate-700 leading-relaxed pt-1"><strong>모델 만들기</strong> &mdash; 연관 규칙을 찾는 위젯을 잇는다</p>
+                </div>
+                <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">3</div>
+                    <p class="text-base text-slate-700 leading-relaxed pt-1"><strong>분석 수행</strong> &mdash; 나온 규칙을 읽고 판단한다</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-clipboard-check text-indigo-500 mr-1"></i>
+                    <a href="3-4-2.연관-분석-과정.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석 과정」</a>에서
+                    구한 답을 미리 적어 둡시다 &mdash;
+                    <strong>이온음료를 산 손님은 컵라면도 산다.</strong>
+                    지지도 <strong>0.3</strong>, 향상도 <strong>2.0</strong>, 신뢰도 <strong>1.00</strong>.
+                    <strong>이 세 숫자가 화면에 그대로 뜨면 제대로 한 것</strong>입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 표로 바꾸기 ===== -->
+    <section id="reshape" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 1 &mdash; 영수증을 표로 바꿉니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                &ldquo;표에 못 넣는다&rdquo;고 했던 데이터를 <strong>넣는 방법</strong>이 있습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <a href="3-4-1.연관-분석의-이해.html"
+                   class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석의 이해」</a>에서
+                영수증은 <strong>행마다 항목 수가 달라</strong> 반듯한 표로 만들 수 없다고 했습니다.
+                그런데 스프레드시트도 분석 도구도 <strong>반듯한 표만 읽습니다.</strong>
+                해결책은 생각보다 단순합니다 &mdash;
+                <strong>항목마다 열을 하나씩 만들고, 그 영수증에 있으면 1, 없으면 빈칸</strong>으로 둡니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">우리가 읽던 모양</h3>
+                    <div class="overflow-x-auto">
+                        <table class="table-prose">
+                            <thead>
+                            <tr><th class="w-28">트랜잭션</th><th>항목</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr><td class="font-bold">T1</td><td>삼각김밥, 우유</td></tr>
+                            <tr><td class="font-bold">T2</td><td>삼각김밥, 우유, 초콜릿</td></tr>
+                            <tr><td class="font-bold">T3</td><td>삼각김밥, 컵라면, 이온음료</td></tr>
+                            <tr><td class="text-slate-400" colspan="2">&hellip; T10까지</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        사람이 읽기 좋습니다. 하지만 <strong>둘째 칸의 길이가 제각각</strong>이라
+                        프로그램은 <strong>어디까지가 한 항목인지</strong> 알 수 없습니다.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">프로그램이 읽는 모양</h3>
+                    <div class="overflow-x-auto">
+                        <table class="table-prose">
+                            <thead>
+                            <tr>
+                                <th>삼각김밥</th><th>우유</th><th>컵라면</th><th>초콜릿</th><th>이온음료</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr><td class="font-bold text-center">1</td><td class="font-bold text-center">1</td><td></td><td></td><td></td></tr>
+                            <tr><td class="font-bold text-center">1</td><td class="font-bold text-center">1</td><td></td><td class="font-bold text-center">1</td><td></td></tr>
+                            <tr><td class="font-bold text-center">1</td><td></td><td class="font-bold text-center">1</td><td></td><td class="font-bold text-center">1</td></tr>
+                            <tr><td class="text-slate-400" colspan="5">&hellip; 열 줄</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>모든 행의 칸 수가 같아졌습니다.</strong>
+                        항목의 자리가 <strong>열로 고정</strong>되었으니
+                        프로그램이 세로로 훑어 <strong>몇 번 나왔는지 셀 수 있습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-table mr-1"></i>스프레드시트로 직접 만들기
+                </p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>첫 줄에 항목 이름 다섯 개</strong>를 나란히 적습니다.
+                        이것이 열 이름이 됩니다.
+                    </li>
+                    <li><strong>둘째 줄부터 영수증 한 장에 한 줄씩</strong>,
+                        그 영수증에 있는 항목 칸에만 <strong>1</strong>을 적습니다.
+                        나머지는 <strong>손대지 않고 비워 둡니다.</strong>
+                    </li>
+                    <li><span class="attr-name">mart.csv</span>처럼
+                        <strong>csv 형식으로 저장</strong>합니다.
+                    </li>
+                </ol>
+                <div class="bg-white border border-emerald-300 rounded-xl p-4">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation text-emerald-700 mr-1"></i>
+                        <strong>트랜잭션 번호 열은 넣지 마세요.</strong>
+                        T1, T2&hellip;를 첫 열에 적으면 <strong>도구가 그것도 하나의 항목으로 여깁니다.</strong>
+                        영수증 번호는 <strong>줄 순서만으로 충분합니다.</strong>
+                        굳이 남기고 싶다면 <span class="widget-name">File</span> 위젯에서
+                        그 열의 역할을 <span class="widget-name">meta</span>로 바꿔
+                        <strong>계산에서 빼 두어야</strong> 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-0 mr-1"></i>빈칸에 0을 적으면 안 될까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    적어도 뜻은 통하지만 <strong>일이 많아집니다.</strong>
+                    항목이 다섯 개라 지금은 별것 아닌 것 같지요.
+                    그런데 <strong>마트라면 항목이 수만 가지</strong>입니다.
+                    영수증 한 장에 담긴 물건은 <strong>많아야 열 개 남짓</strong>이니
+                    <strong>한 줄에서 1이 붙는 칸은 열 개, 나머지 수만 칸은 전부 0</strong>이 됩니다.
+                    이렇게 <strong>거의 다 비어 있는 표</strong>는 실제 데이터에서 아주 흔하고,
+                    그래서 <strong>없는 것은 아예 적지 않는 방식</strong>을 씁니다.
+                    <span class="widget-name">File</span> 위젯에서 열어 보면
+                    빈칸이 <strong>물음표로 표시</strong>될 텐데, <strong>고장이 아닙니다.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 위젯 준비 ===== -->
+    <section id="addon" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 2 &mdash; 위젯을 준비합니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이번에 쓸 위젯은 <strong>처음부터 들어 있지 않습니다.</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-puzzle-piece mr-1"></i>먼저 애드온을 설치해야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    지금까지 쓴 위젯은 오렌지를 깔면 함께 들어옵니다.
+                    그런데 연관 분석 위젯은 <strong>따로 내려받아야</strong> 합니다.
+                    <span class="widget-name">Options</span> 메뉴의
+                    <span class="widget-name">Add-ons</span>를 열어
+                    <span class="widget-name">Associate</span>를 찾아 설치하세요.
+                    <strong>설치가 끝나면 오렌지를 껐다 켜야</strong> 새 위젯이 나타납니다.
+                    왼쪽 위젯 목록에 <span class="widget-name">Associate</span> 묶음이 생기고
+                    그 안에 <span class="widget-name">Association Rules</span>가 들어 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학교 컴퓨터는 <strong>설치 권한이 막혀 있거나 인터넷이 느릴</strong> 수 있으니
+                    <strong>수업 전에 미리 준비</strong>해 두는 편이 좋습니다.
+                </p>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                <div class="widget-node">
+                    <i class="fa-solid fa-file-lines text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">File</p>
+                    <p class="text-base text-slate-500">csv를 연다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-table text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Data Table</p>
+                    <p class="text-base text-slate-500">제대로 들어왔는지 본다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-diagram-project text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Association Rules</p>
+                    <p class="text-base text-slate-500">규칙을 찾는다</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">설정 두 가지</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-44">설정</th>
+                            <th class="w-24">값</th>
+                            <th>무엇을 정하는가</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><span class="widget-name">Min. support</span></td>
+                            <td class="font-bold">20%</td>
+                            <td><strong>최소 지지도.</strong> 이만큼 자주 나오지 않는 조합은 아예 보지 않는다</td>
+                        </tr>
+                        <tr>
+                            <td><span class="widget-name">Min. confidence</span></td>
+                            <td class="font-bold">50%</td>
+                            <td><strong>최소 신뢰도.</strong> 선행을 산 손님 중 이만큼은 후행도 사야 규칙으로 인정한다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    설정을 마치면 <span class="widget-name">Find Rules</span> 단추를 누릅니다.
+                    <strong>백분율로 넣는다는 점</strong>에 주의하세요. 0.2가 아니라 <strong>20</strong>입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 돌려 보기 ===== -->
+    <section id="run" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 3 &mdash; 나온 규칙을 읽습니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>네 줄</strong>이 나옵니다. 그중 <strong>쓸 만한 것은 하나</strong>입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                결과 표에는 규칙마다 <strong>지지도(Supp) &middot; 신뢰도(Conf) &middot; 향상도(Lift)</strong>가
+                함께 나옵니다. 신뢰도를 내림차순으로 정렬하면 이렇게 됩니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-56">연관 규칙</th>
+                        <th class="w-24">지지도</th>
+                        <th class="w-24">신뢰도</th>
+                        <th class="w-24">향상도</th>
+                        <th>읽는 법</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="bg-emerald-50">
+                        <td class="font-bold">이온음료 &rarr; 컵라면</td>
+                        <td>0.3</td><td class="font-bold">1.00</td><td class="font-bold">2.0</td>
+                        <td><strong>쓸 만하다.</strong> 향상도가 1을 크게 넘는다</td>
+                    </tr>
+                    <tr class="bg-emerald-50">
+                        <td class="font-bold">컵라면 &rarr; 이온음료</td>
+                        <td>0.3</td><td class="font-bold">0.60</td><td class="font-bold">2.0</td>
+                        <td><strong>쓸 만하다.</strong> 같은 짝의 반대 방향</td>
+                    </tr>
+                    <tr class="bg-rose-50">
+                        <td class="font-bold">우유 &rarr; 삼각김밥</td>
+                        <td>0.2</td><td class="font-bold">0.50</td><td class="font-bold">1.0</td>
+                        <td><strong>버린다.</strong> 향상도가 1이라 우연이다</td>
+                    </tr>
+                    <tr class="bg-rose-50">
+                        <td class="font-bold">우유 &rarr; 초콜릿</td>
+                        <td>0.2</td><td class="font-bold">0.50</td><td class="font-bold">1.0</td>
+                        <td><strong>버린다.</strong> 향상도가 1이라 우연이다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-circle-check mr-1"></i>손으로 구한 값과 같습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    첫 줄의 <strong>0.3 &middot; 1.00 &middot; 2.0</strong>이 앞 소절에서 손으로 구한 값 그대로입니다.
+                    둘째 줄의 <strong>0.60</strong>도 마찬가지고요.
+                    <strong>도구는 우리가 한 계산을 빠르게 되풀이해 줄 뿐</strong>이라는 것이
+                    이 한 줄로 확인됩니다.
+                </p>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-key mr-1"></i>그런데 왜 우연인 규칙까지 나올까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    설정을 다시 보세요. <strong>지지도와 신뢰도의 문턱만 정할 수 있었습니다.</strong>
+                    <strong>향상도의 문턱을 정하는 칸은 없습니다.</strong>
+                    그래서 도구는 <strong>지지도와 신뢰도만 통과하면 무조건 결과에 올립니다.</strong>
+                    향상도가 1.0인 &lsquo;우유 &rarr; 삼각김밥&rsquo;이 버젓이 셋째 줄에 앉아 있는 이유입니다.
+                </p>
+                <div class="bg-white border border-violet-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        <strong class="text-violet-800">화면에 떴다고 다 규칙이 아닙니다.</strong>
+                        Lift 열을 직접 보고 <strong class="text-violet-800">1 언저리인 줄은 지워야</strong> 합니다.
+                        도구가 하지 않는 이 마지막 걸러 내기가 <strong class="text-violet-800">사람의 몫</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    앞 소절에서 지지도 문턱을 넘은 짝은 <strong>다섯 가지</strong>였습니다.
+                    그런데 규칙은 <strong>네 줄</strong>만 나왔습니다.
+                    <strong>{삼각김밥, 컵라면}과 {삼각김밥, 초콜릿}은 어디로 갔을까요?</strong>
+                    두 짝의 <strong>신뢰도</strong>를 떠올려 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 문턱 바꾸기 ===== -->
+    <section id="threshold" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">문턱을 낮추면 어떻게 될까</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                규칙이 <strong>많아지는 것</strong>은 좋은 일일까요?
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <span class="widget-name">Min. support</span>와
+                <span class="widget-name">Min. confidence</span>를 낮추고
+                <span class="widget-name">Find Rules</span>를 다시 눌러 보세요.
+                <strong>배선은 그대로 두고 숫자만</strong> 바꾸면 됩니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">최소 지지도</th>
+                        <th class="w-32">최소 신뢰도</th>
+                        <th class="w-28">규칙 수</th>
+                        <th>새로 늘어난 규칙은 어떤 것들인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="bg-emerald-50"><td class="font-bold">20%</td><td class="font-bold">50%</td><td class="font-bold">4</td><td>앞에서 본 네 줄</td></tr>
+                    <tr><td class="font-bold">10%</td><td class="font-bold">50%</td><td class="font-bold">11</td><td>대부분 <strong>영수증 한 장</strong>에만 나온 조합</td></tr>
+                    <tr class="bg-rose-50"><td class="font-bold">10%</td><td class="font-bold">30%</td><td class="font-bold">23</td><td>향상도가 <strong>1보다 작은 것</strong>까지 섞여 든다</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">지지도 10%가 뜻하는 것</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        영수증이 열 장이니 <strong>10%는 딱 한 장</strong>입니다.
+                        <strong>단 한 명의 손님이 그렇게 샀다</strong>는 것을 근거로
+                        규칙을 만드는 셈입니다.
+                        <strong>신뢰도가 1.00으로 나와도</strong>
+                        &ldquo;한 명이 그랬으니 100%&rdquo;일 뿐입니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">규칙이 많을수록 나쁜 이유</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        23개를 받아 들면 <strong>어느 것을 믿어야 할지 알 수 없습니다.</strong>
+                        문턱은 <strong>일을 줄이려고 두는 것</strong>이 아니라
+                        <strong>믿을 수 없는 것을 미리 잘라 내려고</strong> 두는 것입니다.
+                        <strong>낮출수록 좋은 값이 아닙니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>직접 돌려 보고 적어 봅시다
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">최소 지지도</th>
+                            <th class="w-28">최소 신뢰도</th>
+                            <th>규칙 수</th>
+                            <th>향상도가 1보다 큰 규칙 수</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold h-12">30%</td><td class="font-bold">50%</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">20%</td><td class="font-bold">50%</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">10%</td><td class="font-bold">50%</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">10%</td><td class="font-bold">30%</td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    오른쪽 두 칸을 견주어 보세요.
+                    <strong>규칙 수는 크게 늘어나는데 쓸 만한 규칙은 얼마나 늘어나나요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 우리 반 데이터 ===== -->
+    <section id="own" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">우리 반 데이터로 해 봅시다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이제 <strong>답을 모르는 데이터</strong>로 넘어갑니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                열 장짜리 예시로 방법을 익혔으니, <strong>직접 모은 데이터</strong>로 해 볼 차례입니다.
+                아래 중 하나를 고르거나 비슷한 것을 스스로 정해 보세요.
+                <strong>&lsquo;한 번에 함께 일어난 기록&rsquo;이기만 하면</strong> 무엇이든 됩니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="section-card border-t-4 border-sky-500 space-y-2">
+                    <div class="w-11 h-11 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">급식 잔반</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 사람이 <strong>남긴 반찬들</strong>을 한 묶음으로 봅니다.
+                        <strong>함께 남는 반찬 짝</strong>을 찾으면
+                        식단을 짤 때 참고할 수 있습니다.
+                    </p>
+                </div>
+                <div class="section-card border-t-4 border-emerald-500 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">동아리와 활동</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 학생이 <strong>드는 동아리와 참여하는 활동</strong>을 한 묶음으로 봅니다.
+                        <strong>함께 신청되는 조합</strong>이 보이면
+                        시간이 겹치지 않게 배치할 수 있습니다.
+                    </p>
+                </div>
+                <div class="section-card border-t-4 border-violet-500 space-y-2">
+                    <div class="w-11 h-11 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-book"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">도서 대출</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 사람이 <strong>같은 날 빌린 책들</strong>을 한 묶음으로 봅니다.
+                        <strong>함께 빌리는 갈래</strong>를 찾으면
+                        서가 배치나 추천 목록에 쓸 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-user-shield mr-1"></i>친구들의 데이터를 모을 때
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>이름을 적지 않습니다.</strong> 연관 분석에는 누구인지가 전혀 필요 없습니다.
+                        <strong>한 줄이 한 사람이라는 것만</strong> 알면 됩니다.
+                    </li>
+                    <li><strong>무엇에 쓸 것인지 미리 말하고</strong> 동의를 받습니다.
+                        <strong>싫다는 사람을 넣지 않습니다.</strong>
+                    </li>
+                    <li>인원이 적으면 <strong>줄 수를 세어 보면 누구 것인지 짐작되는 일</strong>이 생깁니다.
+                        <strong>결과만 공유하고 원자료는 남기지 않는</strong> 편이 낫습니다.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>찾아낸 규칙을 적어 봅시다
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-48">연관 규칙</th>
+                            <th class="w-24">지지도</th>
+                            <th class="w-24">신뢰도</th>
+                            <th class="w-24">향상도</th>
+                            <th>이 규칙으로 무엇을 하겠는가</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="h-12"></td><td></td><td></td><td></td><td></td></tr>
+                        <tr><td class="h-12"></td><td></td><td></td><td></td><td></td></tr>
+                        <tr><td class="h-12"></td><td></td><td></td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    마지막 칸이 가장 중요합니다.
+                    <strong>&ldquo;그래서 무엇을 하겠다&rdquo;를 쓸 수 없는 규칙</strong>은
+                    숫자가 아무리 좋아도 <strong>찾은 값어치가 없습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    찾아낸 규칙 하나를 골라 <strong>&ldquo;왜 이 둘이 함께 나타났을까&rdquo;</strong>를 말해 보세요.
+                    설명이 떠오르나요? 떠오르지 않는다면
+                    <strong>그 규칙을 믿어도 될까요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        규칙을 찾아 주는 프로그램이 있는데 왜 손으로 계산하는 법을 배웠지?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        오늘 실습이 그 답입니다.
+                        <strong class="text-sky-200">도구는 네 줄을 내놓았지만 그중 둘은 버려야 했습니다.</strong>
+                        향상도가 1이라는 것을 <strong class="text-indigo-200">알아본 사람은 도구가 아니라 여러분</strong>이었지요.
+                        도구에는 <strong class="text-sky-200">향상도 문턱을 정하는 칸조차 없었습니다.</strong>
+                        계산을 손으로 해 보지 않았다면 그 열이 무슨 뜻인지 몰랐을 테고,
+                        <strong class="text-indigo-200">화면에 뜬 네 줄을 모두 규칙이라 믿었을</strong> 것입니다.
+                        <strong class="text-sky-200">도구는 빨리 세어 줄 뿐 무엇이 뜻있는지는 가려 주지 않습니다.</strong>
+                        어떤 분석 도구를 쓰든 <strong class="text-indigo-200">그 숫자가 어떻게 나온 값인지 아는 사람만</strong>
+                        결과를 제대로 쓸 수 있습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-table-cells text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">표로 바꾸기</p>
+                    <p class="text-base text-sky-100">항목마다 열 하나 &middot; 있으면 1</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-sliders text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">문턱 정하기</p>
+                    <p class="text-base text-sky-100">낮출수록 좋은 값이 아니다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-eye text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">Lift 열 보기</p>
+                    <p class="text-base text-sky-100">도구가 걸러 주지 않는 자리</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터 준비</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">preparing the data</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>항목마다 열 하나</strong>를 만들고 있으면 1, 없으면 빈칸</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>이렇게 하면 <strong>행마다 칸 수가 같아진다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>트랜잭션 번호 열은 <strong>넣지 않거나 meta로</strong> 둔다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">도구 쓰기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">running the analysis</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>연관 분석 위젯은 <strong>애드온을 따로 설치</strong>해야 나온다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>정할 수 있는 문턱은 <strong>지지도와 신뢰도 둘뿐</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>손으로 구한 값과 <strong>똑같이 나오는지 먼저 확인</strong>한다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">문턱 정하기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">choosing thresholds</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>낮출수록 <strong>규칙이 쏟아지지만 믿을 것은 안 는다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>지지도 10%가 <strong>영수증 한 장</strong>이면 근거가 한 명이다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>문턱은 <strong>믿을 수 없는 것을 잘라 내려고</strong> 둔다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">결과 판단하기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">judging the output</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>화면에 떴다고 <strong>다 규칙이 아니다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>Lift가 1 언저리인 줄은 사람이 지운다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>&ldquo;그래서 무엇을 하겠다&rdquo;를 <strong>쓸 수 있어야</strong> 값어치가 있다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    영수증 데이터를 <strong>분석 도구가 읽을 수 있는 표</strong>로 만드는 방법은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 칸에 여러 항목을 쉼표로 넣으면 프로그램이 항목을 갈라 읽지 못합니다.')">
+                    ① 한 칸에 산 물건을 모두 쉼표로 이어 적는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 항목마다 열을 만들면 모든 행의 칸 수가 같아집니다.')">
+                    ② 항목마다 열을 하나씩 만들고 있으면 1, 없으면 비운다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '항목 수가 가장 많은 영수증에 맞추어도 나머지 행의 칸이 비어 자리가 어긋납니다.')">
+                    ③ 가장 많이 산 영수증에 맞추어 칸 수를 통일한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '항목 수가 적은 영수증을 버리면 데이터가 크게 줄고 결과가 왜곡됩니다.')">
+                    ④ 항목이 두 개 미만인 영수증을 모두 버린다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    표를 만들 때 <strong>트랜잭션 번호 열을 넣지 말라</strong>고 한 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 도구가 번호 열도 하나의 항목으로 여겨 엉뚱한 규칙을 만듭니다.')">
+                    ① 도구가 그 열도 하나의 항목으로 여기기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '파일 크기와는 거의 상관이 없습니다. 계산에 끼어드는 것이 문제입니다.')">
+                    ② 파일 크기가 너무 커지기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '번호가 있어도 순서는 그대로입니다. 순서가 뒤바뀌는 문제가 아닙니다.')">
+                    ③ 트랜잭션의 순서가 뒤바뀌기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지지도의 분모는 전체 행 수이므로 번호 열이 있어도 달라지지 않습니다.')">
+                    ④ 지지도의 분모가 달라지기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    결과 표에 <strong>향상도가 1.0인 규칙</strong>이 올라와 있습니다. 왜 그럴까?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오류가 아닙니다. 계산은 정확하게 되었고, 다만 걸러지지 않았을 뿐입니다.')">
+                    ① 도구에 오류가 생겨 값이 잘못 나왔다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 정할 수 있는 문턱이 지지도와 신뢰도뿐이라 향상도로는 걸러지지 않습니다.')">
+                    ② 향상도에는 문턱을 정할 수 없어 걸러지지 않기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '향상도 1.0은 우연이라는 뜻입니다. 가장 좋은 규칙이 아닙니다.')">
+                    ③ 향상도가 1.0인 규칙이 가장 좋은 규칙이라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '최소 지지도를 높이면 규칙 수는 줄지만, 남은 규칙의 향상도가 1인 것은 그대로입니다.')">
+                    ④ 최소 지지도를 너무 높게 잡았기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    영수증 10장을 분석하며 최소 지지도를 <strong>10%로 낮추면</strong> 어떤 문제가 생기나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산은 그대로 잘 됩니다. 문제는 결과를 믿을 수 있느냐입니다.')">
+                    ① 계산이 되지 않아 오류가 난다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 10장의 10%는 한 장이므로 손님 한 명의 구매가 규칙이 되어 버립니다.')">
+                    ② 손님 한 명의 구매만으로도 규칙이 만들어진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규칙은 줄지 않고 오히려 크게 늘어납니다.')">
+                    ③ 찾아지는 규칙이 오히려 줄어든다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '신뢰도는 여전히 계산됩니다. 다만 근거가 되는 영수증이 적을 뿐입니다.')">
+                    ④ 신뢰도를 계산할 수 없게 된다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    친구들에게 데이터를 모아 연관 분석을 할 때 <strong>지켜야 할 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이름이 있어야 정확해지지 않습니다. 연관 분석은 누구인지를 전혀 쓰지 않습니다.')">
+                    ① 결과가 정확해지도록 이름을 반드시 적는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 이름 없이 모으고, 무엇에 쓸지 밝히고 동의를 받아야 합니다.')">
+                    ② 이름 없이 모으고, 쓸 곳을 밝힌 뒤 동의를 받는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '싫다는 사람을 빼면 데이터가 준다는 이유로 넣어서는 안 됩니다.')">
+                    ③ 데이터가 적어지지 않도록 모든 학생의 것을 넣는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '원자료를 오래 남겨 둘수록 위험이 커집니다. 결과만 남기는 편이 낫습니다.')">
+                    ④ 나중을 위해 원자료를 오래 보관한다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

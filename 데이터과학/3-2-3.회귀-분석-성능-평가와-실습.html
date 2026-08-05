@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회귀 분석 성능 평가와 실습</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-ruler-combined absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-flask absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            회귀 분석 성능 평가와 실습
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            선을 그었으면 <strong>그 선이 쓸 만한지</strong> 재야 합니다.<br>
+            <strong>얼마나 틀리는가</strong>와 <strong>얼마나 설명하는가</strong>, 두 가지로 잽니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>평균절대오차 &middot; 평균제곱오차 &middot; 평균제곱근오차가 각각 무엇을 재는지 구별할 수 있다.</li>
+                    <li>결정계수가 회귀 모델의 설명력을 어떻게 나타내는지 설명하고 값을 해석할 수 있다.</li>
+                    <li>스프레드시트로 회귀식과 성능 평가 값을 직접 구할 수 있다.</li>
+                    <li>같은 데이터를 두 방법으로 분석해 결과를 견주고, 견줄 때 무엇을 주의해야 하는지 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-ruler-combined text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">회귀 분석 성능 평가와 실습</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-indigo-600 transition">왜 재나</a>
+            <a href="#error" class="hover:text-indigo-600 transition">오차 함수</a>
+            <a href="#r2" class="hover:text-indigo-600 transition">결정계수</a>
+            <a href="#plan" class="hover:text-indigo-600 transition">실습 설계</a>
+            <a href="#sheet" class="hover:text-indigo-600 transition">스프레드시트</a>
+            <a href="#sheet-eval" class="hover:text-indigo-600 transition">성능 평가</a>
+            <a href="#orange" class="hover:text-indigo-600 transition">오렌지</a>
+            <a href="#compare" class="hover:text-indigo-600 transition">결과 비교</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI와 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 왜 재나 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이 선이 쓸 만한지 어떻게 알까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                앞 소절에서 <strong>&ldquo;둘 다 해 보고 잘 맞는 쪽을 고른다&rdquo;</strong>고 했습니다.
+                그러려면 <strong>잘 맞는다를 숫자로 재야</strong> 합니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지 우리는 선을 <strong>만드는</strong> 일만 했습니다.
+                최소 제곱법으로 자전거 데이터에서 <strong>y = &minus;6x + 45</strong>를 얻었고,
+                의사결정트리로 놀이공원 데이터에서 <strong>계단</strong>을 얻었습니다.
+                그런데 이 모델들이 <strong>얼마나 믿을 만한지</strong>는 아직 한 번도 재 보지 않았습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-eye-slash text-indigo-500 mr-1"></i>
+                    산점도를 눈으로 보면 &ldquo;그럭저럭 맞는 것 같다&rdquo;는 느낌은 옵니다.
+                    그러나 <strong>느낌으로는 두 모델의 우열을 가릴 수 없고</strong>,
+                    <strong>다른 사람에게 전할 수도 없습니다.</strong>
+                    최소 제곱법에서 눈대중 대신 <strong>오차 제곱합</strong>이라는 숫자를 썼던 것과 같은 이유로,
+                    모델의 성능에도 숫자가 필요합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                재는 방법은 크게 <strong>두 갈래</strong>입니다.
+                방향이 서로 반대이니 헷갈리지 않도록 처음부터 갈라 두겠습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">
+                        <i class="fa-solid fa-arrow-down-short-wide mr-1"></i>오차 함수
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>얼마나 틀리는가</strong>를 잽니다.
+                        <strong class="text-rose-800">작을수록 좋습니다.</strong>
+                        틀린 양을 그대로 재므로 <strong>단위가 붙습니다</strong>(만 원, 분, 점).
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">
+                        <i class="fa-solid fa-arrow-up-wide-short mr-1"></i>결정계수
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>얼마나 설명하는가</strong>를 잽니다.
+                        <strong class="text-emerald-800">클수록 좋습니다.</strong>
+                        비율이므로 <strong>단위가 없고</strong> 언제나 <strong>0에서 1 사이</strong>입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 오차 함수 ===== -->
+    <section id="error" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">틀린 양을 하나의 숫자로 모으려면?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                점이 여섯 개면 오차도 여섯 개입니다. 이것을 <strong>하나로 줄여야</strong> 견줄 수 있습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                실젯값과 예측값의 차이를 하나의 숫자로 모으는 함수를
+                <strong>오차 함수(error function)</strong>라고 합니다.
+                모으는 방식이 여러 가지라서 이름도 여럿입니다.
+                가장 널리 쓰이는 셋을 자전거 데이터로 직접 구해 보겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-24">사용 연수</th>
+                        <th>실젯값</th>
+                        <th>예측값<br>&minus;6x + 45</th>
+                        <th>오차</th>
+                        <th>오차의 절댓값</th>
+                        <th>오차&sup2;</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>1</td><td>41</td><td>39</td><td>+2</td><td>2</td><td>4</td></tr>
+                    <tr><td>2</td><td>30</td><td>33</td><td>&minus;3</td><td>3</td><td>9</td></tr>
+                    <tr><td>3</td><td>28</td><td>27</td><td>+1</td><td>1</td><td>1</td></tr>
+                    <tr><td>4</td><td>22</td><td>21</td><td>+1</td><td>1</td><td>1</td></tr>
+                    <tr><td>5</td><td>12</td><td>15</td><td>&minus;3</td><td>3</td><td>9</td></tr>
+                    <tr><td>6</td><td>11</td><td>9</td><td>+2</td><td>2</td><td>4</td></tr>
+                    <tr class="bg-indigo-50">
+                        <td class="font-black" colspan="3">합계</td>
+                        <td class="font-black text-slate-400">0</td>
+                        <td class="font-black text-indigo-900">12</td>
+                        <td class="font-black text-indigo-900">28</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-600 leading-relaxed">
+                오른쪽 두 열은 앞 소절에서 이미 만들어 본 것입니다.
+                <strong>여기에 &ldquo;평균&rdquo;만 씌우면</strong> 세 가지 성능 지표가 모두 나옵니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div class="bg-white border-2 border-sky-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-sky-900">평균절대오차</p>
+                    <p class="text-base font-medium text-slate-500">MAE &mdash; mean absolute error</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        오차의 <strong>절댓값</strong>을 평균 냅니다.
+                    </p>
+                    <p class="text-lg font-black text-sky-800">12 &divide; 6 = 2 만 원</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>모든 오차를 똑같이</strong> 셉니다.
+                        그래서 유난히 크게 벗어난 값 하나가 있어도 <strong>덜 휘둘립니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-violet-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-violet-900">평균제곱오차</p>
+                    <p class="text-base font-medium text-slate-500">MSE &mdash; mean square error</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        오차의 <strong>제곱</strong>을 평균 냅니다.
+                    </p>
+                    <p class="text-lg font-black text-violet-800">28 &divide; 6 &approx; 4.67</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>크게 벗어난 값에 큰 벌점</strong>을 줍니다.
+                        대신 단위가 <strong>&lsquo;만 원의 제곱&rsquo;</strong>이 되어 값의 크기를 가늠하기 어렵습니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-emerald-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-emerald-900">평균제곱근오차</p>
+                    <p class="text-base font-medium text-slate-500">RMSE &mdash; root mean square error</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        MSE에 <strong>제곱근</strong>을 씌웁니다.
+                    </p>
+                    <p class="text-lg font-black text-emerald-800">&radic;4.67 &approx; 2.16 만 원</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        제곱으로 큰 오차를 무겁게 센 성질은 남기면서
+                        <strong>단위를 원래대로 되돌립니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-scale-balanced mr-1"></i>MAE는 2인데 RMSE는 2.16입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 값이 벌어진 것은 <strong>오차의 크기가 고르지 않기</strong> 때문입니다.
+                    우리 오차는 1이 두 번, 2가 두 번, 3이 두 번이었지요.
+                    만약 <strong>여섯 오차가 모두 똑같았다면 MAE와 RMSE는 정확히 같아집니다.</strong>
+                    거꾸로 말해 <strong>둘의 차이가 벌어질수록 &ldquo;유난히 크게 빗나간 점이 섞여 있다&rdquo;</strong>는 신호입니다.
+                    <strong>RMSE는 결코 MAE보다 작아지지 않습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-ban mr-1"></i>다른 데이터의 모델끼리 견줄 수 없습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    자전거 모델의 RMSE는 <strong>2.16만 원</strong>입니다.
+                    놀이공원 모델의 RMSE를 구하면 <strong>몇 분</strong>이 나오겠지요.
+                    <strong>2.16만 원과 8분 중 어느 쪽이 더 좋은 모델일까요? 답할 수 없습니다.</strong>
+                    단위가 다르기 때문입니다.
+                    같은 이유로 &ldquo;RMSE가 5면 좋은 모델인가&rdquo;도 답할 수 없습니다.
+                    <strong>값이 수백만인 데이터라면 5는 아주 훌륭하고,
+                    값이 0에서 10 사이인 데이터라면 5는 형편없습니다.</strong>
+                    오차 함수는 <strong>같은 데이터를 두고 여러 모델을 견줄 때</strong> 쓰는 잣대입니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    자전거 여섯 대 중 한 대의 실젯값이 <strong>11만 원이 아니라 41만 원</strong>이었다고 해 봅시다
+                    (아주 아껴 탄 자전거였습니다). 오차 하나가 크게 벌어집니다.
+                    이때 <strong>MAE와 RMSE 중 어느 쪽이 더 크게 흔들릴까요?</strong>
+                    그리고 <strong>흔들리는 쪽이 나쁜 지표인가요?</strong> 어떤 상황에서 어느 쪽을 고를지 이야기해 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 결정계수 ===== -->
+    <section id="r2" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단위 없이 재려면 무엇과 견주어야 할까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                &ldquo;좋다&rdquo;는 언제나 <strong>무엇에 견주어</strong> 좋은 것입니다. 견줄 상대를 정합시다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                가장 성의 없는 예측을 상상해 봅시다.
+                자전거 값을 물을 때마다 <strong>사용 연수를 아예 보지 않고</strong>
+                &ldquo;<strong>다들 24만 원쯤 해요</strong>&rdquo;라고만 답하는 것입니다.
+                24는 여섯 대의 <strong>평균</strong>입니다.
+                이렇게 답해도 아주 틀리지는 않습니다. 이것이 <strong>바닥선</strong>입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">평균만 답할 때</h3>
+                    <svg viewBox="0 0 620 260" role="img" class="chart-svg"
+                         aria-label="여섯 개의 점과 수평인 평균선. 각 점에서 평균선까지의 세로 거리가 길게 그어져 있다.">
+                        <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                            <line x1="80" y1="182" x2="580" y2="182"/>
+                            <line x1="80" y1="144" x2="580" y2="144"/>
+                            <line x1="80" y1="106" x2="580" y2="106"/>
+                            <line x1="80" y1="68" x2="580" y2="68"/>
+                        </g>
+                        <line x1="80" y1="30" x2="80" y2="220" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="80" y1="220" x2="590" y2="220" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="116" y1="129" x2="544" y2="129" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+                        <g stroke="#f43f5e" stroke-width="4" stroke-linecap="round">
+                            <line x1="151" y1="64" x2="151" y2="129"/>
+                            <line x1="223" y1="106" x2="223" y2="129"/>
+                            <line x1="294" y1="114" x2="294" y2="129"/>
+                            <line x1="366" y1="136" x2="366" y2="129"/>
+                            <line x1="437" y1="174" x2="437" y2="129"/>
+                            <line x1="509" y1="178" x2="509" y2="129"/>
+                        </g>
+                        <g fill="#e11d48" fill-opacity="0.9">
+                            <circle cx="151" cy="64" r="7"/>
+                            <circle cx="223" cy="106" r="7"/>
+                            <circle cx="294" cy="114" r="7"/>
+                            <circle cx="366" cy="136" r="7"/>
+                            <circle cx="437" cy="174" r="7"/>
+                            <circle cx="509" cy="178" r="7"/>
+                        </g>
+                    </svg>
+                    <div class="bg-slate-100 border border-slate-300 rounded-xl p-4">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>회색 선</strong>이 평균 24만 원입니다.
+                            빨간 막대가 <strong>길고 많습니다.</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="text-xl font-black text-slate-800">회귀선으로 답할 때</h3>
+                    <svg viewBox="0 0 620 260" role="img" class="chart-svg"
+                         aria-label="같은 여섯 개의 점과 기울어진 회귀선. 각 점에서 회귀선까지의 세로 거리가 앞 그림보다 훨씬 짧다.">
+                        <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                            <line x1="80" y1="182" x2="580" y2="182"/>
+                            <line x1="80" y1="144" x2="580" y2="144"/>
+                            <line x1="80" y1="106" x2="580" y2="106"/>
+                            <line x1="80" y1="68" x2="580" y2="68"/>
+                        </g>
+                        <line x1="80" y1="30" x2="80" y2="220" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="80" y1="220" x2="590" y2="220" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="116" y1="60" x2="544" y2="197" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round"/>
+                        <g stroke="#f43f5e" stroke-width="4" stroke-linecap="round">
+                            <line x1="151" y1="64" x2="151" y2="72"/>
+                            <line x1="223" y1="106" x2="223" y2="95"/>
+                            <line x1="294" y1="114" x2="294" y2="117"/>
+                            <line x1="366" y1="136" x2="366" y2="140"/>
+                            <line x1="437" y1="174" x2="437" y2="163"/>
+                            <line x1="509" y1="178" x2="509" y2="186"/>
+                        </g>
+                        <g fill="#e11d48" fill-opacity="0.9">
+                            <circle cx="151" cy="64" r="7"/>
+                            <circle cx="223" cy="106" r="7"/>
+                            <circle cx="294" cy="114" r="7"/>
+                            <circle cx="366" cy="136" r="7"/>
+                            <circle cx="437" cy="174" r="7"/>
+                            <circle cx="509" cy="178" r="7"/>
+                        </g>
+                    </svg>
+                    <div class="bg-sky-50 border border-sky-300 rounded-xl p-4">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>파란 선</strong>이 회귀선입니다.
+                            빨간 막대가 <strong>눈에 띄게 짧아졌습니다.</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 그림의 빨간 막대를 <strong>제곱해서 더한 값</strong>을 견주면
+                회귀선이 얼마나 도움이 되었는지 <strong>비율</strong>로 말할 수 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">무엇으로 예측했나</th>
+                        <th>각 오차</th>
+                        <th class="w-32">오차 제곱합</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">평균 24만 원 (바닥선)</td>
+                        <td>+17, +6, +4, &minus;2, &minus;12, &minus;13</td>
+                        <td class="font-bold">658</td>
+                    </tr>
+                    <tr class="bg-indigo-50">
+                        <td class="font-black text-indigo-900">회귀선 &minus;6x + 45</td>
+                        <td>+2, &minus;3, +1, +1, &minus;3, +2</td>
+                        <td class="font-black text-indigo-900">28</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-indigo-600 rounded-2xl p-6 space-y-4">
+                <p class="text-base font-bold text-indigo-100 text-center">회귀선이 없앤 오차의 몫</p>
+                <p class="text-xl md:text-2xl font-black text-white text-center leading-relaxed">
+                    (658 &minus; 28) &divide; 658 = 630 &divide; 658 &approx; <span class="text-3xl">0.957</span>
+                </p>
+                <p class="text-base text-indigo-100 text-center leading-relaxed">
+                    이 값을 <strong class="text-white">결정계수(coefficient of determination)</strong>라 하고
+                    <strong class="text-white">R&sup2;</strong>으로 씁니다
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>0.957</strong>은 &ldquo;평균만 답할 때 생기던 오차의 <strong>95.7%를 회귀선이 없앴다</strong>&rdquo;는 뜻입니다.
+                바꾸어 말하면 <strong>자전거 값의 차이 중 95.7%가 사용 연수로 설명된다</strong>는 것입니다.
+                나머지 4.3%는 자전거의 상태, 브랜드, 파는 사람의 사정처럼
+                <strong>모델에 넣지 않은 것들</strong>이 만든 차이입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="space-y-3">
+                    <svg viewBox="0 0 300 190" role="img" class="chart-svg"
+                         aria-label="점들이 사방으로 흩어져 있고 그 사이의 직선이 거의 수평인 산점도.">
+                        <line x1="30" y1="20" x2="30" y2="165" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="30" y1="165" x2="285" y2="165" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="45" y1="95" x2="270" y2="86" stroke="#1d4ed8" stroke-width="3.5" stroke-linecap="round"/>
+                        <g fill="#e11d48" fill-opacity="0.8">
+                            <circle cx="58" cy="40" r="5"/><circle cx="82" cy="132" r="5"/>
+                            <circle cx="104" cy="66" r="5"/><circle cx="126" cy="146" r="5"/>
+                            <circle cx="148" cy="52" r="5"/><circle cx="168" cy="118" r="5"/>
+                            <circle cx="190" cy="34" r="5"/><circle cx="212" cy="140" r="5"/>
+                            <circle cx="234" cy="72" r="5"/><circle cx="258" cy="112" r="5"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-700 leading-relaxed text-center">
+                        <strong class="text-rose-700">R&sup2; &approx; 0</strong><br>
+                        평균만 답하는 것과 <strong>다를 바 없다</strong>
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <svg viewBox="0 0 300 190" role="img" class="chart-svg"
+                         aria-label="점들이 직선 둘레에 어느 정도 모여 있지만 위아래로 꽤 흩어져 있는 산점도.">
+                        <line x1="30" y1="20" x2="30" y2="165" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="30" y1="165" x2="285" y2="165" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="45" y1="140" x2="270" y2="38" stroke="#1d4ed8" stroke-width="3.5" stroke-linecap="round"/>
+                        <g fill="#e11d48" fill-opacity="0.8">
+                            <circle cx="58" cy="112" r="5"/><circle cx="82" cy="148" r="5"/>
+                            <circle cx="104" cy="98" r="5"/><circle cx="126" cy="126" r="5"/>
+                            <circle cx="148" cy="76" r="5"/><circle cx="168" cy="104" r="5"/>
+                            <circle cx="190" cy="52" r="5"/><circle cx="212" cy="86" r="5"/>
+                            <circle cx="234" cy="38" r="5"/><circle cx="258" cy="64" r="5"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-700 leading-relaxed text-center">
+                        <strong class="text-amber-700">R&sup2; &approx; 0.5</strong><br>
+                        차이의 <strong>절반쯤</strong>을 설명한다
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <svg viewBox="0 0 300 190" role="img" class="chart-svg"
+                         aria-label="점들이 직선 위에 거의 딱 붙어 늘어선 산점도.">
+                        <line x1="30" y1="20" x2="30" y2="165" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="30" y1="165" x2="285" y2="165" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="45" y1="144" x2="270" y2="34" stroke="#1d4ed8" stroke-width="3.5" stroke-linecap="round"/>
+                        <g fill="#e11d48" fill-opacity="0.8">
+                            <circle cx="58" cy="136" r="5"/><circle cx="82" cy="128" r="5"/>
+                            <circle cx="104" cy="114" r="5"/><circle cx="126" cy="108" r="5"/>
+                            <circle cx="148" cy="94" r="5"/><circle cx="168" cy="88" r="5"/>
+                            <circle cx="190" cy="72" r="5"/><circle cx="212" cy="66" r="5"/>
+                            <circle cx="234" cy="52" r="5"/><circle cx="258" cy="44" r="5"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-700 leading-relaxed text-center">
+                        <strong class="text-emerald-700">R&sup2; &approx; 1</strong><br>
+                        점들이 <strong>선 위에 거의 놓여 있다</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-violet-900">
+                    <i class="fa-solid fa-rotate-left mr-1"></i>「데이터 분석」에서 만났던 r&sup2;가 바로 이것입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <a href="3-1-2.데이터-분석.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「데이터 분석」</a>의
+                    CODAP 실습에서 최소제곱선과 함께 <strong>r&sup2; = 0.565</strong>가 나왔던 것을 기억하나요?
+                    그때 &ldquo;결정계수라 부르며 회귀 분석에서 자세히 다룬다&rdquo;고 미뤄 두었던 값이 <strong>바로 이것</strong>입니다.
+                    선수의 <strong>몸무게 차이 중 56.5%가 키로 설명된다</strong>는 뜻이었지요.
+                    <strong>단순 선형 회귀</strong>에서는 이 값이 <strong>상관계수 r을 제곱한 것</strong>과 정확히 같아지기 때문에
+                    프로그램이 소문자 r&sup2;로 적기도 합니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>R&sup2;이 높다고 해서 &mdash; 세 가지 주의
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>인과가 밝혀진 것이 아닙니다.</strong> R&sup2;은 &ldquo;함께 움직인 정도&rdquo;를 잰 값일 뿐입니다.
+                        사용 연수가 값을 <strong>떨어뜨린 원인</strong>인지는 여전히 따로 따져야 합니다.
+                    </li>
+                    <li><strong>데이터 밖에서도 잘 맞는다는 뜻이 아닙니다.</strong>
+                        R&sup2;은 <strong>모델을 만들 때 쓴 데이터</strong>에 대해 잰 값입니다.
+                        사용 연수 8년짜리 자전거 값이 음수로 나오던 문제는 R&sup2;이 0.957이어도 그대로 남아 있습니다.
+                    </li>
+                    <li><strong>독립 변수를 늘리면 거의 언제나 올라갑니다.</strong>
+                        &lsquo;자전거 색깔&rsquo;처럼 아무 상관 없는 속성을 넣어도 R&sup2;은 조금 오릅니다.
+                        <strong>그러니 R&sup2;이 올랐다는 것만으로 더 좋은 모델이 되었다고 말할 수 없습니다.</strong>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    <strong>R&sup2;이 0에 가깝게 나온 모델</strong>을 만났다고 합시다.
+                    이때 <strong>&ldquo;두 속성 사이에는 아무 관계가 없다&rdquo;</strong>고 결론지어도 될까요?
+                    놀이공원 대기 시간에 직선을 그었을 때 무슨 일이 일어났는지 떠올려 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 실습 설계 ===== -->
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">실습 &mdash; 공부 시간과 시험 점수</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                지금까지 배운 것을 <strong>진짜 데이터</strong>에 한 번에 적용해 봅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-circle-question mr-1"></i>문제 상황
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    시험이 코앞인데 자꾸 놀고 싶습니다. 문득 궁금해집니다.
+                    <strong>공부 시간과 시험 점수는 정말 관련이 있을까?</strong>
+                    있다면 <strong>얼마나</strong> 있을까?
+                    한 시간을 더 앉아 있으면 점수가 <strong>몇 점</strong>쯤 달라질까?
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 물음에 답하려면 회귀 분석이 필요합니다.
+                그런데 우리는 이제 <strong>두 가지 길</strong>을 알고 있으니,
+                <strong>같은 데이터를 두 갈래로 나누어 분석하고 마지막에 견주어</strong> 보겠습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border-2 border-sky-300 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">
+                        <i class="fa-solid fa-table-cells mr-1"></i>스프레드시트 &mdash; 통계적 회귀 분석
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        최소 제곱법으로 <strong>직선 하나</strong>를 구하고,
+                        오차 함수와 결정계수를 <strong>수식으로 직접</strong> 계산합니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-orange-300 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">
+                        <i class="fa-solid fa-diagram-project mr-1"></i>오렌지 &mdash; 기계학습 회귀 분석
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>의사결정트리</strong>와 <strong>k-최근접 이웃</strong>으로 모델을 만들고,
+                        프로그램이 계산해 준 성능 값을 읽습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">여섯 단계로 진행합니다</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-16">단계</th>
+                            <th class="w-40">하는 일</th>
+                            <th>내용</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-black">1</td>
+                            <td class="font-bold">문제 정의하기</td>
+                            <td>공부 시간과 시험 점수는 정말 관련이 있을까? &mdash; 무엇을 독립 변수로, 무엇을 종속 변수로 둘지 정한다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-black">2</td>
+                            <td class="font-bold">데이터 수집하기</td>
+                            <td>공개 데이터셋을 내려받는다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-black">3</td>
+                            <td class="font-bold">데이터 불러오기</td>
+                            <td>스프레드시트와 오렌지에 각각 올리고 내용을 살펴본다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-black">4</td>
+                            <td class="font-bold">회귀 모델 만들기</td>
+                            <td>스프레드시트는 회귀식을, 오렌지는 <span class="widget-name">Tree</span> &middot; <span class="widget-name">kNN</span> 모델을 만든다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-black">5</td>
+                            <td class="font-bold">성능 평가하기</td>
+                            <td>양쪽 모두 오차 함수와 결정계수를 구한다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-black">6</td>
+                            <td class="font-bold">결과 비교하기</td>
+                            <td>두 갈래의 결과를 나란히 놓고 무엇이 어떻게 다른지 읽는다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">단계 1 &middot; 2 &mdash; 문제를 정하고 데이터를 구합니다</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                        <p class="font-black text-base text-sky-900">독립 변수 &mdash; 넣는 값</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="attr-name">Hours</span> &mdash; 공부한 시간
+                        </p>
+                    </div>
+                    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                        <p class="font-black text-base text-rose-900">종속 변수 &mdash; 얻는 값</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="attr-name">Scores</span> &mdash; 시험 점수
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-slate-800">
+                        <i class="fa-solid fa-download text-indigo-500 mr-1"></i>내려받을 데이터
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        학생의 공부 시간과 시험 점수가 담긴 공개 데이터셋입니다.
+                        내려받으면 <span class="attr-name">student_scores.csv</span> 파일이 생깁니다.
+                        <strong>25명분</strong>이라 손으로 따라가며 확인하기에 알맞은 크기입니다.<br>
+                        <a class="ext-link" href="https://www.kaggle.com/datasets/kamleshsam/student-scores"
+                           target="_blank" rel="noopener noreferrer">kaggle.com/datasets/kamleshsam/student-scores</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-comment-slash mr-1"></i>시작하기 전에 한 가지
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 데이터는 <strong>여러 학생을 한 번씩 관찰한 것</strong>이지,
+                    한 학생의 공부 시간을 늘려 가며 시험을 여러 번 치른 것이 아닙니다.
+                    그러니 결과가 아무리 뚜렷해도
+                    <strong>&ldquo;한 시간 더 공부하면 점수가 오른다&rdquo;가 아니라
+                    &ldquo;한 시간 더 공부한 학생이 점수가 높더라&rdquo;</strong>로 읽어야 합니다.
+                    실습이 끝난 뒤 결과를 말로 옮길 때 이 점을 잊기 쉽습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 스프레드시트 ===== -->
+    <section id="sheet" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">스프레드시트로 회귀식 구하기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">단계 3 &middot; 4</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        3
+                    </div>
+                    <div class="space-y-3 pt-1.5">
+                        <h3 class="text-xl font-black text-slate-800">데이터 불러오기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            구글 스프레드시트에서
+                            <span class="widget-name">파일</span> &rarr; <span class="widget-name">열기</span>로
+                            <span class="attr-name">student_scores.csv</span>를 올립니다.
+                            <span class="attr-name">Hours</span>와 <span class="attr-name">Scores</span> 두 열이
+                            25행에 걸쳐 들어 있는지 확인합니다.
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            아래 설명은 데이터가 <strong>A열에 Hours, B열에 Scores</strong>로 들어가고
+                            <strong>1행은 열 이름, 2행부터 25명분</strong>이라고 보고 쓴 것입니다.
+                            즉 값이 든 칸은 <strong>A2:A26</strong>과 <strong>B2:B26</strong>입니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        4
+                    </div>
+                    <div class="space-y-3 pt-1.5">
+                        <h3 class="text-xl font-black text-slate-800">회귀 모델 만들기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            두 가지 방법으로 만들어 보고 <strong>같은 값이 나오는지</strong> 확인합니다.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-slate-800">(1) 차트로 구하기</p>
+                    <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                        <li>A2:A26과 B2:B26을 함께 선택하고
+                            <span class="widget-name">삽입</span> &rarr; <span class="widget-name">차트</span>를 고릅니다.
+                        </li>
+                        <li>차트 종류를 <strong>분산형</strong>으로 바꿉니다.</li>
+                        <li><span class="widget-name">맞춤설정</span> &rarr; <span class="widget-name">계열</span> &rarr;
+                            <span class="widget-name">추세선</span>을 켭니다.
+                        </li>
+                        <li><span class="widget-name">라벨</span>에서 <span class="widget-name">등식 사용</span>을 고르고
+                            <span class="widget-name">R 제곱 표시</span>를 켭니다.
+                        </li>
+                    </ol>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        차트 위에 <strong>회귀식과 결정계수가 함께</strong> 나타납니다.
+                        앞 소절에서 배운 그대로입니다.
+                    </p>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-slate-800">(2) 함수로 구하기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        빈 칸 세 개에 아래 수식을 넣습니다.
+                        차트가 알려 준 값과 <strong>똑같이 나와야</strong> 합니다.
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table class="table-prose">
+                            <thead>
+                            <tr>
+                                <th class="w-28">구할 값</th>
+                                <th>수식</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="font-bold">기울기</td>
+                                <td><span class="attr-name">=SLOPE(B2:B26, A2:A26)</span></td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold">절편</td>
+                                <td><span class="attr-name">=INTERCEPT(B2:B26, A2:A26)</span></td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold">결정계수</td>
+                                <td><span class="attr-name">=RSQ(B2:B26, A2:A26)</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        세 함수 모두 <strong>y 범위를 앞에, x 범위를 뒤에</strong> 씁니다.
+                        순서를 바꾸면 <strong>오류 없이 엉뚱한 값</strong>이 나옵니다.
+                    </p>
+                </div>
+
+                <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-indigo-900">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i>결과를 적어 둡시다
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table class="table-prose">
+                            <thead>
+                            <tr>
+                                <th class="w-32">기울기</th>
+                                <th class="w-32">절편</th>
+                                <th>회귀식</th>
+                                <th class="w-32">결정계수</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="h-12"></td>
+                                <td></td>
+                                <td>점수 = &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &times; 공부 시간 + &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                                <td></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <details class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                        다 하고 나서 눌러 확인하기
+                    </summary>
+                    <div class="mt-4 space-y-3">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            기울기는 <strong>약 9.78</strong>, 절편은 <strong>약 2.48</strong>,
+                            결정계수는 <strong>약 0.95</strong>가 나옵니다.
+                            소수점 아랫자리는 반올림에 따라 조금 다를 수 있습니다.
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            읽어 보면 &mdash; <strong>공부 시간이 1시간 더 긴 학생이 점수가 평균 9.78점 높았고</strong>,
+                            <strong>점수 차이의 95%쯤이 공부 시간으로 설명된다</strong>는 뜻입니다.
+                            절편 2.48은 <strong>공부를 한 시간도 하지 않은 학생</strong>의 점수인데,
+                            데이터에 그런 학생이 있었는지 먼저 확인해야 합니다.
+                            없다면 <strong>선을 데이터 밖까지 늘였을 때의 값</strong>일 뿐입니다.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 성능 평가 ===== -->
+    <section id="sheet-eval" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">스프레드시트로 성능 평가하기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                단계 5 &mdash; 앞에서 손으로 채웠던 표를 <strong>25행짜리로</strong> 만듭니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                자전거 여섯 대에서 했던 일과 <strong>완전히 같습니다.</strong>
+                예측값 열을 만들고, 오차 열을 만들고, 절댓값과 제곱을 구한 뒤 평균을 냅니다.
+                다만 25행이라 손 대신 수식을 씁니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-16">순서</th>
+                        <th class="w-36">만들 열</th>
+                        <th>수식</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-black">①</td>
+                        <td class="font-bold">예측값</td>
+                        <td>기울기 &times; Hours + 절편.
+                            기울기와 절편이 든 칸은 <strong>모든 행에서 같은 칸</strong>을 봐야 하므로
+                            <span class="attr-name">$F$1</span>처럼 <strong>절대 참조</strong>로 씁니다
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-black">②</td>
+                        <td class="font-bold">오차</td>
+                        <td>실젯값 &minus; 예측값. 즉 <span class="attr-name">=B2-C2</span> 꼴</td>
+                    </tr>
+                    <tr>
+                        <td class="font-black">③</td>
+                        <td class="font-bold">오차의 절댓값</td>
+                        <td><span class="attr-name">=ABS(오차칸)</span></td>
+                    </tr>
+                    <tr>
+                        <td class="font-black">④</td>
+                        <td class="font-bold">오차의 제곱</td>
+                        <td><span class="attr-name">=POWER(오차칸, 2)</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 열을 25행까지 끌어 채웠다면, 이제 <strong>평균만 씌우면</strong> 끝입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">지표</th>
+                        <th>수식</th>
+                        <th class="w-28">내가 얻은 값</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">평균절대오차 MAE</td>
+                        <td><span class="attr-name">=AVERAGE(절댓값 열 범위)</span></td>
+                        <td class="h-12"></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">평균제곱오차 MSE</td>
+                        <td><span class="attr-name">=AVERAGE(제곱 열 범위)</span></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">평균제곱근오차 RMSE</td>
+                        <td><span class="attr-name">=SQRT(MSE가 든 칸)</span></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">결정계수 R&sup2;</td>
+                        <td><span class="attr-name">=RSQ(B2:B26, A2:A26)</span></td>
+                        <td></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <details class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                    다 하고 나서 눌러 확인하기
+                </summary>
+                <div class="mt-4 space-y-3">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        MAE는 <strong>약 5점</strong>, MSE는 <strong>약 29</strong>,
+                        RMSE는 <strong>약 5.4점</strong>이 나옵니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>MAE 5점과 RMSE 5.4점의 차이</strong>를 눈여겨보세요.
+                        자전거 데이터에서 2와 2.16이 벌어졌던 것과 같은 이유입니다.
+                        <strong>MSE 29는 &lsquo;점의 제곱&rsquo;</strong>이라 몇 점쯤 틀리는지 가늠할 수 없지만,
+                        RMSE로 바꾸면 <strong>&ldquo;대체로 5점 안팎으로 빗나간다&rdquo;</strong>고 말할 수 있습니다.
+                        세 지표 중 <strong>결과를 사람에게 설명할 때 가장 쓸모 있는 것이 RMSE</strong>인 까닭입니다.
+                    </p>
+                </div>
+            </details>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    <strong>오차 열의 합</strong>도 구해 보세요. 0에 아주 가까운 값이 나올 것입니다.
+                    자전거 데이터에서는 정확히 0이었지요.
+                    <strong>왜 이런 일이 벌어지는지</strong>, 그리고 <strong>이 값으로는 왜 성능을 잴 수 없는지</strong>
+                    설명해 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 오렌지 ===== -->
+    <section id="orange" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">오렌지로 기계학습 회귀 분석하기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                같은 데이터를 <strong>의사결정트리</strong>와 <strong>k-최근접 이웃</strong>에 넣어 봅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                오렌지에서는 <strong>네모 하나가 기능 하나</strong>이고,
+                네모를 선으로 이으면 <strong>데이터가 그 방향으로 흘러갑니다.</strong>
+                우리가 만들 흐름은 이렇습니다.
+            </p>
+
+            <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                <div class="widget-node">
+                    <i class="fa-solid fa-file-csv text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">File</p>
+                    <p class="text-base text-slate-500">데이터를 연다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-scissors text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Data Sampler</p>
+                    <p class="text-base text-slate-500">70% 와 30% 로 나눈다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="space-y-2">
+                    <div class="widget-node">
+                        <i class="fa-solid fa-sitemap text-orange-500 text-xl block mb-1"></i>
+                        <p class="font-bold text-base text-slate-800">Tree</p>
+                        <p class="text-base text-slate-500">의사결정트리</p>
+                    </div>
+                    <div class="widget-node">
+                        <i class="fa-solid fa-people-group text-orange-500 text-xl block mb-1"></i>
+                        <p class="font-bold text-base text-slate-800">kNN</p>
+                        <p class="text-base text-slate-500">k-최근접 이웃</p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-clipboard-check text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Predictions</p>
+                    <p class="text-base text-slate-500">성능을 채점한다</p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-5">
+                <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        3
+                    </div>
+                    <div class="space-y-3 pt-1.5">
+                        <h3 class="text-xl font-black text-slate-800">데이터 불러오기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="widget-name">File</span> 위젯으로
+                            <span class="attr-name">student_scores.csv</span>를 엽니다.
+                            위젯 아래쪽 정보란에 <strong>데이터 25건, 속성 2개, 결측치 없음</strong>이라고 나오는지 확인합니다.
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            그다음이 <strong>가장 중요한 설정</strong>입니다.
+                            <span class="attr-name">Scores</span>의 역할(Role)을
+                            <span class="widget-name">target</span>으로 바꿉니다.
+                        </p>
+                        <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                            <p class="text-base text-slate-700 leading-relaxed">
+                                오렌지는 <strong>종속 변수를 <span class="widget-name">target</span>,
+                                독립 변수를 <span class="widget-name">feature</span></strong>라고 부릅니다.
+                                이것을 정해 주지 않으면 오렌지는
+                                <strong>무엇을 맞혀야 하는지 모릅니다.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4 border-t border-slate-100 pt-5">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        4
+                    </div>
+                    <div class="space-y-3 pt-1.5">
+                        <h3 class="text-xl font-black text-slate-800">회귀 모델 만들기</h3>
+                        <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                            <li><span class="widget-name">File</span>에
+                                <span class="widget-name">Data Sampler</span>를 잇고
+                                비율을 <strong>70%</strong>로 맞춥니다.
+                                25건 중 <strong>18건</strong>이 모델을 만드는 데 쓰이고
+                                나머지 <strong>7건</strong>이 남습니다.
+                            </li>
+                            <li><span class="widget-name">Data Sampler</span>에
+                                <span class="widget-name">Tree</span>를 잇습니다.
+                                모양을 눈으로 보고 싶으면
+                                <span class="widget-name">Tree Viewer</span>를 하나 더 답니다.
+                            </li>
+                            <li><span class="widget-name">Data Sampler</span>에
+                                <span class="widget-name">kNN</span>도 잇습니다.
+                                이웃의 수를 바꿀 수 있으니 <strong>k를 3과 5로 바꿔 가며</strong> 살펴보세요.
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-5 space-y-3">
+                    <p class="font-bold text-base text-violet-900">
+                        <i class="fa-solid fa-key mr-1"></i>왜 데이터를 70%와 30%로 나눌까요?
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        모델을 만들 때 쓴 데이터로 그 모델을 채점하면
+                        <strong>시험 문제를 미리 보고 시험을 치르는 것</strong>과 같습니다.
+                        점수는 잘 나오지만 <strong>실력은 알 수 없습니다.</strong>
+                        그래서 데이터를 미리 갈라 둡니다 &mdash;
+                        <strong>70%로 모델을 만들고(훈련), 모델이 본 적 없는 30%로 채점합니다(평가).</strong>
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        k-최근접 이웃에서 <strong>k = 1이 가장 좋은가</strong>를 물었던 것을 기억하나요?
+                        k = 1이면 만든 데이터에 대해서는 언제나 완벽하게 맞힙니다.
+                        <strong>그 함정을 걸러 내는 장치</strong>가 바로 이 나누기입니다.
+                    </p>
+                </div>
+
+                <div class="flex items-start gap-4 border-t border-slate-100 pt-5">
+                    <div class="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                        5
+                    </div>
+                    <div class="space-y-3 pt-1.5">
+                        <h3 class="text-xl font-black text-slate-800">성능 평가하기</h3>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <span class="widget-name">Predictions</span> 위젯을 두 모델에 모두 잇고,
+                            <span class="widget-name">Data Sampler</span>가 남겨 둔
+                            <strong>30% 데이터</strong>도 함께 잇습니다.
+                            그러면 <strong>MAE &middot; MSE &middot; RMSE &middot; R&sup2;</strong>이 표로 나옵니다.
+                            스프레드시트에서 수식으로 하나하나 만들었던 그 값들입니다.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-indigo-900">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i>결과를 적어 둡시다
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table class="table-prose">
+                            <thead>
+                            <tr>
+                                <th class="w-40">모델</th>
+                                <th>MAE</th>
+                                <th>RMSE</th>
+                                <th>R&sup2;</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="font-bold h-12">Tree &mdash; 의사결정트리</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold h-12">kNN &mdash; k-최근접 이웃</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-amber-900">
+                        <i class="fa-solid fa-dice mr-1"></i>친구와 값이 다르게 나와도 정상입니다
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <span class="widget-name">Data Sampler</span>는 25건 중 18건을
+                        <strong>무작위로</strong> 고릅니다.
+                        고른 18건이 다르면 만들어지는 모델도 달라지고, 채점 결과도 달라집니다.
+                        <strong>다시 실행할 때마다 값이 조금씩 바뀌는 것도 같은 이유</strong>입니다.
+                        데이터가 25건뿐이라 흔들림이 특히 큽니다.
+                        <strong>소수점 아랫자리가 아니라 대략적인 크기를 보세요.</strong>
+                    </p>
+                </div>
+
+                <details class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                        어느 정도 값이 나오면 정상인가요?
+                    </summary>
+                    <p class="text-base text-slate-700 leading-relaxed mt-4">
+                        두 모델 모두 R&sup2;이 <strong>0.9 안팎</strong>으로 나오고,
+                        의사결정트리와 k-최근접 이웃 사이에 <strong>큰 차이는 나지 않습니다.</strong>
+                        공부 시간이 점수 차이의 <strong>90%쯤</strong>을 설명한다는 뜻입니다.
+                        무작위로 나누는 탓에 <strong>0.8대나 0.95가 나오는 일도 흔합니다.</strong>
+                        만약 R&sup2;이 <strong>음수</strong>로 나왔다면 놀라지 마세요 &mdash;
+                        <strong>평균만 답하는 것보다도 못했다</strong>는 뜻이고,
+                        7건뿐인 평가 데이터가 유난히 까다롭게 뽑히면 실제로 일어납니다.
+                    </p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 결과 비교 ===== -->
+    <section id="compare" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">두 갈래의 결과를 견주면</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">단계 6</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">모델</th>
+                        <th class="w-28">만든 방법</th>
+                        <th>R&sup2;</th>
+                        <th>내 결과에서 읽은 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">선형 회귀</td>
+                        <td>스프레드시트</td>
+                        <td class="h-12"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">의사결정트리</td>
+                        <td>오렌지</td>
+                        <td class="h-12"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">k-최근접 이웃</td>
+                        <td>오렌지</td>
+                        <td class="h-12"></td>
+                        <td></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-scale-unbalanced mr-1"></i>세 숫자를 그대로 견주면 안 됩니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표를 채우고 나면 스프레드시트 쪽 R&sup2;이 <strong>더 높게</strong> 나왔을 것입니다.
+                    그런데 <strong>이것을 근거로 &ldquo;선형 회귀가 더 좋은 모델&rdquo;이라고 말할 수 없습니다.</strong>
+                    두 값은 <strong>채점 조건이 달랐기</strong> 때문입니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-32">쪽</th>
+                            <th>무엇으로 모델을 만들었나</th>
+                            <th>무엇으로 채점했나</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold">스프레드시트</td>
+                            <td>데이터 <strong>25건 전부</strong></td>
+                            <td class="text-rose-700 font-bold">같은 25건 &mdash; 본 문제로 시험</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">오렌지</td>
+                            <td>무작위로 고른 <strong>18건</strong></td>
+                            <td class="text-emerald-700 font-bold">남겨 둔 7건 &mdash; 처음 보는 문제</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>본 문제로 친 시험 점수가 더 높은 것은 당연합니다.</strong>
+                    공정하게 견주려면 스프레드시트 쪽도
+                    <strong>같은 18건으로 회귀식을 만들고 같은 7건으로 채점</strong>해야 합니다.
+                    여유가 있다면 직접 해 보세요.
+                    조건을 맞추면 세 모델의 차이가 <strong>훨씬 줄어듭니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 border-l-4 border-l-indigo-500 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-indigo-900">
+                    <i class="fa-solid fa-lightbulb mr-1"></i>그래도 남는 진짜 차이
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    성능이 엇비슷하다면 무엇을 보고 골라야 할까요?
+                    이 데이터에서는 <strong>선형 회귀 쪽이 쓸모가 큽니다.</strong>
+                    <strong>&ldquo;공부 시간이 1시간 더 긴 학생이 점수가 평균 9.78점 높더라&rdquo;</strong>라는
+                    <strong>한 문장</strong>을 얻을 수 있기 때문입니다.
+                    의사결정트리와 k-최근접 이웃은 예측은 해 주지만
+                    <strong>이런 문장으로 요약해 주지는 못합니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거꾸로 놀이공원 대기 시간처럼 <strong>오르내리는 데이터</strong>였다면
+                    선형 회귀는 아무 말도 해 주지 못했을 것입니다.
+                    <strong>데이터의 모양이 방법을 정합니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    실습 결과를 <strong>한 문장</strong>으로 정리해 친구에게 설명해 보세요.
+                    이때 <strong>&ldquo;공부하면 점수가 오른다&rdquo;</strong>라고 말하지 않으려면
+                    문장을 어떻게 다듬어야 할까요?
+                    그리고 이 데이터만으로는 알 수 없는 것에 무엇이 있을지도 함께 이야기해 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        결정계수가 0.95면 아주 좋은 모델 아닌가? 그럼 이제 끝난 것 아닌가?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">0.95는 &lsquo;모델이 이 데이터를 잘 따라갔다&rsquo;는 뜻이지,
+                        &lsquo;세상을 잘 설명한다&rsquo;는 뜻이 아닙니다.</strong>
+                        같은 25명을 두고 만들고 채점했으니 <strong class="text-indigo-200">본 문제로 친 시험</strong>이었고,
+                        공부 시간이 긴 학생이 점수가 높았다는 것이
+                        <strong class="text-indigo-200">공부가 점수를 올렸다는 증거는 아닙니다.</strong>
+                        원래 잘하는 학생이 더 오래 앉아 있었을 수도 있으니까요.
+                        게다가 독립 변수를 아무거나 하나 더 넣어도
+                        <strong class="text-sky-200">결정계수는 슬금슬금 올라갑니다.</strong>
+                        그래서 성능 지표는 <strong class="text-sky-200">끝이 아니라 시작</strong>입니다.
+                        숫자가 좋게 나왔을 때 던져야 할 물음은
+                        &ldquo;<strong class="text-indigo-200">이 숫자가 어떤 조건에서 나온 값인가</strong>&rdquo;이지
+                        &ldquo;몇 점이나 나왔나&rdquo;가 아닙니다.
+                        높은 점수를 의심하는 습관이 <strong class="text-sky-200">데이터를 다루는 사람의 기본</strong>입니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrow-down-short-wide text-rose-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">오차 함수</p>
+                    <p class="text-base text-sky-100">작을수록 좋다 &middot; 단위가 있다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrow-up-wide-short text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">결정계수</p>
+                    <p class="text-base text-sky-100">클수록 좋다 &middot; 0에서 1 사이</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-scale-unbalanced text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">견줄 때</p>
+                    <p class="text-base text-sky-100">채점 조건이 같아야 한다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 10: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">오차 함수</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">error function</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>MAE</strong> &mdash; 오차 절댓값의 평균. 모든 오차를 똑같이 센다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>MSE</strong> &mdash; 오차 제곱의 평균. 큰 오차에 큰 벌점, 단위가 제곱</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>RMSE</strong> &mdash; MSE의 제곱근. <strong>단위를 되돌린다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">결정계수</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">coefficient of determination &middot; R&sup2;</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>평균만 답할 때</strong>의 오차에 견주어 얼마나 줄였는지의 비율</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>0~1</strong> 사이. 단위가 없어 <strong>다른 데이터끼리도 견줄 수 있다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>높다고 <strong>인과도, 데이터 밖 예측력도</strong> 보장되지 않는다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">훈련과 평가를 나눈다</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">70% 와 30%</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>만들 때 쓴 데이터로 채점하면 <strong>본 문제로 시험</strong>을 치는 셈</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>모델이 <strong>본 적 없는 데이터</strong>로 채점해야 실력을 안다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>성능을 견줄 때는 <strong>채점 조건이 같은지</strong> 먼저 본다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">실습에서 쓴 것</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">스프레드시트 &middot; 오렌지</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><span class="attr-name">SLOPE</span> &middot; <span class="attr-name">INTERCEPT</span> &middot; <span class="attr-name">RSQ</span> &middot; <span class="attr-name">ABS</span> &middot; <span class="attr-name">POWER</span> &middot; <span class="attr-name">SQRT</span></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><span class="widget-name">File</span> &rarr; <span class="widget-name">Data Sampler</span> &rarr; <span class="widget-name">Tree</span> &middot; <span class="widget-name">kNN</span> &rarr; <span class="widget-name">Predictions</span></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>종속 변수는 <span class="widget-name">target</span>, 독립 변수는 <span class="widget-name">feature</span></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 11: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    평균제곱오차(MSE) 대신 <strong>평균제곱근오차(RMSE)</strong>를 즐겨 쓰는 가장 큰 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! MSE는 「점의 제곱」 같은 단위라 크기를 가늠할 수 없지만, RMSE는 「대체로 5점쯤 빗나간다」고 말할 수 있습니다.')">
+                    ① 제곱근을 씌워 원래 값과 같은 단위로 되돌리기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'RMSE는 MSE의 제곱근이므로 언제나 MSE에서 한 단계 더 계산해야 합니다. 더 간단하지 않습니다.')">
+                    ② 계산이 더 간단하기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'RMSE도 제곱을 거치므로 큰 오차를 무겁게 세는 성질은 그대로 남아 있습니다.')">
+                    ③ 큰 오차를 무겁게 세지 않기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'RMSE는 0에서 1 사이가 아닙니다. 0에서 1 사이인 것은 결정계수입니다.')">
+                    ④ 값이 언제나 0에서 1 사이가 되기 때문에
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    자전거 데이터에서 <strong>MAE는 2, RMSE는 2.16</strong>이었습니다. 이 차이가 알려 주는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'RMSE는 MAE보다 작아질 수 없습니다. 계산이 잘못된 것이 아닙니다.')">
+                    ① 둘 중 하나는 계산이 잘못되었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 여섯 오차가 모두 같았다면 두 값이 똑같아집니다. 벌어질수록 크게 빗나간 점이 섞여 있다는 신호입니다.')">
+                    ② 오차의 크기가 고르지 않다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 지표는 같은 오차를 다른 방식으로 모은 것입니다. 데이터 개수와는 관계가 없습니다.')">
+                    ③ 데이터가 여섯 개뿐이라 생긴 오차다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모델의 좋고 나쁨은 두 값의 차이가 아니라 값 자체의 크기로 판단합니다.')">
+                    ④ 이 모델이 나쁜 모델이라는 뜻이다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    결정계수는 회귀 모델을 <strong>무엇과 견주어</strong> 얻은 값인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '다른 사람의 모델과 견주는 것이 아닙니다. 견줄 상대는 데이터 안에서 정해집니다.')">
+                    ① 다른 사람이 만든 회귀 모델
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 「사용 연수를 아예 보지 않고 누구에게나 평균 24만 원이라 답하는」 바닥선이 견줄 상대입니다.')">
+                    ② 독립 변수를 보지 않고 언제나 평균만 답하는 예측
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모든 점을 지나는 완벽한 직선은 대개 존재하지 않습니다. 견줄 상대로 삼을 수 없습니다.')">
+                    ③ 모든 점을 정확히 지나는 완벽한 직선
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 나쁜 직선이라는 것은 정할 수 없습니다. 얼마든지 더 나쁘게 그을 수 있기 때문입니다.')">
+                    ④ 그을 수 있는 가장 나쁜 직선
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    오렌지에서 <span class="widget-name">Data Sampler</span>로
+                    데이터를 <strong>70%와 30%로 나누는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터가 25건뿐이라 계산 속도는 문제가 되지 않습니다.')">
+                    ① 데이터가 너무 많아 계산이 오래 걸려서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결측치를 걸러 내는 것은 전처리 단계의 일이고, 이 데이터에는 결측치가 없습니다.')">
+                    ② 결측치가 있는 행을 걸러 내려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 만들 때 쓴 데이터로 채점하면 시험 문제를 미리 보고 시험을 치르는 것과 같습니다.')">
+                    ③ 모델이 본 적 없는 데이터로 채점하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '독립 변수와 종속 변수를 정하는 것은 File 위젯에서 Role을 target으로 바꾸는 일입니다.')">
+                    ④ 독립 변수와 종속 변수를 나누려고
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 5 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    실습에서 스프레드시트 쪽 결정계수가 오렌지 쪽보다 <strong>높게</strong> 나왔습니다.
+                    이때 가장 먼저 확인해야 할 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결정계수만 보고 더 좋은 모델이라고 결론짓는 것이 바로 이 문항이 경계하는 판단입니다.')">
+                    ① 선형 회귀가 더 좋은 모델이라고 결론짓는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 스프레드시트는 25건 전부로 만들고 같은 25건으로 채점했고, 오렌지는 18건으로 만들고 남은 7건으로 채점했습니다.')">
+                    ② 두 값의 채점 조건이 같았는지 확인한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오렌지의 계산은 정확합니다. 조건이 달랐을 뿐입니다.')">
+                    ③ 오렌지의 계산이 틀렸다고 본다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '독립 변수를 늘리면 결정계수는 거의 언제나 오르지만, 그것이 조건 차이를 바로잡아 주지는 않습니다.')">
+                    ④ 오렌지 쪽에 독립 변수를 더 넣어 값을 올린다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

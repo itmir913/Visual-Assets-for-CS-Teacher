@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>군집 분석으로 GDP와 행복 점수</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-earth-americas absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-circle-nodes absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            군집 분석으로 GDP와 행복 점수
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>같은 데이터, 다른 질문</strong>입니다.<br>
+            이번에는 <strong>어떤 나라들이 서로 비슷한지</strong>를 봅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>같은 데이터에 회귀와 군집을 각각 적용해 답의 종류가 어떻게 다른지 말할 수 있다.</li>
+                    <li>두 속성으로 나라를 군집화하고 실루엣 계수로 결과를 평가할 수 있다.</li>
+                    <li>k-평균이 뭉침이 없는 데이터에서도 답을 내놓는다는 것을 확인하고 해석할 수 있다.</li>
+                    <li>나라를 묶어 이름을 붙이는 일에 어떤 책임이 따르는지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-earth-americas text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">군집으로 GDP와 행복</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#question" class="hover:text-indigo-600 transition">다른 질문</a>
+            <a href="#prep" class="hover:text-indigo-600 transition">속성 고르기</a>
+            <a href="#kmeans" class="hover:text-indigo-600 transition">군집 만들기</a>
+            <a href="#eval" class="hover:text-indigo-600 transition">성능 평가</a>
+            <a href="#caution" class="hover:text-indigo-600 transition">해석의 무게</a>
+            <a href="#more" class="hover:text-indigo-600 transition">더 해 보기</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 다른 질문 ===== -->
+    <section id="question" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">같은 데이터에 다른 질문을 던지면</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                답의 <strong>종류 자체</strong>가 달라집니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <a href="3-5-1.회귀-분석으로-행복-요건-찾기.html"
+                   class="text-indigo-600 font-bold underline hover:text-indigo-800">앞 소절</a>에서는
+                여섯 속성으로 <strong>행복 점수를 맞히는 식</strong>을 만들었습니다.
+                이번에는 같은 파일을 열어 놓고 <strong>전혀 다른 것을 묻습니다</strong> &mdash;
+                <strong>&ldquo;비슷한 처지에 놓인 나라들은 어디인가?&rdquo;</strong>
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-sky-900">회귀 분석이 준 답</p>
+                    <div class="bg-white border border-sky-200 rounded-xl p-4">
+                        <p class="text-base text-slate-800 leading-relaxed font-bold">
+                            &ldquo;사회적 지지가 행복 점수와 가장 크게 얽혀 있다&rdquo;
+                        </p>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>속성에 대한 답</strong>입니다. 어떤 값이 다른 값을 얼마나 설명하는지를 말해 줍니다.
+                        <strong>특정 나라 이야기는 하지 않습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-emerald-900">군집 분석이 줄 답</p>
+                    <div class="bg-white border border-emerald-200 rounded-xl p-4">
+                        <p class="text-base text-slate-800 leading-relaxed font-bold">
+                            &ldquo;이 나라들이 서로 비슷한 자리에 있다&rdquo;
+                        </p>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>나라에 대한 답</strong>입니다. 명단이 나옵니다.
+                        <strong>무엇이 무엇을 설명하는지는 말해 주지 않습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-flag mr-1"></i>목표
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>1인당 GDP와 행복 점수</strong> 두 가지만 가지고 나라를 묶어 봅니다.
+                    <strong>소득도 낮고 행복 점수도 낮은 무리</strong>가 드러난다면
+                    <strong>어떤 나라들에 먼저 눈을 돌려야 할지</strong> 가늠하는 데 쓸 수 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 속성 고르기 ===== -->
+    <section id="prep" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 1~3 &mdash; 두 속성만 남깁니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                나라 이름은 <strong>버리지 않고 꼬리표로</strong> 답니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <a href="3-5-1.회귀-분석으로-행복-요건-찾기.html"
+                   class="text-indigo-600 font-bold underline hover:text-indigo-800">앞 소절</a>과
+                <strong>같은 파일</strong>을 <span class="widget-name">File</span> 위젯으로 엽니다.
+                다만 <strong>역할 설정이 완전히 달라집니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-64">속성</th>
+                        <th class="w-40">역할</th>
+                        <th>왜 그렇게 두나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><span class="attr-name">Country name</span><br>(나라 이름)</td>
+                        <td class="font-bold"><span class="widget-name">meta</span></td>
+                        <td>거리를 잴 수 없는 글자다. 그래도 <strong>어느 나라가 묶였는지 봐야</strong> 하므로 버리지 않는다</td>
+                    </tr>
+                    <tr>
+                        <td><span class="attr-name">Logged GDP per capita</span><br>(1인당 GDP)</td>
+                        <td rowspan="2" class="font-bold align-middle"><span class="widget-name">feature</span></td>
+                        <td rowspan="2">군집을 만들 때 <strong>거리 계산에 쓰이는 두 축</strong></td>
+                    </tr>
+                    <tr>
+                        <td><span class="attr-name">Ladder score</span><br>(행복 점수)</td>
+                    </tr>
+                    <tr class="bg-slate-100">
+                        <td class="font-bold">나머지 전부</td>
+                        <td class="font-bold"><span class="widget-name">skip</span></td>
+                        <td>이번 질문에 쓰지 않는다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-key mr-1"></i>
+                    <span class="widget-name">target</span> 칸이 비어 있는 것을 확인하세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 소절에서는 <span class="attr-name">Ladder score</span>가
+                    <strong>맞혀야 할 값</strong>이었습니다.
+                    이번에는 <strong>거리를 재는 축 가운데 하나</strong>가 되었습니다.
+                    <strong>같은 속성이 질문에 따라 자리를 바꾼 것</strong>입니다.
+                    군집 분석에는 맞힐 값이 없으니
+                    <span class="widget-name">target</span>은 <strong>비워 둡니다</strong>
+                    (<a href="3-3-4.군집-분석-활용.html"
+                        class="text-indigo-600 font-bold underline hover:text-indigo-800">「군집 분석 활용」</a>에서 다룬 그대로입니다).
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-table text-indigo-500 mr-1"></i>
+                    <span class="widget-name">Data Table</span>을 이어 확인해 보세요.
+                    <strong>137줄, 속성 2개, 결측치 없음</strong>이면 제대로 된 것입니다.
+                    두 속성만 쓰기로 한 덕분에 <strong>산점도로 결과를 그대로 볼 수 있습니다</strong> &mdash;
+                    <a href="3-3-4.군집-분석-활용.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「군집 분석 활용」</a>에서
+                    빠르기와 에너지 둘만 고른 것과 같은 이유입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 군집 만들기 ===== -->
+    <section id="kmeans" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 4 &mdash; 셋으로 묶습니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                정규화 상자를 <strong>꼭 체크</strong>해야 하는 데이터입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                <div class="widget-node">
+                    <i class="fa-solid fa-file-lines text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">File</p>
+                    <p class="text-base text-slate-500">두 속성만 남긴다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-bullseye text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">k-Means</p>
+                    <p class="text-base text-slate-500">셋으로 묶는다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-chart-simple text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Scatter Plot</p>
+                    <p class="text-base text-slate-500">색으로 확인한다</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-52">설정</th>
+                        <th class="w-24">값</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><span class="widget-name">Fixed</span></td>
+                        <td class="font-bold">3</td>
+                        <td>군집을 셋으로 못 박는다</td>
+                    </tr>
+                    <tr>
+                        <td><span class="widget-name">Normalize columns</span></td>
+                        <td class="font-bold">체크</td>
+                        <td>두 속성의 눈금을 같은 자로 맞춘다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-ruler-combined mr-1"></i>여기서 정규화를 빠뜨리면 결과가 크게 달라집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>행복 점수는 0에서 10 사이</strong>이고,
+                    <strong>1인당 GDP는 그보다 훨씬 좁은 폭</strong>에 몰려 있습니다.
+                    자연로그를 씌운 값이라 나라 사이의 차이가 크게 줄어 있기 때문입니다.
+                    <strong>눈금을 맞추지 않으면 행복 점수가 거리를 거의 혼자 결정</strong>하게 되고,
+                    <strong>결국 행복 점수만으로 세 토막을 낸 결과</strong>가 나옵니다.
+                    <strong>정규화를 켠 것과 끈 것을 각각 돌려 견주어 보세요.</strong>
+                    <a href="3-3-2.k-평균-군집-분석.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「k-평균 군집 분석」</a>에서
+                    말한 그대로가 눈앞에서 벌어집니다.
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">산점도로 확인하기</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <span class="widget-name">k-Means</span>에
+                    <span class="widget-name">Scatter Plot</span>을 이어
+                    가로축에 <span class="attr-name">Logged GDP per capita</span>,
+                    세로축에 <span class="attr-name">Ladder score</span>,
+                    <span class="widget-name">Color</span>는 <span class="attr-name">Cluster</span>로 둡니다.
+                </p>
+
+                <svg viewBox="0 0 620 300" role="img" class="chart-svg"
+                     aria-label="점들이 왼쪽 아래에서 오른쪽 위로 비스듬히 길게 늘어서 있는 산점도. 뚜렷하게 떨어진 덩어리는 없고, 늘어선 띠가 세 가지 색으로 나뉘어 왼쪽 아래부터 차례로 칠해져 있다.">
+                    <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                        <line x1="70" y1="220" x2="595" y2="220"/>
+                        <line x1="70" y1="165" x2="595" y2="165"/>
+                        <line x1="70" y1="110" x2="595" y2="110"/>
+                        <line x1="70" y1="55" x2="595" y2="55"/>
+                    </g>
+                    <line x1="70" y1="30" x2="70" y2="262" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="70" y1="262" x2="600" y2="262" stroke="#94a3b8" stroke-width="1.5"/>
+                    <g fill="#e11d48" fill-opacity="0.75">
+                        <circle cx="104" cy="242" r="6"/><circle cx="122" cy="228" r="6"/>
+                        <circle cx="136" cy="245" r="6"/><circle cx="150" cy="220" r="6"/>
+                        <circle cx="163" cy="236" r="6"/><circle cx="176" cy="212" r="6"/>
+                        <circle cx="188" cy="230" r="6"/><circle cx="199" cy="204" r="6"/>
+                        <circle cx="210" cy="222" r="6"/><circle cx="221" cy="240" r="6"/>
+                        <circle cx="232" cy="198" r="6"/><circle cx="243" cy="216" r="6"/>
+                    </g>
+                    <g fill="#d97706" fill-opacity="0.75">
+                        <circle cx="258" cy="190" r="6"/><circle cx="272" cy="206" r="6"/>
+                        <circle cx="285" cy="176" r="6"/><circle cx="297" cy="196" r="6"/>
+                        <circle cx="309" cy="168" r="6"/><circle cx="321" cy="186" r="6"/>
+                        <circle cx="333" cy="158" r="6"/><circle cx="345" cy="178" r="6"/>
+                        <circle cx="357" cy="150" r="6"/><circle cx="369" cy="170" r="6"/>
+                        <circle cx="381" cy="142" r="6"/><circle cx="393" cy="162" r="6"/>
+                    </g>
+                    <g fill="#16a34a" fill-opacity="0.75">
+                        <circle cx="410" cy="134" r="6"/><circle cx="424" cy="152" r="6"/>
+                        <circle cx="438" cy="120" r="6"/><circle cx="452" cy="140" r="6"/>
+                        <circle cx="466" cy="106" r="6"/><circle cx="480" cy="126" r="6"/>
+                        <circle cx="494" cy="94" r="6"/><circle cx="508" cy="114" r="6"/>
+                        <circle cx="522" cy="80" r="6"/><circle cx="536" cy="100" r="6"/>
+                        <circle cx="550" cy="66" r="6"/><circle cx="566" cy="86" r="6"/>
+                    </g>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-rose-600"></span>소득도 행복 점수도 낮은 쪽</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-amber-600"></span>가운데</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-green-600"></span>소득도 행복 점수도 높은 쪽</span>
+                    <span class="text-slate-500">가로 &mdash; 1인당 GDP &middot; 세로 &mdash; 행복 점수</span>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>소득이 높은 나라가 대체로 행복 점수도 높습니다.</strong>
+                    앞 소절에서 상관계수가 <strong>0.78 안팎</strong>으로 나온 것이 그림으로 확인됩니다.
+                    군집은 <strong>이 비스듬한 띠를 왼쪽 아래부터 세 토막으로</strong> 나눕니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 성능 평가 ===== -->
+    <section id="eval" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 5 &mdash; 잘 묶였는지 재고 명단을 봅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                실루엣으로 재고, <strong>어느 나라가 어디에 들어갔는지</strong> 확인합니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <span class="widget-name">k-Means</span>에
+                <span class="widget-name">Silhouette Plot</span>을 잇고
+                <span class="widget-name">Distance</span>는 <strong>유클리드 거리</strong>,
+                <span class="widget-name">Grouping</span>은 <span class="attr-name">Cluster</span>로 둡니다.
+                그다음 <span class="widget-name">Select Rows</span>와
+                <span class="widget-name">Data Table</span>을 차례로 이어
+                <strong>보고 싶은 군집만</strong> 뽑습니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-plug text-amber-600 mr-1"></i>
+                    <span class="widget-name">Silhouette Plot</span>과
+                    <span class="widget-name">Select Rows</span> 사이의 <strong>연결선을 두 번 눌러</strong>
+                    <span class="widget-name">Data</span>에서 <span class="widget-name">Data</span>로 고쳐 주세요.
+                    그대로 두면 <strong>드래그로 선택한 것만</strong> 넘어가 빈 표가 나옵니다
+                    (<a href="3-3-4.군집-분석-활용.html"
+                        class="text-indigo-600 font-bold underline hover:text-indigo-800">「군집 분석 활용」</a>에서 겪은 그 문제입니다).
+                    그다음 조건을 <strong>Cluster is C1</strong>처럼 주면 그 군집의 나라 명단이 뜹니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>군집마다 적어 봅시다
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-24">군집</th>
+                            <th class="w-28">나라 수</th>
+                            <th>1인당 GDP와 행복 점수는 어느 쪽인가</th>
+                            <th>눈에 띄는 나라</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold h-12">C1</td><td></td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">C2</td><td></td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">C3</td><td></td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <details class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                        다 적고 나서 열어 보세요
+                    </summary>
+                    <p class="text-base text-slate-700 leading-relaxed mt-4">
+                        세 군집의 크기는 <strong>대략 서른에서 쉰 나라씩</strong>으로 나뉩니다.
+                        <strong>소득도 행복 점수도 낮은 군집</strong>에는
+                        <strong>사하라 이남 아프리카와 남아시아의 나라들</strong>이 많이 모입니다.
+                        <strong>둘 다 높은 군집</strong>에는 <strong>서유럽과 북유럽, 북아메리카</strong>의 나라들이 들어가고,
+                        우리나라는 <strong>가운데나 높은 쪽 군집의 경계 부근</strong>에 놓이는 경우가 많습니다.
+                        군집 번호가 몇 번으로 붙었는지는 <strong>돌릴 때마다 다릅니다.</strong>
+                    </p>
+                </details>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    실루엣 그림에서 <strong>값이 낮은 나라</strong>를 몇 개 골라
+                    산점도에서 어디 있는지 보세요.
+                    <strong>군집과 군집이 맞닿는 자리</strong>에 있지 않나요?
+                    <strong>왜 그런 나라가 이렇게 많을까요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 해석의 무게 ===== -->
+    <section id="caution" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이것을 &lsquo;군집&rsquo;이라 불러도 될까</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                결과가 나왔다고 <strong>덩어리가 있었다는 뜻은 아닙니다.</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                산점도를 다시 보세요. <strong>떨어져 있는 덩어리가 보이나요?</strong>
+                축제 부스는 두 무리가 훤히 보였고, 인기 차트 50곡은 고르게 흩어져 있었습니다.
+                이 데이터는 <strong>또 다른 모양</strong>입니다 &mdash;
+                <strong>왼쪽 아래에서 오른쪽 위로 이어진 하나의 긴 띠</strong>입니다.
+            </p>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-scissors mr-1"></i>k-평균이 한 일은 <strong>토막 내기</strong>에 가깝습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이어진 띠에 k = 3을 주면 k-평균은 <strong>그 띠를 세 도막으로 자릅니다.</strong>
+                    <strong>원래 세 무리가 있어서 찾아낸 것이 아니라</strong>,
+                    <strong>셋으로 나누라고 했으니 셋으로 나눈 것</strong>입니다.
+                    k를 4로 주면 <strong>네 도막이 나옵니다.</strong>
+                    <a href="3-3-2.k-평균-군집-분석.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「k-평균 군집 분석」</a>에서
+                    &ldquo;점을 고르게 흩뿌려도 k개의 군집이 만들어진다&rdquo;고 했던 그 일이
+                    <strong>실제 데이터에서 벌어진 것</strong>입니다.
+                </p>
+                <div class="bg-white border border-violet-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        그렇다고 <strong class="text-violet-800">쓸모가 없다는 뜻은 아닙니다.</strong>
+                        &ldquo;소득이 낮은 쪽 삼분의 일&rdquo;을 <strong class="text-violet-800">눈금 없이 데이터가 정한 자리에서 갈라 준 것</strong>은
+                        그 자체로 값어치가 있습니다.
+                        다만 <strong class="text-violet-800">&ldquo;세 종류의 나라가 존재한다&rdquo;고 말하면 안 됩니다.</strong>
+                        <strong class="text-violet-800">&ldquo;우리가 셋으로 나누었다&rdquo;</strong>가 정확한 표현입니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>실루엣 값이 그 증거</strong>가 됩니다.
+                덩어리가 뚜렷했다면 대부분의 나라가 높은 값을 받았을 텐데,
+                <strong>경계 부근에 낮은 값이 많이 몰려</strong> 있을 것입니다.
+                토막을 냈으니 <strong>경계에 걸친 나라가 많을 수밖에 없습니다.</strong>
+            </p>
+
+            <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-scale-balanced mr-1"></i>나라에 이름을 붙이는 일
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 결과를 두고 <strong>&ldquo;지원이 필요한 나라 명단&rdquo;</strong>이라고 부르기는 쉽습니다.
+                    그러나 우리가 쓴 것은 <strong>속성 두 개</strong>뿐입니다.
+                    그 두 값이 낮다는 사실만으로 <strong>한 나라의 사정을 다 안다고 할 수는 없습니다.</strong>
+                    어떤 나라는 전쟁 중이고, 어떤 나라는 이미 크게 나아지는 중이며,
+                    어떤 나라는 <strong>도움을 원하지 않을</strong> 수도 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <a href="3-3-4.군집-분석-활용.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「군집 분석 활용」</a>에서
+                    신용 카드 고객을 묶을 때 했던 이야기가 여기서 훨씬 무거워집니다 &mdash;
+                    <strong>묶은 결과로 누군가를 다르게 대하는 순간, 그것은 숫자만의 문제가 아닙니다.</strong>
+                    군집은 <strong>&ldquo;여기부터 살펴보라&rdquo;고 알려 주는 데까지</strong>이고,
+                    <strong>무엇을 할지 정하는 것은 사람</strong>입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 더 해 보기 ===== -->
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다른 속성으로 묶어 보기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                축을 바꾸면 <strong>다른 나라가 한 무리</strong>가 됩니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <span class="widget-name">File</span>에서 <strong>역할만 바꾸면</strong>
+                나머지 배선은 그대로 두고 결과가 갱신됩니다.
+                <strong>행복 점수는 세로축에 그대로 두고</strong> 가로축만 갈아 끼워 보세요.
+            </p>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>세 가지 조합을 시험하고 적어 봅시다
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-52">행복 점수와 짝지은 속성</th>
+                            <th>실루엣 평균</th>
+                            <th>낮은 쪽 군집에는 어떤 나라들이 모이나</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold h-12">1인당 GDP</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">사회적 지지</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">건강 기대 수명</td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>건강 기대 수명에는 결측치가 있을 수 있습니다.</strong>
+                    <span class="widget-name">File</span> 위젯의 정보란에서 결측치가 보이면
+                    <span class="widget-name">Preprocess</span> 위젯을 끼워
+                    <strong>빠진 값이 있는 줄을 지운 뒤</strong> 군집화하세요.
+                    <a href="2-2-1.데이터-전처리.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「데이터 전처리」</a>에서
+                    다룬 결측치 처리가 <strong>실제로 필요해지는 자리</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-flask mr-1"></i>한 걸음 더
+                </p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><span class="widget-name">From X to Y</span>로 <strong>2에서 8까지</strong> 범위를 주고
+                        오렌지가 고른 k가 몇인지 보세요. <strong>정말 3이 가장 나은가요?</strong>
+                    </li>
+                    <li>같은 두 속성으로 <strong>k를 2, 4, 5로</strong> 바꿔 보세요.
+                        <strong>띠가 그만큼의 도막으로 나뉘나요?</strong>
+                    </li>
+                    <li>여섯 속성을 <strong>모두 넣어</strong> 군집화해 보세요.
+                        산점도로는 볼 수 없지만 <strong>명단은 달라집니다.</strong>
+                        <strong>어느 쪽 결과가 더 그럴듯한가요?</strong>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        회귀도 군집도 결국 &ldquo;GDP가 높으면 행복하다&rdquo;는 같은 말 아닌가?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">답의 쓰임새가 다릅니다.</strong>
+                        회귀 모델은 <strong class="text-indigo-200">아직 없는 나라의 값도 넣어 볼 수</strong> 있습니다 &mdash;
+                        여섯 속성만 알면 그 나라의 행복 점수를 <strong class="text-sky-200">숫자로 내놓습니다.</strong>
+                        군집은 그렇게 못 합니다. 대신
+                        <strong class="text-indigo-200">지금 있는 137개 나라를 명단으로 갈라 줍니다.</strong>
+                        정책을 세우는 사람에게는 <strong class="text-sky-200">&ldquo;예상 점수 5.4&rdquo;보다 &ldquo;이 서른 나라&rdquo;가 훨씬 쓸모 있습니다.</strong>
+                        반대로 &ldquo;사회적 지지가 GDP보다 더 크게 걸려 있다&rdquo;는 것은
+                        <strong class="text-indigo-200">군집으로는 절대 알 수 없습니다.</strong>
+                        <strong class="text-sky-200">같은 데이터에서 서로 다른 것을 건져 올리는 두 그물</strong>인 셈이지요.
+                        그래서 <strong class="text-indigo-200">둘 다 해 보는 것</strong>입니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrows-left-right text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">같은 데이터</p>
+                    <p class="text-base text-sky-100">속성의 역할이 바뀐다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-scissors text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">토막 내기</p>
+                    <p class="text-base text-sky-100">덩어리가 없어도 나뉜다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-scale-balanced text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">이름의 무게</p>
+                    <p class="text-base text-sky-100">속성 둘로 나라를 단정하지 않는다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">답의 종류가 다르다</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">two kinds of answer</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>회귀는 <strong>속성에 대한 답</strong>, 군집은 <strong>나라 명단</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>회귀는 <strong>새 값을 넣어 예측</strong>할 수 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>군집은 <strong>지금 있는 것을 갈라</strong> 준다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">역할이 바뀐다</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">roles change</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>행복 점수가 <strong>target에서 feature로</strong> 옮겨 갔다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>나라 이름은 <strong>meta</strong>로 두어 꼬리표로 쓴다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>눈금이 다르므로 <strong>정규화를 반드시 켠다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">띠를 토막 낸 결과</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">slicing, not finding</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>점들이 <strong>비스듬한 띠 하나</strong>로 이어져 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>k를 3으로 주었기 때문에 <strong>세 도막이 나왔다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>&ldquo;세 종류가 있다&rdquo;가 아니라 <strong>&ldquo;셋으로 나누었다&rdquo;</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">해석의 책임</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">what a label costs</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성 <strong>두 개로 한 나라를 단정할 수 없다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>군집은 <strong>&ldquo;여기부터 살펴보라&rdquo;</strong>까지만 말한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>군집 번호는 <strong>돌릴 때마다 달라진다</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    앞 소절에서 <strong>맞혀야 할 값</strong>이었던 행복 점수가 이번에는 어떤 자리에 놓였나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '군집 분석에는 맞혀야 할 값이 없으므로 target 자리는 비워 둡니다.')">
+                    ① 그대로 target으로 두었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 거리를 재는 두 축 가운데 하나가 되었습니다.')">
+                    ② 거리를 재는 축 가운데 하나인 feature가 되었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '나라 이름처럼 계산에서 빠지는 자리가 아닙니다. 거리 계산에 직접 쓰입니다.')">
+                    ③ 계산에서 빠지는 meta가 되었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '행복 점수는 이번 분석의 두 축 가운데 하나이므로 빼면 안 됩니다.')">
+                    ④ 쓰지 않기로 하고 skip으로 두었다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    나라 이름을 <strong>meta로 두는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 거리를 잴 수 없는 글자지만 명단을 확인하려면 있어야 합니다.')">
+                    ① 거리는 잴 수 없지만 어느 나라가 묶였는지 봐야 해서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'meta로 둔 속성도 표에 그대로 남습니다. 지워지지 않습니다.')">
+                    ② meta로 두면 데이터에서 지워져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '나라 이름으로는 거리를 잴 수 없으므로 군집을 나누는 데 쓸 수 없습니다.')">
+                    ③ 나라 이름으로도 군집을 나눌 수 있어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결측치와는 관계가 없습니다. 자료의 종류가 기준입니다.')">
+                    ④ 나라 이름에 결측치가 많아서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    산점도의 점들이 <strong>비스듬한 띠 하나</strong>로 이어져 있었습니다. 결과를 어떻게 읽어야 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '세 종류가 원래 있었다고 볼 근거가 없습니다. 우리가 셋으로 나누라고 했을 뿐입니다.')">
+                    ① 세상에는 세 종류의 나라가 있음이 밝혀졌다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 이어진 띠를 우리가 셋으로 나눈 것입니다. k를 4로 주면 네 도막이 나옵니다.')">
+                    ② 이어진 띠를 우리가 셋으로 나눈 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과가 나온 것 자체는 실패가 아닙니다. 쓸모도 있습니다. 표현을 조심하면 됩니다.')">
+                    ③ 군집이 없으므로 분석에 실패한 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'k-평균은 뭉침이 없어도 반드시 k개의 군집을 만들어 냅니다.')">
+                    ④ 뭉침이 없으면 k-평균은 결과를 내지 않는다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>정규화를 켜지 않으면</strong> 이 데이터에서 어떤 일이 벌어지나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산은 됩니다. 다만 한쪽 속성에 끌려간 결과가 나옵니다.')">
+                    ① 거리를 계산할 수 없어 오류가 난다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 값의 폭이 넓은 행복 점수가 거리를 거의 혼자 결정하게 됩니다.')">
+                    ② 값의 폭이 넓은 속성이 거리를 거의 혼자 결정하게 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '군집의 개수는 우리가 정한 k 그대로입니다. 정규화와 관계가 없습니다.')">
+                    ③ 군집의 개수가 저절로 늘어난다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실루엣 계수는 정규화와 상관없이 계산됩니다. 값이 달라질 뿐입니다.')">
+                    ④ 실루엣 계수를 계산할 수 없게 된다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    낮은 쪽 군집을 두고 <strong>결과를 서술할 때</strong> 알맞은 태도는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '속성 두 개로 한 나라의 사정을 다 알 수는 없습니다. 단정할 근거가 부족합니다.')">
+                    ① 이 나라들은 지원이 필요한 나라라고 단정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 군집은 살펴볼 곳을 좁혀 줄 뿐이고, 무엇을 할지는 사람이 정합니다.')">
+                    ② 두 속성이 낮은 무리이며 더 살펴볼 필요가 있다고 쓴다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과가 무의미하지는 않습니다. 표현을 조심해야 할 뿐입니다.')">
+                    ③ 아무 뜻도 없는 결과이므로 발표하지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '군집 번호는 돌릴 때마다 달라지므로 번호로 기억해서는 안 됩니다.')">
+                    ④ C2가 낮은 군집이라고 번호로 기억해 둔다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

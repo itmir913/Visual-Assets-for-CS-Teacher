@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연관 분석 과정</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-calculator absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-arrow-right-long absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            연관 분석 과정
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>많이 함께 팔린다</strong>고 연관이 있는 것은 아닙니다.<br>
+            숫자 <strong>셋</strong>이 차례로 걸러 냅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>연관 분석이 다섯 단계로 진행된다는 것을 알고 각 단계가 하는 일을 말할 수 있다.</li>
+                    <li>지지도를 구하고, 최소 지지도로 빈발 항목 집합을 가려낼 수 있다.</li>
+                    <li>향상도를 구해 두 항목이 정말 얽혀 있는지 우연인지 판단할 수 있다.</li>
+                    <li>신뢰도를 구해 방향이 있는 연관 규칙으로 나타내고 결과를 활용할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-calculator text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">연관 분석 과정</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#steps" class="hover:text-indigo-600 transition">다섯 단계</a>
+            <a href="#itemset" class="hover:text-indigo-600 transition">항목 집합</a>
+            <a href="#support" class="hover:text-indigo-600 transition">지지도</a>
+            <a href="#lift" class="hover:text-indigo-600 transition">향상도</a>
+            <a href="#confidence" class="hover:text-indigo-600 transition">신뢰도</a>
+            <a href="#use" class="hover:text-indigo-600 transition">결과 활용</a>
+            <a href="#three" class="hover:text-indigo-600 transition">세 지표</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 다섯 단계 ===== -->
+    <section id="steps" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다섯 단계로 좁혀 갑니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>모든 조합을 늘어놓고 시작해</strong> 단계마다 걸러 냅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="space-y-3">
+                <div class="flex items-start gap-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">1</div>
+                    <div class="pt-1">
+                        <p class="text-base text-slate-800 leading-relaxed"><strong>항목 집합 구하기</strong> &mdash; 있을 수 있는 조합을 모두 만든다</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">2</div>
+                    <div class="pt-1">
+                        <p class="text-base text-slate-800 leading-relaxed"><strong>빈발 항목 집합 구하기</strong> &mdash; <strong>지지도</strong>로 자주 나오지 않는 조합을 버린다</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">3</div>
+                    <div class="pt-1">
+                        <p class="text-base text-slate-800 leading-relaxed"><strong>연관성 분석하기</strong> &mdash; <strong>향상도</strong>로 우연히 겹친 것을 걸러낸다</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">4</div>
+                    <div class="pt-1">
+                        <p class="text-base text-slate-800 leading-relaxed"><strong>연관 규칙 구하기</strong> &mdash; <strong>신뢰도</strong>로 규칙에 방향을 붙인다</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4 bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+                    <div class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">5</div>
+                    <div class="pt-1">
+                        <p class="text-base text-slate-800 leading-relaxed"><strong>결과 활용하기</strong> &mdash; 찾은 규칙으로 무엇을 할지 정한다</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-filter mr-1"></i>세 숫자가 하는 일이 각각 다릅니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>지지도 &middot; 향상도 &middot; 신뢰도</strong>는 셋 다 &lsquo;연관의 세기&rsquo;를 재는 것처럼 보이지만,
+                    <strong>거르는 대상이 서로 다릅니다.</strong>
+                    지지도는 <strong>드물어서 볼 값어치가 없는 것</strong>을,
+                    향상도는 <strong>많이 팔려서 우연히 겹친 것</strong>을 걸러 냅니다.
+                    신뢰도는 거르지 않고 <strong>어느 쪽에서 어느 쪽으로 가는 규칙인지</strong>를 정합니다.
+                    <strong>순서대로 써야 뜻이 통합니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-receipt text-indigo-500 mr-1"></i>
+                    <a href="3-4-1.연관-분석의-이해.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석의 이해」</a>에서
+                    본 <strong>매점 영수증 10장</strong>을 그대로 씁니다.
+                    항목은 <strong>삼각김밥 &middot; 우유 &middot; 컵라면 &middot; 초콜릿 &middot; 이온음료</strong> 다섯 가지입니다.
+                    다섯 단계를 <strong>끝까지 손으로 계산</strong>해 볼 것입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 항목 집합 ===== -->
+    <section id="itemset" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 1 &mdash; 조합을 모두 만듭니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                그리고 <strong>왜 다 만들면 안 되는지</strong>를 곧바로 알게 됩니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                어떤 항목끼리 연관이 있는지 알려면 <strong>있을 수 있는 조합을 모두 살펴봐야</strong> 합니다.
+                이렇게 만든 항목들의 묶음 하나하나를 <strong>항목 집합</strong>이라고 합니다.
+                묶은 항목이 <strong>k개인 집합들을 모아 k-항목 후보 집합</strong>이라고 부릅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">후보 집합</th>
+                        <th>어떤 것들인가</th>
+                        <th class="w-24">개수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1-항목</td>
+                        <td>{삼각김밥}, {우유}, {컵라면}, {초콜릿}, {이온음료}</td>
+                        <td class="font-bold">5</td>
+                    </tr>
+                    <tr class="bg-indigo-50">
+                        <td class="font-bold">2-항목</td>
+                        <td>{삼각김밥, 우유}, {삼각김밥, 컵라면}, {컵라면, 이온음료}&hellip; 두 개씩 고른 모든 짝</td>
+                        <td class="font-bold">10</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3-항목</td>
+                        <td>{삼각김밥, 우유, 초콜릿}, {컵라면, 이온음료, 초콜릿}&hellip; 세 개씩 고른 모든 묶음</td>
+                        <td class="font-bold">10</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4-항목</td>
+                        <td>다섯 중 넷을 고르는 묶음. 하나씩 빼는 것과 같다</td>
+                        <td class="font-bold">5</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">5-항목</td>
+                        <td>다섯을 모두 담은 묶음 하나</td>
+                        <td class="font-bold">1</td>
+                    </tr>
+                    <tr class="bg-slate-100">
+                        <td class="font-bold">합계</td>
+                        <td class="font-bold">항목이 다섯 개일 때 만들 수 있는 항목 집합</td>
+                        <td class="font-bold">31</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                합계 31은 그냥 나온 숫자가 아닙니다.
+                항목 하나하나에 대해 <strong>&lsquo;넣는다 / 안 넣는다&rsquo; 두 가지</strong>를 정하면 되므로,
+                다섯 항목이면 <strong>2를 다섯 번 곱한 32가지</strong>가 됩니다.
+                여기서 <strong>아무것도 안 넣은 경우 하나를 빼면 31</strong>입니다.
+                항목이 <strong>하나 늘 때마다 조합의 수는 두 배</strong>가 됩니다.
+            </p>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">항목이 조금만 늘어도 감당이 안 됩니다</h3>
+                <svg viewBox="0 0 620 250" role="img" class="chart-svg"
+                     aria-label="막대 여덟 개가 왼쪽에서 오른쪽으로 갈수록 급격히 높아지는 그래프. 앞쪽 네 막대는 바닥에 붙은 듯 낮고, 마지막 막대만 화면 끝까지 치솟는다. 다섯 번째 막대는 다른 색으로 표시되어 있다.">
+                    <line x1="20" y1="212" x2="600" y2="212" stroke="#94a3b8" stroke-width="1.5"/>
+                    <g fill="#a5b4fc">
+                        <rect x="40" y="211" width="50" height="1" rx="1"/>
+                        <rect x="110" y="209" width="50" height="3" rx="1"/>
+                        <rect x="180" y="206" width="50" height="6" rx="1"/>
+                        <rect x="250" y="200" width="50" height="12" rx="1"/>
+                    </g>
+                    <rect x="320" y="188" width="50" height="24" rx="1" fill="#4f46e5"/>
+                    <g fill="#a5b4fc">
+                        <rect x="390" y="163" width="50" height="49" rx="1"/>
+                        <rect x="460" y="112" width="50" height="100" rx="1"/>
+                        <rect x="530" y="12" width="50" height="200" rx="1"/>
+                    </g>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-4 h-3 rounded-sm bg-indigo-300"></span>항목 수 1개부터 8개까지</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-4 h-3 rounded-sm bg-indigo-600"></span>우리 매점 &mdash; 항목 5개, 조합 31가지</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-32">항목 수</th>
+                            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold">항목 집합 수</td>
+                            <td>1</td><td>3</td><td>7</td><td>15</td>
+                            <td class="font-bold bg-indigo-50">31</td>
+                            <td>63</td><td>127</td><td>255</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>마트라면 어떻게 될까요?
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        항목이 8개일 때 이미 255가지입니다. 30개면 <strong>10억 가지</strong>가 넘습니다.
+                        큰 마트는 <strong>취급 상품이 수만 가지</strong>입니다.
+                        <strong>전부 세어 보는 것은 어떤 컴퓨터로도 불가능</strong>합니다.
+                        그래서 <strong>다음 단계에서 가장 먼저 하는 일이 &lsquo;버리는 일&rsquo;</strong>입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 지지도 ===== -->
+    <section id="support" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 2 &mdash; 지지도로 걸러 냅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>열 장 중 몇 장에 나왔나</strong>를 세는 것이 전부입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-indigo-900">지지도(support)</p>
+                <div class="bg-white border border-indigo-200 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold text-center">
+                        지지도 = 그 항목 집합이 들어 있는 트랜잭션 수 &divide; 전체 트랜잭션 수
+                    </p>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>얼마나 자주 나오는가</strong>를 나타내는 비율입니다. 0과 1 사이의 값이고,
+                    <strong>클수록 자주 나온다</strong>는 뜻입니다. 백분율로 적기도 합니다.
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">먼저 항목 하나씩</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-32">항목</th>
+                            <th>나온 트랜잭션</th>
+                            <th class="w-24">횟수</th>
+                            <th class="w-24">지지도</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold">삼각김밥</td><td>T1, T2, T3, T4, T5</td><td>5</td><td class="font-bold">0.5</td></tr>
+                        <tr><td class="font-bold">컵라면</td><td>T3, T5, T6, T8, T9</td><td>5</td><td class="font-bold">0.5</td></tr>
+                        <tr><td class="font-bold">초콜릿</td><td>T2, T4, T7, T9, T10</td><td>5</td><td class="font-bold">0.5</td></tr>
+                        <tr><td class="font-bold">우유</td><td>T1, T2, T6, T7</td><td>4</td><td class="font-bold">0.4</td></tr>
+                        <tr><td class="font-bold">이온음료</td><td>T3, T8, T9</td><td>3</td><td class="font-bold">0.3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">짝을 이룬 지지도 &mdash; 눈으로 세어 봅시다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    {컵라면, 이온음료}가 <strong>둘 다</strong> 들어 있는 트랜잭션은 몇 장일까요?
+                    아래 열 칸이 영수증 열 장입니다.
+                </p>
+                <div class="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T1</div>
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T2</div>
+                    <div class="aspect-square rounded-xl border-2 border-indigo-500 bg-indigo-600 flex items-center justify-center font-bold text-base text-white">T3</div>
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T4</div>
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T5</div>
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T6</div>
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T7</div>
+                    <div class="aspect-square rounded-xl border-2 border-indigo-500 bg-indigo-600 flex items-center justify-center font-bold text-base text-white">T8</div>
+                    <div class="aspect-square rounded-xl border-2 border-indigo-500 bg-indigo-600 flex items-center justify-center font-bold text-base text-white">T9</div>
+                    <div class="aspect-square rounded-xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center font-bold text-base text-slate-400">T10</div>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    색칠된 <strong>세 장</strong>입니다. 그러므로
+                    <strong>지지도({컵라면, 이온음료}) = 3 &divide; 10 = 0.3</strong>입니다.
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">열 가지 짝을 모두 구하면</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-52">항목 집합</th>
+                            <th>둘 다 들어 있는 트랜잭션</th>
+                            <th class="w-24">지지도</th>
+                            <th class="w-28">최소 0.2</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr class="bg-emerald-50"><td class="font-bold">{컵라면, 이온음료}</td><td>T3, T8, T9</td><td class="font-bold">0.3</td><td class="font-bold">통과</td></tr>
+                        <tr class="bg-emerald-50"><td class="font-bold">{삼각김밥, 우유}</td><td>T1, T2</td><td class="font-bold">0.2</td><td class="font-bold">통과</td></tr>
+                        <tr class="bg-emerald-50"><td class="font-bold">{삼각김밥, 컵라면}</td><td>T3, T5</td><td class="font-bold">0.2</td><td class="font-bold">통과</td></tr>
+                        <tr class="bg-emerald-50"><td class="font-bold">{삼각김밥, 초콜릿}</td><td>T2, T4</td><td class="font-bold">0.2</td><td class="font-bold">통과</td></tr>
+                        <tr class="bg-emerald-50"><td class="font-bold">{우유, 초콜릿}</td><td>T2, T7</td><td class="font-bold">0.2</td><td class="font-bold">통과</td></tr>
+                        <tr><td>{삼각김밥, 이온음료}</td><td>T3</td><td>0.1</td><td>탈락</td></tr>
+                        <tr><td>{우유, 컵라면}</td><td>T6</td><td>0.1</td><td>탈락</td></tr>
+                        <tr><td>{컵라면, 초콜릿}</td><td>T9</td><td>0.1</td><td>탈락</td></tr>
+                        <tr><td>{초콜릿, 이온음료}</td><td>T9</td><td>0.1</td><td>탈락</td></tr>
+                        <tr><td>{우유, 이온음료}</td><td>없음</td><td>0.0</td><td>탈락</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">
+                        <i class="fa-solid fa-filter mr-1"></i>최소 지지도와 빈발 항목 집합
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>최소 지지도</strong>는 <strong>&ldquo;이만큼은 나와야 살펴볼 값어치가 있다&rdquo;고 정해 두는 문턱</strong>입니다.
+                        여기서는 <strong>0.2</strong>로 정했습니다. 이 문턱을 넘은 항목 집합을
+                        <strong>빈발 항목 집합</strong>이라고 부릅니다. 열 가지 중 <strong>다섯 가지</strong>가 남았습니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        문턱은 <strong>사람이 정합니다.</strong> 높이면 볼 것이 적어져 편하지만
+                        <strong>드물어도 값진 규칙을 놓치고</strong>, 낮추면 <strong>쓸데없는 조합까지 남습니다.</strong>
+                        군집의 k와 마찬가지로 <strong>목적이 정하는 숫자</strong>입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                        <strong>세 항목 묶음은 어떻게 될까요?</strong>
+                        {삼각김밥, 우유, 초콜릿}과 {삼각김밥, 컵라면, 이온음료},
+                        {컵라면, 이온음료, 초콜릿}이 각각 <strong>한 장씩</strong> 나와 지지도가 모두 0.1입니다.
+                        나머지 일곱 묶음은 <strong>한 장도 없어 0입니다.</strong>
+                        <strong>세 항목 빈발 집합은 하나도 없으므로 여기서 멈춥니다.</strong>
+                        조합을 더 키워 봐야 지지도는 <strong>커질 수 없기</strong> 때문입니다 &mdash;
+                        항목을 하나 더 넣으면 조건이 더 까다로워질 뿐이니까요.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    남은 다섯 짝 중 <strong>{삼각김밥, 우유}</strong>를 보세요.
+                    삼각김밥은 열 장 중 다섯 장, 우유는 네 장에 나오는 <strong>잘 팔리는 물건</strong>입니다.
+                    둘이 두 장에서 겹친 것이 <strong>정말 서로 얽혀 있어서일까요</strong>,
+                    아니면 <strong>둘 다 흔해서 저절로 겹친 것</strong>일까요?
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 향상도 ===== -->
+    <section id="lift" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 3 &mdash; 향상도로 우연을 걸러 냅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                &ldquo;<strong>서로 상관없다면 이만큼 겹쳤을 텐데</strong>&rdquo;와 견줍니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞의 스스로 확인이 바로 이 단계의 물음입니다.
+                <strong>둘 다 흔한 물건이면 아무 관계가 없어도 자주 겹칩니다.</strong>
+                그러니 <strong>겹친 횟수만 봐서는 안 되고</strong>,
+                <strong>&ldquo;서로 상관이 없었다면 얼마나 겹쳤을까&rdquo;와 견주어야</strong> 합니다.
+            </p>
+
+            <div class="bg-indigo-50 border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-indigo-900">향상도(lift)</p>
+                <div class="bg-white border border-indigo-200 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold text-center">
+                        향상도(A, B) = 지지도(A, B) &divide; (지지도(A) &times; 지지도(B))
+                    </p>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    분모의 <strong>지지도(A) &times; 지지도(B)</strong>가
+                    <strong>&ldquo;둘이 서로 상관없다면 이만큼 겹쳤을 것&rdquo;</strong>이라는 예상값입니다.
+                    <strong>실제로 겹친 정도를 이 예상값으로 나눈 것</strong>이 향상도입니다.
+                </p>
+            </div>
+
+            <svg viewBox="0 0 620 250" role="img" class="chart-svg"
+                 aria-label="막대 세 쌍. 각 쌍의 왼쪽 회색 막대는 예상값, 오른쪽 색 막대는 실제값이다. 첫째 쌍은 오른쪽이 두 배 높고, 둘째 쌍은 두 막대의 높이가 같으며, 셋째 쌍은 오른쪽이 더 낮다.">
+                <line x1="20" y1="200" x2="600" y2="200" stroke="#94a3b8" stroke-width="1.5"/>
+                <g fill="#cbd5e1">
+                    <rect x="72" y="150" width="50" height="50" rx="3"/>
+                    <rect x="252" y="125" width="50" height="75" rx="3"/>
+                    <rect x="432" y="100" width="50" height="100" rx="3"/>
+                </g>
+                <rect x="138" y="100" width="50" height="100" rx="3" fill="#059669"/>
+                <rect x="318" y="125" width="50" height="75" rx="3" fill="#d97706"/>
+                <rect x="498" y="120" width="50" height="80" rx="3" fill="#e11d48"/>
+            </svg>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-black text-base text-emerald-900">향상도 &gt; 1</p>
+                    <p class="text-base text-slate-700 leading-relaxed">예상보다 <strong>더 자주</strong> 겹쳤다. <strong>서로 얽혀 있다</strong></p>
+                </div>
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-black text-base text-amber-900">향상도 = 1</p>
+                    <p class="text-base text-slate-700 leading-relaxed">예상한 <strong>딱 그만큼</strong> 겹쳤다. <strong>서로 관계없다</strong></p>
+                </div>
+                <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-black text-base text-rose-900">향상도 &lt; 1</p>
+                    <p class="text-base text-slate-700 leading-relaxed">예상보다 <strong>덜</strong> 겹쳤다. <strong>오히려 따로 팔린다</strong></p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">빈발 항목 집합 다섯 가지의 향상도</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-48">항목 집합</th>
+                            <th class="w-24">지지도</th>
+                            <th>상관없었다면 (지지도 곱)</th>
+                            <th class="w-24">향상도</th>
+                            <th class="w-24">판정</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr class="bg-emerald-50">
+                            <td class="font-bold">{컵라면, 이온음료}</td><td>0.3</td>
+                            <td>0.5 &times; 0.3 = 0.15</td><td class="font-bold">2.0</td><td class="font-bold">연관 있다</td>
+                        </tr>
+                        <tr class="bg-amber-50">
+                            <td class="font-bold">{삼각김밥, 우유}</td><td>0.2</td>
+                            <td>0.5 &times; 0.4 = 0.20</td><td class="font-bold">1.0</td><td class="font-bold">관계없다</td>
+                        </tr>
+                        <tr class="bg-amber-50">
+                            <td class="font-bold">{우유, 초콜릿}</td><td>0.2</td>
+                            <td>0.4 &times; 0.5 = 0.20</td><td class="font-bold">1.0</td><td class="font-bold">관계없다</td>
+                        </tr>
+                        <tr class="bg-rose-50">
+                            <td class="font-bold">{삼각김밥, 컵라면}</td><td>0.2</td>
+                            <td>0.5 &times; 0.5 = 0.25</td><td class="font-bold">0.8</td><td class="font-bold">따로 팔린다</td>
+                        </tr>
+                        <tr class="bg-rose-50">
+                            <td class="font-bold">{삼각김밥, 초콜릿}</td><td>0.2</td>
+                            <td>0.5 &times; 0.5 = 0.25</td><td class="font-bold">0.8</td><td class="font-bold">따로 팔린다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-key mr-1"></i>지지도만 봤다면 속을 뻔했습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>{삼각김밥, 우유}는 지지도 문턱을 넘어 살아남았습니다.</strong>
+                    그런데 향상도가 <strong>정확히 1.0</strong>입니다.
+                    삼각김밥이 다섯 장, 우유가 네 장에 나오니 <strong>아무 관계가 없어도 두 장에서는 겹칠 만합니다.</strong>
+                    실제로 딱 두 장에서 겹쳤지요. <strong>우연입니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    반면 <strong>{컵라면, 이온음료}</strong>는 상관없었다면 <strong>한 장 반</strong>쯤 겹쳤을 텐데
+                    <strong>세 장에서 겹쳤습니다.</strong> 예상의 <strong>두 배</strong>입니다.
+                    <strong>지지도로 살아남은 다섯 짝 중 진짜는 이것 하나뿐</strong>입니다.
+                </p>
+                <div class="bg-white border border-violet-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        <strong class="text-violet-800">&ldquo;많이 함께 팔린다&rdquo;와 &ldquo;얽혀 있다&rdquo;는 다른 말입니다.</strong>
+                        지지도는 앞의 것을, 향상도는 뒤의 것을 잽니다.
+                        그래서 <strong class="text-violet-800">두 지표를 차례로 써야</strong> 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-indigo-500 mr-1"></i>
+                    <strong>향상도에는 방향이 없습니다.</strong>
+                    식을 보면 A와 B를 바꿔 넣어도 <strong>값이 똑같습니다.</strong>
+                    그래서 향상도는 &ldquo;둘이 얽혀 있다&rdquo;까지만 말해 줄 뿐
+                    <strong>&ldquo;무엇을 사면 무엇을 사는가&rdquo;는 말해 주지 못합니다.</strong>
+                    그것이 다음 단계입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 신뢰도 ===== -->
+    <section id="confidence" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 4 &mdash; 신뢰도로 방향을 붙입니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                여기서 비로소 <strong>&ldquo;A를 사면 B도 산다&rdquo;</strong>는 규칙이 나옵니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-indigo-900">신뢰도(confidence)</p>
+                <div class="bg-white border border-indigo-200 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold text-center">
+                        신뢰도(A &rarr; B) = A와 B가 함께 든 트랜잭션 수 &divide; A가 든 트랜잭션 수
+                    </p>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>A를 산 사람 중에서 B도 산 사람의 비율</strong>입니다.
+                    A를 산 사람만 놓고 보므로 <strong>분모가 전체가 아니라 A의 개수</strong>입니다.
+                    <strong>여기가 지지도와 다른 점</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이렇게 화살표로 쓴 <strong>A &rarr; B</strong>를 <strong>연관 규칙</strong>이라고 하고,
+                    앞의 A를 <strong>선행</strong>, 뒤의 B를 <strong>후행</strong>이라고 부릅니다.
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">방향을 바꾸면 값이 달라집니다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    향상도로 살아남은 <strong>{컵라면, 이온음료}</strong>에 방향을 붙여 봅시다.
+                </p>
+
+                <svg viewBox="0 0 620 220" role="img" class="chart-svg"
+                     aria-label="왼쪽과 오른쪽에 큰 동그라미가 하나씩 있고, 둘 사이를 두 개의 굽은 화살표가 잇는다. 위쪽 화살표는 매우 가늘고 아래쪽 화살표는 훨씬 굵다.">
+                    <defs>
+                        <marker id="ar-conf-a" viewBox="0 0 10 10" refX="9" refY="5"
+                                markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+                        </marker>
+                        <marker id="ar-conf-b" viewBox="0 0 10 10" refX="8" refY="5"
+                                markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#4f46e5"/>
+                        </marker>
+                    </defs>
+                    <path d="M 190 78 C 280 30, 340 30, 430 78" fill="none" stroke="#94a3b8"
+                          stroke-width="5" marker-end="url(#ar-conf-a)"/>
+                    <path d="M 430 142 C 340 190, 280 190, 190 142" fill="none" stroke="#4f46e5"
+                          stroke-width="18" marker-end="url(#ar-conf-b)"/>
+                    <circle cx="140" cy="110" r="52" fill="#fff7ed" stroke="#ea580c" stroke-width="4"/>
+                    <circle cx="480" cy="110" r="52" fill="#eef2ff" stroke="#4f46e5" stroke-width="4"/>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-full border-2 border-orange-600 bg-orange-50"></span>컵라면</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-full border-2 border-indigo-600 bg-indigo-50"></span>이온음료</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 bg-slate-400"></span>컵라면 &rarr; 이온음료 (0.6)</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-2 bg-indigo-600"></span>이온음료 &rarr; 컵라면 (1.0)</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-56">연관 규칙</th>
+                            <th>계산</th>
+                            <th class="w-24">신뢰도</th>
+                            <th>읽는 법</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr class="bg-indigo-50">
+                            <td class="font-bold">이온음료 &rarr; 컵라면</td>
+                            <td>둘 다 3장 &divide; 이온음료 3장</td>
+                            <td class="font-bold">1.00</td>
+                            <td>이온음료를 산 손님은 <strong>모두</strong> 컵라면도 샀다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">컵라면 &rarr; 이온음료</td>
+                            <td>둘 다 3장 &divide; 컵라면 5장</td>
+                            <td class="font-bold">0.60</td>
+                            <td>컵라면을 산 손님 중 <strong>10명에 6명</strong>이 이온음료도 샀다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">
+                        <i class="fa-solid fa-key mr-1"></i>같은 짝인데 왜 값이 다를까요?
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>분모가 다르기 때문</strong>입니다.
+                        겹친 세 장은 그대로인데, <strong>이온음료는 세 장에만 있고 컵라면은 다섯 장에 있습니다.</strong>
+                        그래서 이온음료 쪽에서 보면 <strong>세 장 중 세 장 모두</strong>,
+                        컵라면 쪽에서 보면 <strong>다섯 장 중 세 장</strong>이 되는 것입니다.
+                        <strong>지지도와 향상도는 방향이 없었지만 신뢰도는 방향이 있습니다.</strong>
+                        값이 큰 <strong>&lsquo;이온음료 &rarr; 컵라면&rsquo;</strong> 쪽이 <strong>더 믿을 만한 규칙</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    향상도가 1.0이었던 <strong>{삼각김밥, 우유}</strong>의 신뢰도를 두 방향 모두 구해 보세요.
+                    값이 <strong>0.4와 0.5</strong>로 그럭저럭 나옵니다.
+                    <strong>신뢰도만 보고 규칙을 골랐다면</strong> 어떤 일이 벌어졌을까요?
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 결과 활용 ===== -->
+    <section id="use" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 5 &mdash; 그래서 무엇을 할까요</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                규칙을 찾은 것으로 끝이 아닙니다. <strong>움직여야</strong> 값어치가 생깁니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-flag-checkered mr-1"></i>매점 데이터에서 찾아낸 규칙
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    지지도 <strong>0.3</strong> &middot; 향상도 <strong>2.0</strong> &middot; 신뢰도 <strong>1.00</strong> &mdash;
+                    <strong>이온음료를 산 손님은 컵라면도 산다.</strong>
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="section-card border-t-4 border-sky-500 space-y-2">
+                    <div class="w-11 h-11 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">진열 바꾸기</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        두 물건을 <strong>가까이 놓습니다.</strong> 손님이 하나를 집었을 때
+                        다른 하나가 <strong>눈에 들어오게</strong> 하는 것입니다.
+                    </p>
+                </div>
+                <div class="section-card border-t-4 border-emerald-500 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">묶어 팔기</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>세트로 만들어</strong> 조금 싸게 내놓습니다.
+                        어차피 함께 사는 손님이 많으니 <strong>둘 다 팔릴 가능성이 커집니다.</strong>
+                    </p>
+                </div>
+                <div class="section-card border-t-4 border-violet-500 space-y-2">
+                    <div class="w-11 h-11 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">재고 맞추기</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        하나가 <strong>동나면 다른 하나도 덜 팔립니다.</strong>
+                        <strong>같이 채워 두어야</strong> 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-lightbulb mr-1"></i>한 걸음 더 &mdash; 신뢰도가 높은 쪽이 늘 쓸모 있을까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>이온음료 &rarr; 컵라면</strong>의 신뢰도는 1.00입니다. 가장 믿을 만한 규칙이지요.
+                    그런데 <strong>이온음료를 사는 손님은 이미 모두 컵라면을 삽니다.</strong>
+                    그 손님들에게 컵라면을 권해 봐야 <strong>더 팔 것이 없습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거꾸로 <strong>컵라면 &rarr; 이온음료</strong>는 신뢰도가 0.60뿐입니다.
+                    그러나 이 말은 <strong>컵라면을 산 다섯 명 중 두 명은 아직 이온음료를 안 샀다</strong>는 뜻입니다.
+                    <strong>바로 그 두 명이 우리가 노릴 자리</strong>입니다.
+                    <strong>컵라면 코너에 이온음료를 놓는 편</strong>이 실제로는 더 남는 장사일 수 있습니다.
+                </p>
+                <div class="bg-white border border-amber-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        <strong class="text-amber-800">숫자가 큰 규칙과 써먹을 데가 있는 규칙은 다릅니다.</strong>
+                        분석이 끝나는 자리에서 <strong class="text-amber-800">사람의 판단이 시작됩니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>영수증 열 장으로 매점을 뜯어고칠 수는 없습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    우리가 쓴 데이터는 <strong>열 장뿐</strong>입니다.
+                    한두 장만 달랐어도 <strong>지지도와 향상도가 크게 흔들렸을</strong> 것입니다.
+                    실제 분석은 <strong>수만, 수십만 장</strong>을 씁니다.
+                    <strong>계산 방법은 똑같지만, 적은 데이터에서 나온 규칙을 그대로 믿으면 안 됩니다.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 세 지표 ===== -->
+    <section id="three" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">세 숫자를 한자리에 놓고</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이름이 비슷해 헷갈립니다. <strong>분모가 무엇인지</strong>로 구별하세요.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">지표</th>
+                        <th>분자</th>
+                        <th>분모</th>
+                        <th class="w-24">방향</th>
+                        <th>무엇을 답하나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">지지도</td>
+                        <td>둘 다 든 트랜잭션 수</td>
+                        <td class="font-bold">전체 트랜잭션 수</td>
+                        <td>없음</td>
+                        <td>얼마나 <strong>자주</strong> 함께 나오나</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">향상도</td>
+                        <td>지지도(A, B)</td>
+                        <td class="font-bold">지지도(A) &times; 지지도(B)</td>
+                        <td>없음</td>
+                        <td>겹친 것이 <strong>우연인가 아닌가</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">신뢰도</td>
+                        <td>둘 다 든 트랜잭션 수</td>
+                        <td class="font-bold">A가 든 트랜잭션 수</td>
+                        <td class="font-bold">있음</td>
+                        <td>A를 사면 <strong>B도 살 가능성</strong>이 얼마나 되나</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">지지도와 신뢰도의 차이</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>분자는 똑같습니다.</strong> 둘 다 &lsquo;함께 든 트랜잭션 수&rsquo;입니다.
+                        <strong>분모만 다릅니다</strong> &mdash; 지지도는 <strong>전체</strong>로,
+                        신뢰도는 <strong>A가 든 것</strong>으로 나눕니다.
+                        그래서 신뢰도는 <strong>늘 지지도보다 크거나 같습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">왜 셋을 다 볼까</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        지지도가 낮으면 <strong>어쩌다 한 번</strong>이라 믿을 수 없고,
+                        향상도가 1 언저리면 <strong>우연</strong>이라 뜻이 없으며,
+                        신뢰도를 안 보면 <strong>어느 쪽으로 권해야 할지</strong> 모릅니다.
+                        <strong>하나라도 빠지면 판단이 어긋납니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>직접 채워 봅시다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    본문에서 다루지 않은 <strong>{우유, 초콜릿}</strong>에 대해 세 숫자를 모두 구해 보세요.
+                    영수증 열 장은 앞 소절 표에 있습니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-36">구할 값</th>
+                            <th>계산 과정</th>
+                            <th class="w-24">값</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold h-12">지지도</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">향상도</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">신뢰도(우유 &rarr; 초콜릿)</td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">신뢰도(초콜릿 &rarr; 우유)</td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <details class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                        다 풀고 나서 열어 보세요
+                    </summary>
+                    <p class="text-base text-slate-700 leading-relaxed mt-4">
+                        우유와 초콜릿이 함께 든 것은 <strong>T2와 T7 두 장</strong>이므로 지지도는 <strong>0.2</strong>,
+                        향상도는 0.2 &divide; (0.4 &times; 0.5) = <strong>1.0</strong>,
+                        신뢰도는 우유 &rarr; 초콜릿이 2 &divide; 4 = <strong>0.5</strong>,
+                        초콜릿 &rarr; 우유가 2 &divide; 5 = <strong>0.4</strong>입니다.
+                        <strong>향상도가 1.0이므로 이 짝은 우연히 겹친 것</strong>입니다.
+                        신뢰도가 0.5로 제법 커 보여도 <strong>규칙으로 쓸 수 없습니다.</strong>
+                    </p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        조합이 수십억 가지라며? 그런데 어떻게 실제로 계산이 되지?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">전부 세지 않기 때문입니다.</strong>
+                        우리가 세 항목 묶음에서 멈췄던 것을 떠올려 보세요.
+                        두 항목 빈발 집합이 다섯 개뿐이었으니
+                        <strong class="text-indigo-200">세 항목 묶음은 그 다섯에서만 만들어 보면 됩니다.</strong>
+                        나머지는 <strong class="text-sky-200">아예 세어 볼 필요가 없습니다.</strong>
+                        항목을 하나 더 넣으면 조건이 더 까다로워지니
+                        <strong class="text-indigo-200">지지도는 절대 커지지 않기</strong> 때문입니다.
+                        문턱을 못 넘은 짝을 품은 묶음은 <strong class="text-sky-200">따져 볼 것도 없이 탈락</strong>입니다.
+                        이 한 가지 성질 덕분에 <strong class="text-indigo-200">수십억 가지 중 손에 꼽을 만큼만 실제로 세게</strong> 됩니다.
+                        <strong class="text-sky-200">연관 분석이 실제로 돌아가는 비결</strong>이 여기 있습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-percent text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">지지도</p>
+                    <p class="text-base text-sky-100">전체로 나눈다 &middot; 드문 것을 버린다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-scale-unbalanced text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">향상도</p>
+                    <p class="text-base text-sky-100">예상과 견준다 &middot; 우연을 버린다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrow-right text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">신뢰도</p>
+                    <p class="text-base text-sky-100">A로 나눈다 &middot; 방향을 붙인다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-slate-500">
+                <div class="w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">항목 집합</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">itemset</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-slate-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>있을 수 있는 <strong>모든 조합</strong>을 만든 것</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-slate-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>항목이 <strong>하나 늘 때마다 조합은 두 배</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-slate-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>그래서 <strong>버리는 일이 먼저</strong>다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">지지도</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">support</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>함께 든 트랜잭션 수 &divide; <strong>전체</strong> 트랜잭션 수</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>최소 지지도</strong>를 넘으면 <strong>빈발 항목 집합</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>문턱은 <strong>사람이 정한다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">향상도</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">lift</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>지지도(A, B) &divide; <strong>두 지지도의 곱</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>1보다 크면</strong> 연관, <strong>1이면</strong> 우연, <strong>1보다 작으면</strong> 따로</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>많이 팔려서 겹친 것을 <strong>걸러 낸다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">신뢰도와 연관 규칙</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">confidence &middot; association rule</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>함께 든 트랜잭션 수 &divide; <strong>A가 든</strong> 트랜잭션 수</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>방향이 있다.</strong> A &rarr; B와 B &rarr; A의 값이 다르다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>값이 큰 규칙이 <strong>늘 써먹기 좋은 것은 아니다</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 10: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    트랜잭션 20장 중 12장에 <strong>{빵, 우유}</strong>가 함께 들어 있었습니다. 지지도는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분모는 빵이 든 트랜잭션 수가 아니라 전체 트랜잭션 수입니다. 그것은 신뢰도의 분모입니다.')">
+                    ① 12 ÷ 빵이 든 트랜잭션 수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 12 ÷ 20 = 0.6입니다. 지지도의 분모는 언제나 전체 트랜잭션 수입니다.')">
+                    ② 12 ÷ 20 = 0.6
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '20 ÷ 12은 1보다 큰 값이 됩니다. 지지도는 0과 1 사이의 비율입니다.')">
+                    ③ 20 ÷ 12 = 1.67
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 지지도를 곱하는 것은 향상도의 분모입니다.')">
+                    ④ 빵의 지지도 × 우유의 지지도
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>최소 지지도</strong>를 정하는 까닭으로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터를 지우는 것이 아닙니다. 살펴볼 조합을 줄이는 것입니다.')">
+                    ① 트랜잭션 데이터에서 이상치를 지우려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 조합이 너무 많아 전부 볼 수 없으므로 드문 것부터 걸러 냅니다.')">
+                    ② 조합이 너무 많으므로 드물게 나오는 것을 미리 걸러 내려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '방향을 정하는 것은 신뢰도가 하는 일입니다.')">
+                    ③ 연관 규칙의 방향을 정하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '우연히 겹친 것을 걸러 내는 것은 향상도입니다. 지지도는 자주 나오는지만 봅니다.')">
+                    ④ 우연히 겹친 조합을 걸러 내려고
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    두 항목의 <strong>향상도가 정확히 1</strong>로 나왔습니다. 무슨 뜻인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '1은 가장 강한 연관이 아닙니다. 1보다 클수록 연관이 강합니다.')">
+                    ① 두 항목의 연관이 가장 강하다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 서로 상관없을 때 예상되는 만큼만 겹쳤다는 뜻이므로 우연입니다.')">
+                    ② 서로 상관없을 때 예상한 만큼만 겹쳤다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 번도 함께 나오지 않았다면 지지도가 0이므로 향상도도 0입니다.')">
+                    ③ 두 항목이 한 번도 함께 나오지 않았다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모든 트랜잭션에 함께 나왔다면 향상도는 1보다 훨씬 큰 값이 됩니다.')">
+                    ④ 모든 트랜잭션에 두 항목이 함께 나왔다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    같은 짝인데 <strong>신뢰도가 방향에 따라 다른</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '함께 든 트랜잭션 수는 방향과 상관없이 같습니다. 그것이 분자입니다.')">
+                    ① 함께 든 트랜잭션 수가 방향에 따라 달라져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 분자는 같고 분모가 선행 항목의 개수로 바뀌기 때문입니다.')">
+                    ② 분자는 같지만 분모가 앞에 놓인 항목의 개수로 바뀌어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전체 트랜잭션 수는 어느 방향에서나 같습니다. 게다가 신뢰도의 분모가 아닙니다.')">
+                    ③ 전체 트랜잭션 수가 방향에 따라 달라져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지지도는 방향이 없어 어느 쪽으로 써도 값이 같습니다.')">
+                    ④ 지지도가 방향에 따라 달라져서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    지지도가 문턱을 넘었지만 <strong>향상도가 1인 짝</strong>을 어떻게 해야 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지지도가 높다고 연관이 있는 것은 아닙니다. 그래서 향상도를 보는 것입니다.')">
+                    ① 지지도가 높으므로 연관 규칙으로 쓴다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 둘 다 흔해서 저절로 겹친 것이므로 연관 규칙으로 삼지 않습니다.')">
+                    ② 우연히 겹친 것이므로 연관 규칙으로 삼지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '최소 지지도를 낮추면 볼 조합만 늘어납니다. 향상도가 1인 사실은 바뀌지 않습니다.')">
+                    ③ 최소 지지도를 낮추어 다시 계산한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '신뢰도가 커도 향상도가 1이면 우연입니다. 신뢰도만으로 판단할 수 없습니다.')">
+                    ④ 신뢰도가 크면 그대로 규칙으로 쓴다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

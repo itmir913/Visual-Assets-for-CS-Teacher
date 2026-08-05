@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회귀 분석 활용</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-futbol absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-layer-group absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            회귀 분석 활용
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            속성 <strong>하나</strong>로 예측할 때와 <strong>일곱</strong>으로 예측할 때,<br>
+            무엇이 얼마나 달라지는지 <strong>직접 재어 봅니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>실제 데이터에 단순 회귀 분석과 다중 회귀 분석을 각각 수행하고 결정계수를 견줄 수 있다.</li>
+                    <li>독립 변수를 늘렸을 때 결정계수가 달라지는 까닭을 데이터의 맥락에서 설명할 수 있다.</li>
+                    <li>결정계수가 높다는 것만으로 좋은 모델이라 말할 수 없는 경우를 찾아낼 수 있다.</li>
+                    <li>예측에 쓸 속성을 고를 때 무엇을 따져야 하는지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-futbol text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">회귀 분석 활용</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#problem" class="hover:text-indigo-600 transition">문제 상황</a>
+            <a href="#data" class="hover:text-indigo-600 transition">데이터</a>
+            <a href="#simple" class="hover:text-indigo-600 transition">단순 회귀</a>
+            <a href="#multiple" class="hover:text-indigo-600 transition">다중 회귀</a>
+            <a href="#result" class="hover:text-indigo-600 transition">결과 해석</a>
+            <a href="#caution" class="hover:text-indigo-600 transition">숫자의 함정</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI와 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 문제 상황 ===== -->
+    <section id="problem" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 선수를 데려와야 할까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이번에는 지금까지 배운 것을 <strong>한 번에</strong> 써 봅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-clipboard-question mr-1"></i>문제 상황
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여러분이 <strong>축구 동아리의 매니저</strong>가 되었습니다.
+                    새 부원을 뽑아야 하는데, 한 사람을 볼 때 <strong>무엇을 봐야 할지</strong> 막막합니다.
+                    발이 빠른 사람? 키가 큰 사람? 지금 잘하는 사람? 앞으로 늘 것 같은 사람?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다행히 프로 축구 선수들의 데이터가 공개되어 있습니다.
+                    거기에는 <strong>선수의 여러 속성</strong>과 함께
+                    시장이 매긴 <strong>선수의 가치</strong>가 들어 있습니다.
+                    그렇다면 이렇게 물을 수 있습니다 &mdash;
+                    <strong>어떤 속성을 보아야 선수의 가치를 잘 맞힐 수 있을까?</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                &ldquo;가치가 얼마쯤 될까&rdquo;는 <strong>숫자</strong>를 묻는 물음이니 <strong>회귀 분석</strong>입니다.
+                그리고 이번에는 <strong>속성을 하나만 쓸 때와 여럿 쓸 때</strong>가 얼마나 다른지
+                직접 재어 견주는 것이 목표입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-16">단계</th>
+                        <th class="w-44">하는 일</th>
+                        <th>내용</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td class="font-black">1</td><td class="font-bold">문제 정의하기</td><td>부원을 뽑을 때 어떤 속성을 봐야 할까?</td></tr>
+                    <tr><td class="font-black">2</td><td class="font-bold">데이터 수집하기</td><td>공개된 축구 선수 데이터셋을 내려받는다</td></tr>
+                    <tr><td class="font-black">3</td><td class="font-bold">데이터 불러오기</td><td>오렌지에 올리고 산점도로 모양을 먼저 살핀다</td></tr>
+                    <tr><td class="font-black">4</td><td class="font-bold">단순 회귀 분석</td><td>속성 <strong>하나</strong>로 가치를 예측한다</td></tr>
+                    <tr><td class="font-black">5</td><td class="font-bold">다중 회귀 분석</td><td>속성 <strong>일곱</strong>으로 가치를 예측한다</td></tr>
+                    <tr><td class="font-black">6</td><td class="font-bold">결과 해석하기</td><td>여섯 개의 결정계수를 나란히 놓고 읽는다</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                    앞 소절의 실습과 큰 틀은 같습니다. 달라진 것은 두 가지입니다 &mdash;
+                    데이터가 <strong>25건에서 1만 7천여 건</strong>으로 커졌고,
+                    <strong>독립 변수의 개수를 우리가 바꿔 가며</strong> 실험한다는 점입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 데이터 ===== -->
+    <section id="data" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 2 &middot; 3 &mdash; 데이터를 열어 봅시다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                분석을 시작하기 전에 <strong>무엇이 들어 있는지</strong> 먼저 봅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-download text-indigo-500 mr-1"></i>내려받을 데이터
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    축구 게임에 실린 선수 데이터입니다. 내려받으면
+                    <span class="attr-name">CLEAN_FIFA23_official_data.csv</span> 파일이 생깁니다.<br>
+                    <a class="ext-link" href="https://www.kaggle.com/datasets/kevwesophia/fifa23-official-datasetclean-data"
+                       target="_blank" rel="noopener noreferrer">kaggle.com/datasets/kevwesophia/fifa23-official-datasetclean-data</a>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <a href="3-1-2.데이터-분석.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「데이터 분석」</a>에서
+                    CODAP으로 키와 몸무게의 산점도를 그렸던 <strong>바로 그 데이터</strong>입니다.
+                    그때는 100명만 뽑아 썼지만, 이번에는 <strong>전부</strong> 씁니다.
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">
+                    <span class="widget-name">File</span> 위젯으로 열고 정보란을 확인합니다
+                </h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>데이터 17,660건, 속성 24개, 결측치 없음</strong>이라고 나오면 제대로 열린 것입니다.
+                    그다음 <span class="attr-name">Value</span>(선수 가치)의 역할을
+                    <span class="widget-name">target</span>으로 바꾸고
+                    <span class="widget-name">Apply</span>를 누릅니다.
+                    <strong>우리가 맞혀야 할 값</strong>을 알려 주는 설정입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이번 실습에서 쓸 속성은 이렇습니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-44">속성</th>
+                            <th>무엇을 담고 있나</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td><span class="attr-name">Potential</span></td><td>잠재력 &mdash; 앞으로 이 선수가 도달할 수 있다고 보는 수준</td></tr>
+                        <tr><td><span class="attr-name">Overall</span></td><td>능력치 &mdash; 지금 이 선수의 수준</td></tr>
+                        <tr><td><span class="attr-name">Age</span></td><td>나이</td></tr>
+                        <tr><td><span class="attr-name">Height</span></td><td>키</td></tr>
+                        <tr><td><span class="attr-name">International Reputation</span></td><td>명성 &mdash; 국제적으로 얼마나 알려져 있는가</td></tr>
+                        <tr><td><span class="attr-name">Wage</span></td><td>주급</td></tr>
+                        <tr><td><span class="attr-name">Skill Moves</span></td><td>기술 보유 수 &mdash; 구사할 수 있는 기술의 가짓수</td></tr>
+                        <tr class="bg-rose-50"><td><span class="attr-name">Value</span></td><td class="font-bold">선수 가치 &mdash; 우리가 맞혀야 할 종속 변수</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">
+                    <span class="widget-name">Scatter Plot</span>으로 모양을 먼저 봅니다
+                </h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <span class="widget-name">File</span>에
+                    <span class="widget-name">Scatter Plot</span>을 이어
+                    가로축에 <span class="attr-name">Potential</span>,
+                    세로축에 <span class="attr-name">Value</span>를 놓아 보세요.
+                    <strong>분석을 돌리기 전에 그림부터 보는 습관</strong>이 중요합니다.
+                    놀이공원 데이터에서 그림을 봤다면 직선을 그을 생각을 안 했겠지요.
+                </p>
+
+                <svg viewBox="0 0 620 260" role="img" class="chart-svg"
+                     aria-label="가로축 잠재력, 세로축 선수 가치인 산점도. 왼쪽에서는 점들이 바닥에 붙어 있다가 오른쪽 끝으로 갈수록 위로 급격히 치솟는 굽은 모양이다. 그 위에 그은 직선은 이 굽음을 따라가지 못한다.">
+                    <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                        <line x1="70" y1="187" x2="595" y2="187"/>
+                        <line x1="70" y1="138" x2="595" y2="138"/>
+                        <line x1="70" y1="89" x2="595" y2="89"/>
+                        <line x1="70" y1="40" x2="595" y2="40"/>
+                    </g>
+                    <line x1="70" y1="30" x2="70" y2="225" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="70" y1="225" x2="600" y2="225" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="90" y1="205" x2="575" y2="105" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round"/>
+                    <g fill="#e11d48" fill-opacity="0.55">
+                        <circle cx="100" cy="213" r="5"/><circle cx="128" cy="212" r="5"/>
+                        <circle cx="156" cy="214" r="5"/><circle cx="184" cy="210" r="5"/>
+                        <circle cx="212" cy="211" r="5"/><circle cx="240" cy="207" r="5"/>
+                        <circle cx="268" cy="209" r="5"/><circle cx="296" cy="203" r="5"/>
+                        <circle cx="324" cy="205" r="5"/><circle cx="352" cy="196" r="5"/>
+                        <circle cx="380" cy="199" r="5"/><circle cx="408" cy="184" r="5"/>
+                        <circle cx="436" cy="190" r="5"/><circle cx="464" cy="162" r="5"/>
+                        <circle cx="478" cy="176" r="5"/><circle cx="492" cy="140" r="5"/>
+                        <circle cx="506" cy="158" r="5"/><circle cx="520" cy="108" r="5"/>
+                        <circle cx="534" cy="134" r="5"/><circle cx="548" cy="70" r="5"/>
+                        <circle cx="556" cy="102" r="5"/><circle cx="566" cy="44" r="5"/>
+                        <circle cx="574" cy="78" r="5"/><circle cx="580" cy="36" r="5"/>
+                    </g>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-rose-600"></span>잠재력(가로) &middot; 선수 가치(세로)</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-blue-700"></span>직선을 그으면 이렇게 됩니다</span>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-amber-900">
+                        <i class="fa-solid fa-eye mr-1"></i>그림에서 미리 읽어 둘 것
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        점들이 <strong>곧게 늘어서 있지 않습니다.</strong>
+                        왼쪽에서는 바닥에 붙어 있다가 <strong>오른쪽 끝에서 갑자기 치솟습니다.</strong>
+                        잠재력이 조금만 더 높아도 가치가 <strong>몇 배로 뛰는</strong> 구간이 있다는 뜻입니다.
+                        <strong>이런 모양에 직선을 그으면 잘 맞을 리가 없습니다.</strong>
+                        분석을 돌리기 전에 이미 <strong>결과를 절반쯤 짐작할 수 있습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <details class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                    실제 축구 선수의 데이터는 어떻게 모을까요?
+                </summary>
+                <p class="text-base text-slate-700 leading-relaxed mt-4">
+                    유럽 프로 축구에서는 선수들이 훈련과 경기 중에 <strong>센서가 든 조끼</strong>를 입습니다.
+                    위성 위치 확인 장치로 <strong>어디를 얼마나 뛰었는지</strong>를 재고,
+                    가속도 센서와 심박 센서로 <strong>얼마나 빠르게 방향을 바꾸었는지, 심장이 얼마나 뛰었는지</strong>까지 기록합니다.
+                    이렇게 모이는 항목이 수백 가지에 이릅니다.
+                    우리나라 축구 국가 대표 팀도 2010년부터, 프로 리그는 2018년부터 이 장비를 쓰고 있습니다.
+                    <strong>데이터는 저절로 생기지 않습니다.</strong> 누군가 재기로 정하고, 장비를 붙이고, 쌓아야 생깁니다.
+                    <span class="text-slate-500">(한국 딜로이트 그룹 「스포츠 산업의 디지털 전환」 보고서)</span>
+                </p>
+            </details>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 단순 회귀 ===== -->
+    <section id="simple" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 4 &mdash; 속성 하나로 예측해 보기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                먼저 <strong>잠재력 하나</strong>만 가지고 가치를 맞혀 봅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 새 위젯이 하나 나옵니다.
+                <span class="widget-name">Select Columns</span>는
+                <strong>24개 속성 가운데 무엇을 쓸지 고르는</strong> 위젯입니다.
+                이번 실습의 <strong>주인공</strong>이라 할 수 있습니다.
+                여기서 속성을 넣었다 뺐다 하며 결과가 어떻게 달라지는지 볼 것이기 때문입니다.
+            </p>
+
+            <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                <div class="widget-node">
+                    <i class="fa-solid fa-file-csv text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">File</p>
+                    <p class="text-base text-slate-500">데이터를 연다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-filter text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Select Columns</p>
+                    <p class="text-base text-slate-500">쓸 속성을 고른다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-scissors text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Data Sampler</p>
+                    <p class="text-base text-slate-500">70% 와 30% 로</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="space-y-2">
+                    <div class="widget-node">
+                        <i class="fa-solid fa-slash text-orange-500 text-xl block mb-1"></i>
+                        <p class="font-bold text-base text-slate-800">Linear Regression</p>
+                        <p class="text-base text-slate-500">직선을 긋는다</p>
+                    </div>
+                    <div class="widget-node">
+                        <i class="fa-solid fa-sitemap text-orange-500 text-xl block mb-1"></i>
+                        <p class="font-bold text-base text-slate-800">Tree</p>
+                        <p class="text-base text-slate-500">구간을 나눈다</p>
+                    </div>
+                    <div class="widget-node">
+                        <i class="fa-solid fa-people-group text-orange-500 text-xl block mb-1"></i>
+                        <p class="font-bold text-base text-slate-800">kNN</p>
+                        <p class="text-base text-slate-500">이웃에게 묻는다</p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-clipboard-check text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Predictions</p>
+                    <p class="text-base text-slate-500">성능을 채점한다</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>앞 실습과 달라진 곳 두 군데
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><span class="widget-name">Select Columns</span>가 새로 들어왔습니다.
+                        속성이 24개나 되니 <strong>고르는 단계</strong>가 필요합니다.
+                    </li>
+                    <li><span class="widget-name">Linear Regression</span>이 추가되었습니다.
+                        앞에서는 직선을 스프레드시트로 구했지만,
+                        이번에는 <strong>세 모델을 같은 조건에서 견주기</strong> 위해 오렌지 안에서 함께 돌립니다.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-xl font-black text-slate-800">
+                    <span class="widget-name">Select Columns</span>를 이렇게 설정합니다
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-44">구분</th>
+                            <th>고를 속성</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold"><span class="widget-name">Features</span> &mdash; 독립 변수</td>
+                            <td><span class="attr-name">Potential</span> &nbsp;<strong>하나만</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold"><span class="widget-name">Target</span> &mdash; 종속 변수</td>
+                            <td><span class="attr-name">Value</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그다음 <span class="widget-name">Data Sampler</span>를 이어
+                    <strong>70%</strong>로 모델을 만들고 <strong>30%</strong>로 채점하도록 맞춥니다.
+                    세 모델을 모두 <span class="widget-name">Predictions</span>에 잇고,
+                    남겨 둔 30% 데이터도 함께 잇습니다.
+                </p>
+
+                <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-indigo-900">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i>결정계수를 적어 둡시다 &mdash; 단순 회귀
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table class="table-prose">
+                            <thead>
+                            <tr>
+                                <th class="w-32">쓴 속성</th>
+                                <th>Linear Regression</th>
+                                <th>Tree</th>
+                                <th>kNN</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="font-bold h-12">잠재력 하나</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 다중 회귀 ===== -->
+    <section id="multiple" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 5 &mdash; 속성을 일곱으로 늘려 보기</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>다른 것은 그대로 두고</strong> 속성만 늘립니다. 그래야 무엇이 원인인지 알 수 있습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이번에는 <span class="widget-name">Select Columns</span>만 다시 열어
+                <span class="widget-name">Features</span>에 속성을 <strong>여섯 개 더</strong> 넣습니다.
+                <strong>나머지 배선은 전혀 건드리지 않습니다.</strong>
+                위젯을 새로 만들 필요도 없습니다. 설정을 바꾸면
+                <strong>데이터가 다시 흘러 결과가 저절로 갱신됩니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">구분</th>
+                        <th>고를 속성</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold"><span class="widget-name">Features</span> &mdash; 독립 변수</td>
+                        <td>
+                            <span class="attr-name">Potential</span> &middot;
+                            <span class="attr-name">Overall</span> &middot;
+                            <span class="attr-name">Age</span> &middot;
+                            <span class="attr-name">Height</span> &middot;
+                            <span class="attr-name">International Reputation</span> &middot;
+                            <span class="attr-name">Wage</span> &middot;
+                            <span class="attr-name">Skill Moves</span>
+                            &nbsp;<strong>일곱 개</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold"><span class="widget-name">Target</span> &mdash; 종속 변수</td>
+                        <td><span class="attr-name">Value</span> &mdash; 그대로 둡니다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-sky-900">
+                    <i class="fa-solid fa-flask-vial mr-1"></i>왜 하나만 바꾸어야 할까요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    속성을 늘리면서 <strong>동시에</strong> 나누는 비율도 바꾸고 k값도 바꾸면,
+                    결과가 달라졌을 때 <strong>무엇 때문인지 알 수 없습니다.</strong>
+                    그래서 <strong>한 번에 하나만</strong> 바꿉니다.
+                    과학 실험에서 조건을 하나만 바꾸는 것과 같은 이유입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>결정계수를 적어 둡시다 &mdash; 다중 회귀
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-32">쓴 속성</th>
+                            <th>Linear Regression</th>
+                            <th>Tree</th>
+                            <th>kNN</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold h-12">잠재력 하나</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold h-12">일곱 속성</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    위 칸에는 앞에서 적어 둔 값을 옮겨 적으세요. <strong>여섯 칸이 다 차야</strong> 다음으로 갑니다.
+                </p>
+            </div>
+
+            <details class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <summary class="font-bold text-base text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chevron-right details-chevron text-indigo-500"></i>
+                    어느 정도 값이 나오면 정상인가요?
+                </summary>
+                <div class="mt-4 space-y-3">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        대략 이런 크기로 나옵니다. <span class="widget-name">Data Sampler</span>가
+                        무작위로 나누므로 <strong>소수점 아랫자리는 실행할 때마다 달라집니다.</strong>
+                        중요한 것은 <strong>자릿수와 방향</strong>입니다.
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li><strong>Linear Regression</strong> &mdash; 잠재력 하나일 때 <strong>0.2대</strong>,
+                            일곱 속성일 때 <strong>0.7대</strong>. 가장 크게 좋아집니다.
+                        </li>
+                        <li><strong>Tree</strong> &mdash; 잠재력 하나일 때도 <strong>0.7대</strong>,
+                            일곱 속성일 때 <strong>0.9를 넘습니다.</strong>
+                        </li>
+                        <li><strong>kNN</strong> &mdash; <strong>0.6대에서 0.7대</strong>로 완만하게 오릅니다.</li>
+                    </ul>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        여섯 값이 <strong>모두 올랐다면</strong> 제대로 한 것입니다.
+                    </p>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 결과 해석 ===== -->
+    <section id="result" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 6 &mdash; 여섯 개의 숫자가 하는 말</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                표를 <strong>가로로</strong> 읽을 때와 <strong>세로로</strong> 읽을 때 보이는 것이 다릅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">
+                    <i class="fa-solid fa-arrows-left-right text-indigo-500 mr-1"></i>
+                    가로로 읽기 &mdash; 속성을 늘리면 어떻게 되나
+                </h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>세 모델 모두 값이 올랐습니다.</strong>
+                    특히 <strong>Linear Regression이 0.2대에서 0.7대로</strong> 크게 뛰었을 것입니다.
+                    잠재력 하나만 보아서는 선수 가치의 <strong>4분의 1 남짓밖에</strong> 설명하지 못했는데,
+                    나이 &middot; 능력치 &middot; 명성 같은 것들을 함께 보자 <strong>70%를 설명하게</strong> 된 것입니다.
+                </p>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        동아리 매니저에게 이 결과가 주는 답은 분명합니다 &mdash;
+                        <strong>&ldquo;앞으로 잘할 것 같다&rdquo;는 느낌 하나로 사람을 뽑으면 많이 빗나간다.</strong>
+                        지금의 실력, 나이, 알려진 정도를 <strong>함께</strong> 보아야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-3">
+                <h3 class="text-xl font-black text-slate-800">
+                    <i class="fa-solid fa-arrows-up-down text-indigo-500 mr-1"></i>
+                    세로로 읽기 &mdash; 왜 트리가 직선을 이겼나
+                </h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    더 눈에 띄는 것은 <strong>잠재력 하나만 썼을 때</strong>입니다.
+                    같은 속성, 같은 데이터인데
+                    <strong>Linear Regression은 0.2대인데 Tree는 0.7대</strong>가 나옵니다.
+                    <strong>세 배 가까이</strong> 차이가 납니다. 왜 그럴까요?
+                </p>
+                <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-violet-900">
+                        <i class="fa-solid fa-chart-line mr-1"></i>산점도에서 이미 보았습니다
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        잠재력과 가치의 관계는 <strong>곧게 이어지지 않았습니다.</strong>
+                        왼쪽에서는 바닥에 붙어 있다가 오른쪽 끝에서 치솟았지요.
+                        <strong>직선은 이 굽음을 담을 수 없습니다.</strong>
+                        반면 의사결정트리는 <strong>구간을 잘게 나누어 각 구간의 평균을 답하므로</strong>
+                        굽은 모양도 계단으로 따라갈 수 있습니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        놀이공원 대기 시간에서 직선이 <strong>거의 평평하게</strong> 나왔던 것과 같은 일입니다.
+                        <strong>데이터의 모양이 방법을 정한다</strong>는 말을
+                        여기서 실제 데이터로 확인한 셈입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-3">
+                <h3 class="text-xl font-black text-slate-800">
+                    <i class="fa-solid fa-circle-half-stroke text-indigo-500 mr-1"></i>
+                    그런데 트리가 언제나 낫다는 뜻일까요
+                </h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아닙니다. 여기서 트리가 이긴 것은 <strong>이 데이터가 굽어 있었기 때문</strong>입니다.
+                    앞 소절의 공부 시간과 점수는 <strong>곧게</strong> 이어져 있었고,
+                    그때는 선형 회귀도 트리도 비슷했습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그리고 <strong>선형 회귀가 지고도 남기는 것</strong>이 있습니다.
+                    <strong>&ldquo;능력치가 1 높은 선수가 가치는 얼마 더 높더라&rdquo;</strong>처럼
+                    속성마다 계수를 하나씩 내주기 때문에,
+                    <strong>어떤 속성이 얼마나 관련되는지 말로 옮길 수 있습니다.</strong>
+                    트리는 더 잘 맞히지만 그런 문장을 주지 않습니다.
+                    <strong>맞히는 것이 목적인지, 이해하는 것이 목적인지</strong>에 따라 고를 것이 달라집니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    <span class="widget-name">Select Columns</span>에서
+                    <strong>속성을 하나씩 빼 가며</strong> 결정계수를 다시 재어 보세요.
+                    <strong>빼도 값이 거의 안 떨어지는 속성</strong>이 있을 것입니다.
+                    그 속성은 <strong>넣어 둘 값어치가 있을까요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 숫자의 함정 ===== -->
+    <section id="caution" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">결정계수를 높이는 것이 목표일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이 실습에서 <strong>가장 중요한 부분</strong>입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                속성을 늘렸더니 값이 올랐습니다. 그러면 <strong>속성을 더 넣으면 더 오를까요?</strong>
+                오릅니다. <strong>거의 언제나 오릅니다.</strong>
+                앞 소절에서 &ldquo;<strong>독립 변수를 늘리면 결정계수는 거의 언제나 올라간다</strong>&rdquo;고
+                했던 것을 기억하세요.
+                그러니 <strong>&ldquo;값이 올랐다&rdquo;는 것만으로는 좋아졌다는 증거가 되지 못합니다.</strong>
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">그럼 이번 결과는 어떻게 봐야 할까요?</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이번에는 <strong>0.2대에서 0.7대</strong>로 올랐습니다.
+                    속성을 넣기만 해도 생기는 <strong>찔끔 오름</strong>과는 크기가 다릅니다.
+                    게다가 넣은 속성들이 하나같이 <strong>선수의 값어치와 관련될 만한 이유가 분명합니다.</strong>
+                    <strong>오른 폭이 크고, 넣은 이유를 설명할 수 있을 때</strong>만
+                    &ldquo;모델이 좋아졌다&rdquo;고 말할 수 있습니다.
+                </p>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">주급을 넣어도 될까요?</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    우리가 넣은 일곱 속성 중에 <span class="attr-name">Wage</span>(주급)가 있습니다.
+                    이 속성은 결정계수를 <strong>많이 올려 줍니다.</strong>
+                    주급이 높은 선수는 가치도 높으니 당연합니다.
+                    그런데 <strong>바로 그 점이 문제</strong>입니다.
+                </p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-2">
+                        <p class="font-black text-lg text-rose-900">
+                            <i class="fa-solid fa-rotate-right mr-1"></i>원인이 아니라 결과에 가깝다
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            주급이 높아서 선수의 가치가 높은 것이 아니라,
+                            <strong>가치가 높으니 구단이 주급을 많이 주는</strong> 쪽에 가깝습니다.
+                            주급과 가치는 <strong>거의 같은 것을 두 번 재고</strong> 있는 셈입니다.
+                            잘 맞히는 것이 당연하지요.
+                        </p>
+                    </div>
+                    <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
+                        <p class="font-black text-lg text-amber-900">
+                            <i class="fa-solid fa-user-plus mr-1"></i>정작 필요할 때 없는 값이다
+                        </p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            우리의 원래 문제는 <strong>&ldquo;아직 데려오지 않은 사람의 값어치를 미리 알고 싶다&rdquo;</strong>였습니다.
+                            그런데 <strong>아직 계약하지 않은 선수에게는 주급이 없습니다.</strong>
+                            모델은 훌륭한데 <strong>정작 써야 할 순간에 넣을 값이 없는</strong> 것입니다.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-200 border-l-4 border-l-indigo-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-indigo-900">
+                        <i class="fa-solid fa-key mr-1"></i>속성을 고를 때 던져야 할 물음
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>&ldquo;예측하려는 그 순간에, 이 값을 정말 알 수 있는가?&rdquo;</strong><br>
+                        답이 &lsquo;아니오&rsquo;라면 결정계수가 아무리 높아도 <strong>쓸 수 없는 모델</strong>입니다.
+                        성능 지표는 이런 문제를 <strong>전혀 알려 주지 않습니다.</strong>
+                        오히려 <strong>점수가 잘 나와서 문제를 가려 버립니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-trophy mr-1"></i>도전 &mdash; 결정계수를 더 높여 봅시다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <span class="widget-name">Select Columns</span>에서
+                    속성을 넣고 빼며 <strong>결정계수가 가장 높은 조합</strong>을 찾아보세요.
+                    다만 <strong>조건이 하나 있습니다.</strong>
+                </p>
+                <div class="bg-white border border-emerald-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        속성을 하나 넣을 때마다,
+                        <strong class="text-emerald-800">&ldquo;이것이 선수 가치와 관련될 만한 이유&rdquo;</strong>를
+                        한 문장으로 말할 수 있어야 합니다.
+                    </p>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    말할 수 없는 속성으로 올린 값은 <strong>숫자만 오른 것</strong>입니다.
+                    <strong>가장 높은 값을 만든 사람이 이기는 놀이가 아니라,
+                    자기가 만든 값을 설명할 수 있는 사람이 이기는 놀이</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    주급을 <strong>빼고</strong> 다시 돌려 보세요. 결정계수가 얼마나 떨어지나요?
+                    그리고 <strong>떨어진 쪽이 오히려 쓸모 있는 모델</strong>인 까닭을 설명해 보세요.
+                    동아리 부원을 뽑을 때 실제로 <strong>미리 알 수 있는 것</strong>이 무엇인지 떠올리면 답이 보입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        그럼 속성을 최대한 많이 넣는 게 좋은 것 아닌가?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">숫자만 보면 그렇습니다. 그래서 위험합니다.</strong>
+                        속성을 넣을수록 결정계수는 거의 언제나 오르니,
+                        <strong class="text-indigo-200">점수를 올리는 일은 아주 쉽습니다.</strong>
+                        어려운 것은 <strong class="text-sky-200">오른 점수가 진짜인지 가려내는 일</strong>입니다.
+                        주급이 그 예였습니다 &mdash; 넣으면 점수가 쑥 오르지만,
+                        정작 <strong class="text-indigo-200">아직 계약하지 않은 선수에게는 주급이 없어서</strong>
+                        쓸 수 없는 모델이 됩니다.
+                        성능 지표는 이런 사정을 <strong class="text-sky-200">한 글자도 알려 주지 않습니다.</strong>
+                        오히려 점수가 잘 나와서 문제를 덮어 버립니다.
+                        그래서 속성을 넣을 때마다 물어야 합니다 &mdash;
+                        <strong class="text-indigo-200">이 값을 예측하는 그 순간에 정말 알 수 있는가,
+                        그리고 왜 관련이 있다고 보는가.</strong>
+                        이 두 물음에 답할 수 있는 사람만 자기 모델을 남에게 설명할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-layer-group text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">속성을 늘리면</p>
+                    <p class="text-base text-sky-100">결정계수는 거의 언제나 오른다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-chart-line text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">굽은 데이터라면</p>
+                    <p class="text-base text-sky-100">직선보다 트리가 잘 맞는다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-user-plus text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">속성을 고를 때</p>
+                    <p class="text-base text-sky-100">그때 정말 알 수 있는 값인가</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">단순에서 다중으로</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">속성 하나 &rarr; 일곱</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>선형 회귀가 <strong>0.2대에서 0.7대</strong>로 가장 크게 좋아진다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성 하나로 사람을 판단하면 <strong>많이 빗나간다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>실험은 <strong>한 번에 하나만</strong> 바꾼다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터의 모양이 방법을 정한다</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">직선 vs 계단</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>잠재력과 가치는 <strong>굽은 관계</strong>라 직선이 담지 못한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>그래서 <strong>트리가 선형 회귀를 크게 앞선다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>단, 선형 회귀만 <strong>말로 옮길 수 있는 계수</strong>를 남긴다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">숫자의 함정</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">결정계수를 의심하기</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속성을 넣기만 해도 <strong>거의 언제나 오른다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>오른 폭이 크고 넣은 이유를 말할 수 있을 때</strong>만 좋아진 것</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>주급은 가치의 <strong>원인이 아니라 결과</strong>에 가깝다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">속성을 고르는 기준</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">Select Columns 앞에서</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>예측하는 그 순간에 알 수 있는 값</strong>인가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>왜 관련이 있다고 보는지 <strong>한 문장으로 말할 수</strong> 있는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>새 위젯 &mdash; <span class="widget-name">Select Columns</span> &middot; <span class="widget-name">Linear Regression</span></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    24개 속성 가운데 <strong>분석에 쓸 것만 골라 내는</strong> 오렌지 위젯은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'Data Sampler는 데이터를 훈련용과 평가용으로 나누는 위젯입니다. 속성이 아니라 행을 나눕니다.')">
+                    ① Data Sampler
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! Features에 독립 변수를, Target에 종속 변수를 지정합니다.')">
+                    ② Select Columns
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'Predictions는 만들어진 모델의 성능을 채점해 보여 주는 위젯입니다.')">
+                    ③ Predictions
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'Scatter Plot은 두 속성의 관계를 산점도로 그려 보여 주는 위젯입니다.')">
+                    ④ Scatter Plot
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    잠재력 <strong>하나만</strong> 썼을 때 의사결정트리가 선형 회귀보다 결정계수가
+                    훨씬 높게 나온 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 모델 모두 같은 속성, 같은 데이터를 썼습니다. 조건은 같았습니다.')">
+                    ① 트리가 더 많은 속성을 썼기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 산점도가 오른쪽 끝에서 치솟는 굽은 모양이었지요. 직선은 그 굽음을 담을 수 없습니다.')">
+                    ② 잠재력과 가치의 관계가 곧게 이어지지 않기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '트리가 언제나 더 좋은 것은 아닙니다. 곧게 이어지는 데이터에서는 둘이 비슷합니다.')">
+                    ③ 의사결정트리가 언제나 더 좋은 모델이기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터가 17,660건으로 많은 것은 두 모델 모두에게 같은 조건입니다.')">
+                    ④ 데이터가 너무 많기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    속성을 늘렸더니 결정계수가 올랐습니다. 이때 <strong>가장 조심해야 할</strong> 생각은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 속성을 넣기만 해도 결정계수는 거의 언제나 오릅니다. 오른 것만으로는 증거가 되지 못합니다.')">
+                    ① 값이 올랐으니 무조건 더 좋은 모델이 되었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오른 폭이 큰지 보는 것은 올바른 태도입니다. 찔끔 오름과 크게 오름은 뜻이 다릅니다.')">
+                    ② 얼마나 크게 올랐는지 폭을 확인해야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '넣은 이유를 말할 수 있는지 따지는 것은 올바른 태도입니다.')">
+                    ③ 넣은 속성마다 관련될 이유를 말할 수 있어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '예측하는 순간에 그 값을 알 수 있는지 따지는 것은 올바른 태도입니다.')">
+                    ④ 그 속성을 예측 시점에 알 수 있는지 확인해야 한다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>주급</strong>을 독립 변수로 넣으면 결정계수가 크게 오릅니다.
+                    그런데도 문제가 되는 까닭으로 <strong>알맞지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가치가 높아서 주급이 높은 쪽에 가깝습니다. 원인과 결과가 뒤집혀 있습니다.')">
+                    ① 주급은 가치의 원인이라기보다 결과에 가깝다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아직 계약하지 않은 선수에게는 주급이 없습니다. 정작 쓸 때 넣을 값이 없습니다.')">
+                    ② 영입하려는 사람에게는 아직 주급이 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '주급과 가치는 거의 같은 것을 두 번 재고 있어서 잘 맞히는 것이 당연합니다.')">
+                    ③ 가치와 거의 같은 것을 두 번 재고 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 답입니다. 주급은 숫자 속성이라 회귀 분석에 문제없이 들어갑니다. 문제는 계산이 아니라 뜻에 있습니다.')">
+                    ④ 주급은 숫자가 아니라서 회귀 분석에 넣을 수 없다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    성능이 엇비슷할 때 <strong>선형 회귀</strong>를 고를 만한 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '선형 회귀가 언제나 더 정확한 것은 아닙니다. 이 실습에서는 오히려 트리가 더 정확했습니다.')">
+                    ① 예측이 언제나 더 정확하기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 속성마다 계수가 하나씩 나오므로 「이 속성이 얼마나 관련되는지」를 말로 옮길 수 있습니다.')">
+                    ② 속성마다 계수가 나와 관계를 말로 옮길 수 있어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터를 나누는 일은 어느 모델을 쓰든 똑같이 필요합니다.')">
+                    ③ 데이터를 훈련용과 평가용으로 나누지 않아도 되어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터 범위 밖에서는 직선이 오히려 더 위험합니다. 가격이 음수로 나오던 일을 떠올려 보세요.')">
+                    ④ 데이터 범위 밖에서도 안전하게 예측하기 때문에
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

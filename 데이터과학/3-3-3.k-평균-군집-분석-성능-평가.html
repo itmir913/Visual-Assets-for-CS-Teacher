@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>k-평균 군집 분석 성능 평가</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-ruler absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chart-column absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            k-평균 군집 분석 성능 평가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            정답이 없는데 <strong>잘 묶였는지</strong> 어떻게 알까요?<br>
+            데이터 <strong>안에서</strong> 잣대를 만들어 냅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>군집 내 유사성과 군집 간 상이성이 무엇을 뜻하는지 설명할 수 있다.</li>
+                    <li>오차 제곱합을 구하고, 엘보 그래프로 군집의 개수를 정할 수 있다.</li>
+                    <li>실루엣 계수가 어떻게 계산되는지 설명하고 값의 뜻을 해석할 수 있다.</li>
+                    <li>두 잣대가 각각 무엇을 놓치는지 알고 함께 살펴볼 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-ruler text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">군집 분석 성능 평가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-indigo-600 transition">두 가지 조건</a>
+            <a href="#sse" class="hover:text-indigo-600 transition">오차 제곱합</a>
+            <a href="#elbow" class="hover:text-indigo-600 transition">엘보 그래프</a>
+            <a href="#silhouette" class="hover:text-indigo-600 transition">실루엣 계수</a>
+            <a href="#compare" class="hover:text-indigo-600 transition">두 잣대</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI와 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 두 가지 조건 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">잘 묶였다는 것은 무슨 뜻일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                맞춰 볼 정답이 없으니 <strong>데이터 안에서 잣대를 만들어</strong> 내야 합니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                회귀 분석에서는 실젯값이 있었기에 <strong>&ldquo;얼마나 빗나갔나&rdquo;</strong>를 잴 수 있었습니다.
+                군집 분석에는 그런 값이 없습니다.
+                그래서 잣대를 <strong>&ldquo;좋은 군집이란 무엇인가&rdquo;라는 정의 자체</strong>에서 끌어옵니다.
+                앞 소절에서 이미 말해 둔 두 가지입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">군집 내 유사성</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>한 군집 안</strong>의 데이터들이 서로 얼마나 비슷한가.
+                        군집 안에서 데이터가 <strong>얼마나 좁게 모여 있는지</strong>로 잽니다.
+                        <strong class="text-sky-800">좁게 모여 있을수록 좋습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">군집 간 상이성</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>서로 다른 군집</strong>끼리 얼마나 다른가.
+                        군집과 군집 사이가 <strong>얼마나 멀리 떨어져 있는지</strong>로 잽니다.
+                        <strong class="text-orange-800">멀리 떨어져 있을수록 좋습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>하나만 보면 속습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>군집 내 유사성만</strong> 좋게 만들고 싶다면 방법이 있습니다 &mdash;
+                    <strong>데이터 하나마다 군집을 하나씩</strong> 만들면 됩니다.
+                    군집 안에 혼자뿐이니 완벽하게 비슷하지요.
+                    물론 <strong>아무 쓸모도 없습니다.</strong>
+                    거꾸로 <strong>군집 간 상이성만</strong> 보면 <strong>전체를 두 덩어리로 뚝 자르는 것</strong>이 유리합니다.
+                    <strong>두 조건을 함께 봐야</strong> 하는 이유입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 이것을 숫자로 만드는 방법 <strong>두 가지</strong>를 배웁니다.
+                하나는 <strong>군집 내 유사성만</strong> 보고, 다른 하나는 <strong>둘을 한꺼번에</strong> 봅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">잣대</th>
+                        <th>무엇을 보나</th>
+                        <th class="w-40">값의 범위</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">오차 제곱합 (SSE)</td>
+                        <td><strong>군집 내 유사성</strong>만 본다. 각 데이터가 자기 중심점에서 얼마나 떨어져 있는가</td>
+                        <td>0 이상. <strong>작을수록 좋다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">실루엣 계수</td>
+                        <td><strong>군집 내 유사성과 군집 간 상이성을 함께</strong> 본다</td>
+                        <td>&minus;1 ~ 1. <strong>1에 가까울수록 좋다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 오차 제곱합 ===== -->
+    <section id="sse" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">중심점에서 얼마나 떨어져 있나?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                회귀 분석에서 쓴 <strong>그 오차 제곱합</strong>이 여기서도 나옵니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                군집 분석에서 <strong>오차</strong>는 <strong>각 데이터와 자기 군집 중심점 사이의 거리</strong>입니다.
+                회귀에서는 점과 직선 사이의 세로 거리였는데, 여기서는 점과 중심점 사이의 거리로 바뀌었을 뿐
+                <strong>제곱해서 더한다는 것은 똑같습니다.</strong>
+                이 합을 <strong>오차 제곱합(SSE, sum of squared errors)</strong>이라고 합니다.
+            </p>
+
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-store mr-1"></i>앞 소절의 부스 여섯 개를 그대로 가져옵니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    가(1,&nbsp;1) 나(3,&nbsp;1) 다(2,&nbsp;4) 라(7,&nbsp;6) 마(9,&nbsp;6) 바(8,&nbsp;9),
+                    k = 2로 묶어 중심점이 <strong>(2,&nbsp;2)</strong>와 <strong>(8,&nbsp;7)</strong>로 정해졌던 그 데이터입니다.
+                </p>
+            </div>
+
+            <svg viewBox="0 0 620 320" role="img" class="chart-svg"
+                 aria-label="두 무리로 나뉜 여섯 개의 점 각각에서 자기 무리의 별 모양 중심점까지 점선이 그어져 있다.">
+                <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                    <line x1="70" y1="234" x2="580" y2="234"/>
+                    <line x1="70" y1="178" x2="580" y2="178"/>
+                    <line x1="70" y1="122" x2="580" y2="122"/>
+                    <line x1="70" y1="66" x2="580" y2="66"/>
+                    <line x1="174" y1="30" x2="174" y2="290"/>
+                    <line x1="278" y1="30" x2="278" y2="290"/>
+                    <line x1="382" y1="30" x2="382" y2="290"/>
+                    <line x1="486" y1="30" x2="486" y2="290"/>
+                </g>
+                <line x1="70" y1="25" x2="70" y2="290" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="70" y1="290" x2="590" y2="290" stroke="#94a3b8" stroke-width="1.5"/>
+                <g stroke="#f43f5e" stroke-width="3" stroke-dasharray="7 5">
+                    <line x1="122" y1="262" x2="174" y2="234"/>
+                    <line x1="226" y1="262" x2="174" y2="234"/>
+                    <line x1="174" y1="178" x2="174" y2="234"/>
+                    <line x1="434" y1="122" x2="486" y2="94"/>
+                    <line x1="538" y1="122" x2="486" y2="94"/>
+                    <line x1="486" y1="38" x2="486" y2="94"/>
+                </g>
+                <g fill="#0ea5e9" fill-opacity="0.9">
+                    <circle cx="122" cy="262" r="10"/>
+                    <circle cx="226" cy="262" r="10"/>
+                    <circle cx="174" cy="178" r="10"/>
+                </g>
+                <g fill="#f97316" fill-opacity="0.9">
+                    <circle cx="434" cy="122" r="10"/>
+                    <circle cx="538" cy="122" r="10"/>
+                    <circle cx="486" cy="38" r="10"/>
+                </g>
+                <polygon transform="translate(174 234)" fill="#0369a1" stroke="#ffffff" stroke-width="2"
+                         points="0,-16 3.8,-5.2 15.2,-4.9 6.1,2 9.4,12.9 0,6.4 -9.4,12.9 -6.1,2 -15.2,-4.9 -3.8,-5.2"/>
+                <polygon transform="translate(486 94)" fill="#c2410c" stroke="#ffffff" stroke-width="2"
+                         points="0,-16 3.8,-5.2 15.2,-4.9 6.1,2 9.4,12.9 0,6.4 -9.4,12.9 -6.1,2 -15.2,-4.9 -3.8,-5.2"/>
+            </svg>
+            <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-star text-slate-600"></i>중심점</span>
+                <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-rose-500"></span>오차 &mdash; 점과 중심점 사이의 거리</span>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                빨간 점선 하나하나가 오차입니다.
+                <strong>제곱해서 더하면</strong> 거리를 구하느라 제곱근을 씌웠던 것이 도로 풀려서,
+                <strong>가로 차이의 제곱 + 세로 차이의 제곱</strong>만 더하면 됩니다. 계산이 아주 간단해집니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-24">부스</th>
+                        <th>중심점</th>
+                        <th>가로 차이</th>
+                        <th>세로 차이</th>
+                        <th>오차&sup2;</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td class="font-bold">가 (1,&nbsp;1)</td><td>(2,&nbsp;2)</td><td>&minus;1</td><td>&minus;1</td><td>1 + 1 = <strong>2</strong></td></tr>
+                    <tr><td class="font-bold">나 (3,&nbsp;1)</td><td>(2,&nbsp;2)</td><td>1</td><td>&minus;1</td><td>1 + 1 = <strong>2</strong></td></tr>
+                    <tr><td class="font-bold">다 (2,&nbsp;4)</td><td>(2,&nbsp;2)</td><td>0</td><td>2</td><td>0 + 4 = <strong>4</strong></td></tr>
+                    <tr><td class="font-bold">라 (7,&nbsp;6)</td><td>(8,&nbsp;7)</td><td>&minus;1</td><td>&minus;1</td><td>1 + 1 = <strong>2</strong></td></tr>
+                    <tr><td class="font-bold">마 (9,&nbsp;6)</td><td>(8,&nbsp;7)</td><td>1</td><td>&minus;1</td><td>1 + 1 = <strong>2</strong></td></tr>
+                    <tr><td class="font-bold">바 (8,&nbsp;9)</td><td>(8,&nbsp;7)</td><td>0</td><td>2</td><td>0 + 4 = <strong>4</strong></td></tr>
+                    <tr class="bg-indigo-50">
+                        <td class="font-black" colspan="4">오차 제곱합 SSE</td>
+                        <td class="font-black text-indigo-900">16</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                    <strong>다와 바가 4로 가장 큽니다.</strong> 중심점에서 가장 멀리 떨어져 있기 때문입니다.
+                    SSE는 이렇게 <strong>중심에서 벗어난 정도를 모두 모은 값</strong>이고,
+                    <strong>작을수록 각 군집이 좁게 뭉쳐 있다</strong>는 뜻입니다.
+                    즉 <strong>군집 내 유사성</strong>을 재는 잣대입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>SSE만으로는 k를 고를 수 없습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    &ldquo;SSE가 작을수록 좋다&rdquo;를 그대로 따르면 <strong>k를 계속 키우게 됩니다.</strong>
+                    군집을 잘게 쪼갤수록 중심점이 가까워져 SSE가 줄어드니까요.
+                    <strong>k를 데이터 개수만큼 키우면 SSE는 정확히 0</strong>이 됩니다.
+                    점 하나하나가 자기 중심점이 되어 거리가 0이 되기 때문입니다.
+                    <strong>완벽한 점수이면서 아무 쓸모도 없는 답</strong>이지요.
+                    그래서 SSE는 <strong>다르게 읽어야</strong> 합니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 엘보 그래프 ===== -->
+    <section id="elbow" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">k를 몇으로 두어야 할까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                SSE의 <strong>값</strong>이 아니라 <strong>줄어드는 모양</strong>을 봅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                k를 1부터 하나씩 늘려 가며 SSE를 구해 봅시다.
+                <strong>k가 커지면 SSE는 반드시 줄어듭니다.</strong> 그것은 이미 아는 사실입니다.
+                우리가 볼 것은 <strong>얼마나 줄어드는가</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-20">k</th>
+                        <th>어떻게 묶이나</th>
+                        <th class="w-28">SSE</th>
+                        <th class="w-36">직전보다 줄어든 양</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td class="font-black">1</td><td>여섯 부스가 통째로 한 무리</td><td>107.5</td><td>&mdash;</td></tr>
+                    <tr class="bg-emerald-50">
+                        <td class="font-black">2</td><td><strong>가 나 다</strong> / <strong>라 마 바</strong></td>
+                        <td class="font-black">16</td>
+                        <td class="font-black text-emerald-800">91.5 &nbsp;&larr; 뚝 떨어짐</td>
+                    </tr>
+                    <tr><td class="font-black">3</td><td>가 나 다 / 라 마 / 바</td><td>10</td><td>6</td></tr>
+                    <tr><td class="font-black">4</td><td>가 나 / 다 / 라 마 / 바</td><td>4</td><td>6</td></tr>
+                    <tr><td class="font-black">5</td><td>가 나 / 다 / 라 / 마 / 바</td><td>2</td><td>2</td></tr>
+                    <tr><td class="font-black">6</td><td>여섯이 모두 따로</td><td>0</td><td>2</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <svg viewBox="0 0 620 300" role="img" class="chart-svg"
+                 aria-label="가로축이 군집 개수, 세로축이 오차 제곱합인 꺾은선 그래프. 왼쪽 끝에서 가파르게 떨어지다가 두 번째 지점부터 거의 평평해져 팔꿈치 모양을 이룬다.">
+                <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                    <line x1="90" y1="250" x2="590" y2="250"/>
+                    <line x1="90" y1="197" x2="590" y2="197"/>
+                    <line x1="90" y1="145" x2="590" y2="145"/>
+                    <line x1="90" y1="92" x2="590" y2="92"/>
+                    <line x1="90" y1="40" x2="590" y2="40"/>
+                </g>
+                <line x1="90" y1="25" x2="90" y2="270" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="90" y1="270" x2="600" y2="270" stroke="#94a3b8" stroke-width="1.5"/>
+                <polyline fill="none" stroke="#4f46e5" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"
+                          points="90,45 186,219 282,231 378,242 474,246 570,250"/>
+                <line x1="186" y1="25" x2="186" y2="270" stroke="#10b981" stroke-width="3" stroke-dasharray="8 6"/>
+                <g fill="#4f46e5">
+                    <circle cx="90" cy="45" r="7"/>
+                    <circle cx="282" cy="231" r="7"/>
+                    <circle cx="378" cy="242" r="7"/>
+                    <circle cx="474" cy="246" r="7"/>
+                    <circle cx="570" cy="250" r="7"/>
+                </g>
+                <circle cx="186" cy="219" r="13" fill="#ffffff" stroke="#10b981" stroke-width="6"/>
+            </svg>
+            <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-indigo-600"></span>군집 개수(가로) &middot; 오차 제곱합(세로)</span>
+                <span class="flex items-center gap-2"><span class="inline-block w-3.5 h-3.5 rounded-full border-4 border-emerald-500 bg-white"></span>팔꿈치 &mdash; k = 2</span>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-hand-point-right mr-1"></i>엘보(elbow) 그래프
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    가파르게 떨어지다가 <strong>갑자기 완만해지는 지점</strong>이 있습니다.
+                    선의 모양이 <strong>팔을 굽혔을 때의 팔꿈치</strong>를 닮았다 해서 엘보 그래프라고 부릅니다.
+                    이 팔꿈치가 <strong>알맞은 k</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    우리 데이터에서는 <strong>k = 2</strong>가 팔꿈치입니다.
+                    1에서 2로 갈 때는 <strong>91.5</strong>나 줄었는데, 2에서 3으로 갈 때는 <strong>6</strong>밖에 줄지 않았습니다.
+                    <strong>더 쪼개 봐야 얻는 것이 별로 없다</strong>는 뜻이지요.
+                    실제로 부스들은 왼쪽 아래와 오른쪽 위 <strong>두 덩어리</strong>였으니 딱 맞는 답입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-rose-900">
+                    <i class="fa-solid fa-eye-slash mr-1"></i>팔꿈치가 안 보이는 경우도 많습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    우리 예는 팔꿈치가 유난히 뚜렷했습니다. <strong>일부러 그렇게 만든 데이터</strong>이기 때문입니다.
+                    실제 데이터에서는 선이 <strong>완만하게 미끄러져 내려가기만 하고</strong>
+                    꺾이는 곳이 어디인지 애매한 경우가 훨씬 많습니다.
+                    그럴 때 <strong>&ldquo;여기가 팔꿈치다&rdquo;라고 정하는 것은 결국 사람의 판단</strong>입니다.
+                    엘보 그래프는 <strong>답을 주는 도구가 아니라 판단을 돕는 도구</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    표에서 <strong>k = 3과 k = 4가 똑같이 6씩</strong> 줄었습니다.
+                    그런데도 우리는 k = 2를 골랐습니다.
+                    <strong>&ldquo;가장 많이 줄어든 곳&rdquo;을 고른 것과 &ldquo;줄어드는 속도가 꺾인 곳&rdquo;을 고른 것</strong>은
+                    어떻게 다른가요?
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 실루엣 계수 ===== -->
+    <section id="silhouette" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이 점은 제자리에 있는 걸까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>점 하나하나</strong>에 대해 물어보는 잣대입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                SSE는 <strong>전체가 얼마나 뭉쳐 있는지</strong>를 하나의 숫자로 말해 줍니다.
+                <strong>실루엣 계수(silhouette coefficient)</strong>는 다릅니다.
+                <strong>점 하나를 콕 집어</strong> &ldquo;너는 지금 있는 군집이 맞느냐&rdquo;고 묻습니다.
+                그리고 묻는 방식이 아주 단순합니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">a &mdash; 우리 편과의 거리</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        나와 <strong>같은 군집</strong>에 있는 다른 점들까지의 <strong>평균 거리</strong>입니다.
+                        <strong class="text-sky-800">작을수록 좋습니다.</strong> 우리 편과 가깝다는 뜻이니까요.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">b &mdash; 옆 동네와의 거리</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>가장 가까운 다른 군집</strong>의 점들까지의 <strong>평균 거리</strong>입니다.
+                        <strong class="text-orange-800">클수록 좋습니다.</strong> 남과 멀다는 뜻이니까요.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-indigo-600 rounded-2xl p-6 text-center space-y-3">
+                <p class="text-base font-bold text-indigo-100">실루엣 계수</p>
+                <p class="text-2xl md:text-3xl font-black text-white leading-relaxed">
+                    (b &minus; a) &divide; (a와 b 중 큰 값)
+                </p>
+                <p class="text-base text-indigo-100 font-medium leading-relaxed">
+                    <strong class="text-white">b &minus; a</strong>가 &lsquo;얼마나 잘 자리 잡았는가&rsquo;이고,
+                    큰 값으로 나누는 것은 <strong class="text-white">&minus;1에서 1 사이로 가두기</strong> 위해서입니다
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-black text-lg text-emerald-900">1에 가까움</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        우리 편은 가깝고 남은 멀다. <strong>제자리에 잘 있다.</strong>
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-black text-lg text-amber-900">0 근처</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        양쪽이 비슷하게 멀다. <strong>두 군집의 경계</strong>에 걸쳐 있다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-4 space-y-1">
+                    <p class="font-black text-lg text-rose-900">&minus;1에 가까움</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        남이 우리 편보다 가깝다. <strong>엉뚱한 군집</strong>에 들어가 있다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 space-y-4">
+                <h3 class="text-2xl font-black text-slate-800">부스 &lsquo;다&rsquo;의 실루엣 계수를 구해 봅시다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    부스 <strong>다(2,&nbsp;4)</strong>는 1군집(가, 나, 다)에 속해 있습니다.
+                </p>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <p class="text-base text-slate-800 leading-relaxed">
+                        <strong class="text-sky-800">a</strong> = 같은 군집인 가, 나까지의 평균 거리<br>
+                        &nbsp;&nbsp;&nbsp;= (다&rarr;가 3.16 + 다&rarr;나 3.16) &divide; 2 = <strong>3.16</strong>
+                    </p>
+                    <p class="text-base text-slate-800 leading-relaxed">
+                        <strong class="text-orange-800">b</strong> = 다른 군집인 라, 마, 바까지의 평균 거리<br>
+                        &nbsp;&nbsp;&nbsp;= (5.39 + 7.28 + 7.81) &divide; 3 = <strong>6.83</strong>
+                    </p>
+                    <p class="text-lg font-black text-indigo-900 leading-relaxed pt-2 border-t border-slate-200">
+                        실루엣 계수 = (6.83 &minus; 3.16) &divide; 6.83 = 3.67 &divide; 6.83 &approx; <strong>0.54</strong>
+                    </p>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    양수이므로 <strong>제자리에 있는 것이 맞습니다.</strong>
+                    다만 1에는 좀 못 미칩니다. 여섯 부스 전부를 구해 보면 이유가 보입니다.
+                </p>
+
+                <svg viewBox="0 0 620 300" role="img" class="chart-svg"
+                     aria-label="여섯 개의 가로 막대그래프. 위쪽 세 개는 하늘색, 아래쪽 세 개는 주황색이며 길이가 조금씩 다르다. 세로 점선 하나가 평균 자리에 그어져 있다.">
+                    <line x1="120" y1="20" x2="120" y2="275" stroke="#94a3b8" stroke-width="1.5"/>
+                    <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                        <line x1="232" y1="20" x2="232" y2="275"/>
+                        <line x1="345" y1="20" x2="345" y2="275"/>
+                        <line x1="457" y1="20" x2="457" y2="275"/>
+                        <line x1="570" y1="20" x2="570" y2="275"/>
+                    </g>
+                    <g fill="#0ea5e9" fill-opacity="0.9">
+                        <rect x="120" y="26" width="325" height="30" rx="4"/>
+                        <rect x="120" y="64" width="303" height="30" rx="4"/>
+                        <rect x="120" y="102" width="242" height="30" rx="4"/>
+                    </g>
+                    <g fill="#f97316" fill-opacity="0.9">
+                        <rect x="120" y="152" width="308" height="30" rx="4"/>
+                        <rect x="120" y="190" width="297" height="30" rx="4"/>
+                        <rect x="120" y="228" width="272" height="30" rx="4"/>
+                    </g>
+                    <line x1="411" y1="20" x2="411" y2="275" stroke="#4f46e5" stroke-width="3" stroke-dasharray="8 6"/>
+                </svg>
+                <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded bg-sky-500"></span>1군집 &mdash; 위에서부터 가 &middot; 나 &middot; 다</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded bg-orange-500"></span>2군집 &mdash; 위에서부터 마 &middot; 바 &middot; 라</span>
+                    <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-indigo-600"></span>전체 평균 0.65</span>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    이렇게 점마다의 실루엣 계수를 막대로 늘어놓은 그림을 <strong>실루엣 플롯</strong>이라고 합니다.
+                    막대가 길수록 <strong>그 점이 자기 군집에 잘 어울린다</strong>는 뜻입니다.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-20">부스</th>
+                            <th>a &mdash; 우리 편</th>
+                            <th>b &mdash; 옆 동네</th>
+                            <th class="w-28">실루엣 계수</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold">가</td><td>2.58</td><td>9.29</td><td class="font-bold">0.72</td></tr>
+                        <tr><td class="font-bold">나</td><td>2.58</td><td>7.88</td><td class="font-bold">0.67</td></tr>
+                        <tr class="bg-amber-50"><td class="font-bold">다</td><td>3.16</td><td>6.83</td><td class="font-bold">0.54 &nbsp;&larr; 가장 낮다</td></tr>
+                        <tr><td class="font-bold">라</td><td>2.58</td><td>6.53</td><td class="font-bold">0.61</td></tr>
+                        <tr><td class="font-bold">마</td><td>2.58</td><td>8.17</td><td class="font-bold">0.68</td></tr>
+                        <tr><td class="font-bold">바</td><td>3.16</td><td>9.29</td><td class="font-bold">0.66</td></tr>
+                        <tr class="bg-indigo-50"><td class="font-black" colspan="3">평균</td><td class="font-black text-indigo-900">0.65</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-violet-900">
+                        <i class="fa-solid fa-magnifying-glass mr-1"></i>가장 낮은 점이 바로 그 부스입니다
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>다</strong>가 0.54로 가장 낮습니다.
+                        앞 소절에서 군집화를 손으로 돌릴 때 <strong>두 번째 되풀이에서 군집을 옮겼던 바로 그 부스</strong>입니다.
+                        우연이 아닙니다. <strong>다</strong>는 왼쪽 무리에서 혼자 위쪽에 떨어져 있어
+                        <strong>어느 쪽에도 확실히 속하지 못하는 위치</strong>에 있습니다.
+                        실루엣 계수는 이런 점을 <strong>숫자로 짚어 냅니다.</strong>
+                        전체 평균 하나만 보는 SSE로는 알 수 없는 정보입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 두 잣대 ===== -->
+    <section id="compare" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">두 잣대를 어떻게 함께 쓸까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>각자 놓치는 것</strong>이 다릅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">견주는 점</th>
+                        <th>오차 제곱합 (SSE)</th>
+                        <th>실루엣 계수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">보는 것</td>
+                        <td><strong>군집 내 유사성</strong>만</td>
+                        <td><strong>군집 내 유사성 + 군집 간 상이성</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">값의 범위</td>
+                        <td>0 이상. <strong>단위가 있다</strong></td>
+                        <td>&minus;1 ~ 1. <strong>단위가 없다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">알려 주는 단위</td>
+                        <td><strong>전체</strong>에 대한 값 하나</td>
+                        <td><strong>점 하나하나</strong>마다 값이 나온다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">k를 고를 때</td>
+                        <td>값만 보면 안 되고 <strong>엘보</strong>를 찾아야 한다</td>
+                        <td><strong>평균이 가장 큰 k</strong>를 고르면 된다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">약점</td>
+                        <td>k를 키우면 <strong>무조건 좋아 보인다</strong></td>
+                        <td>점마다 거리를 다 재야 해 <strong>계산이 무겁다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 border-l-4 border-l-indigo-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-indigo-900">
+                    <i class="fa-solid fa-lightbulb mr-1"></i>실루엣 계수가 k를 그냥 골라 줄 수 있는 이유
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    SSE는 k를 키우면 <strong>한 방향으로만 좋아져서</strong> 최댓값을 고르는 방식이 통하지 않았습니다.
+                    실루엣 계수는 다릅니다. k를 너무 잘게 쪼개면
+                    <strong>옆 군집이 바싹 다가와 b가 작아지므로</strong> 값이 오히려 떨어집니다.
+                    <strong>양쪽에서 잡아 주기 때문에</strong> 가장 좋은 지점이 가운데 어딘가에 생기는 것입니다.
+                    앞 소절에서 오렌지가 <span class="widget-name">From X to Y</span>로
+                    <strong>최적의 k를 직접 골라 주었던 것</strong>도 바로 이 값을 쓴 덕분입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>둘 다 놓치는 것이 있습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 잣대 모두 <strong>&ldquo;중심에서 가깝다&rdquo;와 &ldquo;서로 가깝다&rdquo;</strong>를 기준으로 삼습니다.
+                    그래서 <strong>동글동글하게 뭉친 무리</strong>에는 잘 맞지만,
+                    <strong>초승달처럼 휘어진 무리</strong>에는 낮은 점수를 줍니다.
+                    사람 눈에는 뚜렷한 두 무리인데도 말입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    즉 <strong>이 점수들이 낮다고 해서 &ldquo;묶임이 없다&rdquo;는 뜻이 아닙니다.</strong>
+                    <strong>&ldquo;k-평균이 좋아하는 모양의 묶임은 아니다&rdquo;</strong>라는 뜻일 수 있습니다.
+                    숫자를 보기 전에 <strong>산점도를 먼저 그려 보는 습관</strong>이 여기서도 중요합니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-list-check text-indigo-500 mr-1"></i>정리하면, k를 정할 때는 이렇게
+                </p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>산점도부터 그려</strong> 몇 덩어리로 보이는지 눈으로 확인한다.</li>
+                    <li><strong>엘보 그래프</strong>로 SSE가 꺾이는 지점을 찾는다.</li>
+                    <li><strong>실루엣 계수의 평균</strong>이 가장 큰 k를 확인한다.</li>
+                    <li>셋이 어긋나면 <strong>무엇을 하려는 분석인지</strong>로 돌아가 판단한다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    부스 여섯 개를 <strong>k = 6</strong>으로 묶으면 SSE는 0이 되어 완벽해 보입니다.
+                    그런데 이때 <strong>실루엣 계수는 구할 수조차 없습니다.</strong>
+                    a를 구하려면 <strong>같은 군집의 다른 점</strong>이 있어야 하는데,
+                    혼자뿐이라 잴 대상이 없기 때문입니다.
+                    이 사실이 <strong>두 잣대의 차이에 대해 무엇을 말해 주나요?</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        정답이 없다더니, 결국 점수를 매기잖아?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">매기는 점수의 성격이 다릅니다.</strong>
+                        회귀 분석의 결정계수는 <strong class="text-indigo-200">바깥에 있는 실젯값</strong>과 견주어 나온 값이었습니다.
+                        &ldquo;이 자전거는 진짜 22만 원에 팔렸다&rdquo; 같은 것이지요.
+                        그런데 SSE와 실루엣 계수는 <strong class="text-sky-200">데이터 안에서만</strong> 만들어집니다 &mdash;
+                        점들이 서로 얼마나 가까운지를 잰 것뿐입니다.
+                        그래서 이 점수가 높다는 것은
+                        <strong class="text-indigo-200">&ldquo;내가 세운 기준으로 보면 잘 뭉쳤다&rdquo;</strong>는 뜻이지
+                        <strong class="text-sky-200">&ldquo;이 묶음이 진짜 존재하는 무리다&rdquo;</strong>라는 뜻이 아닙니다.
+                        고르게 흩뿌린 점에도 k-평균은 군집을 만들어 냈고,
+                        그 결과에도 실루엣 계수는 어떤 값이든 나옵니다.
+                        <strong class="text-sky-200">숫자는 묶음의 모양을 재 줄 뿐, 그 묶음이 뜻이 있는지는 재지 못합니다.</strong>
+                        그 판단은 여전히 데이터를 아는 사람의 몫으로 남습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-compress text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">오차 제곱합</p>
+                    <p class="text-base text-sky-100">군집 내 유사성 &middot; 작을수록 좋다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-hand-point-right text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">엘보 그래프</p>
+                    <p class="text-base text-sky-100">꺾이는 지점이 알맞은 k</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-chart-column text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">실루엣 계수</p>
+                    <p class="text-base text-sky-100">점마다 &middot; 1에 가까울수록 좋다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">좋은 군집의 두 조건</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">함께 봐야 한다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>군집 내 유사성</strong> &mdash; 안쪽이 좁게 모여 있는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>군집 간 상이성</strong> &mdash; 군집끼리 멀리 떨어져 있는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>하나만 보면 <strong>쓸모없는 답이 만점</strong>을 받는다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">오차 제곱합</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">SSE &middot; sum of squared errors</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>각 점과 <strong>자기 중심점 사이 거리</strong>를 제곱해 모두 더한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>군집 내 유사성만</strong> 본다. 작을수록 좁게 뭉쳤다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>k를 키우면 계속 줄어 <strong>k = 데이터 개수면 0</strong>이 된다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">엘보 그래프</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">elbow &mdash; 팔꿈치</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>k를 늘려 가며 SSE를 그린 <strong>꺾은선</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>줄어드는 속도가 꺾이는 지점</strong>이 알맞은 k</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>실제로는 <strong>팔꿈치가 안 보이는 경우</strong>도 많다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">실루엣 계수</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">silhouette coefficient</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>(b &minus; a) &divide; 큰 값.</strong> a는 우리 편, b는 옆 동네와의 평균 거리</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>&minus;1 ~ 1.</strong> 1이면 제자리, 0이면 경계, 음수면 엉뚱한 군집</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>점마다</strong> 나오므로 <strong>애매한 점을 짚어 낼 수</strong> 있다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    군집 분석에서 <strong>오차 제곱합(SSE)</strong>은 무엇을 더한 값인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실젯값과 예측값의 차이는 회귀 분석의 오차입니다. 군집 분석에는 예측할 실젯값이 없습니다.')">
+                    ① 실젯값과 예측값의 차이를 제곱한 값
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 회귀에서는 점과 직선 사이였다면, 군집에서는 점과 중심점 사이입니다.')">
+                    ② 각 데이터와 자기 군집 중심점 사이 거리를 제곱한 값
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '중심점끼리의 거리는 군집 간 상이성에 해당합니다. SSE는 군집 안쪽만 봅니다.')">
+                    ③ 중심점끼리의 거리를 제곱한 값
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모든 데이터 쌍의 거리를 다 더하는 것이 아닙니다. 각 점과 자기 중심점 사이만 봅니다.')">
+                    ④ 모든 데이터 사이의 거리를 제곱한 값
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    &ldquo;SSE가 작을수록 좋다&rdquo;를 그대로 따라 <strong>k를 계속 키우면</strong> 어떻게 되나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'SSE는 어느 지점에서 다시 커지지 않습니다. k가 커질수록 계속 줄어듭니다.')">
+                    ① 어느 지점부터 SSE가 다시 커진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 점 하나하나가 자기 중심점이 되어 거리가 0이 됩니다. 완벽한 점수지만 쓸모없는 답입니다.')">
+                    ② k가 데이터 개수와 같아지면 SSE가 0이 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'SSE는 음수가 될 수 없습니다. 제곱한 값을 더했기 때문입니다.')">
+                    ③ SSE가 음수가 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'k를 키운다고 계산이 안 되지는 않습니다. 데이터 개수까지는 얼마든지 가능합니다.')">
+                    ④ 계산이 되지 않아 오류가 난다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>엘보 그래프</strong>에서 알맞은 k를 고르는 기준은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'SSE가 가장 작은 곳은 언제나 k가 가장 클 때입니다. 그것을 고르면 쪼개기만 하게 됩니다.')">
+                    ① SSE가 가장 작은 지점
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 더 쪼개 봐야 얻는 것이 별로 없어지는 지점입니다. 팔꿈치처럼 꺾인 모양이라 엘보입니다.')">
+                    ② SSE가 줄어드는 속도가 갑자기 완만해지는 지점
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'SSE가 0이 되는 곳은 k가 데이터 개수와 같을 때입니다. 군집을 나눈 뜻이 없어집니다.')">
+                    ③ SSE가 0이 되는 지점
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '그래프의 한가운데라는 기준은 없습니다. 데이터에 따라 팔꿈치의 위치가 다릅니다.')">
+                    ④ 그래프의 한가운데 지점
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    어떤 데이터의 <strong>실루엣 계수가 0에 가까운 값</strong>으로 나왔습니다. 무슨 뜻인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '1에 가까울 때가 제자리에 잘 있다는 뜻입니다.')">
+                    ① 자기 군집에 아주 잘 어울린다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! a와 b가 비슷하다는 뜻이므로 어느 쪽에 넣어도 애매한 자리에 있습니다.')">
+                    ② 두 군집의 경계에 걸쳐 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '완전히 엉뚱한 군집에 들어간 경우는 −1에 가까운 음수로 나옵니다.')">
+                    ③ 완전히 엉뚱한 군집에 들어가 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실루엣 계수가 0이라고 해서 이상치라는 뜻은 아닙니다. 경계에 있다는 뜻입니다.')">
+                    ④ 이 데이터는 이상치다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    SSE와 달리 <strong>실루엣 계수는 평균이 가장 큰 k를 그냥 고르면</strong> 됩니다. 그 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산이 정확한 것과는 관계가 없습니다. SSE도 정확하게 계산됩니다.')">
+                    ① 실루엣 계수가 SSE보다 정확하게 계산되기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 너무 잘게 쪼개면 옆 군집이 가까워져 b가 작아지므로 값이 오히려 떨어집니다. 양쪽에서 잡아 줍니다.')">
+                    ② 너무 잘게 쪼개면 값이 오히려 떨어지기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실루엣 계수도 k가 커지면 계산량이 늘어납니다. 오히려 SSE보다 계산이 무겁습니다.')">
+                    ③ 실루엣 계수는 k와 관계없이 늘 같은 값이기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실루엣 계수도 군집 내 유사성을 봅니다. a가 바로 그것입니다.')">
+                    ④ 실루엣 계수는 군집 내 유사성을 보지 않기 때문에
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

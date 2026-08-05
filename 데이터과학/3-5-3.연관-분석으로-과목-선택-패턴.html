@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연관 분석으로 과목 선택 패턴</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        /* 오렌지 프로그램의 위젯 하나를 나타내는 상자. 네모 하나가 위젯 하나다. */
+        .widget-node {
+            background: #fff;
+            border: 2px solid #fdba74;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 9.5rem;
+            box-shadow: 0 2px 4px rgb(0 0 0 / .06);
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-graduation-cap absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-diagram-project absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight">
+            연관 분석으로 과목 선택 패턴
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>어떤 과목을 함께 고를까요?</strong><br>
+            세 지표의 순위가 <strong>완전히 엇갈리는</strong> 자리입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>과목 선택 기록을 트랜잭션 데이터로 보고 연관 분석을 수행할 수 있다.</li>
+                    <li>지지도 · 신뢰도 · 향상도의 순위가 엇갈리는 까닭을 항목의 지지도로 설명할 수 있다.</li>
+                    <li>선택 규칙이 데이터에 심어 놓은 구조를 알아보고 결과에서 걸러 낼 수 있다.</li>
+                    <li>세 가지 분석 방법을 비교하여 문제에 맞는 방법을 고를 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-graduation-cap text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">연관으로 과목 선택</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#problem" class="hover:text-indigo-600 transition">문제 상황</a>
+            <a href="#data" class="hover:text-indigo-600 transition">데이터</a>
+            <a href="#run" class="hover:text-indigo-600 transition">분석 수행</a>
+            <a href="#read" class="hover:text-indigo-600 transition">엇갈린 순위</a>
+            <a href="#structure" class="hover:text-indigo-600 transition">숨은 구조</a>
+            <a href="#use" class="hover:text-indigo-600 transition">결과 활용</a>
+            <a href="#wrap" class="hover:text-indigo-600 transition">세 방법 정리</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 문제 상황 ===== -->
+    <section id="problem" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">여러분의 이야기입니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                고교 학점제에서 <strong>선배들은 어떤 과목을 함께 골랐을까요?</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                고교 학점제는 진로와 적성에 따라 <strong>과목을 직접 골라</strong> 듣고,
+                모은 학점이 기준을 넘으면 졸업을 인정받는 제도입니다.
+                고를 수 있는 과목이 많다는 것은 좋은 일이지만,
+                <strong>무엇을 골라야 할지 막막해지는</strong> 것도 사실입니다.
+            </p>
+
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-flag mr-1"></i>목표
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학생들이 실제로 신청한 <strong>수학 &middot; 과학 &middot; 사회 과목 묶음</strong>을 연관 분석해서
+                    <strong>어떤 과목들이 함께 선택되는지</strong> 찾아봅시다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-receipt text-indigo-500 mr-1"></i>
+                    <strong>한 학생의 신청서 한 장</strong>이 곧 트랜잭션입니다.
+                    영수증 대신 신청서, 물건 대신 과목일 뿐
+                    <a href="3-4-1.연관-분석의-이해.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석의 이해」</a>에서
+                    본 것과 <strong>똑같은 모양의 데이터</strong>입니다.
+                    그때 마지막 표에 <strong>&lsquo;학교 &mdash; 한 학생이 고른 과목 묶음&rsquo;</strong>이라고
+                    적어 두었던 바로 그 자리입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 데이터 ===== -->
+    <section id="data" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 2 &middot; 3 &mdash; 데이터를 열어 봅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>어떻게 고르게 되어 있는지</strong>를 먼저 확인해야 합니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-download text-indigo-500 mr-1"></i>내려받을 데이터
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학생 <strong>346명</strong>의 과목 신청 기록이 들어 있습니다.<br>
+                    <a class="ext-link" href="https://www.kaggle.com/datasets/chochochosam/students-choice-of-subjects"
+                       target="_blank" rel="noopener noreferrer">kaggle.com/datasets/chochochosam/students-choice-of-subjects</a>
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">고르는 방법에 규칙이 있습니다</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-32">과목군</th>
+                            <th>과목</th>
+                            <th class="w-28">고르는 수</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr class="bg-amber-50">
+                            <td class="font-bold">수학</td>
+                            <td>미적분, 수학 과제 탐구</td>
+                            <td class="font-bold">둘 중 하나</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">과학</td>
+                            <td>물리학Ⅱ, 화학Ⅱ, 생명 과학Ⅱ, 지구 과학Ⅱ</td>
+                            <td rowspan="2" class="font-bold text-center align-middle">여덟 중 셋</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">사회</td>
+                            <td>생활과 윤리, 사회&middot;문화, 세계사, 세계 지리</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    모두 <strong>열 과목</strong>이고, 한 학생은 <strong>네 과목</strong>을 신청합니다.
+                    <strong>이 규칙을 머리에 넣어 두세요.</strong>
+                    나중에 결과를 읽을 때 <strong>이것 때문에 생긴 값</strong>을 골라내야 합니다.
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-table mr-1"></i>이미 표 모양으로 준비되어 있습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <span class="widget-name">File</span> 위젯으로 열고
+                    <span class="widget-name">Data Table</span>을 이어 보세요.
+                    <strong>과목마다 열이 하나씩</strong> 있고, 신청한 과목 칸에만 <strong>1</strong>이,
+                    나머지에는 <strong>물음표</strong>가 찍혀 있을 것입니다.
+                    <a href="3-4-3.연관-분석-활용.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석 활용」</a>에서
+                    우리가 스프레드시트로 <strong>직접 만들었던 그 모양</strong>입니다.
+                    이번에는 만들 필요 없이 <strong>이미 그렇게 되어 있습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>항목 10개, 트랜잭션 346개</strong>로 나오면 제대로 열린 것입니다.
+                    수학 &middot; 과학 &middot; 사회 과목군 <strong>바깥의 과목은</strong>
+                    <span class="widget-name">skip</span>으로 두고
+                    <span class="widget-name">Apply</span>를 누릅니다.
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    <strong>미적분과 수학 과제 탐구가 함께 신청된 학생</strong>이 있을까요?
+                    표를 뒤져 보기 전에 <strong>먼저 생각해 보세요.</strong>
+                    그렇다면 두 과목의 <strong>지지도를 더하면 얼마</strong>가 될까요?
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 분석 수행 ===== -->
+    <section id="run" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 4 &mdash; 규칙을 찾습니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>보고 싶은 과목만</strong> 걸러서 보는 기능을 씁니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                <div class="widget-node">
+                    <i class="fa-solid fa-file-lines text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">File</p>
+                    <p class="text-base text-slate-500">과목을 고른다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-table text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Data Table</p>
+                    <p class="text-base text-slate-500">모양을 확인한다</p>
+                </div>
+                <i class="fa-solid fa-arrow-down md:hidden text-slate-400 text-xl"></i>
+                <i class="fa-solid fa-arrow-right hidden md:block text-slate-400 text-xl"></i>
+                <div class="widget-node">
+                    <i class="fa-solid fa-diagram-project text-orange-500 text-xl block mb-1"></i>
+                    <p class="font-bold text-base text-slate-800">Association Rules</p>
+                    <p class="text-base text-slate-500">규칙을 찾는다</p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <span class="widget-name">Association Rules</span> 위젯은
+                <a href="3-4-3.연관-분석-활용.html"
+                   class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석 활용」</a>에서
+                <strong>애드온을 설치해 두었어야</strong> 나타납니다.
+                아직이라면 먼저 설치하고 오렌지를 다시 켜세요.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-52">설정</th>
+                        <th class="w-32">값</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><span class="widget-name">Min. support</span></td>
+                        <td class="font-bold">10%</td>
+                        <td>346명 중 <strong>서른다섯 명쯤</strong>은 그렇게 골라야 살펴본다</td>
+                    </tr>
+                    <tr>
+                        <td><span class="widget-name">Min. confidence</span></td>
+                        <td class="font-bold">50%</td>
+                        <td>선행 과목을 고른 학생의 <strong>절반 이상</strong>이 후행도 골라야 한다</td>
+                    </tr>
+                    <tr class="bg-indigo-50">
+                        <td><span class="widget-name">Filter by Antecedent</span></td>
+                        <td class="font-bold">미적분</td>
+                        <td><strong>미적분이 선행에 있는 규칙만</strong> 보여 준다</td>
+                    </tr>
+                    <tr>
+                        <td><span class="widget-name">Items</span></td>
+                        <td class="font-bold">최소 1, 최대 1</td>
+                        <td>선행에 과목을 <strong>하나만</strong> 두어 규칙을 단순하게 만든다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-filter mr-1"></i>왜 미적분만 걸러서 볼까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    걸러 내지 않으면 <strong>열 과목의 모든 조합</strong>에서 규칙이 쏟아집니다.
+                    <a href="3-4-3.연관-분석-활용.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석 활용」</a>에서
+                    문턱을 낮추자 규칙이 <strong>4개에서 23개로</strong> 불어났던 일을 떠올려 보세요.
+                    항목이 다섯 개일 때가 그랬으니 <strong>열 개면 훨씬 많아집니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>&ldquo;미적분을 신청한 학생은 무엇을 함께 듣는가&rdquo;</strong>라는
+                    <strong>구체적인 질문 하나를 먼저 정해 두면</strong>
+                    볼 것이 몇 줄로 줄어듭니다. <strong>문턱을 낮추는 것보다 질문을 좁히는 것</strong>이
+                    훨씬 나은 방법입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <span class="widget-name">Find Rules</span>를 누르고
+                <strong>신뢰도(Conf) 열을 눌러 내림차순</strong>으로 정렬합니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 엇갈린 순위 ===== -->
+    <section id="read" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">세 지표가 서로 다른 답을 합니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                이 소절에서 <strong>가장 중요한 표</strong>입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                미적분을 선행으로 둔 규칙 중 위쪽 세 줄을 옮겨 적으면 <strong>대략 이렇게</strong> 나옵니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-52">연관 규칙</th>
+                        <th class="w-28">지지도</th>
+                        <th class="w-28">신뢰도</th>
+                        <th class="w-28">향상도</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="bg-emerald-50">
+                        <td class="font-bold">미적분 &rarr; 생명 과학Ⅱ</td>
+                        <td class="font-bold">0.34 (1위)</td>
+                        <td class="font-bold">0.70 (1위)</td>
+                        <td class="font-bold">1.65 (2위)</td>
+                    </tr>
+                    <tr class="bg-rose-50">
+                        <td class="font-bold">미적분 &rarr; 사회&middot;문화</td>
+                        <td class="font-bold">0.33 (2위)</td>
+                        <td class="font-bold">0.68 (2위)</td>
+                        <td class="font-bold">0.84 (3위)</td>
+                    </tr>
+                    <tr class="bg-amber-50">
+                        <td class="font-bold">미적분 &rarr; 화학Ⅱ</td>
+                        <td class="font-bold">0.28 (3위)</td>
+                        <td class="font-bold">0.58 (3위)</td>
+                        <td class="font-bold">2.01 (1위)</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-arrows-turn-to-dots mr-1"></i>순위가 뒤집혀 있습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    지지도와 신뢰도로 보면 <strong>사회&middot;문화가 2위, 화학Ⅱ가 꼴찌</strong>입니다.
+                    그런데 향상도로 보면 <strong>화학Ⅱ가 1위, 사회&middot;문화가 꼴찌</strong>입니다.
+                    게다가 사회&middot;문화의 향상도는 <strong>1보다 작습니다</strong> &mdash;
+                    <strong>기대보다 오히려 덜 함께 나온다</strong>는 뜻이지요.
+                    <strong>어느 쪽을 믿어야 할까요?</strong>
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xl font-black text-slate-800">과목별 지지도를 구해 보면 답이 나옵니다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>신뢰도는 지지도를 선행 과목의 지지도로 나눈 값</strong>이었지요.
+                    거꾸로 하면 <strong>선행 과목의 지지도</strong>를 알아낼 수 있습니다.
+                    세 줄 모두 <strong>0.34 &divide; 0.70, 0.33 &divide; 0.68, 0.28 &divide; 0.58</strong>이
+                    <strong>0.48 언저리</strong>로 같게 나옵니다 &mdash; 미적분의 지지도입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    같은 방법으로 <strong>향상도를 써서 상대 과목의 지지도</strong>도 구할 수 있습니다.
+                    <strong>향상도 = 신뢰도 &divide; 후행 과목의 지지도</strong>이니
+                    나누는 순서를 바꾸면 되지요.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-36">과목</th>
+                            <th class="w-28">지지도</th>
+                            <th>346명 중 몇 명쯤</th>
+                            <th>어떤 과목인가</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr class="bg-rose-50">
+                            <td class="font-bold">사회&middot;문화</td><td class="font-bold">약 0.81</td><td>280명 안팎</td>
+                            <td class="font-bold">거의 모두가 듣는 과목</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">미적분</td><td class="font-bold">약 0.48</td><td>167명 안팎</td>
+                            <td>절반쯤이 듣는다</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">생명 과학Ⅱ</td><td class="font-bold">약 0.42</td><td>146명 안팎</td>
+                            <td>제법 많이 듣는다</td>
+                        </tr>
+                        <tr class="bg-amber-50">
+                            <td class="font-bold">화학Ⅱ</td><td class="font-bold">약 0.29</td><td>100명 안팎</td>
+                            <td class="font-bold">듣는 학생이 적은 과목</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-500 leading-relaxed">
+                    화면에 보이는 세 지표에서 거꾸로 계산해 낸 값이라 <strong>소수점 아래는 조금 다를 수 있습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-emerald-900">
+                    <i class="fa-solid fa-key mr-1"></i>이제 세 줄이 모두 설명됩니다
+                </p>
+                <ul class="space-y-3 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>사회&middot;문화</strong>는 <strong>열 명 중 여덟 명</strong>이 듣는 과목입니다.
+                        미적분을 듣든 안 듣든 <strong>거의 모두가 신청합니다.</strong>
+                        그러니 미적분과 함께 나오는 것이 <strong>당연하고</strong>,
+                        지지도와 신뢰도가 높게 나오는 것도 당연합니다.
+                        <strong>여기에는 아무 정보도 없습니다.</strong>
+                        오히려 향상도가 0.84로 1보다 작으니
+                        <strong>미적분을 듣는 학생은 사회&middot;문화를 살짝 덜 고르는 편</strong>이라고 읽어야 합니다.
+                    </li>
+                    <li><strong>화학Ⅱ</strong>는 <strong>열 명 중 세 명</strong>만 듣는 과목입니다.
+                        그런데 <strong>미적분을 듣는 학생의 58%</strong>가 함께 신청합니다.
+                        전체 비율의 <strong>두 배</strong>이지요.
+                        지지도가 가장 낮은데도 <strong>가장 뚜렷하게 얽힌 짝</strong>입니다.
+                    </li>
+                    <li><strong>생명 과학Ⅱ</strong>는 <strong>지지도도 향상도도 모두 높은</strong>
+                        <strong>드물게 좋은 규칙</strong>입니다. 자주 나타나고, 우연도 아닙니다.
+                    </li>
+                </ul>
+                <div class="bg-white border border-emerald-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        <a href="3-4-2.연관-분석-과정.html"
+                           class="text-indigo-600 font-bold underline hover:text-indigo-800">「연관 분석 과정」</a>에서
+                        매점 데이터로 <strong class="text-emerald-800">&ldquo;많이 함께 팔린다&rdquo;와 &ldquo;얽혀 있다&rdquo;는 다른 말</strong>이라고 했습니다.
+                        여기서는 <strong class="text-emerald-800">실제 데이터가 그것을 훨씬 크게 보여 줍니다.</strong>
+                        <strong class="text-emerald-800">흔한 항목은 무엇과도 함께 나옵니다.</strong>
+                        그래서 <strong class="text-emerald-800">향상도를 함께 보지 않으면 반드시 속습니다.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 숨은 구조 ===== -->
+    <section id="structure" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">규칙이 만든 규칙</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                데이터에는 <strong>제도가 심어 놓은 무늬</strong>가 들어 있습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞의 스스로 확인을 다시 봅시다.
+                <strong>미적분과 수학 과제 탐구를 함께 신청한 학생은 한 명도 없습니다.</strong>
+                <strong>둘 중 하나만 고르게 되어 있으니까요.</strong>
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">향상도 0이 뜻하는 것</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        지지도({미적분, 수학 과제 탐구}) = <strong>0</strong>이므로
+                        향상도도 <strong>0</strong>입니다.
+                        <strong>가장 극단적으로 &lsquo;따로 나타나는&rsquo;</strong> 짝이지요.
+                        그렇다고 <strong>두 과목이 서로를 밀어낸다</strong>고 읽으면 안 됩니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">지지도의 합이 1</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        미적분이 <strong>약 0.48</strong>이니 수학 과제 탐구는
+                        <strong>약 0.52</strong>일 수밖에 없습니다.
+                        <strong>둘을 더하면 1</strong>입니다.
+                        모두가 둘 중 하나를 <strong>반드시</strong> 고르기 때문입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-violet-900">
+                    <i class="fa-solid fa-key mr-1"></i>데이터가 말한 것이 아니라 제도가 말한 것입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>&ldquo;미적분과 수학 과제 탐구는 강한 음의 관계&rdquo;</strong>라고 쓰면
+                    <strong>틀린 말은 아니지만 아무것도 발견하지 않은 것</strong>입니다.
+                    학생들의 취향과는 아무 상관이 없고,
+                    <strong>신청서 양식이 그렇게 만들어져 있었을 뿐</strong>이니까요.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    연관 분석은 <strong>데이터에 있는 무늬를 그대로 꺼내 옵니다.</strong>
+                    그 무늬가 <strong>사람들의 선택에서 생긴 것인지</strong>,
+                    <strong>규칙이나 양식 때문에 생긴 것인지</strong>는 구별해 주지 않습니다.
+                    <strong>데이터가 어떻게 만들어졌는지 아는 사람만</strong> 그것을 걸러 낼 수 있습니다.
+                </p>
+                <div class="bg-white border border-violet-300 rounded-xl p-4">
+                    <p class="text-base text-slate-800 leading-relaxed font-bold">
+                        <strong class="text-violet-800">분석에 앞서 데이터가 어떻게 모였는지 물어야 합니다.</strong>
+                        Ⅱ단원에서 <strong class="text-violet-800">&ldquo;누구를 볼 것인지 정하는 일이 분석의 첫걸음&rdquo;</strong>이라고 했던 것이
+                        여기서 <strong class="text-violet-800">결과를 읽는 데까지 이어집니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    과학과 사회에서 <strong>여덟 과목 중 셋</strong>을 고릅니다.
+                    이 규칙 때문에 <strong>과목 여덟 개의 지지도를 모두 더하면</strong> 얼마가 될까요?
+                    그리고 이것이 <strong>향상도에 어떤 영향</strong>을 줄지 생각해 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 결과 활용 ===== -->
+    <section id="use" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">찾아낸 규칙으로 무엇을 할까</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                <strong>추천에 쓸 수도, 시간표에 쓸 수도</strong> 있습니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="section-card border-t-4 border-sky-500 space-y-2">
+                    <div class="w-11 h-11 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-signs-post"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">과목 안내</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        미적분을 고른 학생에게 <strong>&ldquo;선배들은 화학Ⅱ를 함께 많이 들었다&rdquo;</strong>고
+                        알려 줄 수 있습니다. <strong>정하라는 것이 아니라 참고하라는 것</strong>입니다.
+                    </p>
+                </div>
+                <div class="section-card border-t-4 border-emerald-500 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">시간표 짜기</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        함께 신청되는 과목을 <strong>같은 시간에 배치하면</strong>
+                        둘 다 듣고 싶은 학생이 <strong>하나를 포기해야</strong> 합니다.
+                        <strong>피해야 할 조합</strong>을 알려 주는 셈입니다.
+                    </p>
+                </div>
+                <div class="section-card border-t-4 border-violet-500 space-y-2">
+                    <div class="w-11 h-11 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800">반 편성과 교실</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        함께 신청되는 과목의 <strong>수강 인원을 미리 가늠</strong>할 수 있어
+                        <strong>교실과 담당 교사</strong>를 준비하는 데 도움이 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>추천이 길을 좁혀서는 안 됩니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 규칙은 <strong>선배들이 그렇게 골랐다</strong>는 사실일 뿐,
+                    <strong>여러분이 그렇게 골라야 한다는 뜻이 아닙니다.</strong>
+                    그런데 <strong>추천을 계속 보여 주면</strong> 실제로 그쪽으로 몰리고,
+                    <strong>다음 해 데이터는 더 치우친 모습</strong>이 됩니다.
+                    그러면 추천은 <strong>더 강해지지요.</strong>
+                    <strong>추천이 데이터를 만들고, 그 데이터가 다시 추천을 만드는</strong> 고리가 생깁니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <a href="3-3-4.군집-분석-활용.html"
+                       class="text-indigo-600 font-bold underline hover:text-indigo-800">「군집 분석 활용」</a>에서
+                    음악 추천을 이야기할 때는 <strong>노래 하나 더 듣고 마는 일</strong>이었습니다.
+                    <strong>과목은 진로와 이어져 있습니다.</strong>
+                    <strong>드물게 선택되는 과목을 고른 학생이 이상해 보이지 않도록</strong>
+                    쓰는 사람이 조심해야 합니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-2 border-indigo-300 rounded-2xl p-5 space-y-3">
+                <p class="font-black text-base text-indigo-900">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>다른 과목으로도 해 봅시다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <span class="widget-name">Filter by Antecedent</span>의 과목 이름만 바꾸면 됩니다.
+                    <strong>향상도가 1보다 큰 줄만 적어 두세요.</strong>
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-40">선행 과목</th>
+                            <th>가장 향상도가 높은 후행 과목</th>
+                            <th class="w-24">향상도</th>
+                            <th class="w-24">신뢰도</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td class="font-bold h-12">수학 과제 탐구</td><td></td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">물리학Ⅱ</td><td></td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">세계사</td><td></td><td></td><td></td></tr>
+                        <tr><td class="font-bold h-12">직접 고른 과목</td><td></td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>미적분과 수학 과제 탐구의 결과를 견주어</strong> 보세요.
+                    두 과목을 고른 학생들이 <strong>서로 다른 과목을 함께 듣나요?</strong>
+                    그렇다면 <strong>어떤 진로를 생각하는 학생들일지</strong> 짐작해 봅시다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 세 방법 정리 ===== -->
+    <section id="wrap" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">세 가지 방법을 한자리에</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                Ⅲ단원에서 배운 것을 <strong>한 표로</strong> 모읍니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">방법</th>
+                        <th>어떤 질문에 답하나</th>
+                        <th>데이터의 모양</th>
+                        <th>답의 생김새</th>
+                        <th>평가하는 잣대</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">회귀 분석</td>
+                        <td>이 값이 <strong>얼마</strong>가 될까</td>
+                        <td>행마다 칸 수가 같은 <strong>수치형 표</strong> + 맞힐 값</td>
+                        <td><strong>숫자를 내놓는 식</strong></td>
+                        <td>MAE &middot; RMSE &middot; R&sup2;</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">군집 분석</td>
+                        <td>어떤 것들이 <strong>서로 비슷</strong>한가</td>
+                        <td>행마다 칸 수가 같은 <strong>수치형 표</strong></td>
+                        <td><strong>번호가 붙은 명단</strong></td>
+                        <td>오차 제곱합 &middot; 실루엣 계수</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">연관 분석</td>
+                        <td>무엇과 무엇이 <strong>함께 나타나</strong>나</td>
+                        <td>행마다 항목 수가 다른 <strong>트랜잭션</strong></td>
+                        <td><strong>규칙</strong> &mdash; A &rarr; B</td>
+                        <td>지지도 &middot; 향상도 &middot; 신뢰도</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">공통점</p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>세 방법 모두 <strong>사람이 정해야 하는 숫자</strong>가 있다 &mdash;
+                            속성, k, 최소 지지도
+                        </li>
+                        <li>세 방법 모두 <strong>결과에 뜻을 붙이는 것은 사람</strong>이다</li>
+                        <li>세 방법 모두 <strong>답을 반드시 내놓는다.</strong> 답이 있다는 보장은 없다</li>
+                    </ul>
+                </div>
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">가장 자주 하는 실수</p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>회귀 &mdash; 관찰한 관계를 <strong>인과로 말하기</strong></li>
+                        <li>군집 &mdash; 나눈 결과를 <strong>원래 있던 종류로 말하기</strong></li>
+                        <li>연관 &mdash; <strong>흔한 항목</strong>을 연관 있다고 말하기</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                        border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                        flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                    <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+                </span>
+                <p class="text-base text-sky-900 font-medium leading-relaxed">
+                    <strong>&ldquo;우리 학교 학생들의 과목 선택을 몇 가지 유형으로 나누고 싶다&rdquo;</strong>면
+                    어떤 방법을 써야 할까요?
+                    이번 소절에서 쓴 <strong>같은 데이터</strong>로 할 수 있을까요?
+                    <strong>무엇을 먼저 바꿔야</strong> 할까요?
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        결국 세 방법 중에 뭐가 제일 좋은 거야?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">그 질문에는 답이 없습니다.</strong>
+                        &ldquo;망치와 드라이버 중 뭐가 좋으냐&rdquo;와 같은 물음이니까요.
+                        Ⅲ단원에서 진짜로 배운 것은 <strong class="text-indigo-200">세 가지 도구의 사용법</strong>이 아니라
+                        <strong class="text-sky-200">&ldquo;내가 무엇을 알고 싶은지&rdquo;를 먼저 문장으로 쓰는 습관</strong>입니다.
+                        그 문장이 <strong class="text-indigo-200">&ldquo;얼마&rdquo;를 묻고 있으면 회귀</strong>,
+                        <strong class="text-sky-200">&ldquo;누가 비슷한가&rdquo;를 묻고 있으면 군집</strong>,
+                        <strong class="text-indigo-200">&ldquo;무엇과 무엇이 같이&rdquo;를 묻고 있으면 연관</strong>입니다.
+                        문장을 못 쓰겠다면 <strong class="text-sky-200">아직 분석할 준비가 안 된 것</strong>이지,
+                        도구를 몰라서가 아닙니다.
+                        그리고 어떤 방법을 쓰든 <strong class="text-indigo-200">마지막에 뜻을 붙이는 일은 언제나 사람의 몫</strong>이었다는 것도
+                        세 소절 내내 같았습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-percent text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">흔한 항목의 함정</p>
+                    <p class="text-base text-sky-100">무엇과도 함께 나온다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-list-check text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">제도가 심은 무늬</p>
+                    <p class="text-base text-sky-100">발견이 아니라 양식이다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-pen text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">질문을 먼저 쓴다</p>
+                    <p class="text-base text-sky-100">방법은 그 문장이 고른다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">과목 선택 데이터</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">course choice as transactions</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>신청서 한 장이 <strong>트랜잭션 하나</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>과목마다 열이 있고 <strong>신청한 칸에만 1</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>선행 과목을 <strong>걸러서 보면</strong> 볼 규칙이 줄어든다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">흔한 항목의 함정</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">the common-item trap</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>지지도 0.81인 과목은 <strong>무엇과도 함께 나온다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>그래서 <strong>지지도 &middot; 신뢰도 1~2위인데 향상도는 꼴찌</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>드문 항목이 <strong>가장 뚜렷한 짝</strong>일 수 있다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">제도가 심은 무늬</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">structure from the form</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>택1 과목끼리는 <strong>향상도가 0</strong>일 수밖에 없다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>두 과목의 <strong>지지도를 더하면 1</strong>이 된다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>발견이 아니라 양식</strong>이다. 걸러 내야 한다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">세 방법 고르기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">choosing the method</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>&ldquo;얼마&rdquo;를 물으면 <strong>회귀</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>&ldquo;누가 비슷한가&rdquo;를 물으면 <strong>군집</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>&ldquo;무엇과 무엇이 같이&rdquo;를 물으면 <strong>연관</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 10: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>미적분 → 사회·문화</strong>는 신뢰도가 0.68로 높은데 향상도는 0.84였습니다. 왜 그럴까?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터가 적어서가 아닙니다. 346명이면 적은 수가 아닙니다.')">
+                    ① 데이터가 적어 값이 흔들려서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사회·문화는 열 명 중 여덟 명이 듣는 과목이라 무엇과도 함께 나옵니다.')">
+                    ② 사회·문화를 듣는 학생이 원래 아주 많아서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '두 과목이 서로 다른 과목군이어도 함께 신청할 수 있습니다. 문제가 되지 않습니다.')">
+                    ③ 두 과목이 서로 다른 과목군이라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '신뢰도와 향상도는 계산이 서로 다를 뿐 어느 한쪽이 틀린 값이 아닙니다.')">
+                    ④ 신뢰도가 잘못 계산되어서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    세 규칙 중 <strong>가장 뚜렷하게 얽힌 짝</strong>을 고르려면 어느 값을 봐야 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지지도가 높다는 것은 자주 함께 나온다는 뜻일 뿐, 얽혀 있다는 뜻이 아닙니다.')">
+                    ① 지지도가 가장 높은 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '신뢰도도 흔한 항목에 끌려갑니다. 사회·문화가 2위였던 것이 그 예입니다.')">
+                    ② 신뢰도가 가장 높은 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 향상도만이 흔한 항목의 영향을 걷어 낸 값입니다.')">
+                    ③ 향상도가 가장 높은 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '세 값을 더하는 계산은 뜻이 없습니다. 단위도 의미도 다릅니다.')">
+                    ④ 세 값을 모두 더해 가장 큰 것
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    미적분과 수학 과제 탐구의 <strong>향상도가 0</strong>으로 나왔습니다. 어떻게 읽어야 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '학생들의 취향과는 상관이 없습니다. 애초에 함께 고를 수 없습니다.')">
+                    ① 두 과목을 싫어하는 취향이 뚜렷하게 나뉘어 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 둘 중 하나만 고르게 되어 있으니 함께 나올 수가 없습니다. 발견이 아니라 양식입니다.')">
+                    ② 둘 중 하나만 고르는 규칙 때문에 함께 나올 수 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산 오류가 아닙니다. 함께 든 트랜잭션이 0이면 향상도도 0입니다.')">
+                    ③ 계산에 오류가 생긴 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '향상도 0은 아주 뚜렷한 값입니다. 데이터가 부족해서 나온 값이 아닙니다.')">
+                    ④ 데이터가 부족해 값을 구하지 못한 것이다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>선행 과목을 미적분으로 걸러서</strong> 본 까닭으로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '미적분이 특별해서가 아닙니다. 다른 과목으로도 똑같이 할 수 있습니다.')">
+                    ① 미적분이 가장 중요한 과목이라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 열 과목의 모든 조합에서 규칙이 쏟아지므로 질문을 좁힌 것입니다.')">
+                    ② 질문을 좁혀야 볼 규칙이 몇 줄로 줄어들어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '걸러 낸다고 계산이 정확해지지는 않습니다. 값은 그대로입니다.')">
+                    ③ 걸러 내면 지지도가 더 정확해져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '거르지 않아도 분석은 됩니다. 결과가 너무 많아질 뿐입니다.')">
+                    ④ 거르지 않으면 분석이 되지 않아서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    &ldquo;우리 학교 학생들을 <strong>몇 가지 유형으로 나누고 싶다</strong>&rdquo;면 어떤 방법인가?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '회귀는 값이 얼마가 될지를 맞히는 방법입니다. 나누는 방법이 아닙니다.')">
+                    ① 회귀 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 비슷한 것끼리 묶어 유형을 만드는 것은 군집 분석입니다.')">
+                    ② 군집 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '연관 분석은 과목과 과목의 관계를 찾습니다. 학생을 나누지는 않습니다.')">
+                    ③ 연관 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '유형을 미리 정해 두고 맞히는 것이라면 분류이지만, 여기서는 유형 자체를 찾아야 합니다.')">
+                    ④ 어떤 방법으로도 할 수 없다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

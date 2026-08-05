@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 분석</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-magnifying-glass-chart absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-toolbox absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터 분석
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>무엇을 물을 것인가</strong>가 정해지면<br>
+            <strong>어떻게 물을 것인가</strong>가 남습니다.<br>
+            분석 방법과 도구를 살펴봅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터 분석이 무엇인지 설명하고, 데이터에서 찾는 상관관계 &middot; 인과 관계 &middot; 연관 관계를 구별할 수 있다.</li>
+                    <li>회귀 &middot; 군집 &middot; 연관 분석이 각각 어떤 물음에 답하는 방법인지 말할 수 있다.</li>
+                    <li>데이터 분석 도구를 종류에 따라 나누고, 목적에 맞는 도구를 골라 데이터를 분석할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-magnifying-glass-chart text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 분석</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#concept" class="hover:text-indigo-600 transition">데이터 분석</a>
+            <a href="#relation" class="hover:text-indigo-600 transition">세 가지 관계</a>
+            <a href="#kinds" class="hover:text-indigo-600 transition">분석 방법</a>
+            <a href="#analytics" class="hover:text-indigo-600 transition">다른 분류</a>
+            <a href="#tools" class="hover:text-indigo-600 transition">분석 도구</a>
+            <a href="#tools-gui" class="hover:text-indigo-600 transition">코드 없는 도구</a>
+            <a href="#codap" class="hover:text-indigo-600 transition">CODAP 실습</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI와 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 데이터 분석 ===== -->
+    <section id="concept" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터 분석은 무엇을 하는 일일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">모델을 만든다는 것은 결국 <strong>데이터에게 무언가를 묻는</strong> 일입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
+                <p class="text-lg text-indigo-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-bookmark text-indigo-400 mr-2"></i>
+                    <strong>데이터 분석</strong>은 <strong>통계적 방법</strong>이나 <strong>기계학습 방법</strong>으로
+                    데이터로부터 <strong>유용한 정보를 얻어 내는 일</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-600 leading-relaxed">
+                앞 소절에서 데이터 모델링이 <strong>속성 사이의 관계를 모델로 만드는 과정</strong>이라고 했습니다.
+                그 과정 안에서 실제로 손을 움직이는 일이 데이터 분석입니다.
+                여러 분석 방법을 써서 데이터에서 <strong>의미 있는 정보를 뽑아내고</strong>,
+                거기에 기대어 <strong>합리적인 의사 결정</strong>을 하는 것이 목적입니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    구체적으로는 속성과 속성 사이의 <strong>상관관계 &middot; 인과 관계 &middot; 연관 관계</strong>를 찾습니다.
+                    이 셋이 무엇이 어떻게 다른지가 이 소절의 첫 번째 이야기입니다.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-3">한 가지 방법으로 끝나지 않습니다</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터 분석 방법은 <strong>데이터의 특성과 목적에 따라 다양합니다.</strong>
+                    그래서 <strong>목적에 맞는 방법을 고를 수 있어야</strong> 합니다.
+                    게다가 한 번 골랐다고 끝이 아닙니다.
+                    분석으로 만들어진 모델의 <strong>성능을 평가하고, 새로운 분석 방법을 골라 다시 해 보는 과정</strong>을
+                    반복해야 합니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-5 text-center space-y-2">
+                    <span class="w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xl mx-auto">
+                        <i class="fa-solid fa-question"></i>
+                    </span>
+                    <p class="font-black text-lg text-slate-800">무엇을 물을까</p>
+                    <p class="text-base text-slate-600 leading-relaxed">알고 싶은 것을 정한다</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-5 text-center space-y-2">
+                    <span class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mx-auto">
+                        <i class="fa-solid fa-diagram-project"></i>
+                    </span>
+                    <p class="font-black text-lg text-slate-800">어떻게 물을까</p>
+                    <p class="text-base text-slate-600 leading-relaxed">맞는 분석 방법과 도구를 고른다</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-5 text-center space-y-2">
+                    <span class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto">
+                        <i class="fa-solid fa-rotate"></i>
+                    </span>
+                    <p class="font-black text-lg text-slate-800">다시 물을까</p>
+                    <p class="text-base text-slate-600 leading-relaxed">평가하고 방법을 바꿔 되풀이한다</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;우리 학교 매점에서 <strong>어떤 상품을 더 들여놓아야 할까?</strong>&rdquo;
+                이 물음에 답하려면 <strong>무엇을 먼저 정해야</strong> 할까요?
+                데이터를 모으는 일과 분석 방법을 고르는 일 중 <strong>무엇이 먼저인지</strong>도 함께 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 세 가지 관계 ===== -->
+    <section id="relation" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터에서 찾는 관계는 몇 가지일까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">앞 소절에서 <strong>상관관계</strong>와 <strong>인과 관계</strong>를 나눠 보았습니다. 여기에 하나가 더 붙습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-cloud-rain mr-2"></i>한 장면으로 세 가지를 봅니다
+                </p>
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    <strong>비가 오고 쌀쌀한 날, 학교 매점.</strong>
+                    이날 매점에서는 <strong>우산</strong>이 평소보다 많이 팔렸고,
+                    <strong>따뜻한 음료</strong>도 평소보다 많이 팔렸습니다.
+                    그리고 따뜻한 음료를 산 학생들 중 상당수가 <strong>호빵</strong>을 같이 집어 갔습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-sky-900">
+                        <i class="fa-solid fa-arrows-left-right mr-2"></i>상관관계
+                    </p>
+                    <p class="text-base font-medium text-sky-600">correlation</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        두 속성이 <strong>얼마나 관련되어 있는지</strong>를 말합니다.
+                    </p>
+                    <div class="bg-white border border-sky-200 rounded-xl p-4">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>우산 판매량</strong>과 <strong>따뜻한 음료 판매량</strong>이 나란히 올랐습니다.
+                            하지만 우산이 팔려서 음료가 팔린 것은 <strong>아닙니다.</strong>
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-rose-900">
+                        <i class="fa-solid fa-arrow-right-long mr-2"></i>인과 관계
+                    </p>
+                    <p class="text-base font-medium text-rose-600">causation</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 속성이 다른 속성에 <strong>영향을 미치는</strong> 것입니다.
+                    </p>
+                    <div class="bg-white border border-rose-200 rounded-xl p-4">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>비 오고 쌀쌀한 날씨</strong>가 우산 판매량과 음료 판매량
+                            <strong>둘 모두를 끌어올린 원인</strong>입니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-amber-900">
+                        <i class="fa-solid fa-link mr-2"></i>연관 관계
+                    </p>
+                    <p class="text-base font-medium text-amber-600">association</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        두 속성 사이의 <strong>연결이나 관계</strong>를 말합니다.
+                    </p>
+                    <div class="bg-white border border-amber-200 rounded-xl p-4">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>따뜻한 음료를 산 학생</strong>이 <strong>호빵도 함께</strong> 사 갔습니다.
+                            두 상품이 <strong>같은 영수증에 자주 함께</strong> 나타납니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    <strong>상관관계와 연관 관계는 헷갈리기 쉽습니다.</strong>
+                    상관관계는 주로 <strong>숫자 두 개가 함께 오르내리는 정도</strong>를 봅니다.
+                    연관 관계는 <strong>어떤 항목과 어떤 항목이 함께 나타나는지</strong>를 봅니다.
+                    그래서 상관관계는 <strong>회귀 분석</strong>으로, 연관 관계는 <strong>연관 분석</strong>으로 다룹니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">상관관계에는 방향과 세기가 있습니다</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    상관관계가 얼마나 강한지는 <strong>상관계수</strong>라는 숫자로 나타냅니다.
+                    상관계수는 <strong>&minus;1부터 1까지</strong>의 값을 가집니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="space-y-3">
+                    <svg viewBox="0 0 220 170" role="img" class="chart-svg"
+                         aria-label="점들이 왼쪽 아래에서 오른쪽 위로 올라가며 모여 있는 산점도.">
+                        <line x1="26" y1="14" x2="26" y2="146" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <line x1="26" y1="146" x2="204" y2="146" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <g fill="#0ea5e9" fill-opacity="0.8">
+                            <circle cx="48" cy="126" r="6"/>
+                            <circle cx="66" cy="116" r="6"/>
+                            <circle cx="84" cy="120" r="6"/>
+                            <circle cx="100" cy="98" r="6"/>
+                            <circle cx="118" cy="90" r="6"/>
+                            <circle cx="134" cy="76" r="6"/>
+                            <circle cx="152" cy="66" r="6"/>
+                            <circle cx="170" cy="46" r="6"/>
+                            <circle cx="186" cy="42" r="6"/>
+                        </g>
+                    </svg>
+                    <p class="font-black text-lg text-sky-800">양의 상관관계</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        두 속성이 <strong>같은 방향</strong>으로 움직입니다. 하나가 커지면 다른 하나도 커집니다.
+                        상관계수가 <strong>0보다 큽니다.</strong>
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <svg viewBox="0 0 220 170" role="img" class="chart-svg"
+                         aria-label="점들이 왼쪽 위에서 오른쪽 아래로 내려가며 모여 있는 산점도.">
+                        <line x1="26" y1="14" x2="26" y2="146" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <line x1="26" y1="146" x2="204" y2="146" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <g fill="#e11d48" fill-opacity="0.8">
+                            <circle cx="48" cy="40" r="6"/>
+                            <circle cx="66" cy="52" r="6"/>
+                            <circle cx="84" cy="48" r="6"/>
+                            <circle cx="100" cy="70" r="6"/>
+                            <circle cx="118" cy="80" r="6"/>
+                            <circle cx="134" cy="94" r="6"/>
+                            <circle cx="152" cy="104" r="6"/>
+                            <circle cx="170" cy="124" r="6"/>
+                            <circle cx="186" cy="128" r="6"/>
+                        </g>
+                    </svg>
+                    <p class="font-black text-lg text-rose-800">음의 상관관계</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        두 속성이 <strong>반대 방향</strong>으로 움직입니다. 하나가 커지면 다른 하나는 작아집니다.
+                        상관계수가 <strong>0보다 작습니다.</strong>
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <svg viewBox="0 0 220 170" role="img" class="chart-svg"
+                         aria-label="점들이 특별한 방향 없이 고르게 흩어져 있는 산점도.">
+                        <line x1="26" y1="14" x2="26" y2="146" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <line x1="26" y1="146" x2="204" y2="146" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <g fill="#94a3b8" fill-opacity="0.85">
+                            <circle cx="52" cy="58" r="6"/>
+                            <circle cx="72" cy="112" r="6"/>
+                            <circle cx="90" cy="38" r="6"/>
+                            <circle cx="104" cy="94" r="6"/>
+                            <circle cx="122" cy="62" r="6"/>
+                            <circle cx="140" cy="126" r="6"/>
+                            <circle cx="156" cy="46" r="6"/>
+                            <circle cx="174" cy="102" r="6"/>
+                            <circle cx="190" cy="72" r="6"/>
+                        </g>
+                    </svg>
+                    <p class="font-black text-lg text-slate-700">상관관계가 거의 없음</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        점들이 <strong>이렇다 할 방향 없이</strong> 흩어져 있습니다.
+                        상관계수가 <strong>0에 가깝습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>다시 한번, 상관관계는 인과 관계가 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    상관계수가 아무리 1에 가까워도 그것만으로는
+                    <strong>어느 쪽이 원인인지 알 수 없습니다.</strong>
+                    비 오는 날의 우산과 음료처럼, <strong>둘 모두를 움직인 제3의 속성</strong>이 숨어 있을 수 있습니다.
+                    분석 결과를 읽을 때 <strong>가장 자주 저지르는 실수</strong>이니 늘 의심해 보세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;학원에 다니는 시간이 길수록 <strong>수면 시간이 짧다</strong>&rdquo;는 조사가 있다면
+                이것은 <strong>양의 상관관계</strong>일까요, <strong>음의 상관관계</strong>일까요?
+                그리고 매점에서 <strong>연관 관계</strong>를 찾으려면 어떤 데이터를 모아야 할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 분석 방법 ===== -->
+    <section id="kinds" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 분석 방법이 있을까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">데이터 모델을 이용하는 분석은 크게 <strong>세 갈래</strong>입니다. 이 단원의 나머지가 이 셋을 차례로 다룹니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">종류</th>
+                        <th>특징</th>
+                        <th class="w-44">쓰이는 곳</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">회귀 분석</td>
+                        <td>주어진 데이터에 <strong>독립 변수와 종속 변수 사이의 관계를 가정</strong>하고, 그 관계를 <strong>가장 잘 표현하는 수식을 구하는</strong> 방법. 새 독립 변수가 주어지면 <strong>종속 변수의 값을 예측</strong>할 수 있다</td>
+                        <td>주택 가격 예측, 주가 예측, 판매량 예측</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">군집 분석</td>
+                        <td>데이터의 <strong>유사성을 측정</strong>하여 <strong>n개의 군집으로 나누는</strong> 방법</td>
+                        <td>고객 세분화, 이상 탐지, 그룹 분리</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">연관 분석</td>
+                        <td>데이터 내부에 존재하는 <strong>속성 간의 관계를 찾아내는</strong> 방법. <strong>장바구니 분석</strong>이라고도 한다</td>
+                        <td>상품 추천, 상품 진열</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    앞 소절에서 본 <strong>모델</strong>과 짝이 맞습니다.
+                    회귀 모델을 만드는 일이 <strong>회귀 분석</strong>, 군집 모델을 만드는 일이 <strong>군집 분석</strong>,
+                    연관 모델을 만드는 일이 <strong>연관 분석</strong>입니다.
+                    <strong>모델</strong>은 만들어진 결과물이고 <strong>분석</strong>은 그것을 만드는 과정이라고 보면 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">회귀 분석 &mdash; 관계를 선으로 그린다</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    흩어진 점들을 <strong>가장 잘 지나가는 수식</strong>을 찾습니다.
+                    수식이 생기면 <strong>표에 없는 값</strong>도 예측할 수 있습니다.
+                </p>
+            </div>
+            <svg viewBox="0 0 620 240" role="img" class="chart-svg"
+                 aria-label="흩어진 점들 사이를 지나가는 직선 하나가 그려진 산점도.">
+                <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                    <line x1="60" y1="170" x2="600" y2="170"/>
+                    <line x1="60" y1="120" x2="600" y2="120"/>
+                    <line x1="60" y1="70" x2="600" y2="70"/>
+                </g>
+                <line x1="60" y1="16" x2="60" y2="210" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="60" y1="210" x2="600" y2="210" stroke="#94a3b8" stroke-width="1.5"/>
+                <g fill="#e11d48" fill-opacity="0.8">
+                    <circle cx="96" cy="182" r="6"/>
+                    <circle cx="130" cy="164" r="6"/>
+                    <circle cx="158" cy="176" r="6"/>
+                    <circle cx="192" cy="150" r="6"/>
+                    <circle cx="224" cy="158" r="6"/>
+                    <circle cx="256" cy="132" r="6"/>
+                    <circle cx="288" cy="140" r="6"/>
+                    <circle cx="320" cy="114" r="6"/>
+                    <circle cx="352" cy="122" r="6"/>
+                    <circle cx="386" cy="96" r="6"/>
+                    <circle cx="418" cy="104" r="6"/>
+                    <circle cx="450" cy="78" r="6"/>
+                    <circle cx="484" cy="86" r="6"/>
+                    <circle cx="516" cy="58" r="6"/>
+                    <circle cx="550" cy="46" r="6"/>
+                </g>
+                <line x1="84" y1="184" x2="572" y2="48" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+            <div class="flex flex-wrap gap-4 text-base text-slate-600">
+                <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-rose-600"></span>데이터 포인트</span>
+                <span class="flex items-center gap-2"><span class="inline-block w-5 h-1 rounded-full bg-blue-700"></span>선형 회귀</span>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">군집 분석 &mdash; 비슷한 것끼리 묶는다</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    데이터가 서로 <strong>얼마나 비슷한지를 재어</strong> 몇 개의 덩어리로 나눕니다.
+                    각 군집에는 <strong>중심점</strong>이 하나씩 생깁니다.
+                </p>
+            </div>
+            <svg viewBox="0 0 620 240" role="img" class="chart-svg"
+                 aria-label="왼쪽에는 회색 점들이 아무렇게나 흩어져 있고, 오른쪽에는 같은 점들이 세 개의 색깔 원으로 묶여 있으며 각 원의 가운데에 가위표가 하나씩 있는 그림. 두 그림 사이에는 오른쪽을 가리키는 화살표가 있다.">
+                <defs>
+                    <marker id="arrow-cluster" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+                    </marker>
+                </defs>
+                <rect x="18" y="18" width="222" height="204" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+                <g fill="#475569">
+                    <circle cx="62" cy="62" r="6"/>
+                    <circle cx="92" cy="48" r="6"/>
+                    <circle cx="78" cy="88" r="6"/>
+                    <circle cx="106" cy="76" r="6"/>
+                    <circle cx="176" cy="60" r="6"/>
+                    <circle cx="202" cy="82" r="6"/>
+                    <circle cx="186" cy="102" r="6"/>
+                    <circle cx="210" cy="52" r="6"/>
+                    <circle cx="98" cy="168" r="6"/>
+                    <circle cx="128" cy="152" r="6"/>
+                    <circle cx="116" cy="188" r="6"/>
+                    <circle cx="150" cy="178" r="6"/>
+                </g>
+                <line x1="262" y1="120" x2="318" y2="120" stroke="#475569" stroke-width="5"
+                      stroke-linecap="round" marker-end="url(#arrow-cluster)"/>
+                <rect x="340" y="18" width="262" height="204" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+                <circle cx="404" cy="76" r="46" fill="#d1fae5" stroke="#10b981" stroke-width="3"/>
+                <circle cx="536" cy="72" r="44" fill="#dbeafe" stroke="#3b82f6" stroke-width="3"/>
+                <circle cx="452" cy="172" r="44" fill="#ffe4e6" stroke="#f43f5e" stroke-width="3"/>
+                <g fill="#065f46">
+                    <circle cx="382" cy="58" r="6"/>
+                    <circle cx="412" cy="46" r="6"/>
+                    <circle cx="396" cy="96" r="6"/>
+                    <circle cx="426" cy="86" r="6"/>
+                </g>
+                <g fill="#1e40af">
+                    <circle cx="514" cy="52" r="6"/>
+                    <circle cx="546" cy="44" r="6"/>
+                    <circle cx="524" cy="94" r="6"/>
+                    <circle cx="556" cy="86" r="6"/>
+                </g>
+                <g fill="#9f1239">
+                    <circle cx="428" cy="156" r="6"/>
+                    <circle cx="460" cy="146" r="6"/>
+                    <circle cx="440" cy="192" r="6"/>
+                    <circle cx="472" cy="184" r="6"/>
+                </g>
+                <g stroke="#0f172a" stroke-width="4" stroke-linecap="round">
+                    <line x1="396" y1="68" x2="412" y2="84"/><line x1="412" y1="68" x2="396" y2="84"/>
+                    <line x1="528" y1="64" x2="544" y2="80"/><line x1="544" y1="64" x2="528" y2="80"/>
+                    <line x1="444" y1="164" x2="460" y2="180"/><line x1="460" y1="164" x2="444" y2="180"/>
+                </g>
+            </svg>
+            <p class="text-base text-slate-500">
+                가위표(&times;)가 각 군집의 <strong>중심점</strong>입니다. 어떻게 중심을 잡고 어떻게 묶는지는
+                <strong>군집 분석</strong>에서 자세히 다룹니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">연관 분석 &mdash; 함께 팔리는 것을 찾는다</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    영수증을 잔뜩 모아 놓고 <strong>무엇과 무엇이 같이 담기는지</strong>를 셉니다.
+                    장바구니를 들여다본다는 뜻에서 <strong>장바구니 분석</strong>이라고도 부릅니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <svg viewBox="0 0 620 260" role="img" class="chart-svg"
+                     aria-label="왼쪽의 영수증 모양 도형에서 오른쪽의 상품 상자 세 개로 화살표가 뻗어 나가는 그림. 화살표는 위에서부터 점점 가늘어진다.">
+                    <defs>
+                        <marker id="arrow-assoc2" viewBox="0 0 10 10" refX="9" refY="5"
+                                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/>
+                        </marker>
+                    </defs>
+                    <rect x="34" y="52" width="120" height="156" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="3"/>
+                    <g stroke="#cbd5e1" stroke-width="6" stroke-linecap="round">
+                        <line x1="56" y1="82" x2="132" y2="82"/>
+                        <line x1="56" y1="106" x2="132" y2="106"/>
+                        <line x1="56" y1="130" x2="112" y2="130"/>
+                        <line x1="56" y1="154" x2="132" y2="154"/>
+                        <line x1="56" y1="178" x2="100" y2="178"/>
+                    </g>
+                    <g fill="none" stroke="#d97706" marker-end="url(#arrow-assoc2)">
+                        <path d="M 172 112 C 244 66, 300 50, 372 46" stroke-width="8"/>
+                        <path d="M 172 130 C 244 130, 300 130, 372 130" stroke-width="5"/>
+                        <path d="M 172 148 C 244 194, 300 210, 372 214" stroke-width="2.5"/>
+                    </g>
+                    <g fill="#ffedd5" stroke="#fb923c" stroke-width="3">
+                        <rect x="392" y="20" width="86" height="54" rx="10"/>
+                        <rect x="392" y="104" width="86" height="54" rx="10"/>
+                        <rect x="392" y="188" width="86" height="54" rx="10"/>
+                    </g>
+                </svg>
+
+                <div class="space-y-4">
+                    <div class="bg-white border-2 border-amber-200 rounded-2xl p-5 space-y-3">
+                        <p class="font-black text-lg text-amber-900">
+                            <i class="fa-solid fa-receipt mr-2"></i>따뜻한 음료를 산 학생이&hellip;
+                        </p>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-base font-bold text-slate-700 mb-1">
+                                    <span>호빵도 함께 샀다</span><span>72%</span>
+                                </div>
+                                <div class="h-4 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-amber-500 rounded-full" style="width:72%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-base font-bold text-slate-700 mb-1">
+                                    <span>삼각김밥도 함께 샀다</span><span>41%</span>
+                                </div>
+                                <div class="h-4 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-amber-500 rounded-full" style="width:41%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-base font-bold text-slate-700 mb-1">
+                                    <span>우산도 함께 샀다</span><span>18%</span>
+                                </div>
+                                <div class="h-4 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-amber-500 rounded-full" style="width:18%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-base text-slate-500 leading-relaxed">
+                            <i class="fa-solid fa-circle-info text-slate-400 mr-1"></i>
+                            위 수치는 <strong>이해를 돕기 위해 만든 가상의 값</strong>입니다.
+                        </p>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-5">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <i class="fa-solid fa-magnifying-glass text-sky-500 mr-1"></i>
+                            이런 결과가 나오면 매점은 <strong>따뜻한 음료 옆에 호빵을 진열</strong>할 수 있습니다.
+                            연관 분석이 <strong>상품 추천과 상품 진열</strong>에 쓰이는 이유입니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                ① <strong>다음 달 매점 매출을 예측</strong>하고 싶다 ② <strong>비슷한 소비 성향의 학생끼리 나누고</strong> 싶다
+                ③ <strong>같이 팔리는 상품 짝을 찾고</strong> 싶다 &mdash;
+                각각 어떤 분석 방법일까요? 셋 중 <strong>정답이 미리 주어지지 않는 것</strong>은 어느 것인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 다른 분류 ===== -->
+    <section id="analytics" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">분석 방법을 다르게 나눠 보면?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">회귀 &middot; 군집 &middot; 연관이 유일한 분류는 아닙니다. <strong>무엇을 위해 분석하는가</strong>로 나누면 이렇게 됩니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-600 leading-relaxed">
+                앞의 세 갈래는 <strong>어떤 모델을 만드는가</strong>로 나눈 것입니다.
+                여기서는 <strong>분석의 목적</strong>으로 다시 나눠 봅니다.
+                이미 지나온 것도 있고, 앞으로 만날 것도 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">분류</th>
+                        <th class="w-56">목적</th>
+                        <th>특징과 예시</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>기술 통계 분석</strong><br><span class="text-slate-400">Descriptive Analytics</span></td>
+                        <td>데이터의 주요 특징을 <strong>요약하고 설명</strong>한다</td>
+                        <td>중심 경향(평균 &middot; 중앙값 &middot; 최빈값), 분산(분산 &middot; 표준편차), 분포(도수분포표 &middot; 히스토그램)를 계산한다.<br>
+                            <span class="text-slate-500">예: 판매 데이터에서 평균 &middot; 최대 &middot; 최소 판매량을 파악한다</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>탐색적 데이터 분석</strong><br><span class="text-slate-400">EDA</span></td>
+                        <td>데이터의 <strong>구조를 파악</strong>하고 숨겨진 <strong>패턴 &middot; 이상치 &middot; 가설</strong>을 발견한다</td>
+                        <td>시각화로 데이터를 이해한다. 히스토그램 &middot; 상자그림 &middot; 산점도를 활용한다.<br>
+                            <span class="text-slate-500">예: 고객 데이터에서 속성 간 관계를 파악하고 군집화로 고객 집단을 찾는다</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>추론 통계 분석</strong><br><span class="text-slate-400">Inferential Analytics</span></td>
+                        <td><strong>표본</strong> 데이터를 이용해 <strong>모집단</strong>에 대한 추론을 이끌어 낸다</td>
+                        <td>가설 검정, 신뢰 구간, 회귀 분석 등을 포함한다.<br>
+                            <span class="text-slate-500">예: 새 광고가 전체 인구에 미치는 영향을 표본으로 추정한다</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>시계열 분석</strong><br><span class="text-slate-400">Time Series Analysis</span></td>
+                        <td><strong>시간에 따른</strong> 데이터의 패턴을 분석하고 예측한다</td>
+                        <td>자기회귀 모델(AR), 이동 평균 모델(MA), ARIMA, SARIMA, LSTM 등을 사용한다.<br>
+                            <span class="text-slate-500">예: 주가 예측, 판매량 예측, 기상 데이터 분석</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-map-location-dot text-indigo-500 mr-1"></i>
+                    <strong>기술 통계 분석과 탐색적 데이터 분석은 이미 해 보았습니다.</strong>
+                    평균 &middot; 중앙값을 구하고 히스토그램과 상자그림을 그렸던 것이 그것입니다.
+                    <strong>회귀 분석은 추론 통계 분석에도 들어갑니다.</strong>
+                    분류가 서로 겹친다는 것은, 이 구분이 <strong>엄격한 칸막이가 아니라 관점의 차이</strong>라는 뜻입니다.
+                </p>
+                <p class="text-base">
+                    <a class="text-indigo-600 font-bold underline hover:text-indigo-800"
+                       href="2-3-1.탐색적-데이터-분석.html">「탐색적 데이터 분석」 다시 보기</a>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 반 <strong>전체 학생의 키 평균</strong>을 구하는 것과,
+                <strong>10명만 재어 전교생의 키 평균을 짐작</strong>하는 것은 어떻게 다를까요?
+                각각 위 표의 어느 분류에 해당할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 분석 도구 ===== -->
+    <section id="tools" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 도구로 분석할까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold"><strong>코드를 써야 하는 도구</strong>와 <strong>쓰지 않아도 되는 도구</strong>가 모두 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-600 leading-relaxed">
+                데이터 분석에는 다양한 소프트웨어를 씁니다.
+                <strong>스프레드시트 형태의 프로그램</strong>,
+                <strong>프로그래밍이 필요한 도구</strong>,
+                <strong>프로그래밍이 필요 없는 GUI 기반 도구</strong> 등이 있습니다.
+                어느 하나가 다른 것보다 낫다기보다, <strong>하려는 일에 맞는 것을 고르면</strong> 됩니다.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <a href="#tool-code" class="bg-white border-2 border-violet-200 rounded-2xl p-5 flex flex-col gap-3 hover:border-violet-500 hover:shadow-md transition">
+                    <span class="w-12 h-12 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-code"></i>
+                    </span>
+                    <span class="font-black text-lg text-violet-900">프로그래밍 도구</span>
+                    <span class="text-base text-slate-600 leading-relaxed flex-1">코드를 직접 써서 원하는 대로 분석할 때</span>
+                    <span class="text-base text-violet-700 font-bold border-t border-violet-100 pt-3">R &middot; 파이썬</span>
+                </a>
+                <a href="#tool-lib" class="bg-white border-2 border-sky-200 rounded-2xl p-5 flex flex-col gap-3 hover:border-sky-500 hover:shadow-md transition">
+                    <span class="w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-cubes-stacked"></i>
+                    </span>
+                    <span class="font-black text-lg text-sky-900">파이썬 라이브러리</span>
+                    <span class="text-base text-slate-600 leading-relaxed flex-1">파이썬에 기능을 더해 주는 꾸러미</span>
+                    <span class="text-base text-sky-700 font-bold border-t border-sky-100 pt-3">맷플롯립 &middot; 판다스 &middot; 사이킷런</span>
+                </a>
+                <a href="#tool-gui" class="bg-white border-2 border-amber-200 rounded-2xl p-5 flex flex-col gap-3 hover:border-amber-500 hover:shadow-md transition">
+                    <span class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-mouse-pointer"></i>
+                    </span>
+                    <span class="font-black text-lg text-amber-900">GUI 기반 도구</span>
+                    <span class="text-base text-slate-600 leading-relaxed flex-1">코드 없이 마우스로 분석할 때</span>
+                    <span class="text-base text-amber-700 font-bold border-t border-amber-100 pt-3">오렌지 &middot; 코답</span>
+                </a>
+                <a href="#tool-sheet" class="bg-white border-2 border-emerald-200 rounded-2xl p-5 flex flex-col gap-3 hover:border-emerald-500 hover:shadow-md transition">
+                    <span class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-table-cells"></i>
+                    </span>
+                    <span class="font-black text-lg text-emerald-900">스프레드시트</span>
+                    <span class="text-base text-slate-600 leading-relaxed flex-1">표에 값을 넣고 바로 계산할 때</span>
+                    <span class="text-base text-emerald-700 font-bold border-t border-emerald-100 pt-3">엑셀 &middot; 구글 시트</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- (1) 프로그래밍이 필요한 도구 -->
+        <div id="tool-code" class="section-card space-y-6 scroll-mt-24">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">프로그래밍이 필요한 도구</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    코드를 써야 하므로 배우는 데 시간이 듭니다. 대신 <strong>하고 싶은 것을 무엇이든 할 수 있고</strong>,
+                    같은 분석을 <strong>몇 번이고 그대로 다시 돌릴 수 있습니다.</strong>
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-xl text-violet-900">R 언어</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>통계 분석에 초점을 맞춘 언어</strong>입니다. 파이썬과 마찬가지로
+                        다양한 <strong>라이브러리</strong>를 가져다 쓸 수 있습니다.
+                    </p>
+                    <div class="rounded-xl overflow-hidden border border-slate-700">
+                        <pre class="bg-slate-900 text-slate-100 p-5 text-base leading-relaxed"><code>library(datasets)
+data(mtcars)
+with(mtcars, plot(mpg, qsec))</code></pre>
+                    </div>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        내려받기 &mdash;
+                        <a class="ext-link" href="https://www.r-project.org/" target="_blank" rel="noopener noreferrer">r-project.org</a>
+                        &middot; 함께 쓰는 편집기 R 스튜디오 &mdash;
+                        <a class="ext-link" href="https://posit.co/" target="_blank" rel="noopener noreferrer">posit.co</a>
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-xl text-violet-900">파이썬 (Python)</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>쉽고 간결한 문법</strong>으로 여러 곳에서 쓰입니다.
+                        데이터 분석을 위한 다양한 라이브러리를 <strong>설치해서 활용</strong>할 수 있습니다.
+                    </p>
+                    <div class="rounded-xl overflow-hidden border border-slate-700">
+                        <pre class="bg-slate-900 text-slate-100 p-5 text-base leading-relaxed"><code>import matplotlib.pyplot as plt
+
+plt.plot([1, 2, 3, 4])
+plt.ylabel('some numbers')
+plt.show()</code></pre>
+                    </div>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        내려받기 &mdash;
+                        <a class="ext-link" href="https://www.python.org/" target="_blank" rel="noopener noreferrer">python.org</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- (2) 파이썬 라이브러리 -->
+        <div id="tool-lib" class="section-card space-y-5 scroll-mt-24">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">파이썬 시각화 및 분석 도구</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>라이브러리</strong>는 남이 미리 만들어 둔 기능 꾸러미입니다.
+                    가져다 쓰면 <strong>바닥부터 만들지 않아도</strong> 됩니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">라이브러리</th>
+                        <th>하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>맷플롯립</strong><br><span class="text-slate-400">Matplotlib</span></td>
+                        <td>파이썬 <strong>시각화 도구</strong>. 다양한 차트나 그래프를 그릴 수 있다</td>
+                    </tr>
+                    <tr>
+                        <td><strong>시본</strong><br><span class="text-slate-400">Seaborn</span></td>
+                        <td>역시 <strong>시각화 라이브러리</strong>. 맷플롯립 위에서 더 보기 좋은 그래프를 그린다</td>
+                    </tr>
+                    <tr>
+                        <td><strong>판다스</strong><br><span class="text-slate-400">Pandas</span></td>
+                        <td>파이썬 분석 도구. <strong>데이터 처리 및 분석</strong>을 쉽게 할 수 있도록 도와준다</td>
+                    </tr>
+                    <tr>
+                        <td><strong>사이킷런</strong><br><span class="text-slate-400">Scikit-Learn</span></td>
+                        <td>파이썬 분석 도구. <strong>기계학습</strong>을 할 때 사용한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="space-y-2">
+                    <p class="font-bold text-base text-slate-700">판다스로 표를 읽어 앞부분만 보기</p>
+                    <div class="rounded-xl overflow-hidden border border-slate-700">
+                        <pre class="bg-slate-900 text-slate-100 p-5 text-base leading-relaxed"><code>import pandas as pd
+
+df = pd.read_csv('data/data.csv')
+df.head()</code></pre>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <p class="font-bold text-base text-slate-700">사이킷런으로 회귀 모델 만들기</p>
+                    <div class="rounded-xl overflow-hidden border border-slate-700">
+                        <pre class="bg-slate-900 text-slate-100 p-5 text-base leading-relaxed"><code>from sklearn.linear_model import LinearRegression
+
+reg = LinearRegression().fit(X, y)</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-indigo-500 mr-1"></i>
+                    코드를 지금 다 이해하지 않아도 괜찮습니다.
+                    <strong>단 두세 줄로 회귀 모델이 만들어진다</strong>는 것만 보아 두세요.
+                    어려운 것은 코드를 쓰는 일이 아니라 <strong>어떤 분석을 왜 해야 하는지 정하는 일</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                파이썬 라이브러리 네 가지 중 <strong>그래프를 그리는 것</strong>과
+                <strong>기계학습을 하는 것</strong>은 각각 무엇이었나요?
+                코드를 외우지 말고, <strong>무엇을 하고 싶을 때 무엇을 찾아야 하는지</strong>만 정리해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 코드 없는 도구 ===== -->
+    <section id="tools-gui" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">코드 없이 분석하려면?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이 과목에서 <strong>실제로 가장 많이 쓰게 될</strong> 도구들입니다.</p>
+        </div>
+
+        <!-- (3) GUI 기반 도구 -->
+        <div id="tool-gui" class="section-card space-y-5 scroll-mt-24">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">그래픽 사용자 인터페이스(GUI) 기반 도구</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    코드를 쓰지 않고 <strong>마우스로 끌어다 놓아</strong> 분석합니다.
+                    처음 배우는 사람이 <strong>분석의 흐름 자체에 집중하기</strong> 좋습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border-2 border-amber-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-xl text-amber-900">
+                        <i class="fa-solid fa-diagram-project mr-2"></i>오렌지 프로그램 (Orange3)
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>사용자 친화적인 인터페이스</strong>를 갖추고 있어,
+                        <strong>코드와 수학 없이도</strong> 데이터 과학 &middot; 통계 &middot; 기계학습을 다룰 수 있는
+                        <strong>위젯</strong>을 지원합니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        위젯 하나가 기능 하나입니다. <span class="widget-name">File</span>로 데이터를 불러오고
+                        <span class="widget-name">Scatter Plot</span>으로 그림을 그리는 식으로,
+                        <strong>위젯을 선으로 이어</strong> 분석의 흐름을 만듭니다.
+                    </p>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        <a class="ext-link" href="https://orangedatamining.com/" target="_blank" rel="noopener noreferrer">orangedatamining.com</a>
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-amber-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-xl text-amber-900">
+                        <i class="fa-solid fa-globe mr-2"></i>코답 (CODAP)
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>프로그램 설치 없이 온라인에서</strong> 데이터를 분석할 수 있습니다.
+                        데이터 분석을 위한 다양한 도구를 지원합니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        설치가 필요 없으니 <strong>학교 컴퓨터에서 바로</strong> 쓸 수 있습니다.
+                        이 소절 마지막에서 직접 다뤄 봅니다.
+                    </p>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        <a class="ext-link" href="https://codap.concord.org/" target="_blank" rel="noopener noreferrer">codap.concord.org</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- (4) 스프레드시트 -->
+        <div id="tool-sheet" class="section-card space-y-5 scroll-mt-24">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">스프레드시트 형식의 도구</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    가장 익숙한 도구입니다. <strong>표에 값을 넣고 바로 계산하고 그래프를 그릴 수</strong> 있습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-xl text-emerald-900">
+                        <i class="fa-solid fa-file-excel mr-2"></i>엑셀 (Excel)
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        개인이나 기업에서 다양한 목적으로 사용합니다.
+                        특히 <strong>데이터 분석을 위한 간편한 도구</strong>를 지원합니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-emerald-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-xl text-emerald-900">
+                        <i class="fa-solid fa-table-list mr-2"></i>구글 시트 (Google Sheets)
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        프로그램 설치 없이 <strong>온라인에서</strong> 사용할 수 있습니다.
+                        <strong>자동 저장과 협업 기능</strong>이 뛰어나며 데이터 분석 도구를 지원합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-scale-balanced mr-1"></i>무엇을 고를까
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    데이터가 <strong>수백 행 정도이고 계산이 단순하면</strong> 스프레드시트로 충분합니다.
+                    <strong>여러 모델을 바꿔 가며 비교</strong>하고 싶으면 GUI 기반 도구가 빠릅니다.
+                    <strong>데이터가 아주 크거나 같은 분석을 되풀이해야 하면</strong> 코드를 쓰는 편이 낫습니다.
+                    이 과목에서는 <strong>스프레드시트와 GUI 기반 도구를 주로</strong> 사용합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>매년 같은 형식의 설문 결과가 들어오고, 해마다 똑같은 표와 그래프를 만들어야</strong> 한다면
+                어떤 도구가 좋을까요? 반대로 <strong>이번 한 번만 20명의 설문을 정리</strong>한다면요?
+                두 상황에서 <strong>답이 달라지는 이유</strong>를 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: CODAP 실습 ===== -->
+    <section id="codap" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">CODAP으로 직접 분석해 볼까?</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">설치도 코드도 없이, <strong>브라우저만으로</strong> 데이터에서 관계를 찾아봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-flask mr-2"></i>오늘의 목표
+                </p>
+                <p class="text-base text-indigo-900 leading-relaxed">
+                    축구 선수 데이터에서 <strong>키와 몸무게 사이에 관계가 있는지</strong> 확인하고,
+                    그 관계를 나타내는 <strong>직선의 방정식</strong>까지 얻어 냅니다.
+                    앞 소절에서 배운 <strong>회귀 모델을 실제로 만들어 보는 것</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-600 leading-relaxed">
+                CODAP은 프로그램 설치 없이 온라인에서 데이터를 분석할 수 있는 플랫폼입니다.
+                <strong>직관적으로 쓸 수 있다는 것</strong>이 가장 큰 장점입니다.
+                아래 화면 이름은 실제 화면에 적혀 있는 <span class="widget-name">이런 모양</span>의 이름입니다.
+            </p>
+        </div>
+
+        <!-- 단계 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-center gap-4">
+                <span class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-lg shrink-0">1</span>
+                <h3 class="text-2xl font-black text-slate-800">데이터 수집하기</h3>
+            </div>
+            <p class="text-base text-slate-600 leading-relaxed">
+                캐글에서 축구 선수 데이터셋을 내려받습니다.
+                2017년부터 2022년까지의 선수 정보가 정리되어 있고, 파일 이름은
+                <span class="attr-name">CLEAN_FIFA23_official_data.csv</span>입니다.
+            </p>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-600 leading-relaxed">
+                    원출처: 캐글
+                    <a class="ext-link" href="https://www.kaggle.com/datasets/kewesophia/fifa23-official-datasetclean-data"
+                       target="_blank" rel="noopener noreferrer">kaggle.com/datasets/kewesophia/fifa23-official-datasetclean-data</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- 단계 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-center gap-4">
+                <span class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-lg shrink-0">2</span>
+                <h3 class="text-2xl font-black text-slate-800">데이터 불러오기</h3>
+            </div>
+
+            <ol class="space-y-4 text-base text-slate-700 list-decimal list-outside pl-5">
+                <li>
+                    <a class="ext-link" href="https://codap.concord.org/" target="_blank" rel="noopener noreferrer">codap.concord.org</a>
+                    에 접속해 위쪽의 <span class="widget-name">Launch CODAP</span>을 누르고,
+                    이어서 <span class="widget-name">새 문서</span>를 누릅니다.
+                </li>
+                <li>
+                    내려받은 <span class="attr-name">CLEAN_FIFA23_official_data.csv</span> 파일을
+                    <strong>화면 위로 마우스로 끌어다 놓습니다.</strong>
+                    가져오기 창이 열립니다.
+                </li>
+                <li>
+                    데이터 샘플링 옵션에서 <span class="widget-name">임의 선택</span>을 고르고
+                    <strong>100</strong>행으로 맞춘 뒤 불러옵니다.
+                </li>
+            </ol>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-circle-question mr-1"></i>왜 100행만 불러올까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 파일에는 <strong>17,661개의 행</strong>이 들어 있습니다.
+                    행이 <strong>5,000개가 넘으면 CODAP이 느려집니다.</strong>
+                    그래서 먼저 <strong>적은 데이터로 작업 방법을 익히고</strong>,
+                    나중에 필요하면 전체 데이터를 불러오는 것이 좋습니다.
+                    <strong>임의로 뽑기 때문에</strong> 100명만 보아도 전체의 경향은 대체로 남아 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 단계 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-center gap-4">
+                <span class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-lg shrink-0">3</span>
+                <h3 class="text-2xl font-black text-slate-800">데이터 분석하기</h3>
+            </div>
+
+            <p class="text-base text-slate-600 leading-relaxed">
+                위쪽 메뉴 바에는 <span class="widget-name">테이블</span>
+                <span class="widget-name">그래프</span> <span class="widget-name">지도</span>
+                <span class="widget-name">슬라이더</span> <span class="widget-name">계산기</span>
+                <span class="widget-name">텍스트</span> <span class="widget-name">플러그인</span>이 있습니다.
+            </p>
+
+            <ol class="space-y-4 text-base text-slate-700 list-decimal list-outside pl-5">
+                <li>
+                    메뉴 바의 <span class="widget-name">그래프</span>를 누르면 빈 그래프 창이 하나 생깁니다.
+                    표에서 <strong>속성 이름을 끌어다</strong> 그래프의 가로축과 세로축에 놓습니다.
+                </li>
+                <li>
+                    가로축에 <span class="attr-name">Height</span>(키), 세로축에
+                    <span class="attr-name">Weight</span>(몸무게)를 놓으면 산점도가 그려집니다.
+                    <strong>키가 커질수록 몸무게도 함께 늘어나는 경향</strong>이 보입니다.
+                </li>
+                <li>
+                    그래프 옆의 <strong>자 모양 아이콘</strong>을 누르고
+                    <span class="widget-name">최소제곱선</span>을 선택하면,
+                    점들 사이를 지나가는 <strong>직선과 그 방정식</strong>이 나타납니다.
+                </li>
+            </ol>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div class="space-y-3">
+                    <svg viewBox="0 0 620 300" role="img" class="chart-svg"
+                         aria-label="축구 선수의 키를 가로축, 몸무게를 세로축에 놓은 산점도. 점들이 왼쪽 아래에서 오른쪽 위로 흩어져 있고, 그 사이를 지나는 초록색 직선이 하나 그려져 있다.">
+                        <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                            <line x1="60" y1="200" x2="600" y2="200"/>
+                            <line x1="60" y1="150" x2="600" y2="150"/>
+                            <line x1="60" y1="100" x2="600" y2="100"/>
+                            <line x1="60" y1="50" x2="600" y2="50"/>
+                        </g>
+                        <line x1="60" y1="20" x2="60" y2="250" stroke="#94a3b8" stroke-width="1.5"/>
+                        <line x1="60" y1="250" x2="600" y2="250" stroke="#94a3b8" stroke-width="1.5"/>
+                        <g fill="#e11d48" fill-opacity="0.7">
+                            <circle cx="146" cy="224" r="6"/>
+                            <circle cx="179" cy="210" r="6"/>
+                            <circle cx="200" cy="195" r="6"/>
+                            <circle cx="222" cy="184" r="6"/>
+                            <circle cx="244" cy="199" r="6"/>
+                            <circle cx="265" cy="162" r="6"/>
+                            <circle cx="276" cy="166" r="6"/>
+                            <circle cx="308" cy="151" r="6"/>
+                            <circle cx="330" cy="173" r="6"/>
+                            <circle cx="341" cy="136" r="6"/>
+                            <circle cx="362" cy="144" r="6"/>
+                            <circle cx="384" cy="118" r="6"/>
+                            <circle cx="395" cy="140" r="6"/>
+                            <circle cx="416" cy="107" r="6"/>
+                            <circle cx="438" cy="127" r="6"/>
+                            <circle cx="449" cy="92" r="6"/>
+                            <circle cx="470" cy="100" r="6"/>
+                            <circle cx="492" cy="74" r="6"/>
+                            <circle cx="503" cy="96" r="6"/>
+                            <circle cx="524" cy="63" r="6"/>
+                        </g>
+                        <line x1="114" y1="226" x2="546" y2="82" stroke="#16a34a" stroke-width="4" stroke-linecap="round"/>
+                    </svg>
+                    <p class="text-base text-slate-500">
+                        축구 선수의 키와 몸무게<br>
+                        <span class="text-slate-400">가로축: Height(cm) &middot; 세로축: Weight(lbs) &middot; 임의로 뽑은 100명 중 일부<br>
+                        원출처: 캐글 <a class="ext-link" href="https://www.kaggle.com/datasets/kewesophia/fifa23-official-datasetclean-data"
+                                     target="_blank" rel="noopener noreferrer">kaggle.com/datasets/kewesophia/fifa23-official-datasetclean-data</a></span>
+                    </p>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-slate-900 rounded-2xl p-6 text-center space-y-2">
+                        <p class="text-slate-300 text-base font-bold">CODAP이 찾아 준 최소제곱선</p>
+                        <p class="text-white font-black" style="font-size:1.35rem">Weight = 1.648 &times; Height &minus; 133</p>
+                        <p class="text-slate-300 text-base font-bold">r&sup2; = 0.565</p>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-5">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <i class="fa-solid fa-magnifying-glass text-sky-500 mr-1"></i>
+                            기울기 <strong>1.648</strong>은 <strong>키가 1 cm 커질 때 몸무게가 1.648 파운드
+                            (약 0.75 kg) 늘어난다</strong>는 뜻입니다.
+                            앞 소절의 <strong>y = ax + b</strong>에서 a와 b가 실제로 구해진 것입니다.
+                        </p>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <i class="fa-solid fa-ruler-combined text-amber-500 mr-1"></i>
+                            <strong>단위가 섞여 있다는 점을 놓치지 마세요.</strong>
+                            키는 <strong>cm</strong>인데 몸무게는 <strong>lbs(파운드)</strong>입니다.
+                            원본 데이터의 단위를 확인하지 않으면 <strong>기울기를 엉뚱하게 해석</strong>하게 됩니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>r&sup2;는 무엇일까요?
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    이 직선이 <strong>데이터를 얼마나 잘 설명하는지</strong>를 0에서 1 사이의 숫자로 나타낸 것입니다.
+                    1에 가까울수록 잘 맞는다는 뜻입니다.
+                    여기서는 <strong>0.565</strong>이므로, <strong>몸무게의 차이 중 절반 남짓만 키로 설명된다</strong>는 뜻입니다.
+                    나머지는 근육량 &middot; 포지션 &middot; 나이처럼 <strong>이 모델에 넣지 않은 것들</strong>이 만든 차이입니다.
+                    앞 소절에서 <strong>모델은 현실과 완전히 같지 않다</strong>고 했던 것이 숫자로 드러난 셈입니다.
+                    이 값을 <strong>결정계수</strong>라고 부르며, 회귀 분석에서 자세히 다룹니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                가로축과 세로축을 <strong>서로 바꾸어</strong> 몸무게로 키를 예측하게 하면 어떻게 될까요?
+                <strong>직선의 방정식은 그대로일까요?</strong>
+                그리고 이 결과를 두고 <strong>&ldquo;키가 커서 몸무게가 늘었다&rdquo;</strong>고 말해도 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">분석 방법도 도구도 이렇게 많은데, 무엇부터 배워야 할까?</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        <strong class="text-sky-200">도구가 아니라 물음이 먼저입니다.</strong>
+                        &ldquo;두 값이 함께 움직이는가&rdquo;를 묻고 싶으면 <strong class="text-indigo-200">회귀 분석</strong>,
+                        &ldquo;비슷한 것끼리 나누고 싶다&rdquo;면 <strong class="text-indigo-200">군집 분석</strong>,
+                        &ldquo;무엇과 무엇이 함께 나타나는가&rdquo;면 <strong class="text-indigo-200">연관 분석</strong>입니다.
+                        물음이 정해지면 방법이 정해지고, 방법이 정해지면 도구는 거의 자동으로 좁혀집니다.
+                        도구부터 배우면 <strong class="text-sky-200">할 줄 아는 것만 하게 됩니다.</strong>
+                        그리고 어떤 도구로 분석하든 마지막에 남는 일은 같습니다 &mdash;
+                        <strong class="text-sky-200">결과를 읽는 일</strong>입니다.
+                        CODAP이 내놓은 직선의 기울기가 무엇을 뜻하는지, 단위는 무엇인지,
+                        <strong class="text-indigo-200">이것이 상관관계일 뿐인지 인과 관계인지</strong>는
+                        프로그램이 대신 판단해 주지 않습니다.
+                        도구는 계산을 해 주고, <strong class="text-sky-200">뜻을 붙이는 것은 사람의 일</strong>입니다.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrows-left-right text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">상관관계</p>
+                    <p class="text-base text-sky-100">함께 움직인다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-arrow-right-long text-rose-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">인과 관계</p>
+                    <p class="text-base text-sky-100">하나가 다른 하나를 일으킨다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-link text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">연관 관계</p>
+                    <p class="text-base text-sky-100">함께 나타난다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 8: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터 분석</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">data analysis</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>통계적 &middot; 기계학습 방법</strong>으로 유용한 정보를 얻는 일</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>데이터의 특성과 목적에 따라 <strong>맞는 방법을 고른다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>성능을 평가하고 <strong>다른 방법으로 다시 해 본다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">세 가지 관계</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">상관 &middot; 인과 &middot; 연관</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>상관관계</strong> &mdash; 함께 움직이는 정도. 상관계수 <strong>&minus;1~1</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>인과 관계</strong> &mdash; 한 속성이 다른 속성에 <strong>영향을 미친다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>연관 관계</strong> &mdash; 두 속성이 <strong>함께 나타나는</strong> 연결</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-indigo-500">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">세 가지 분석 방법</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">이 단원의 나머지</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>회귀 분석</strong> &mdash; 관계를 <strong>수식</strong>으로 만들어 값을 예측</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>군집 분석</strong> &mdash; <strong>유사성</strong>을 재어 n개의 군집으로</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-indigo-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>연관 분석</strong> &mdash; <strong>장바구니 분석</strong>. 상품 추천 &middot; 진열</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">분석 도구</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">목적이 도구를 정한다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>프로그래밍</strong> &mdash; R &middot; 파이썬(판다스 &middot; 사이킷런)</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>GUI</strong> &mdash; 오렌지 &middot; 코답. 코드 없이 마우스로</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>스프레드시트</strong> &mdash; 엑셀 &middot; 구글 시트</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 9: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    비 오는 날 매점에서 <strong>우산과 따뜻한 음료가 함께 많이 팔렸습니다.</strong>
+                    두 판매량 사이의 관계를 무엇이라고 해야 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 함께 움직이지만 서로 원인은 아닙니다. 둘 모두를 움직인 것은 날씨입니다.')">
+                    ① 상관관계
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '우산이 팔려서 음료가 팔린 것이 아닙니다. 둘 다 날씨라는 제3의 속성 때문에 늘었습니다.')">
+                    ② 우산 판매가 음료 판매의 원인인 인과 관계
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '음료가 팔려서 우산이 팔린 것도 아닙니다. 방향만 바꾼다고 인과 관계가 되지는 않습니다.')">
+                    ③ 음료 판매가 우산 판매의 원인인 인과 관계
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무 관계가 없다면 두 판매량이 나란히 오르지 않았을 것입니다. 관계는 분명히 있습니다.')">
+                    ④ 아무 관계도 없다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>장바구니 분석</strong>이라고도 불리며, 상품 추천과 상품 진열에 쓰이는 분석 방법은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '회귀 분석은 관계를 수식으로 만들어 값을 예측하는 방법입니다.')">
+                    ① 회귀 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '군집 분석은 유사성을 재어 여러 군집으로 나누는 방법입니다.')">
+                    ② 군집 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 영수증에 무엇과 무엇이 함께 담기는지를 찾아내는 분석입니다.')">
+                    ③ 연관 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '시계열 분석은 시간에 따른 패턴을 분석하고 예측하는 방법입니다.')">
+                    ④ 시계열 분석
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>코드와 수학 없이 위젯을 이어 붙여</strong> 데이터 과학과 기계학습을 다룰 수 있는 도구는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'R은 통계 분석에 초점을 맞춘 프로그래밍 언어입니다. 코드를 써야 합니다.')">
+                    ① R 언어
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 위젯 하나가 기능 하나이고, 위젯을 선으로 이어 분석의 흐름을 만듭니다.')">
+                    ② 오렌지 프로그램
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '판다스는 파이썬 라이브러리입니다. 파이썬 코드 안에서 사용합니다.')">
+                    ③ 판다스
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사이킷런도 파이썬 라이브러리입니다. 기계학습을 할 때 코드로 사용합니다.')">
+                    ④ 사이킷런
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>표본 데이터를 이용해 모집단에 대한 추론</strong>을 이끌어 내는 분석은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기술 통계 분석은 가지고 있는 데이터 자체의 특징을 요약하고 설명합니다.')">
+                    ① 기술 통계 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '탐색적 데이터 분석은 시각화로 구조와 패턴, 이상치를 찾아냅니다.')">
+                    ② 탐색적 데이터 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 가설 검정과 신뢰 구간이 여기에 들어갑니다.')">
+                    ③ 추론 통계 분석
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '시계열 분석은 시간의 흐름에 따른 패턴을 다룹니다.')">
+                    ④ 시계열 분석
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 5 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q5
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    CODAP이 키와 몸무게로 만든 직선의 <strong>r&sup2;가 0.565</strong>였습니다. 이것이 뜻하는 바는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q5">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '선수의 수와 r²는 관계가 없습니다. r²는 0에서 1 사이의 값입니다.')">
+                    ① 선수 100명 중 56.5명의 데이터를 사용했다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 나머지는 근육량·포지션·나이처럼 모델에 넣지 않은 것들이 만든 차이입니다.')">
+                    ② 몸무게의 차이 중 절반 남짓이 키로 설명된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '키가 1 cm 커질 때 늘어나는 몸무게는 기울기 1.648이 나타냅니다. r²와는 다릅니다.')">
+                    ③ 키가 1 cm 커지면 몸무게가 0.565 늘어난다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '예측이 평균 0.565만큼 틀린다는 뜻이 아닙니다. r²는 단위를 가진 값이 아닙니다.')">
+                    ④ 예측이 평균 0.565만큼 틀린다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

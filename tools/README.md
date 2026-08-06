@@ -41,9 +41,12 @@ python tools/extract_prose.py "인공지능기초/2-1-*.html" -o 본문.md
   오류는 `</section> 앞에 닫히지 않은 태그 <div>(N행)`처럼 **줄 번호를 짚어 준다.**
 - `text-sm` 이하 클래스와 임의 크기(`text-[11px]` 등)
 - CSS `font-size`의 px·rem·em을 px로 환산해 **12px 미만은 위반, 16px 미만은 확인 필요**
-- **SVG의 `font-size` 속성** — viewBox 폭과 `style`의 `min-width`·`max-width`로
+- **SVG의 `font-size` 속성** — viewBox 폭과 `min-width`·`max-width`로
   375px에서 실제로 몇 px이 되는지 환산한다. 브라우저 실측과 값이 일치한다.
   `viewBox="0 0 720 …"` 그림의 `font-size="16"`은 **약 7.6px**로 그려진다.
+  `min-width`는 SVG 자신의 `style`뿐 아니라 **조상의 `style`과 Tailwind
+  `min-w-[480px]` 클래스까지** 본다. 래퍼가 폭을 잡아 주는
+  `<div class="min-w-[480px]"><svg class="w-full">` 형태를 오탐하지 않기 위해서다.
 - `<table>`이 `overflow-x-auto` 요소 **안에 실제로 들어 있는지**(조상 스택으로 확인,
   「앞 6줄에 문자열이 있나」식 어림이 아니다)
 

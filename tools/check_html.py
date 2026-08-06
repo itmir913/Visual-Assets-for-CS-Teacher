@@ -35,6 +35,22 @@ def is_decorative_icon(tag, cls):
     return tag == "i" and "fa-" in cls
 
 
+def style_len(style, prop):
+    """인라인 style에서 길이 값을 px로 읽는다. 없으면 None."""
+    m = re.search(prop + r"\s*:\s*([\d.]+)(px|rem)", style)
+    if not m:
+        return None
+    return float(m.group(1)) * (1.0 if m.group(2) == "px" else 16.0)
+
+
+def tw_min_w(cls):
+    """Tailwind 임의값 클래스 `min-w-[480px]` · `min-w-[30rem]`을 px로 읽는다."""
+    m = re.search(r"min-w-\[([\d.]+)(px|rem)\]", cls)
+    if not m:
+        return None
+    return float(m.group(1)) * (1.0 if m.group(2) == "px" else 16.0)
+
+
 class Checker(HTMLParser):
     """태그 중첩 · 테이블 래퍼 · SVG 글자 크기를 한 번의 파싱으로 검사한다."""
 
@@ -88,40 +104,49 @@ class Checker(HTMLParser):
     def _viewbox_scale(self):
         """가장 안쪽 svg의 viewBox 폭 기준 축소 비율. viewBox가 없으면 1.0.
 
-        실제 그려지는 폭은 style의 min-width·max-width에 좌우된다.
+        실제 그려지는 폭은 min-width·max-width에 좌우된다.
         min-width가 화면 폭보다 크면 SVG는 줄지 않고 래퍼가 가로로 스크롤된다.
+
+        min-width는 SVG 자신뿐 아니라 **조상 요소**에도 붙는다.
+        `<div class="min-w-[480px]"><svg class="w-full">` 처럼 래퍼가 폭을 잡아 주는
+        형태가 흔한데, SVG의 style만 보면 줄어든다고 잘못 판정한다.
+        그래서 조상의 인라인 style과 Tailwind `min-w-[…]` 클래스까지 함께 본다.
+        (SVG가 `w-full`이 아니면 조상 폭이 그대로 전해지지 않지만,
+        이 저장소의 SVG는 모두 `w-full`이므로 그 경우는 따지지 않는다.)
         """
-        for tag, _, a in reversed(self.stack):
-            if tag != "svg":
-                continue
-            vb = a.get("viewBox") or a.get("viewbox")
-            if not vb:
-                return 1.0
-            parts = re.split(r"[\s,]+", vb.strip())
-            if len(parts) != 4:
-                return 1.0
-            try:
-                vb_w = float(parts[2])
-            except ValueError:
-                return 1.0
-            if vb_w <= 0:
-                return 1.0
+        idx = None
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == "svg":
+                idx = i
+                break
+        if idx is None:
+            return 1.0
 
-            style = a.get("style") or ""
+        a = self.stack[idx][2]
+        vb = a.get("viewBox") or a.get("viewbox")
+        if not vb:
+            return 1.0
+        parts = re.split(r"[\s,]+", vb.strip())
+        if len(parts) != 4:
+            return 1.0
+        try:
+            vb_w = float(parts[2])
+        except ValueError:
+            return 1.0
+        if vb_w <= 0:
+            return 1.0
 
-            def px(prop):
-                m = re.search(prop + r"\s*:\s*([\d.]+)px", style)
-                return float(m.group(1)) if m else None
-
-            drawn = RENDER_W
-            mx = px("max-width")
-            if mx is not None:
-                drawn = min(drawn, mx)
-            mn = px("min-width")
+        drawn = RENDER_W
+        mx = style_len(a.get("style") or "", "max-width")
+        if mx is not None:
+            drawn = min(drawn, mx)
+        for _, _, anc in self.stack[:idx + 1]:
+            mn = style_len(anc.get("style") or "", "min-width")
+            if mn is None:
+                mn = tw_min_w(anc.get("class") or "")
             if mn is not None:
                 drawn = max(drawn, mn)
-            return drawn / vb_w
-        return 1.0
+        return drawn / vb_w
 
     def _check_svg_font(self, line, raw):
         m = re.match(r"\s*([\d.]+)\s*(px|rem|em)?\s*$", str(raw))

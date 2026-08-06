@@ -213,11 +213,12 @@ def build_one(src_html: Path, dist_root: Path, assets_dir: Path) -> list[str]:
     unsupported: list[str] = []
 
     # 1) Tailwind CDN 스크립트 제거 + 파일 전용 정적 CSS 빌드
+    # 산출물 최상위에 자동 생성 폴더가 assets/ 하나만 있으면 되도록 css/도 그 밑에 둔다.
     if "cdn.tailwindcss.com" in html:
         css_rel = rel.with_suffix(".css")
-        build_tailwind_css(src_html, dist_root / "css" / css_rel)
+        build_tailwind_css(src_html, dist_root / "assets" / "css" / css_rel)
         html = TAILWIND_SCRIPT_RE.sub("", html, count=1)
-        link_tag = f'    <link rel="stylesheet" href="{prefix}css/{css_rel.as_posix()}">\n'
+        link_tag = f'    <link rel="stylesheet" href="{prefix}assets/css/{css_rel.as_posix()}">\n'
         # </title> 다음 줄에 삽입 (관례상 CDN 스크립트가 있던 자리 근처)
         html = re.sub(r"(</title>\n)", r"\1" + link_tag, html, count=1)
 

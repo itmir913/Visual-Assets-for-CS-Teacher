@@ -59,6 +59,7 @@ class Checker(HTMLParser):
         self.stack = []          # [(tag, line, attrs_dict)]
         self.nesting = []        # 위반: 중첩
         self.unwrapped = []      # 위반: overflow-x-auto 래퍼 없는 표
+        self.wide_unwrapped = [] # 위반: min-width가 화면보다 넓은데 래퍼 없는 요소
         self.tables = 0
         self.svg_small = []      # 위반: SVG 실효 글자 크기 < MIN_PX
         self.svg_warn = []       # 경고: MIN_PX ~ WARN_PX
@@ -76,6 +77,18 @@ class Checker(HTMLParser):
             if not any("overflow-x-auto" in (p.get("class") or "")
                        for _, _, p in self.stack):
                 self.unwrapped.append(line)
+
+        # min-width가 375px 화면 폭보다 넓은 요소는 어딘가에서 넘친다.
+        # table은 위에서 이미 무조건 검사하므로 여기서는 그 외 태그만 본다.
+        if tag != "table":
+            mn = style_len(a.get("style") or "", "min-width")
+            if mn is None:
+                mn = tw_min_w(a.get("class") or "")
+            if mn is not None and mn > RENDER_W:
+                if not any("overflow-x-auto" in (p.get("class") or "")
+                           for _, _, p in self.stack):
+                    self.wide_unwrapped.append(
+                        f"{line}행: <{tag}> min-width {mn:.0f}px > {RENDER_W:.0f}px")
 
         in_svg = self._in_svg()
         if "font-size" in a and in_svg:
@@ -259,6 +272,8 @@ def check(path: Path) -> tuple[int, int]:
         print(f"  [테이블 래퍼] {c.tables}개 중 미포장 {c.unwrapped}")
     else:
         print(f"  [테이블 래퍼] {c.tables}개 중 전부 OK")
+
+    report("고정폭 래퍼", c.wide_unwrapped)
 
     return violations, warnings
 

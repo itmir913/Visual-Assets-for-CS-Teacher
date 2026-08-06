@@ -1,0 +1,117 @@
+name: 오프라인 빌드
+
+# 소스는 항상 CDN 그대로 둔다. 이 워크플로는 master에 푸시될 때마다
+# CDN 자산을 전부 로컬화한 정적 번들을 만들어 releases/download/offline-latest/
+# 에 zip 하나로 올린다. dist/·css/·assets/는 어떤 경우에도 저장소에 커밋되지 않는다.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: { }
+
+concurrency:
+  group: offline-build
+  cancel-in-progress: true
+
+permissions:
+  contents: write # 릴리즈 자산 업로드에 필요
+
+env:
+  ZIP_NAME: lecture-notes-offline.zip
+  RELEASE_TAG: offline-latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: .github/scripts/package-lock.json
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: tailwindcss 설치 (빌드 스크립트 전용, 소스와 무관)
+        working-directory: .github/scripts
+        run: npm ci
+
+      - name: CDN 자산 캐시 (Font Awesome·Pretendard·MathJax·vendor JS)
+        uses: actions/cache@v4
+        with:
+          path: dist-assets-cache
+          # 자산 URL·버전은 build_offline.py 안에 박혀 있으므로, 그 파일이
+          # 바뀔 때만(=버전이 바뀔 때만) 캐시를 새로 받는다.
+          key: offline-assets-${{ hashFiles('.github/scripts/build_offline.py') }}
+
+      - name: 캐시 복원 → dist/assets에 배치
+        run: |
+          mkdir -p dist
+          if [ -d dist-assets-cache ] && [ -n "$(ls -A dist-assets-cache 2>/dev/null)" ]; then
+            cp -r dist-assets-cache dist/assets
+            echo "캐시된 자산 재사용"
+          else
+            echo "캐시 없음 — 이번 실행에서 전부 새로 받음"
+          fi
+
+      - name: 오프라인 빌드
+        run: python .github/scripts/build_offline.py --out dist
+
+      - name: 다음 실행을 위해 자산 캐시 갱신
+        run: |
+          rm -rf dist-assets-cache
+          cp -r dist/assets dist-assets-cache
+
+      - name: 검증 — CDN 참조가 남아있지 않은지
+        run: |
+          remaining=$(grep -rloE 'https://(cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*' dist --include='*.html' || true)
+          if [ -n "$remaining" ]; then
+            echo "::error::로컬화되지 않은 CDN 참조가 남아있습니다:"
+            echo "$remaining"
+            exit 1
+          fi
+          echo "CDN 참조 잔존 0건 확인"
+
+      - name: 검증 — 태그 중첩
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            if python tools/check_html.py "$f" 2>&1 | grep -q "태그 중첩\] 위반"; then
+              echo "::error::태그 중첩 위반: $f"
+              fail=1
+            fi
+          done < <(find dist -iname '*.html' -print0)
+          exit $fail
+
+      - name: 빌드 정보 기록
+        id: meta
+        run: |
+          echo "built_at=$(date -u +'%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+          cat > dist/BUILD_INFO.txt <<EOF
+          빌드 시각: $(date -u +'%Y-%m-%d %H:%M UTC')
+          커밋: ${{ github.sha }}
+          워크플로 실행: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+      - name: zip으로 묶기
+        run: cd dist && zip -rq "../${{ env.ZIP_NAME }}" .
+
+      - name: 릴리즈 게시 (offline-latest 고정 태그, 매번 덮어쓰기)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: 오프라인 번들 (자동 갱신)
+          body: |
+            자동 빌드된 오프라인 번들입니다. 커밋마다 이 릴리즈의 자산이 덮어써집니다.
+
+            - 빌드 시각: ${{ steps.meta.outputs.built_at }}
+            - 커밋: ${{ github.sha }}
+          make_latest: false
+          files: ${{ env.ZIP_NAME }}

@@ -4,21 +4,35 @@
 
 | 파일 | 용도 | 언제 쓰나 |
 |---|---|---|
-| `check_html.py` | 태그 중첩 · 최소 글자 크기 · 테이블 래퍼 검사 | **파일을 고칠 때마다** |
+| `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 검사 | **파일을 고칠 때마다** |
 | `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
 | `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
 
 ## 사용
 
+`check_html.py`는 **검사 대상을 파일 안에 적어 둔다.** 지금 손대는 파일만 `TARGETS`에 남기면
+`python tools/check_html.py`만 쳐도 그것만 돈다. 끝난 파일은 지운다 —
+**과거 파일이 계속 결과에 섞이지 않게 하는 것이 이 배열의 목적이다.**
+
+```python
+# tools/check_html.py 윗부분
+TARGETS = [
+    "인공지능기초/1-1-2.인공지능의-원리.html",
+]
+```
+
 ```bash
-python tools/check_html.py 인공지능기초/1-1-1.*.html
-python tools/check_html.py 인공지능기초/*.html          # 전체
+python tools/check_html.py                            # TARGETS만
+python tools/check_html.py 인공지능기초/1-1-1.*.html   # 인자를 주면 인자가 우선
 python tools/audit_pre.py
 python tools/extract_prose.py "데이터과학/1-*.html" --stats
 python tools/extract_prose.py "인공지능기초/2-1-*.html" -o 본문.md
 ```
 
 글롭은 **여러 개를 이어서** 줄 수 있다(`"…/3-1-*.html" "…/3-2-*.html"`).
+경로는 현재 디렉터리 → 저장소 루트 순으로 찾으므로 어디서 실행해도 된다.
+
+**위반이 있으면 종료 코드 1**로 끝난다(`확인 필요`는 0). 훅·CI·`&&` 체인에 걸어도 된다.
 
 ## `check_html.py`가 잡는 것과 못 잡는 것
 
@@ -26,12 +40,18 @@ python tools/extract_prose.py "인공지능기초/2-1-*.html" -o 본문.md
 - 태그 중첩 오류 — `html.parser` 스택으로 검사한다. 절을 나눈 직후 반드시 돌린다.
   오류는 `</section> 앞에 닫히지 않은 태그 <div>(N행)`처럼 **줄 번호를 짚어 준다.**
 - `text-sm` 이하 클래스와 임의 크기(`text-[11px]` 등)
-- `<table>`이 `overflow-x-auto` 래퍼 안에 있는지
+- CSS `font-size`의 px·rem·em을 px로 환산해 **12px 미만은 위반, 16px 미만은 확인 필요**
+- **SVG의 `font-size` 속성** — viewBox 폭과 `style`의 `min-width`·`max-width`로
+  375px에서 실제로 몇 px이 되는지 환산한다. 브라우저 실측과 값이 일치한다.
+  `viewBox="0 0 720 …"` 그림의 `font-size="16"`은 **약 7.6px**로 그려진다.
+- `<table>`이 `overflow-x-auto` 요소 **안에 실제로 들어 있는지**(조상 스택으로 확인,
+  「앞 6줄에 문자열이 있나」식 어림이 아니다)
 
 **못 잡는다 — 브라우저 375px 실측이 필요하다**
 - 섹션이 6화면을 넘는지
 - 페이지 가로 넘침(`table-prose`를 flex 자식에 넣고 `min-w-0`을 빠뜨린 경우)
 - `<sup>`/`<sub>`가 만드는 12~13.5px — 소스에 `text-sm`이 없어 통과한다
+- `table-prose`를 붙여야 하는 표인지(열 개수·내용으로 판단하는 규칙이라 사람이 본다)
 
 ```javascript
 // 375×812 뷰포트에서

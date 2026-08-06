@@ -30,6 +30,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 TARGET_DIRS = ["인공지능기초", "데이터과학", "프로그래밍(Python)", "프로그래밍(C)", "simulator/ai"]
 TARGET_FILES = ["index.html"]
 
+# templates/ 전체(node_modules, .claude, docx 생성 스크립트 등)가 아니라 강의노트가
+# 실제로 다운로드 링크로 참조하는 .docx 폴더만 그대로 복사한다.
+TEMPLATE_DIRS = ["templates/py", "templates/c", "templates/ai"]
+
 FA_VERSION = "6.7.2"
 FA_CSS_URL = f"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/{FA_VERSION}/css/all.min.css"
 PRETENDARD_CSS_URL = (
@@ -109,6 +113,19 @@ def discover_html_files() -> list[Path]:
         if p.exists():
             files.append(p)
     return files
+
+
+def copy_templates(dist_root: Path) -> None:
+    """강의노트가 링크로 참조하는 .docx만 원본 그대로(가공 없이) dist에 복사한다."""
+    for d in TEMPLATE_DIRS:
+        src = REPO_ROOT / d
+        if not src.exists():
+            continue
+        dest = dist_root / d
+        dest.mkdir(parents=True, exist_ok=True)
+        for f in src.iterdir():
+            if f.is_file():
+                shutil.copy2(f, dest / f.name)
 
 
 def depth_prefix(rel_path: Path) -> str:
@@ -292,6 +309,10 @@ def main() -> int:
             continue
         if unsupported:
             all_unsupported[rel] = unsupported
+
+    if not args.only:
+        copy_templates(dist_root)
+        log("templates/py·c·ai 복사 완료")
 
     if all_unsupported:
         log("=== 로컬화 미지원 CDN 참조 (수동 확인 필요) ===")

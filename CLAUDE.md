@@ -13,7 +13,7 @@
 | `데이터과학/` | 「데이터 과학」 강의노트 HTML |
 | `프로그래밍(Python)/` | 「프로그래밍」 Python 강의노트 HTML |
 | `프로그래밍(C)/` | 「프로그래밍」 C 강의노트 HTML |
-| `simulator/ai/` | AI 시뮬레이터 16종 (단일 HTML, 자체 완결형) |
+| `simulator/ai/` | AI 시뮬레이터 18종 (단일 HTML, 자체 완결형) |
 | `templates/ai/` | 보고서·프로젝트 템플릿 (.docx) |
 | `tools/` | 강의노트 점검 스크립트 → [`tools/README.md`](tools/README.md) |
 | `docs/강의노트-작성-사례집.md` | 이 문서의 규칙에 대한 근거와 예시 |
@@ -267,7 +267,7 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
 
 ## 시뮬레이터 검증 워크플로
 
-`simulator/ai/` 16개 파일을 **한 번에 하나씩** 검증한다. 진행 현황과 공통 이슈는
+`simulator/ai/` 18개 파일을 **한 번에 하나씩** 검증한다. 진행 현황과 공통 이슈는
 `docs/simulator-review/_공통이슈.md`, 파일별 리포트는 `docs/simulator-review/<파일명>.md`.
 
 - 학생 수준: **고등학교 「인공지능 기초」** (수식은 개념 수준, 코드 이해는 선택적)
@@ -292,8 +292,8 @@ C와 D가 최우선이다.
 - **조작 UI의 `text-sm`** — 시뮬레이터는 최소 글자 크기 규칙의 범위 밖이다.
 
 ### 검증 순서
-탐색(bfs-dfs → heuristic → 8-puzzle → n-queen → wumpus-world)
-→ 회귀(linear → polynomial → logistic)
+탐색(bfs-dfs → river-crossing → tower-of-hanoi → heuristic → 8-puzzle → n-queen → wumpus-world)
+→ 회귀(linear → multiple-linear → logistic)
 → 분류(k-NN → SVM → decision-tree)
 → 비지도(k-means)
 → 강화학습(multi-armed-bandit → gridworld)

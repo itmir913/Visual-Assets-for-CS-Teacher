@@ -226,26 +226,26 @@ def build_one(src_html: Path, dist_root: Path, assets_dir: Path) -> list[str]:
     if FA_CSS_URL in html:
         localize_fontawesome(assets_dir)
         html = FA_LINK_RE.sub(
-            f'<link rel="stylesheet" href="{prefix}assets/fontawesome/css/all.min.css">', html
+            f'<link rel="stylesheet" href="{prefix}assets/cdn/fontawesome/css/all.min.css">', html
         )
 
     # 3) Pretendard — <style> 안 @import 형태와 <link> 태그 형태 둘 다 쓰인다
     if PRETENDARD_CSS_URL in html:
         localize_pretendard(assets_dir)
-        local_css = f"{prefix}assets/fonts/pretendard/pretendard-dynamic-subset.css"
+        local_css = f"{prefix}assets/cdn/fonts/pretendard/pretendard-dynamic-subset.css"
         html = PRETENDARD_IMPORT_RE.sub(f'@import url("{local_css}");', html)
         html = PRETENDARD_LINK_RE.sub(f'<link rel="stylesheet" href="{local_css}"/>', html)
 
     # 4) MathJax (폰트까지 상대 구조 그대로 로컬화)
     if MATHJAX_JS_URL_RE.search(html):
         localize_mathjax(assets_dir)
-        html = MATHJAX_JS_URL_RE.sub(f"{prefix}assets/vendor/mathjax/es5/tex-chtml.js", html)
+        html = MATHJAX_JS_URL_RE.sub(f"{prefix}assets/cdn/vendor/mathjax/es5/tex-chtml.js", html)
 
     # 5) 단순 1파일 vendor 자산
     for url, filename in VENDOR_MAP.items():
         if url in html:
             localize_vendor(assets_dir, url)
-            local = f"{prefix}assets/vendor/{filename}"
+            local = f"{prefix}assets/cdn/vendor/{filename}"
             html = html.replace(f'src="{url}"', f'src="{local}"')
             html = html.replace(f'href="{url}"', f'href="{local}"')
 
@@ -268,7 +268,10 @@ def main() -> int:
     args = parser.parse_args()
 
     dist_root = Path(args.out).resolve()
-    assets_dir = dist_root / "assets"
+    # assets/ 밑을 캐시 대상(cdn/ — CDN에서 받은 것)과 매번 새로 빌드되는 것(css/)으로
+    # 나눠서, 워크플로가 cdn/ 통째로 캐싱할 수 있게 한다. dist 루트에는 여전히 assets/
+    # 하나만 자동 생성된다.
+    assets_dir = dist_root / "assets" / "cdn"
 
     if args.only:
         files = [REPO_ROOT / args.only]

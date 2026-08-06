@@ -46,18 +46,19 @@ jobs:
       - name: Cache CDN assets (Font Awesome, Pretendard, MathJax, vendor JS)
         uses: actions/cache@v6
         with:
-          # assets/css는 파일마다 매번 새로 빌드되는 산출물이라 캐시 대상에서 뺀다.
-          # (넣으면 강의노트를 지우거나 이름을 바꿔도 옛 css가 캐시에 영원히 남는다)
+          # build_offline.py가 CDN에서 받은 것만 assets/cdn/ 밑에 모으고, 파일마다
+          # 매번 새로 빌드되는 assets/css/는 따로 둔다 — 그래서 cdn/ 통째로 캐싱해도
+          # 삭제·개명된 강의노트의 옛 css가 캐시에 쌓이는 일이 없다.
           path: dist-assets-cache
           # 자산 URL·버전은 build_offline.py 안에 박혀 있으므로, 그 파일이
           # 바뀔 때만(=버전이 바뀔 때만) 캐시를 새로 받는다.
           key: offline-assets-${{ hashFiles('.github/scripts/build_offline.py') }}
 
-      - name: Restore cache into dist/assets
+      - name: Restore cache into dist/assets/cdn
         run: |
-          mkdir -p dist/assets
+          mkdir -p dist/assets/cdn
           if [ -d dist-assets-cache ] && [ -n "$(ls -A dist-assets-cache 2>/dev/null)" ]; then
-            cp -r dist-assets-cache/. dist/assets/
+            cp -r dist-assets-cache/. dist/assets/cdn/
             echo "캐시된 자산 재사용"
           else
             echo "캐시 없음 — 이번 실행에서 전부 새로 받음"
@@ -69,10 +70,7 @@ jobs:
       - name: Update asset cache for next run
         run: |
           rm -rf dist-assets-cache
-          mkdir -p dist-assets-cache
-          for d in fontawesome fonts vendor; do
-            [ -d "dist/assets/$d" ] && cp -r "dist/assets/$d" dist-assets-cache/
-          done
+          cp -r dist/assets/cdn dist-assets-cache
 
       - name: Verify no CDN references remain
         run: |

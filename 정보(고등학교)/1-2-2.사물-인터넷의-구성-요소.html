@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사물 인터넷의 구성 요소</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-layer-group absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-cloud absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            사물 인터넷의 구성 요소
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            화분이 「목마르다」고 알려 오기까지<br>
+            사이에는 <strong>몇 가지가 놓여 있을까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>사물 인터넷 시스템을 이루는 다섯 가지 &mdash; 장치와 통신 네트워크, 데이터를 모으는 플랫폼, 그리고 서비스와 보안 &mdash; 를 들고 각각이 맡은 일을 설명할 수 있다.</li>
+                    <li>모은 데이터를 왜 장치 안에 두지 않고 멀리 있는 플랫폼으로 보내는지, 그 이유를 데이터의 양과 계산 능력으로 설명할 수 있다.</li>
+                    <li>보안이 나머지 넷과 나란히 놓이지 않고 전체에 걸쳐 있는 까닭을 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-layer-group text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">사물 인터넷의 구성 요소</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#overview" class="hover:text-teal-600 transition">전체 그림</a>
+            <a href="#device" class="hover:text-teal-600 transition">장치</a>
+            <a href="#network" class="hover:text-teal-600 transition">통신 네트워크</a>
+            <a href="#platform" class="hover:text-teal-600 transition">데이터 플랫폼</a>
+            <a href="#service" class="hover:text-teal-600 transition">서비스</a>
+            <a href="#security" class="hover:text-teal-600 transition">보안</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 전체 그림 ══════════ -->
+    <section id="overview" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-diagram-project text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">전체 그림</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 차시에서 흙의 물기를 재는 화분을 예로 들었습니다. 화분이 「목마르다」고 알려 오는 순간만
+                보면 아주 간단해 보이지만, 그 사이에는 여러 가지가 놓여 있습니다. 물기를 <strong>재는 것</strong>과
+                값을 <strong>실어 나르는 것</strong>은 다른 일이고, 값을 <strong>쌓아 두고 따져 보는 것</strong>과
+                그 결과를 <strong>사람이 쓸 수 있게 보여 주는 것</strong>도 또 다른 일입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이렇게 서로 다른 일을 나누어 놓은 것이 <strong>사물 인터넷 시스템의 구성 요소</strong>입니다.
+                모두 다섯 가지인데, 앞의 넷은 데이터가 지나가는 순서대로 늘어서고 나머지 하나는 그 넷 전체를
+                감쌉니다.
+            </p>
+
+            <div class="space-y-4">
+                <svg class="chart-svg" viewBox="0 0 360 170" role="img"
+                     aria-label="장치·통신 네트워크·데이터 플랫폼·서비스가 화살표로 이어지고, 그 전체를 점선 테두리가 감싼 그림">
+                    <defs>
+                        <marker id="ov-ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L7,3.2 L0,6.4 z" fill="#64748b"></path>
+                        </marker>
+                    </defs>
+                    <rect x="8" y="8" width="344" height="154" rx="18" fill="#fff1f2" stroke="#f43f5e"
+                          stroke-width="2.5" stroke-dasharray="8 5"></rect>
+                    <rect x="22" y="70" width="64" height="48" rx="12" fill="#e0f2fe" stroke="#0284c7"
+                          stroke-width="2.5"></rect>
+                    <rect x="108" y="70" width="64" height="48" rx="12" fill="#ccfbf1" stroke="#0d9488"
+                          stroke-width="2.5"></rect>
+                    <rect x="194" y="70" width="64" height="48" rx="12" fill="#ede9fe" stroke="#7c3aed"
+                          stroke-width="2.5"></rect>
+                    <rect x="280" y="70" width="64" height="48" rx="12" fill="#fef3c7" stroke="#d97706"
+                          stroke-width="2.5"></rect>
+                    <line x1="88" y1="94" x2="104" y2="94" stroke="#64748b" stroke-width="3"
+                          marker-end="url(#ov-ar)"></line>
+                    <line x1="174" y1="94" x2="190" y2="94" stroke="#64748b" stroke-width="3"
+                          marker-end="url(#ov-ar)"></line>
+                    <line x1="260" y1="94" x2="276" y2="94" stroke="#64748b" stroke-width="3"
+                          marker-end="url(#ov-ar)"></line>
+                </svg>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-sky-100 border-2 border-sky-600"></span>
+                        <span><strong class="text-slate-800">사물 인터넷 장치</strong> &mdash; 재고 움직인다</span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-teal-100 border-2 border-teal-600"></span>
+                        <span><strong class="text-slate-800">통신 네트워크</strong> &mdash; 실어 나른다</span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-violet-100 border-2 border-violet-600"></span>
+                        <span><strong class="text-slate-800">데이터 플랫폼</strong> &mdash; 쌓아 두고 따져 본다</span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-amber-100 border-2 border-amber-600"></span>
+                        <span><strong class="text-slate-800">사물 인터넷 서비스</strong> &mdash; 사람에게 내놓는다</span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2 sm:col-span-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-rose-50 border-2 border-dashed border-rose-500"></span>
+                        <span><strong class="text-slate-800">사물 인터넷 보안</strong> &mdash; 넷 전체를 감싼다</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>다섯 가지가 늘 다섯 개의 물건인 것은 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    구성 요소는 <strong>맡은 일</strong>을 나눈 것이지, 물건의 개수를 센 것이 아닙니다. 작은 시스템에서는
+                    한 물건이 두 가지 일을 겸하기도 합니다. 스마트폰이 화분의 값을 받아 화면에 띄운다면, 그 스마트폰은
+                    데이터를 나르는 자리에도 서 있고 사람에게 내놓는 자리에도 서 있습니다. 반대로 큰 시스템에서는
+                    데이터 플랫폼 하나가 건물 몇 채 분량의 서버로 이루어지기도 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                보안만 다른 넷과 나란히 놓이지 않고 전체를 감싸고 있습니다. 왜 그렇게 그렸을지 짐작해 보세요.
+                답은 이 차시의 마지막 절에서 확인할 수 있습니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 사물 인터넷 장치 ══════════ -->
+    <section id="device" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-microchip text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">사물 인터넷 장치</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                가장 앞에 서서 <strong>데이터를 만들어 내는</strong> 것이 사물 인터넷 장치입니다. 앞 차시에서 본
+                「사물의 자격 세 가지」를 실제로 갖춘 물건이 바로 이것입니다. 안을 뜯어보면 대개 아래 네 부분이
+                들어 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">사물 인터넷 장치 안에 들어 있는 부분들</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">부분</th>
+                        <th>하는 일</th>
+                        <th class="w-40">화분의 경우</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">센서</td>
+                        <td>주변의 무언가를 재서 숫자로 바꾼다</td>
+                        <td>흙에 꽂힌 물기 센서</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리하는 부분</td>
+                        <td>읽은 값을 정리하고, 언제 어디로 보낼지 정한다</td>
+                        <td>화분 받침 안의 작은 회로</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">통신하는 부분</td>
+                        <td>정리한 값을 네트워크로 내보낸다</td>
+                        <td>무선으로 공유기에 붙는 부분</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">움직이는 부분</td>
+                        <td>받은 신호에 따라 실제로 동작한다 (없는 장치도 많다)</td>
+                        <td>물을 흘려보내는 밸브</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 부분을 다 갖춘 장치도 있고, 재기만 하고 움직이지는 않는 장치도 있습니다. 크기와 복잡함도
+                아주 다양해서, 켜지고 꺼지기만 하는 전구 하나부터 수십 개의 센서를 달고 스스로 주행하는 자동차까지
+                모두 사물 인터넷 장치입니다. <strong>「복잡해야 사물 인터넷 장치」인 것이 아니라, 데이터를 만들어
+                네트워크로 내보내면 사물 인터넷 장치</strong>입니다.
+            </p>
+
+            <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-sky-900">웨어러블 장치(wearable device)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사물 인터넷 장치 가운데 <strong>몸에 지니고 다니도록 만든 것</strong>을 따로 웨어러블 장치라고
+                    부릅니다. 손목시계 모양, 이어폰 모양, 반지 모양, 옷에 붙이는 모양 등이 있습니다. 몸에 붙어 있으니
+                    맥박이나 움직임처럼 <strong>몸에서만 잴 수 있는 값</strong>을 얻을 수 있고, 잠깐 쓰고 마는 것이
+                    아니라 하루 종일 재기 때문에 값이 끊기지 않고 이어진다는 점이 특징입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                사물 인터넷 장치가 등장하기 전에도 데이터는 있었습니다. 다만 <strong>사람이 재서 사람이 적었습니다.</strong>
+                누가 온도계를 보고 공책에 적어 넣는 식입니다. 장치가 대신하면서 달라진 것은 「데이터가 생겼다」가
+                아니라 아래 세 가지입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">촘촘해졌다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        하루 한 번 적던 값을 몇 초에 한 번씩 잽니다. 사이사이에 무슨 일이 있었는지 보입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">끊기지 않는다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        사람은 자거나 자리를 비우면 못 재지만, 장치는 그 시간에도 잽니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">같은 방식으로 잰다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        사람마다 다르게 적어 넣던 것이, 늘 같은 기준으로 기록됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>자동으로 모았다고 해서 값이 옳은 것은 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    센서도 틀립니다. 흙 속의 센서가 조금 들리면 실제보다 마른 값이 나오고, 햇빛이 직접 닿는 곳에
+                    걸린 온도계는 그늘보다 훨씬 높은 값을 냅니다. 사람이 적을 때는 「이건 이상한데」 하고 알아채는
+                    일이 있지만, <strong>장치는 이상한 값도 똑같이 성실하게 보냅니다.</strong> 그래서 데이터를 받는
+                    쪽에서 이상한 값을 걸러 내는 일이 반드시 필요합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                교실의 이산화탄소 농도를 재는 장치를 둔다면, 위 표의 네 부분 가운데 무엇이 필요하고 무엇은
+                없어도 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 통신 네트워크 ══════════ -->
+    <section id="network" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-tower-broadcast text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">통신 네트워크</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                장치가 만든 값을 데이터 플랫폼까지 실어 나르는 것이 통신 네트워크입니다. 새로운 기술이 따로 있는
+                것이 아니라, <strong>앞 중단원에서 배운 유선&middot;무선 네트워크를 그대로 씁니다.</strong> 달라지는
+                점은 하나입니다. 컴퓨터를 인터넷에 붙일 때는 대개 고를 것이 없지만, 사물 인터넷에서는
+                <strong>어느 기술을 쓸지 골라야 합니다.</strong>
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                고르는 기준은 세 가지입니다. 어느 하나만 보고 정하면 나머지에서 문제가 생깁니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-ruler-horizontal"></i>
+                    </div>
+                    <p class="font-black text-lg text-teal-900">거리</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        같은 방 안인지, 건물 안인지, 들판 한가운데인지에 따라 닿을 수 있는 기술이 달라집니다.
+                        앞 중단원에서 정리한 짧은 쪽부터의 순서가 그대로 기준이 됩니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-battery-half"></i>
+                    </div>
+                    <p class="font-black text-lg text-teal-900">전력</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        콘센트에 꽂혀 있는 장치라면 상관없지만, 건전지로 몇 달을 버텨야 하는 장치라면 전력을
+                        적게 쓰는 기술이어야 합니다. 멀리 보낼수록 전력을 더 쓴다는 점이 여기서 걸립니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <p class="font-black text-lg text-teal-900">보낼 데이터의 양</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        숫자 하나를 몇 분에 한 번 보내는 것과 영상을 계속 흘려보내는 것은 요구가 전혀 다릅니다.
+                        양이 적으면 느린 기술로도 충분하고, 그만큼 전력을 아낄 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>세 기준은 서로 당깁니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    멀리 보내려면 전력을 더 써야 하고, 많이 보내려 해도 전력을 더 써야 합니다. 그래서
+                    <strong>세 가지를 한꺼번에 만족시키는 기술은 없습니다.</strong> 무엇을 포기할지 정하는 것이
+                    실제로 고르는 일입니다. 들판의 흙 물기를 재는 장치라면 데이터가 아주 적으므로 「멀리, 적게,
+                    오래」 쪽을 고르고, 현관의 카메라라면 영상을 보내야 하므로 「가깝게, 많이, 콘센트에 꽂아」
+                    쪽을 고릅니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                또 하나 기억할 것이 있습니다. 장치에서 플랫폼까지가 <strong>한 가지 기술로 쭉 이어지지 않는다</strong>는
+                점입니다. 화분이 보낸 값이 데이터 플랫폼에 닿기까지를 끊어서 보면 이렇습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">한 데이터가 지나가는 구간마다 다른 기술이 쓰인다</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">구간</th>
+                        <th>쓰이는 기술</th>
+                        <th>그렇게 고른 이유</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">화분 &rarr; 집 안 공유기</td>
+                        <td>집 안에서 쓰는 무선 기술</td>
+                        <td>거리가 짧고 보낼 값도 적다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">공유기 &rarr; 인터넷</td>
+                        <td>집으로 들어오는 유선 회선</td>
+                        <td>집 전체의 통신이 함께 지나가므로 빠르고 안정적이어야 한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">인터넷 &rarr; 데이터 플랫폼</td>
+                        <td>통신 회사와 데이터 센터를 잇는 유선망</td>
+                        <td>수많은 사용자의 데이터가 함께 지나간다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이렇게 서로 다른 네트워크를 넘나들며 데이터를 넘겨주는 일은 앞 중단원에서 본 라우터와 인터넷
+                공유기가 맡습니다. 사물 인터넷을 위해 새로 만든 장치가 아니라, <strong>이미 깔려 있던 인터넷을
+                그대로 빌려 쓰는 것</strong>입니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                산꼭대기에 놓아 두고 한 해 동안 기온을 재는 장치가 있습니다. 세 기준 가운데 무엇을 가장 먼저
+                고려해야 하고, 무엇을 포기하게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 데이터 플랫폼 ══════════ -->
+    <section id="platform" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-database text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">데이터 플랫폼</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                장치가 보낸 값이 도착하는 곳입니다. 하는 일은 크게 두 가지 &mdash; <strong>쌓아 두는 일</strong>과
+                <strong>따져 보는 일</strong>입니다. 여기서 「플랫폼」은 여러 프로그램과 서비스가 <strong>올라타서
+                일할 수 있게 깔아 둔 바닥</strong>이라는 뜻입니다. 어떤 서비스를 얹든 데이터를 받아 두고 꺼내 주는
+                일은 이 바닥이 맡습니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 한 가지 의문이 듭니다. 화분이 스스로 값을 읽었으니 화분 안에서 판단하면 되지 않을까요?
+                굳이 멀리 있는 곳까지 보낼 이유가 있을까요? 이유는 셋입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">쌓아 둘 자리가 없다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        화분 안의 회로는 아주 작아서, 몇 분치 값만 겨우 담아 둘 수 있습니다. 한 해 동안의 기록을
+                        남기려면 훨씬 큰 저장 공간이 필요합니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">따져 볼 힘이 없다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        「지난달보다 흙이 빨리 마르고 있다」를 알아내려면 많은 값을 한꺼번에 다뤄야 합니다.
+                        작은 회로로는 감당하기 어렵습니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">혼자서는 알 수 없다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        화분 하나의 값만으로는 「이 화분이 유독 빨리 마른다」를 알 수 없습니다. 여러 화분의 값을
+                        한자리에 모아야 비교가 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-violet-900">클라우드 컴퓨팅(cloud computing)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    데이터 플랫폼을 스스로 갖추려면 서버 컴퓨터를 사서 두어야 합니다. 대신 <strong>다른 곳에 마련된
+                    큰 컴퓨터를 빌려 쓰고 쓴 만큼 값을 내는 방식</strong>이 클라우드 컴퓨팅입니다. 우리 눈에는
+                    「인터넷 어딘가」에 있는 것처럼 보이지만, 실제로는 데이터 센터라는 건물 안의 컴퓨터입니다.
+                    장치를 몇 개 두든 그에 맞춰 빌리는 크기를 조절할 수 있어서 사물 인터넷과 잘 맞습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>언제나 멀리 보내는 것은 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    위의 세 이유는 <strong>쌓아 두고 오래 따져 볼 때</strong>의 이야기입니다. 급한 판단은 사정이
+                    다릅니다. 자율주행 자동차가 앞을 가로막은 것을 보고 멈출지 말지를 정할 때, 값을 멀리 보내
+                    답을 기다렸다가는 늦습니다. 이럴 때는 <strong>장치 자신이나 그 가까이에 있는 컴퓨터가 곧바로
+                    처리</strong>합니다. 이 방식을 <strong>에지 컴퓨팅</strong>이라고 합니다. 「에지」는 가장자리라는
+                    뜻으로, 데이터가 만들어지는 바로 그 끄트머리에서 처리한다는 말입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 방식은 서로 대신하는 것이 아니라 <strong>나눠 맡습니다.</strong> 급한 판단은 가까이에서 하고,
+                    오래 쌓아 두고 따져 보는 일은 플랫폼에서 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                공장의 설비가 「지금 당장 멈춰야 하는 진동」을 감지했습니다. 이 판단은 플랫폼과 에지 가운데
+                어느 쪽에서 해야 할까요? 그렇게 생각한 이유도 함께 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 5. 사물 인터넷 서비스 ══════════ -->
+    <section id="service" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-mobile-screen-button text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">사물 인터넷 서비스</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                플랫폼이 따져 본 결과를 <strong>사람이 쓸 수 있는 형태로 내놓는 것</strong>이 서비스입니다.
+                「흙의 물기 값이 사흘째 기준 아래」라는 결과를 그대로 보여 주면 사람은 무슨 뜻인지 알기 어렵습니다.
+                「물을 줄 때가 되었습니다」라고 바꿔서 보여 주는 일이 서비스의 몫입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">사람 눈에 보이는 것은 이 하나뿐입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞의 세 요소는 사용자 눈에 띄지 않습니다. 센서가 어디에 붙어 있는지, 어떤 무선 기술을 쓰는지,
+                    데이터가 어느 데이터 센터에 쌓이는지는 모르는 채로 씁니다. <strong>사람이 마주하는 것은 앱 화면이나
+                    알림 하나뿐</strong>입니다. 그래서 사물 인터넷을 처음 볼 때는 서비스가 전부인 것처럼 느껴지지만,
+                    그 뒤에 세 층이 더 있다는 것을 알아 두어야 무엇이 잘못되었을 때 어디를 봐야 하는지 알 수 있습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                서비스는 하나로 끝나지 않고 서로 묶이기도 합니다. 집 안의 조명 서비스와 잠금 서비스가 따로 있을 때는
+                각각 켜고 잠가야 하지만, 두 서비스를 묶으면 「집을 나설 때 조명을 끄고 문을 잠근다」는 하나의 동작을
+                만들 수 있습니다. 이렇게 <strong>이미 있는 서비스를 이어 붙여 새 서비스를 만드는 것</strong>이
+                사물 인터넷 서비스가 늘어나는 흔한 방식입니다.
+            </p>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-scale-balanced text-slate-500 mr-2"></i>알려 줄 것인가, 대신 해 줄 것인가
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    같은 분석 결과를 두고도 서비스는 두 가지로 만들 수 있습니다. <strong>「물을 줄 때가 되었습니다」라고
+                    알려 주고 사람이 정하게</strong> 할 수도 있고, <strong>말없이 밸브를 열어 물을 주게</strong> 할 수도
+                    있습니다. 앞쪽은 사람이 상황을 알고 판단하지만 사람이 자리에 없으면 아무 일도 일어나지 않습니다.
+                    뒤쪽은 사람이 없어도 처리되지만, 판단이 틀렸을 때 사람이 알아채기 어렵습니다.
+                    <strong>어느 쪽이 옳다고 정해져 있지 않습니다.</strong> 화분이라면 잘못 주어도 큰일이 아니지만,
+                    약을 넣는 장치라면 이야기가 달라집니다. 무엇을 다루는 서비스인지에 따라 정해야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                집에 아무도 없을 때 가스가 새는 것을 감지했습니다. 「알려 준다」와 「대신 해 준다」 가운데 어느 쪽으로
+                만들겠습니까? 고른 쪽에도 남는 위험이 있다면 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 6. 사물 인터넷 보안 ══════════ -->
+    <section id="security" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-shield-halved text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">사물 인터넷 보안</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 절의 첫머리에서 던진 물음으로 돌아갑시다. 보안은 왜 나머지 넷과 나란히 놓이지 않고 전체를
+                감싸고 있을까요? 답은 간단합니다. <strong>네 자리 어디에서든 뚫릴 수 있기 때문</strong>입니다.
+                어느 한 자리만 지켜서는 소용이 없습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">네 자리에서 각각 무엇이 위태로운가</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">자리</th>
+                        <th>일어날 수 있는 일</th>
+                        <th>막는 방법의 예</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">장치</td>
+                        <td>비밀번호를 처음 설정 그대로 두면 남이 장치를 마음대로 조작할 수 있다</td>
+                        <td>비밀번호를 바꾸고, 만든 곳이 내놓는 갱신을 받는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">통신 네트워크</td>
+                        <td>오가는 데이터를 중간에서 엿보거나 바꿔치기할 수 있다</td>
+                        <td>데이터를 알아볼 수 없는 형태로 바꿔 보낸다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">데이터 플랫폼</td>
+                        <td>한곳에 쌓여 있으므로 한 번 뚫리면 새어 나가는 양이 크다</td>
+                        <td>누가 어디까지 볼 수 있는지 미리 정해 둔다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">서비스</td>
+                        <td>남의 계정으로 들어와 집 안 기기를 조작할 수 있다</td>
+                        <td>본인인지 확인하는 단계를 하나 더 둔다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">사물 인터넷에서 특히 어려운 점</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    컴퓨터나 스마트폰은 문제가 알려지면 갱신을 받아 고칠 수 있고, 몇 해 지나면 새것으로 바꿉니다.
+                    그런데 사물 인터넷 장치는 <strong>화면도 없고, 한번 붙여 두면 몇 년씩 그대로 있고, 갱신을
+                    받는 길이 아예 없는 것도 많습니다.</strong> 게다가 수가 많아서 어디에 무엇이 붙어 있는지조차
+                    잊기 쉽습니다. 그래서 사물 인터넷의 보안은 <strong>뚫린 뒤에 고치는 것이 어려운 쪽</strong>에
+                    가깝고, 처음 만들 때 대비해 두는 편이 훨씬 낫습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다만 대비를 해 둔다고 해서 위험이 없어지지는 않습니다. 실제로 어떤 일이 벌어졌고 우리가 어떤
+                    자세를 가져야 하는지는 다음 차시들에서 이어서 살펴봅니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                장치의 비밀번호를 아무리 잘 바꿔 두어도 막을 수 없는 위험이 표 안에 있습니다. 어느 것일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다섯 가지 구성 요소</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>데이터는 장치에서 출발해 통신 네트워크를 거쳐 데이터 플랫폼에 닿고, 마지막으로 서비스로
+                        나온다. 보안이 그 넷 전체를 감싼다.
+                    </li>
+                    <li>맡은 일을 나눈 것이지 물건의 개수가 아니다. 한 물건이 두 자리를 겸하기도 한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">장치</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>센서 &middot; 처리하는 부분 &middot; 통신하는 부분으로 이루어지고, 움직이는 부분은 있을 수도 없을 수도 있다.</li>
+                    <li>사람이 재던 것을 대신하면서 데이터가 촘촘해지고, 끊기지 않고, 같은 기준으로 기록된다.</li>
+                    <li>그렇다고 값이 늘 옳지는 않다. 센서도 틀리며, 이상한 값도 성실하게 보내진다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">네트워크와 플랫폼</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>네트워크는 거리 &middot; 전력 &middot; 데이터의 양 세 기준으로 고르며, 셋을 한꺼번에 만족시킬 수는 없다.</li>
+                    <li>플랫폼으로 보내는 것은 쌓아 둘 자리와 따져 볼 힘이 장치에 없고, 여러 장치의 값을 모아야
+                        비교가 되기 때문이다.
+                    </li>
+                    <li>급한 판단은 가까이에서 처리한다(에지 컴퓨팅). 두 방식은 나눠 맡는다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">서비스와 보안</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>사람 눈에 보이는 것은 서비스뿐이고, 그 뒤에 세 층이 더 있다.</li>
+                    <li>알려 줄 것인지 대신 해 줄 것인지는 무엇을 다루는 서비스인지에 따라 정한다.</li>
+                    <li>보안이 전체를 감싸는 것은 네 자리 어디에서든 뚫릴 수 있기 때문이다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    스마트워치가 잰 걸음 수를 앱에서 「이번 주 평균보다 적습니다」라고 보여 줍니다.
+                    <strong>평균을 계산한 일</strong>은 어느 구성 요소가 맡았을까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '장치는 걸음 수를 재서 보내는 일까지 맡습니다. 여러 날의 값을 모아 계산할 자리와 힘이 없습니다.')">
+                    ① 사물 인터넷 장치
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '통신 네트워크는 값을 실어 나르기만 합니다. 값을 가지고 계산하지 않습니다.')">
+                    ② 통신 네트워크
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 여러 날의 값을 쌓아 두고 따져 보는 일이 데이터 플랫폼의 몫입니다.')">
+                    ③ 데이터 플랫폼
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '서비스는 계산이 끝난 결과를 사람이 알아볼 수 있는 문장으로 바꿔 보여 주는 자리입니다.')">
+                    ④ 사물 인터넷 서비스
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    들판에 놓고 건전지로 한 해를 버티며 흙의 물기를 재는 장치가 있습니다.
+                    통신 기술을 고를 때 <strong>가장 크게 걸리는 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '보내는 값은 숫자 하나뿐이라 양은 문제가 되지 않습니다.')">
+                    ① 보낼 데이터의 양이 너무 많다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 멀리 보내려면 전력을 더 써야 하는데 건전지로 한 해를 버텨야 하므로 두 기준이 정면으로 부딪힙니다.')">
+                    ② 멀리 보내야 하는데 전력을 아껴야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값을 얼마나 자주 보낼지는 정하기 나름입니다. 이것만으로 기술이 정해지지는 않습니다.')">
+                    ③ 값을 보내는 주기를 정하기 어렵다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '주소는 장치마다 정해 주면 되는 일이고, 통신 기술을 고르는 기준은 아닙니다.')">
+                    ④ 장치에 줄 주소가 모자란다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>에지 컴퓨팅</strong>을 쓰는 까닭으로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오래 쌓아 두는 일은 오히려 플랫폼이 잘합니다. 장치 가까이에는 쌓아 둘 자리가 적습니다.')">
+                    ① 데이터를 더 오래 쌓아 두기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 멀리 보내 답을 기다릴 여유가 없는 판단은 데이터가 만들어진 자리에서 곧바로 해야 합니다.')">
+                    ② 멀리 보내 답을 기다릴 시간이 없을 때 곧바로 판단하기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '여러 장치의 값을 모아 비교하는 일은 한자리에 모으는 플랫폼이 맡습니다.')">
+                    ③ 여러 장치의 값을 한자리에 모아 비교하기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '에지 컴퓨팅은 플랫폼을 대신하는 것이 아니라 급한 판단을 나눠 맡는 방식입니다.')">
+                    ④ 데이터 플랫폼을 아예 없애기 위해
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    보안을 <strong>다섯 번째 요소로 나란히 두지 않고 전체를 감싸게</strong> 그린 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '중요도의 문제가 아닙니다. 나머지 넷도 하나라도 빠지면 시스템이 동작하지 않습니다.')">
+                    ① 나머지 넷보다 중요하기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 장치·네트워크·플랫폼·서비스 어느 자리에서든 뚫릴 수 있어 한 자리만 지켜서는 소용이 없습니다.')">
+                    ② 네 자리 어디에서든 뚫릴 수 있어 한 자리만 지켜서는 소용이 없기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '보안은 데이터가 지나가는 순서와 별개로, 모든 자리에 걸쳐 필요한 일입니다.')">
+                    ③ 데이터가 마지막으로 지나가는 자리이기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '보안은 눈에 보이지 않는 쪽에 가깝습니다. 사람이 마주하는 것은 서비스입니다.')">
+                    ④ 사람이 직접 눈으로 보는 자리이기 때문에
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

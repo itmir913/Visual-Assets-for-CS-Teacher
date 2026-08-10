@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사물 인터넷이란 무엇인가</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-house-signal absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-microchip absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            사물 인터넷이란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            인터넷에 연결된 전구는 많습니다.<br>
+            그런데 <strong>전구가 먼저 말을 거는</strong> 쪽은 어떨까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>사물 인터넷을 「사람의 조작을 거치지 않고 사물끼리 데이터를 주고받는 것」으로 설명하고, 그저 인터넷에 연결되어 있을 뿐인 기기와 구별할 수 있다.</li>
+                    <li>사물 인터넷에서 말하는 「사물」이 되려면 무엇이 필요한지 세 가지로 들고, 앞서 배운 네트워크가 그 안에서 어떤 자리를 맡는지 짚을 수 있다.</li>
+                    <li>주변에서 사물 인터넷이 쓰인 사례를 찾아, 무엇이 무엇에게 어떤 데이터를 보내는지 화살표로 그릴 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-microchip text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">사물 인터넷이란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#remote" class="hover:text-teal-600 transition">누가 시켰는가</a>
+            <a href="#things" class="hover:text-teal-600 transition">「사물」의 자격</a>
+            <a href="#chain" class="hover:text-teal-600 transition">사물끼리 잇기</a>
+            <a href="#around" class="hover:text-teal-600 transition">주변의 사물 인터넷</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 누가 시켰는가 ══════════ -->
+    <section id="remote" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-hand-pointer text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">누가 시켰는가</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                방의 전등을 켜는 방법을 떠올려 봅시다. 벽에 붙은 스위치를 누를 수도 있고, 리모컨의 버튼을
+                누를 수도 있고, 스마트폰 앱에서 「거실 등 켜기」를 누를 수도 있습니다. 세 방법은 서로 많이
+                달라 보이지만 한 가지가 똑같습니다. <strong>셋 다 사람이 손으로 시작했다</strong>는 것입니다.
+                스위치든 리모컨이든 앱이든, 사람이 누르기 전까지 전등은 아무 일도 하지 않습니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 네 번째 방법을 생각해 봅시다. 침대에 무게를 재는 장치가 붙어 있어서, 사람이 일어나 침대에서
+                내려오면 무게가 줄어드는 것을 알아챕니다. 침대는 이 사실을 전등에게 알립니다. 전등은 그 소식을
+                받고 스스로 켜집니다. 이번에는 사람이 아무것도 누르지 않았습니다. 사람이 한 일은 <strong>잠에서
+                깬 것</strong>뿐입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">사물 인터넷(IoT, Internet of Things)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사물에 <strong>주변을 알아채는 장치</strong>와 <strong>네트워크에 연결되는 능력</strong>을 붙여,
+                    사람이 그때그때 조작해 주지 않아도 <strong>사물끼리 직접 데이터를 주고받으며</strong> 동작하게
+                    만든 기술입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                정의에서 가장 중요한 말은 <strong>「사물끼리 직접」</strong>입니다. 이 말이 빠지면 인터넷에 연결된
+                모든 기기가 사물 인터넷이 되어 버립니다. 스마트폰으로 영화를 보는 것도, 노트북으로 검색을 하는 것도
+                인터넷에 연결해서 하는 일이지만, 그 데이터는 전부 <strong>사람이 요청해서</strong> 오갑니다.
+                사물 인터넷에서는 사람이 요청하지 않은 데이터가 사물과 사물 사이를 오갑니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">사람이 가운데 있는 흐름</p>
+                    <svg class="chart-svg" viewBox="0 0 320 140" role="img"
+                         aria-label="침대에서 사람으로, 사람에서 전등으로 화살표가 이어진 그림">
+                        <defs>
+                            <marker id="ar-a" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                    orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L7,3.2 L0,6.4 z" fill="#64748b"></path>
+                            </marker>
+                        </defs>
+                        <rect x="10" y="50" width="70" height="44" rx="12" fill="#e0f2fe" stroke="#38bdf8"
+                              stroke-width="2"></rect>
+                        <circle cx="160" cy="72" r="26" fill="#e2e8f0" stroke="#64748b" stroke-width="2"></circle>
+                        <rect x="240" y="50" width="70" height="44" rx="12" fill="#fef3c7" stroke="#f59e0b"
+                              stroke-width="2"></rect>
+                        <line x1="82" y1="72" x2="126" y2="72" stroke="#64748b" stroke-width="3"
+                              marker-end="url(#ar-a)"></line>
+                        <line x1="190" y1="72" x2="234" y2="72" stroke="#64748b" stroke-width="3"
+                              marker-end="url(#ar-a)"></line>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        침대가 알아챈 것을 사람이 보고, 사람이 전등을 켭니다. 가운데 회색 동그라미가 사람입니다.
+                        사람이 빠지면 흐름이 끊깁니다.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">사물끼리 직접 이은 흐름</p>
+                    <svg class="chart-svg" viewBox="0 0 320 140" role="img"
+                         aria-label="침대에서 전등으로 화살표가 바로 이어지고, 사람은 아래에 점선 원으로 떨어져 있는 그림">
+                        <defs>
+                            <marker id="ar-b" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                    orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L7,3.2 L0,6.4 z" fill="#0d9488"></path>
+                            </marker>
+                        </defs>
+                        <rect x="10" y="28" width="70" height="44" rx="12" fill="#e0f2fe" stroke="#38bdf8"
+                              stroke-width="2"></rect>
+                        <rect x="240" y="28" width="70" height="44" rx="12" fill="#fef3c7" stroke="#f59e0b"
+                              stroke-width="2"></rect>
+                        <line x1="82" y1="50" x2="234" y2="50" stroke="#0d9488" stroke-width="3"
+                              marker-end="url(#ar-b)"></line>
+                        <circle cx="160" cy="110" r="22" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"
+                                stroke-dasharray="5 4"></circle>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        침대가 전등에게 곧바로 알립니다. 사람은 아래에 점선으로만 남아 있습니다. 이 순간에는
+                        아무 일도 하지 않고 있다는 뜻입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-triangle-exclamation text-slate-500 mr-2"></i>사람이 사라진 것이 아니라, 자리를 옮긴 것입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    오른쪽 그림에서 사람이 점선이 된 것은 <strong>그 순간에</strong> 아무것도 누르지 않았다는 뜻이지,
+                    사람이 필요 없다는 뜻이 아닙니다. 「침대에서 무게가 줄어들면 전등을 켠다」는 규칙은 누군가가
+                    <strong>미리 정해 둔 것</strong>입니다. 사물 인터넷은 사람의 판단을 없애는 기술이 아니라,
+                    사람이 판단을 <strong>미리 한 번</strong> 해 두면 그 뒤로는 사물이 알아서 실행하게 만드는 기술입니다.
+                    그래서 규칙을 잘못 정해 두면 사물도 계속 잘못 동작합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                스마트폰 앱으로 집 밖에서 보일러를 켜는 것은 사물 인터넷이라고 부르기 어렵습니다. 위의 정의에서
+                어느 부분에 걸리기 때문일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 「사물」의 자격 ══════════ -->
+    <section id="things" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-cube text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">「사물」의 자격</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이름에 「사물」이 들어가니 손으로 만질 수 있는 물건만 떠오르기 쉽습니다. 실제로 전구, 냉장고,
+                자물쇠, 화분처럼 만질 수 있는 물건이 가장 흔한 사물입니다. 그런데 사물 인터넷에서 말하는 사물에는
+                <strong>만질 수 없는 것</strong>도 들어갑니다. 날씨 정보를 알려 주는 인터넷 서비스나 스마트폰 안에서
+                돌아가는 앱도, 데이터를 주고받는 상대가 될 수 있다면 사물의 자리에 설 수 있습니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그렇다면 무엇이든 사물이 될 수 있을까요? 그렇지 않습니다. 어떤 물건이 사물 인터넷에 낄 수 있으려면
+                아래 세 가지를 갖추어야 합니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <p class="font-black text-lg text-sky-900">① 알아채거나 움직이는 부분</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        주변의 무언가를 재서 숫자로 바꾸거나, 반대로 받은 신호에 따라 실제로 움직입니다.
+                        재는 쪽은 온도&middot;밝기&middot;무게&middot;소리 같은 것을 읽고, 움직이는 쪽은 불을 켜거나
+                        문을 잠그거나 모터를 돌립니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-wifi"></i>
+                    </div>
+                    <p class="font-black text-lg text-teal-900">② 네트워크에 붙는 부분</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        읽은 값을 혼자 가지고 있으면 아무 소용이 없습니다. 다른 사물에게 보낼 수 있어야 합니다.
+                        앞 차시에서 배운 유선&middot;무선 네트워크가 그대로 이 자리를 맡습니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-violet-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-fingerprint"></i>
+                    </div>
+                    <p class="font-black text-lg text-violet-900">③ 저를 가리키는 주소</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        받는 쪽이 누구인지 정할 수 없으면 데이터를 보낼 수 없습니다. 앞 차시에서 배운 IP 주소가
+                        이 일을 합니다. 전구 하나하나가 자기 주소를 가진다는 뜻입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">센서(sensor)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    ①에서 「재는 쪽」을 맡는 부품을 <strong>센서</strong>라고 합니다. 온도&middot;밝기&middot;소리&middot;움직임처럼
+                    사람이 감각으로 느끼는 것들을 <strong>숫자로 바꿔 주는 부품</strong>입니다. 예를 들어 온도 센서는
+                    「따뜻하다」가 아니라 <strong>23</strong>과 같은 값을 내놓습니다. 컴퓨팅 시스템은 느낌을 다룰 수 없고
+                    숫자만 다룰 수 있으므로, 센서가 없으면 사물 인터넷은 시작조차 하지 못합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    센서가 내놓는 값이 곧 네트워크를 처음 다룬 차시에서 말한 <strong>데이터</strong>, 곧 컴퓨팅 시스템이
+                    다룰 수 있는 형태로 적어 둔 값입니다. 사람이 직접 적어 넣던 데이터를
+                    사물이 알아서 만들어 낸다는 점이 사물 인터넷의 출발점입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 가지를 갖추면 평범한 물건도 사물 인터넷의 일원이 됩니다. 아래는 흔한 물건에 무엇을 붙이면
+                되는지 정리한 것입니다. 붙일 것이 마땅치 않은 물건은 사물 인터넷으로 만들기 어렵습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        평범한 물건을 사물 인터넷의 사물로 만들려면 (수업에서 원리를 확인하려고 지어낸 예)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">물건</th>
+                        <th>① 알아채거나 움직이는 부분</th>
+                        <th>② 네트워크</th>
+                        <th class="w-32">보내는 데이터</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">화분</td>
+                        <td>흙에 꽂아 물기를 재는 센서</td>
+                        <td>집 안 공유기에 무선으로 연결</td>
+                        <td>흙의 물기 값</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">현관 자물쇠</td>
+                        <td>잠금 장치를 돌리는 모터</td>
+                        <td>집 안 공유기에 무선으로 연결</td>
+                        <td>잠김&middot;열림 상태</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">쓰레기통</td>
+                        <td>뚜껑까지의 거리를 재는 센서</td>
+                        <td>바깥에 있으므로 이동 통신</td>
+                        <td>남은 공간 값</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">종이컵</td>
+                        <td>붙일 곳도, 잴 것도 마땅치 않음</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우산에 사물 인터넷을 붙인다면 ①에는 무엇을 달고, 어떤 데이터를 누구에게 보내면 좋을까요?
+                ②와 ③까지 채워 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 사물끼리 잇기 ══════════ -->
+    <section id="chain" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-link text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">사물끼리 잇기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                사물 하나만 네트워크에 붙여 두면 할 수 있는 일이 별로 없습니다. 물기를 재는 화분이 값을 읽어
+                두기만 하면, 결국 사람이 그 값을 확인해야 하니 앞에서 본 「사람이 가운데 있는 흐름」과 다를 것이
+                없습니다. 사물 인터넷이 힘을 얻는 것은 <strong>사물이 여럿 이어져, 한 사물이 알아챈 것이 다른
+                사물이 움직일 조건이 될 때</strong>입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이때 사물들이 따르는 것은 <strong>「무엇이 어떠하면 무엇을 한다」</strong> 형태의 규칙입니다.
+                아침에 전등이 켜지던 상황을 이 형태로 적어 보면 아래와 같습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        「무엇이 어떠하면 무엇을 한다」로 적어 본 규칙 (수업에서 원리를 확인하려고 지어낸 예)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">알아채는 사물</th>
+                        <th>조건</th>
+                        <th class="w-32">움직이는 사물</th>
+                        <th>하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">침대</td>
+                        <td>실린 무게가 크게 줄어들면</td>
+                        <td class="font-bold">전등</td>
+                        <td>불을 켠다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">창문</td>
+                        <td>열린 상태가 되면</td>
+                        <td class="font-bold">냉방기</td>
+                        <td>동작을 멈춘다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">화분</td>
+                        <td>흙의 물기 값이 기준보다 낮으면</td>
+                        <td class="font-bold">스마트폰 앱</td>
+                        <td>물을 줄 때가 되었다고 알린다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                표의 왼쪽 두 칸은 <strong>데이터를 만드는 쪽</strong>, 오른쪽 두 칸은 <strong>데이터를 받아 움직이는
+                쪽</strong>입니다. 두 쪽 사이를 데이터가 지나가려면 네트워크가 있어야 하고, 어느 사물에게 보낼지
+                정하려면 주소가 있어야 합니다. 앞 절에서 본 세 가지가 여기서 한꺼번에 쓰입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>규칙이 늘어나면 서로 부딪힙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    위 표에 「방이 어두우면 전등을 켠다」는 규칙을 하나 더 넣어 봅시다. 낮에 잠깐 누웠다 일어나면
+                    첫 번째 규칙은 켜라고 하는데, 방이 밝으니 새 규칙은 켤 이유가 없다고 합니다. 사물이 둘일 때는
+                    잘 보이던 규칙도 다섯, 열이 되면 이렇게 <strong>서로 어긋나는 순간</strong>이 생깁니다.
+                    그래서 사물 인터넷을 만들 때는 사물을 늘리는 것보다 <strong>규칙을 어떻게 정할지</strong>가 더
+                    어렵습니다. 규칙을 짜는 방법은 이 중단원의 마지막 차시에서 다룹니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「창문이 열리면 냉방기를 멈춘다」는 규칙만 두면 곤란한 일이 생길 수 있습니다. 어떤 상황일지 하나
+                떠올리고, 규칙을 어떻게 고치면 좋을지 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 주변의 사물 인터넷 ══════════ -->
+    <section id="around" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-city text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">주변의 사물 인터넷</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                사물 인터넷은 집 안에서만 쓰이는 기술이 아닙니다. 농장, 공장, 도시 전체에도 같은 방식이 쓰입니다.
+                이름은 저마다 다르지만 <strong>「알아채고 → 보내고 → 움직인다」</strong>는 뼈대는 똑같습니다. 아래
+                네 가지를 읽으면서 세 자리에 각각 무엇이 들어갔는지 찾아보세요.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">
+                        <i class="fa-solid fa-house mr-2"></i>스마트 홈
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        집 안의 조명&middot;냉난방&middot;자물쇠&middot;가전이 한 네트워크에 묶여 있습니다.
+                        사람이 있는지, 창이 열렸는지, 방이 몇 도인지를 알아채고 그에 맞게 기기를 움직입니다.
+                        스마트폰 하나로 전체를 살펴볼 수 있는 것은 <strong>결과일 뿐</strong>이고, 핵심은 기기들이
+                        서로의 상태를 알고 있다는 점입니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">
+                        <i class="fa-solid fa-seedling mr-2"></i>스마트 팜
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        비닐하우스 안의 온도&middot;습도&middot;빛&middot;흙의 물기를 센서가 계속 재고, 그 값에 따라
+                        창을 여닫거나 물을 주는 장치가 움직입니다. 사람이 밤새 지키고 있을 수 없는 시간대를
+                        메워 주는 것이 큰 몫입니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">
+                        <i class="fa-solid fa-industry mr-2"></i>스마트 팩토리
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        생산 설비마다 센서가 붙어 진동&middot;온도&middot;속도를 보냅니다. 값이 평소와 달라지면
+                        고장이 나기 전에 알아채 점검할 수 있습니다. 사람이 눈으로 보고 판단하던 일을 설비가
+                        스스로 알리는 쪽으로 옮긴 것입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">
+                        <i class="fa-solid fa-traffic-light mr-2"></i>스마트 시티
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        도로&middot;주차장&middot;가로등&middot;쓰레기통처럼 도시 곳곳의 시설에서 데이터를 모읍니다.
+                        차가 얼마나 지나가는지, 어느 통이 다 찼는지를 알면 신호를 조정하거나 수거 경로를 다시 짤 수
+                        있습니다. 다루는 사물의 수가 가장 많은 쪽입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">규모가 달라도 뼈대는 같습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    스마트 홈에서 다루는 사물은 몇십 개, 스마트 시티에서 다루는 사물은 훨씬 많습니다. 그렇지만
+                    하나하나를 뜯어보면 전부 <strong>센서가 값을 읽고 → 네트워크로 보내고 → 받은 쪽이 움직이는</strong>
+                    같은 모양입니다. 달라지는 것은 <strong>사물의 수와 데이터의 양</strong>이고, 그 때문에 데이터를
+                    어디에 모아 두고 어떻게 다룰지가 문제가 됩니다. 이 이야기는 다음 차시에서 이어집니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 가지 가운데 하나를 골라, 「알아채는 것 &rarr; 보내는 데이터 &rarr; 움직이는 것」을 화살표로 이어
+                한 줄로 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">사물 인터넷의 뜻</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>사물에 알아채는 능력과 네트워크 연결을 붙여, 사람이 그때그때 조작하지 않아도 사물끼리
+                        직접 데이터를 주고받게 만든 기술이다.
+                    </li>
+                    <li>인터넷에 연결되어 있다는 것만으로는 부족하다. 사람이 요청하지 않은 데이터가 사물 사이를
+                        오가야 한다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">사물이 갖추어야 할 세 가지</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>알아채거나 움직이는 부분, 네트워크에 붙는 부분, 저를 가리키는 주소.</li>
+                    <li>재는 쪽을 맡는 부품이 센서이고, 센서는 느낌을 숫자로 바꿔 준다.</li>
+                    <li>가상의 서비스나 앱도 데이터를 주고받는 상대가 되면 사물의 자리에 설 수 있다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">사물을 잇는다는 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>한 사물이 알아챈 것이 다른 사물이 움직일 조건이 된다.</li>
+                    <li>규칙은 「무엇이 어떠하면 무엇을 한다」 형태로 적을 수 있다.</li>
+                    <li>규칙은 사람이 미리 정해 둔다. 그래서 잘못 정하면 사물도 계속 잘못 동작한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">규모가 달라도 뼈대는 같다</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>스마트 홈&middot;팜&middot;팩토리&middot;시티 모두 「알아채고 &rarr; 보내고 &rarr; 움직인다」로 이루어진다.</li>
+                    <li>규모가 커지면서 달라지는 것은 사물의 수와 데이터의 양이다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>사물 인터넷이라고 부르기 가장 어려운</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '창문이 열렸다는 것을 냉방기가 받아 스스로 멈추므로 사물끼리 직접 주고받은 것입니다.')">
+                    ① 창문이 열리면 냉방기가 스스로 멈춘다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사람이 버튼을 눌러야 시작되므로, 인터넷을 거쳤을 뿐 사람이 가운데 있는 흐름입니다.')">
+                    ② 스마트폰 앱에서 버튼을 눌러 집 밖에서 보일러를 켠다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '흙의 물기 값이 기준을 넘으면 알림이 가는 것이므로 사람의 조작에서 시작하지 않았습니다.')">
+                    ③ 화분의 흙이 마르면 앱에 알림이 뜬다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '설비가 스스로 상태를 보내고 이상을 알리므로 사람의 조작에서 시작하지 않았습니다.')">
+                    ④ 공장 설비가 진동 값을 보내 고장을 미리 알린다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>센서</strong>가 하는 일을 가장 정확하게 말한 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터를 옮기는 것은 네트워크의 일입니다. 센서는 값을 만들어 낼 뿐입니다.')">
+                    ① 데이터를 다른 사물에게 옮겨 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 온도 센서가 「따뜻하다」가 아니라 23 같은 값을 내놓는 것이 그 예입니다.')">
+                    ② 온도나 밝기처럼 사람이 감각으로 느끼는 것을 숫자로 바꾼다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '움직이는 것은 모터처럼 실제로 동작하는 부분이 맡습니다. 센서는 재기만 합니다.')">
+                    ③ 받은 신호에 따라 문을 잠그거나 모터를 돌린다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어느 사물에게 보낼지 정하는 것은 IP 주소의 몫입니다.')">
+                    ④ 데이터를 받을 사물이 누구인지 정해 준다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    흙의 물기를 재는 센서를 붙이고 무선으로 공유기에도 연결한 화분이 있습니다.
+                    그런데 값을 <strong>어디로도 보내지 못하고</strong> 있습니다. 무엇이 빠졌을까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '센서는 이미 붙어 있습니다. 값을 읽는 데는 문제가 없습니다.')">
+                    ① 알아채는 부분
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '공유기에 무선으로 연결되어 있으므로 네트워크에 붙는 부분은 갖추어져 있습니다.')">
+                    ② 네트워크에 붙는 부분
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 보낼 상대를 가리킬 주소가 정해지지 않으면 값을 읽어도 어디로 보낼지 알 수 없습니다.')">
+                    ③ 보낼 상대를 가리키는 주소
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '물을 주는 장치는 알림을 보내는 것과 상관이 없습니다. 값을 보내는 일에는 필요하지 않습니다.')">
+                    ④ 물을 주는 장치
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「침대에서 무게가 줄어들면 전등을 켠다」는 규칙은 <strong>누가 정한 것</strong>일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '침대는 무게를 재서 보낼 뿐, 그 값으로 무엇을 할지 스스로 정하지 않습니다.')">
+                    ① 침대가 스스로 정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전등은 받은 신호대로 켜질 뿐, 어떤 조건에서 켜질지를 스스로 판단하지 않습니다.')">
+                    ② 전등이 스스로 정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사물 인터넷은 사람이 미리 해 둔 판단을 사물이 대신 실행하는 구조입니다.')">
+                    ③ 사람이 미리 정해 둔다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '네트워크는 데이터를 옮기는 통로일 뿐, 무엇을 할지 정하지 않습니다.')">
+                    ④ 네트워크가 알아서 정한다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

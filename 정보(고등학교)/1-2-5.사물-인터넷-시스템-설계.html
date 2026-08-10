@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사물 인터넷 시스템 설계</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-compass-drafting absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-clipboard-check absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            사물 인터넷 시스템 설계
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            부품을 고르기 전에<br>
+            <strong>무엇이 문제인지</strong>부터 적어 봅시다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>피지컬 컴퓨팅 시스템을 입력 장치 &middot; 처리 장치 &middot; 출력 장치로 나누어 설명하고, 문제 해결에 필요한 장치를 고를 수 있다.</li>
+                    <li>문제 상황을 초기 상태 &middot; 문제 상태 &middot; 목표 상태로 나누어 적고, 거기서 필요한 장치를 끌어낼 수 있다.</li>
+                    <li>동작을 「무엇이 어떠하면 무엇을 한다」 형태의 표로 빠짐없이 적고, 확인할 항목을 스스로 만들 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-compass-drafting text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">사물 인터넷 시스템 설계</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#physical" class="hover:text-teal-600 transition">피지컬 컴퓨팅</a>
+            <a href="#understand" class="hover:text-teal-600 transition">문제 이해와 분석</a>
+            <a href="#plan" class="hover:text-teal-600 transition">시스템 구상</a>
+            <a href="#check" class="hover:text-teal-600 transition">만들고 확인하기</a>
+            <a href="#practice" class="hover:text-teal-600 transition">스스로 설계하기</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 피지컬 컴퓨팅 ══════════ -->
+    <section id="physical" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-plug-circle-bolt text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">피지컬 컴퓨팅</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 중단원의 마지막 차시입니다. 지금까지는 남이 만들어 둔 사물 인터넷을 살펴보았고, 이번에는
+                <strong>직접 설계</strong>해 봅니다. 부품을 사서 만드는 것은 아니고,
+                <strong>「무엇을 어떻게 만들지 종이에 정하는 것」</strong>까지 합니다. 설계가 끝나면 어떤 부품으로
+                만들든 같은 동작이 나와야 합니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                먼저 이름 하나를 정리합시다. 컴퓨터가 화면 안에서만 일하지 않고
+                <strong>센서로 바깥 상황을 읽어 실제 세상을 바꾸는 것</strong>을 <strong>피지컬 컴퓨팅</strong>이라고
+                합니다. 「피지컬」은 물리적이라는 뜻으로, 눈에 보이고 손에 닿는 세상을 가리킵니다. 사물 인터넷
+                장치는 대부분 피지컬 컴퓨팅 시스템입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                피지컬 컴퓨팅 시스템은 세 부분으로 이루어집니다. 앞 차시들에서 「알아채는 부분」, 「움직이는 부분」이라고
+                불렀던 것들이 여기서 제 이름을 얻습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    </div>
+                    <p class="font-black text-lg text-sky-900">입력 장치</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        주변의 변화를 감지해 값으로 바꿔 넣어 줍니다. 각종 센서와 버튼이 여기에 듭니다.
+                        앞 차시에서 「알아채는 부분」이라고 부른 것입니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-violet-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-gears"></i>
+                    </div>
+                    <p class="font-black text-lg text-violet-900">처리 장치</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        받은 값을 미리 정해 둔 규칙에 따라 판단하고, 출력 장치에 무엇을 시킬지 정합니다.
+                        시스템의 규칙이 들어가 있는 자리입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </div>
+                    <p class="font-black text-lg text-amber-900">출력 장치</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        처리한 결과를 바깥으로 내보냅니다. 빛&middot;소리&middot;글자로 알리거나, 모터를 돌려 실제로
+                        움직입니다. 앞 차시의 「움직이는 부분」입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">자주 쓰이는 입력 장치와 출력 장치</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">구분</th>
+                        <th class="w-40">장치</th>
+                        <th>무엇을 하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>온도 센서</td>
+                        <td>주변이 얼마나 차갑고 뜨거운지를 값으로 바꾼다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>빛 감지 센서</td>
+                        <td>주변이 얼마나 밝은지를 값으로 바꾼다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>소리 센서</td>
+                        <td>주변 소리가 얼마나 큰지를 값으로 바꾼다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>거리 센서</td>
+                        <td>앞에 있는 것까지의 거리를 값으로 바꾼다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>발광 다이오드(LED)</td>
+                        <td>불을 켜서 상태를 눈에 보이게 한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>스피커</td>
+                        <td>소리를 내어 멀리서도 알아채게 한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>화면</td>
+                        <td>숫자나 글자를 보여 준다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>모터</td>
+                        <td>돌려서 무언가를 실제로 움직인다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>사물 인터넷 시스템은 여기에 하나가 더 붙습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    입력&middot;처리&middot;출력만 있으면 <strong>혼자 일하는</strong> 피지컬 컴퓨팅 시스템입니다.
+                    자기가 재서 자기가 판단하고 자기가 알립니다. 여기에 <strong>통신하는 부분</strong>이 붙어
+                    다른 장치나 데이터 플랫폼과 값을 주고받게 되면 비로소 사물 인터넷 시스템이 됩니다. 그러니
+                    설계할 때 물어야 할 것이 하나 더 있습니다 &mdash; <strong>「이 값을 남에게 보낼 필요가 있는가?」</strong>
+                    보낼 필요가 없다면 굳이 사물 인터넷으로 만들지 않아도 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「어두워지면 저절로 켜지는 전등」은 통신하는 부분이 필요할까요? 필요하다면 왜, 필요 없다면
+                왜 그런지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 문제 이해와 분석 ══════════ -->
+    <section id="understand" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-magnifying-glass text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">문제 이해와 분석</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                설계는 네 단계로 진행합니다. 이번 절부터 한 단계씩 밟아 갑니다.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <span class="inline-block w-8 h-8 bg-teal-600 text-white rounded-lg grid place-items-center font-black text-base">1</span>
+                    <p class="font-black text-base text-slate-800">문제 이해와 분석</p>
+                    <p class="text-base text-slate-600 leading-relaxed">무엇이 문제인지 적는다</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <span class="inline-block w-8 h-8 bg-teal-600 text-white rounded-lg grid place-items-center font-black text-base">2</span>
+                    <p class="font-black text-base text-slate-800">시스템 구상</p>
+                    <p class="text-base text-slate-600 leading-relaxed">장치를 고르고 동작을 정한다</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <span class="inline-block w-8 h-8 bg-teal-600 text-white rounded-lg grid place-items-center font-black text-base">3</span>
+                    <p class="font-black text-base text-slate-800">만들기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">정한 대로 프로그램을 짜고 잇는다</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1">
+                    <span class="inline-block w-8 h-8 bg-teal-600 text-white rounded-lg grid place-items-center font-black text-base">4</span>
+                    <p class="font-black text-base text-slate-800">확인과 보완</p>
+                    <p class="text-base text-slate-600 leading-relaxed">해 보고, 안 되는 것을 고친다</p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>부품부터 고르지 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    무언가를 만들자고 하면 「무슨 센서를 쓸까」부터 이야기하게 됩니다. 그러면 <strong>가진 부품으로
+                    할 수 있는 일</strong>을 문제로 삼게 되어, 정작 불편했던 것은 그대로 남습니다.
+                    <strong>1단계를 건너뛴 설계는 2단계에서 반드시 헤맵니다.</strong>
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div class="bg-teal-50 border-2 border-teal-300 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-teal-900">
+                    <i class="fa-solid fa-wind mr-2"></i>이 차시에서 함께 설계할 문제
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    겨울에 쉬는 시간마다 교실 창을 열어 환기를 합니다. 그런데 종이 치고 수업이 시작된 뒤에도
+                    창이 열린 채 남아 있는 일이 잦아, 교실이 너무 추워집니다. 어떻게 하면 좋을까요?
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                1단계에서는 이 상황을 세 줄로 쪼갭니다. <strong>지금 어떤 상태인지</strong>,
+                <strong>무엇이 문제인지</strong>, <strong>어떤 상태가 되기를 바라는지</strong>입니다. 세 줄을
+                따로 적는 까닭은, 이렇게 적어야 <strong>고쳐야 할 것이 정확히 어디인지</strong>가 드러나기 때문입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">1단계 &mdash; 문제를 세 줄로 쪼개기</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">구분</th>
+                        <th>적은 내용</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">초기 상태</td>
+                        <td>쉬는 시간에 창을 열어 교실을 환기한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">문제 상태</td>
+                        <td>수업이 시작된 뒤에도 창이 열려 있는 것을 아무도 알아채지 못해 교실이 추워진다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">목표 상태</td>
+                        <td>창이 오래 열려 있으면 교실 안 사람들이 알아챌 수 있다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>목표 상태를 적을 때 조심할 것
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    목표를 「창이 저절로 닫힌다」로 적을 수도 있었습니다. 그런데 그렇게 적는 순간
+                    <strong>창을 닫는 장치가 반드시 있어야 하는 설계</strong>가 되어 버립니다. 무거운 창을 움직이려면
+                    큰 힘이 필요하고, 사람이 창가에 서 있을 때 닫히면 위험합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>목표 상태는 「무엇이 되기를 바라는가」까지만 적고, 「어떻게 할 것인가」는 2단계로
+                    미룹니다.</strong> 여기서는 「알아챌 수 있다」까지만 적어 두었기 때문에, 알림으로 풀지 자동으로
+                    닫아서 풀지를 다음 단계에서 견주어 고를 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                목표 상태를 「창이 열린 지 10분이 지나면 스피커에서 소리가 난다」로 적으면 무엇이 문제일까요?
+                위의 상자에 비추어 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 시스템 구상 ══════════ -->
+    <section id="plan" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-pen-ruler text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">시스템 구상</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 목표 상태를 <strong>장치와 규칙</strong>으로 옮깁니다. 순서는 언제나 같습니다 &mdash;
+                <strong>무엇을 알아야 하는가 &rarr; 무엇을 해야 하는가 &rarr; 언제 그렇게 하는가.</strong>
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                먼저 「무엇을 알아야 하는가」입니다. 목표 상태에 「창이 오래 열려 있으면」이라고 적었으니
+                <strong>창이 열렸는지</strong>와 <strong>얼마나 지났는지</strong>를 알아야 합니다. 다음은
+                「무엇을 해야 하는가」입니다. 「알아챌 수 있다」이므로 <strong>사람이 알아챌 수 있는 형태</strong>로
+                내보내야 합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">2단계 &mdash; 고른 장치와 그렇게 고른 이유</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">구분</th>
+                        <th class="w-44">고른 장치</th>
+                        <th>그렇게 고른 이유</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>창틀에 붙이는 열림 감지 센서</td>
+                        <td>창이 열렸는지 닫혔는지만 알면 되므로 가장 간단한 것으로 충분하다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>온도 센서</td>
+                        <td>추워지는 것이 진짜 문제이므로, 열린 시간만이 아니라 실내 온도도 함께 본다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>작은 처리 장치 하나</td>
+                        <td>값 두 개를 견주어 판단하는 정도라 큰 계산 능력이 필요하지 않다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>교실 앞쪽의 표시등</td>
+                        <td>수업 중이므로 소리보다 눈에 보이는 쪽이 방해가 적다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">이 값을 남에게 보낼 필요가 있을까요?</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 교실만 생각하면 <strong>보낼 필요가 없습니다.</strong> 교실 안에서 재고 교실 안에서 알리면
+                    되니, 통신하는 부분 없이 혼자 일하는 피지컬 컴퓨팅 시스템으로 충분합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그런데 <strong>학교 전체의 교실을 한 곳에서 보고 싶다면</strong> 이야기가 달라집니다. 각 교실의
+                    값을 한자리에 모아야 하므로 통신하는 부분과 데이터 플랫폼이 필요해지고, 그때 비로소
+                    사물 인터넷 시스템이 됩니다. <strong>필요가 생겨서 통신을 붙이는 것이지, 사물 인터넷으로
+                    만들려고 필요를 만드는 것이 아닙니다.</strong>
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막으로 「언제 그렇게 하는가」를 정합니다. 앞 차시들에서 쓴
+                <strong>「무엇이 어떠하면 무엇을 한다」</strong> 형태 그대로 적으면 됩니다. 여기서 중요한 것은
+                <strong>빠짐없이 적는 것</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        2단계 &mdash; 동작 규칙 (기준이 되는 시간과 온도는 수업에서 원리를 확인하려고 정한 값)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">창의 상태</th>
+                        <th class="w-32">열린 지</th>
+                        <th class="w-32">실내 온도</th>
+                        <th>표시등</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>닫힘</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                        <td>끈다</td>
+                    </tr>
+                    <tr>
+                        <td>열림</td>
+                        <td>10분 미만</td>
+                        <td>모든 경우</td>
+                        <td>초록으로 켠다 (환기 중)</td>
+                    </tr>
+                    <tr>
+                        <td>열림</td>
+                        <td>10분 이상</td>
+                        <td>18&deg;C 이상</td>
+                        <td>노랑으로 켠다 (오래 열려 있음)</td>
+                    </tr>
+                    <tr>
+                        <td>열림</td>
+                        <td>10분 이상</td>
+                        <td>18&deg;C 미만</td>
+                        <td>빨강으로 깜빡인다 (춥습니다)</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-list-check text-slate-500 mr-2"></i>표를 다 적은 뒤 두 가지를 확인합니다
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>빈 곳이 있는가</strong> &mdash; 일어날 수 있는 상황인데 표에 없는 줄이 있으면,
+                        그 상황에서 시스템은 아무 일도 하지 않거나 엉뚱하게 동작합니다.
+                    </li>
+                    <li><strong>겹치는 곳이 있는가</strong> &mdash; 한 상황이 두 줄에 걸리면 어느 쪽을 따라야 할지
+                        정해지지 않습니다. 위 표에서 「10분 이상」과 「18&deg;C 미만」을 나눈 것이 겹침을 없앤 것입니다.
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 두 가지가 앞 차시에서 말한 <strong>「규칙이 늘어나면 서로 부딪힌다」</strong>는 문제를
+                    미리 막는 방법입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「열린 지 10분 이상, 18&deg;C 미만」과 「열린 지 20분 이상」이라는 두 줄을 함께 두면 어떤 문제가
+                생길까요? 위의 두 확인 항목 가운데 어느 쪽에 걸리는지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 만들고 확인하기 ══════════ -->
+    <section id="check" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-clipboard-check text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">만들고 확인하기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                3단계는 정한 대로 실제로 만드는 일입니다. 어떤 부품과 어떤 프로그래밍 도구를 쓰는지는 학교마다,
+                해마다 다릅니다. 그러나 <strong>2단계까지가 제대로 되어 있으면 도구가 무엇이든 만드는 일은
+                같습니다.</strong> 표의 각 줄이 그대로 프로그램의 한 조각이 되기 때문입니다. 조건이 넷이면
+                판단도 넷입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                4단계는 만든 것을 <strong>실제로 해 보고 고치는</strong> 일입니다. 여기서 자주 하는 실수가
+                「그냥 켜 보고 잘 되는 것 같으면 끝내는」 것입니다. 잘 되는지 확인하려면 <strong>무엇을 확인할지
+                미리 적어 두어야</strong> 합니다. 그리고 그 목록은 새로 만드는 것이 아니라
+                <strong>2단계의 표에서 그대로 나옵니다.</strong>
+            </p>
+
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-square-check text-teal-600 mr-2"></i>점검표 &mdash; 규칙 표의 네 줄을 그대로 옮긴 것
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-none pl-0 leading-relaxed">
+                    <li class="flex gap-3"><span class="shrink-0 text-slate-400">☐</span><span>창을 닫아 두면 표시등이 꺼져 있는가?</span></li>
+                    <li class="flex gap-3"><span class="shrink-0 text-slate-400">☐</span><span>창을 연 직후에는 초록으로 켜지는가?</span></li>
+                    <li class="flex gap-3"><span class="shrink-0 text-slate-400">☐</span><span>10분이 지나고 교실이 따뜻하면 노랑으로 바뀌는가?</span></li>
+                    <li class="flex gap-3"><span class="shrink-0 text-slate-400">☐</span><span>10분이 지나고 교실이 추우면 빨강으로 깜빡이는가?</span></li>
+                    <li class="flex gap-3"><span class="shrink-0 text-slate-400">☐</span><span>빨강인 상태에서 창을 닫으면 곧바로 꺼지는가?</span></li>
+                </ul>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    마지막 항목은 표에 없던 것입니다. <strong>상태가 바뀌는 순간</strong>은 표의 한 줄만 봐서는
+                    드러나지 않으므로, 점검표를 만들 때 따로 챙겨야 합니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                확인이 끝나면 보완할 것을 정합니다. 다만 보완은 <strong>기능을 더 붙이는 일이 아닙니다.</strong>
+                해 보니 드러난 문제를 고치는 일이 먼저입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">해 보고 나서야 드러나는 것들</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-48">드러난 문제</th>
+                        <th>고칠 방법</th>
+                        <th>그래도 남는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>창을 살짝 흔들 때마다 초록과 꺼짐이 빠르게 바뀐다</td>
+                        <td>몇 초 동안 계속 열려 있을 때만 열린 것으로 본다</td>
+                        <td>정말로 잠깐 열었다 닫는 경우는 기록에 남지 않는다</td>
+                    </tr>
+                    <tr>
+                        <td>겨울에는 늘 빨강이라 아무도 쳐다보지 않는다</td>
+                        <td>기준 온도를 계절에 맞게 바꾼다</td>
+                        <td>기준을 누가 언제 바꿀지 정해 두지 않으면 그대로 남는다</td>
+                    </tr>
+                    <tr>
+                        <td>햇빛이 드는 자리에 온도 센서가 있어 실제보다 높게 나온다</td>
+                        <td>센서를 그늘진 곳으로 옮긴다</td>
+                        <td>옮긴 자리가 교실 전체를 대표한다는 보장은 없다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">설계가 끝났다고 문제가 끝난 것은 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표의 맨 오른쪽 칸을 보세요. 고칠 방법을 찾아도 <strong>남는 것이 있습니다.</strong> 이것은
+                    설계를 잘못해서가 아니라, 실제 세상을 다루는 시스템이 늘 그렇기 때문입니다. 앞 차시에서
+                    「가운데 길을 골라도 남는 어려움이 있다」고 한 것과 같은 이야기입니다. 좋은 설계는
+                    남는 것이 없는 설계가 아니라, <strong>무엇이 남는지 아는 설계</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                점검표의 마지막 항목처럼 <strong>상태가 바뀌는 순간</strong>을 확인하는 항목을 하나 더 만들어
+                보세요. 규칙 표의 어느 두 줄 사이를 오갈 때인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 5. 스스로 설계하기 ══════════ -->
+    <section id="practice" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-pen-to-square text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">스스로 설계하기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 직접 해 볼 차례입니다. 아래 상황 가운데 하나를 고르거나, 학교생활에서 겪은 불편을 직접
+                가져와도 좋습니다. 부품을 구할 수 있는지는 따지지 마세요. <strong>이 실습에서 만드는 것은
+                기계가 아니라 설계입니다.</strong>
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">고를 수 있는 상황 1</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        급식실 앞 줄이 길어 언제 가야 할지 몰라 헛걸음을 한다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">고를 수 있는 상황 2</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        마지막에 나가는 사람이 교실의 불과 냉난방을 끄는 것을 자주 잊는다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">고를 수 있는 상황 3</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        우산을 두고 온 날에 비가 와서, 나가기 전에 미리 알 방법이 필요하다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-800">채워 볼 것</p>
+                <ol class="space-y-3 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>
+                        <strong>1단계</strong> &mdash; 초기 상태 &middot; 문제 상태 &middot; 목표 상태를 한 줄씩.
+                        목표 상태에 <strong>해결 방법을 미리 넣지 않았는지</strong> 다시 읽어 보세요.
+                    </li>
+                    <li>
+                        <strong>2단계 앞</strong> &mdash; 무엇을 알아야 하는지, 무엇을 해야 하는지를 적고
+                        그에 맞는 입력 장치와 출력 장치를 고릅니다. 고른 이유도 함께 적으세요.
+                    </li>
+                    <li>
+                        <strong>2단계 뒤</strong> &mdash; 「무엇이 어떠하면 무엇을 한다」 표를 만듭니다.
+                        다 적은 뒤 <strong>빈 곳과 겹치는 곳</strong>을 확인하세요.
+                    </li>
+                    <li>
+                        <strong>통신 물음</strong> &mdash; 이 값을 남에게 보낼 필요가 있습니까? 없다면 사물 인터넷으로
+                        만들지 않아도 됩니다. 있다면 <strong>누구에게, 왜</strong> 보내는지 적으세요.
+                    </li>
+                    <li>
+                        <strong>모으지 않을 것</strong> &mdash; 만들 수는 있지만 <strong>일부러 모으지 않기로 한
+                        데이터</strong>를 하나 정하고, 왜 그렇게 정했는지 적으세요.
+                    </li>
+                    <li>
+                        <strong>4단계</strong> &mdash; 점검표를 만듭니다. 표의 각 줄에서 하나씩, 그리고
+                        <strong>상태가 바뀌는 순간</strong>을 확인하는 항목을 하나 더.
+                    </li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">다섯 번째 항목을 빠뜨리지 마세요</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 차시에서 <strong>「가장 크게 정해지는 순간은 만들기 전」</strong>이라고 했습니다.
+                    급식실 앞 줄의 길이를 세는 데는 사람 수만 있으면 됩니다. 누가 서 있는지까지 알 수 있는
+                    장치를 골랐다면, 필요하지 않은 것까지 모으고 있는 셈입니다. <strong>모으지 않은 데이터는
+                    새어 나갈 수 없습니다.</strong> 설계할 때만 이 선택을 할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                다 채운 설계를 옆 사람과 바꿔 읽어 보세요. 상대의 규칙 표에서 <strong>빠진 줄</strong>을 하나
+                찾아 줄 수 있나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">피지컬 컴퓨팅 시스템</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>입력 장치가 재고, 처리 장치가 규칙에 따라 판단하고, 출력 장치가 내보낸다.</li>
+                    <li>여기에 통신하는 부분이 붙어야 사물 인터넷 시스템이 된다.</li>
+                    <li>「이 값을 남에게 보낼 필요가 있는가?」를 물어 보고 정한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">설계의 네 단계</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>문제 이해와 분석 &rarr; 시스템 구상 &rarr; 만들기 &rarr; 확인과 보완.</li>
+                    <li>부품부터 고르면 가진 부품으로 할 수 있는 일을 문제로 삼게 된다.</li>
+                    <li>목표 상태에는 「무엇이 되기를 바라는가」까지만 적고 방법은 다음 단계로 미룬다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">동작 규칙 표</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>「무엇이 어떠하면 무엇을 한다」 형태로 빠짐없이 적는다.</li>
+                    <li>다 적은 뒤 <strong>빈 곳</strong>과 <strong>겹치는 곳</strong>을 확인한다.</li>
+                    <li>표의 각 줄이 프로그램의 한 조각이 되고, 그대로 점검표가 된다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">확인과 보완</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>상태가 바뀌는 순간은 표의 한 줄만 봐서는 드러나지 않으므로 따로 챙긴다.</li>
+                    <li>고칠 방법을 찾아도 남는 것이 있다. 좋은 설계는 무엇이 남는지 아는 설계다.</li>
+                    <li>모으지 않기로 한 데이터를 정하는 일은 설계할 때만 할 수 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    피지컬 컴퓨팅 시스템을 <strong>사물 인터넷 시스템</strong>이라고 부르려면 무엇이 더 있어야 할까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '센서는 피지컬 컴퓨팅 시스템에 이미 들어 있는 입력 장치입니다.')">
+                    ① 센서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 다른 장치나 데이터 플랫폼과 값을 주고받을 수 있어야 사물 인터넷 시스템이 됩니다.')">
+                    ② 다른 장치와 값을 주고받는 통신하는 부분
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모터는 출력 장치의 하나일 뿐이고, 없는 시스템도 많습니다.')">
+                    ③ 모터
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '처리 장치도 피지컬 컴퓨팅 시스템에 이미 들어 있습니다.')">
+                    ④ 처리 장치
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    목표 상태를 <strong>「창이 열린 지 10분이 지나면 스피커에서 소리가 난다」</strong>로 적었습니다.
+                    무엇이 문제일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '문장이 짧고 길고는 문제가 아닙니다. 문제는 담긴 내용에 있습니다.')">
+                    ① 문장이 너무 길어 한 줄로 적기 어렵다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 「스피커로 알린다」는 해결 방법이라 다른 방법을 견주어 볼 기회가 사라집니다.')">
+                    ② 해결 방법까지 미리 정해 버려 다른 방법을 견줄 수 없게 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '10분이라는 기준은 2단계에서 정하면 되는 것이라 그 자체가 문제는 아닙니다.')">
+                    ③ 10분이라는 기준이 너무 짧다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '문제 상태를 적는 자리가 따로 있습니다. 목표 상태에 문제를 적을 필요는 없습니다.')">
+                    ④ 문제 상태가 무엇인지 적혀 있지 않다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    동작 규칙 표에 「열린 지 10분 이상, 18&deg;C 미만」과 「열린 지 20분 이상」이 함께 있습니다.
+                    무엇이 문제일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '빠진 상황이 아니라 오히려 한 상황이 두 줄에 걸리는 것이 문제입니다.')">
+                    ① 표에 빠진 상황이 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 25분 동안 열려 있고 17도라면 두 줄에 모두 걸려, 어느 쪽을 따라야 할지 정해지지 않습니다.')">
+                    ② 한 상황이 두 줄에 걸려 어느 쪽을 따를지 정해지지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규칙의 개수는 문제가 아닙니다. 필요하다면 열 줄이어도 됩니다.')">
+                    ③ 규칙이 너무 많아 프로그램이 길어진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '온도와 시간을 함께 보는 것 자체는 문제가 없습니다. 앞 표에서도 둘을 함께 보았습니다.')">
+                    ④ 온도와 시간을 한 표에서 함께 다루면 안 된다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    급식실 앞 줄의 길이를 알려 주는 시스템을 설계합니다. <strong>모으지 않는 편이 나은 데이터</strong>는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '줄의 길이를 알려면 서 있는 사람의 수는 반드시 필요합니다.')">
+                    ① 지금 줄에 서 있는 사람의 수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '시각이 있어야 「점심시간 중 언제가 가장 붐비는가」를 알 수 있습니다.')">
+                    ② 값을 잰 시각
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 줄의 길이를 알리는 데는 필요하지 않은데, 모으는 순간 개인의 하루가 기록됩니다.')">
+                    ③ 줄에 서 있는 사람이 누구인지 알아볼 수 있는 얼굴 사진
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '요일마다 붐비는 정도가 다르므로 알아 두면 쓸모가 있습니다.')">
+                    ④ 그날이 무슨 요일인지
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

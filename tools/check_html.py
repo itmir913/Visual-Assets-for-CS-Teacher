@@ -1,4 +1,4 @@
-"""강의안 HTML 검증: 태그 중첩 + 최소 글자 크기(CSS·SVG) + 테이블 래퍼.
+"""강의안 HTML 검증: 태그 중첩 + 최소 글자 크기(CSS·SVG) + 테이블 래퍼 + 제목·금지 요소.
 
 검사할 파일은 아래 TARGETS에 직접 적는다. 인자를 주면 인자가 우선한다.
     python tools/check_html.py                      # TARGETS만 검사
@@ -8,6 +8,7 @@
 """
 import re
 import sys
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -225,6 +226,91 @@ def style_block_font_sizes(src):
     return bad, warn
 
 
+FA_VERSION = "6.7.2"   # Font Awesome은 이 버전으로 통일한다
+
+
+def _line_of(src, pos):
+    return src[:pos].count("\n") + 1
+
+
+def _plain(s):
+    """사람에게 보여 줄 형태. 태그·엔티티를 풀고 공백을 하나로 줄인다."""
+    return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", s))).strip()
+
+
+def _text_key(s):
+    """제목 비교용 열쇠. 태그·엔티티를 풀고 글자와 숫자만 남긴다.
+
+    파일명은 공백을 `-`로 적고, 본문은 `&middot;`처럼 엔티티를 쓰기도 한다.
+    구분 기호를 전부 떼어 내야 네 곳을 같은 기준으로 견줄 수 있다.
+    """
+    s = unescape(re.sub(r"<[^>]+>", " ", s))
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", s)
+
+
+def title_rules(path: Path, src: str):
+    """제목이 파일명·<title>·<h1> 세 곳에서 같은지, h1에 <br>이 없는지.
+
+    **nav 제목은 대조하지 않는다.** nav 바는 폭이 좁아 줄여 적는 것이 관행이다
+    (`회귀 분석으로 행복 요건 찾기` → `회귀로 행복 요건 찾기`). 줄인 것인지
+    어긋난 것인지는 기계가 가릴 수 없으므로 아예 보지 않는다.
+
+    파일명이 `번호.제목.html` 꼴이 아니면 파일명 대조를 건너뛴다.
+    """
+    bad = []
+
+    m_title = re.search(r"<title>(.*?)</title>", src, re.S | re.I)
+    m_h1 = re.search(r"<h1[^>]*>(.*?)</h1>", src, re.S | re.I)
+    if not m_h1:
+        return bad
+    h1_line = _line_of(src, m_h1.start())
+
+    if "<br" in m_h1.group(1):
+        bad.append(f"{h1_line}행: <h1> 안에 <br> — 제목은 한 줄로 쓰고 "
+                   f"줄바꿈은 브라우저에 맡긴다")
+
+    names = {}
+    if m_title:
+        names["title"] = m_title.group(1)
+    names["h1"] = m_h1.group(1)
+
+    stem = path.stem                      # "1-2-1.사물-인터넷이란-무엇인가"
+    if "." in stem:
+        names["파일명"] = stem.split(".", 1)[1]
+
+    keys = {k: _text_key(v) for k, v in names.items()}
+    ref = keys["h1"]
+    diff = [k for k in ("파일명", "title") if k in keys and keys[k] != ref]
+    if diff:
+        shown = " / ".join(f"{k}={_plain(names[k])}"
+                           for k in ("h1", "파일명", "title") if k in names)
+        bad.append(f"{h1_line}행: 제목이 어긋난다 ({', '.join(diff)}) — {shown}")
+    return bad
+
+
+def banned_rules(src: str):
+    """소스만 보고 잡히는 금지 요소들. 전부 CLAUDE.md의 규칙이다."""
+    bad = []
+
+    # <sup>/<sub>은 브라우저가 0.83em으로 줄여 text-base 문단에서 12~13.5px이 된다.
+    # 소스에 text-sm이 없으므로 글자 크기 검사로는 통과한다.
+    for m in re.finditer(r"<su[pb]\b", src):
+        bad.append(f"{_line_of(src, m.start())}행: {m.group(0)}> — "
+                   f"제곱은 &sup2; 문자로, 아래첨자는 문장을 고쳐 없앤다")
+
+    # list-inside는 마커가 콘텐츠 박스 안에 그려져 들여쓰기가 무너진다.
+    for m in re.finditer(r"\blist-inside\b", src):
+        bad.append(f"{_line_of(src, m.start())}행: list-inside — "
+                   f"list-outside와 pl-5 이상을 쓴다")
+
+    # Font Awesome 버전 고정.
+    for m in re.finditer(r"font-awesome/([\d.]+)/", src):
+        if m.group(1) != FA_VERSION:
+            bad.append(f"{_line_of(src, m.start())}행: Font Awesome "
+                       f"{m.group(1)} — {FA_VERSION}으로 통일한다")
+    return bad
+
+
 def check(path: Path) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
@@ -274,6 +360,8 @@ def check(path: Path) -> tuple[int, int]:
         print(f"  [테이블 래퍼] {c.tables}개 중 전부 OK")
 
     report("고정폭 래퍼", c.wide_unwrapped)
+    report("제목 일치", title_rules(path, src))
+    report("금지 요소", banned_rules(src))
 
     return violations, warnings
 

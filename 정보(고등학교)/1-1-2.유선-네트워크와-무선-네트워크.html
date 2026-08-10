@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유선 네트워크와 무선 네트워크</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-ethernet absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-tower-broadcast absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            유선 네트워크와 무선 네트워크
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+케이블을 꽂으면 <strong>더 빠르다</strong>고들 합니다.<br>
+            정말 <strong>언제나</strong> 그럴까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>네트워크 전송 매체가 무엇인지 알고, 유선 매체와 무선 매체의 예를 각각 들 수 있다.</li>
+                    <li>유선 네트워크와 무선 네트워크의 특성을 비교하고, 각각의 장단점이 <strong>어떤 조건에서 성립하는지</strong>까지 설명할 수 있다.</li>
+                    <li>이더넷 &middot; 블루투스 &middot; 와이파이 &middot; 근거리 무선 통신 &middot; 지그비 &middot; 이동 통신이 각각 어떤 상황에 어울리는지 구분할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-ethernet text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">유선 네트워크와 무선 네트워크</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#medium" class="hover:text-teal-600 transition">전송 매체</a>
+            <a href="#compare" class="hover:text-teal-600 transition">유선과 무선</a>
+            <a href="#tradeoff" class="hover:text-teal-600 transition">항상 그럴까</a>
+            <a href="#tech" class="hover:text-teal-600 transition">대표 기술</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 전송 매체 ===== -->
+    <section id="medium" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터는 무엇을 타고 갈까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">지난 시간에 「데이터가 오갈 길이 있어야 한다」고 했습니다. 그 길의 정체를 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6">
+                <p class="text-lg text-teal-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-bookmark text-teal-400 mr-2"></i>
+                    <strong>네트워크 전송 매체</strong>는 장치와 장치 사이에서
+                    <strong>데이터를 실어 나르는 통로</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                데이터 자체는 눈에 보이지 않습니다. 옮기려면 무언가에 <strong>실어야</strong> 합니다.
+                지금 쓰이는 방법은 크게 세 가지입니다. <strong>전기</strong>에 싣거나, <strong>빛</strong>에 싣거나, <strong>전파</strong>에 싣습니다.
+                &lsquo;유선이냐 무선이냐&rsquo;는 이 세 가지를 다시 두 묶음으로 나눈 것에 지나지 않습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-white border-2 border-amber-200 rounded-2xl p-5 space-y-2">
+                    <span class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-bolt"></i>
+                    </span>
+                    <p class="font-black text-lg text-amber-900">전기에 싣는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        구리선에 전기 신호를 흘려보냅니다. 값이 싸고 다루기 쉬워 가장 널리 쓰입니다.
+                    </p>
+                    <ul class="space-y-1 text-base text-slate-600 leading-relaxed list-disc list-outside pl-5">
+                        <li><strong>UTP 케이블</strong> &mdash; 흔히 &lsquo;랜선&rsquo;이라 부르는 그것</li>
+                        <li><strong>동축 케이블</strong> &mdash; 방송 신호 등에 쓰이는 굵은 선</li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <span class="w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-lightbulb"></i>
+                    </span>
+                    <p class="font-black text-lg text-sky-900">빛에 싣는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        유리처럼 투명한 가느다란 실 안으로 빛을 쏘아 보냅니다. 전기 방식보다 훨씬 많은 데이터를 멀리 보낼 수 있습니다.
+                    </p>
+                    <ul class="space-y-1 text-base text-slate-600 leading-relaxed list-disc list-outside pl-5">
+                        <li><strong>광섬유 케이블</strong> &mdash; 도시와 도시를 잇는 큰 줄기에 주로 쓰입니다</li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-2">
+                    <span class="w-12 h-12 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-tower-broadcast"></i>
+                    </span>
+                    <p class="font-black text-lg text-violet-900">전파에 싣는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        선 없이 공간으로 전파를 내보냅니다. 선을 깔 수 없는 곳에도 닿습니다.
+                    </p>
+                    <ul class="space-y-1 text-base text-slate-600 leading-relaxed list-disc list-outside pl-5">
+                        <li><strong>라디오파</strong> &mdash; 방송, 휴대폰 신호 등에 널리</li>
+                        <li><strong>지상 마이크로파</strong> &mdash; 안테나와 탑을 세워 주고받음</li>
+                        <li><strong>위성 마이크로파</strong> &mdash; 인공위성을 거쳐 주고받음</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    앞의 둘 &mdash; <strong>전기와 빛</strong> &mdash; 은 선 안으로만 다니므로 <strong>유선</strong>이고,
+                    <strong>전파</strong>는 선 없이 공간을 지나므로 <strong>무선</strong>입니다.
+                    <strong>선이 있느냐 없느냐가 유일한 갈림길</strong>이고, 나머지 차이는 전부 여기서 따라 나옵니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                교실에서 여러분의 스마트폰까지 데이터가 오는 동안, 위 세 가지 매체 중
+                <strong>몇 가지를 거쳤을지</strong> 짐작해 보세요. 어느 구간에서 어느 매체가 쓰였을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 유선과 무선 ===== -->
+    <section id="compare" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">선이 있고 없고가 무엇을 바꿀까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">둘은 우열 관계가 아니라 <strong>서로 다른 것을 잘하는 짝</strong>입니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="section-card space-y-5">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-800 mb-2">유선 네트워크</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>케이블로 장치를 직접 이어 놓은</strong> 네트워크입니다.
+                        데이터가 <strong>정해진 한 줄기 길</strong>로만 다닙니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-emerald-900"><i class="fa-solid fa-thumbs-up mr-1"></i>잘하는 것</p>
+                    <ul class="space-y-2 text-base text-slate-700 leading-relaxed list-disc list-outside pl-5">
+                        <li>길이 정해져 있어 <strong>전송이 안정적</strong>입니다. 옆에서 끼어드는 신호가 없습니다.</li>
+                        <li>선에 직접 손을 대지 않으면 데이터를 가로채기 어려워 <strong>보안 면에서 유리</strong>합니다.</li>
+                    </ul>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-rose-900"><i class="fa-solid fa-thumbs-down mr-1"></i>아쉬운 것</p>
+                    <ul class="space-y-2 text-base text-slate-700 leading-relaxed list-disc list-outside pl-5">
+                        <li>선을 깔고 관리하는 데 <strong>비용과 품이 듭니다.</strong></li>
+                        <li>케이블이 상하면 <strong>그 길로는 데이터가 끊깁니다.</strong></li>
+                        <li>산속이나 오래된 건물처럼 <strong>선을 깔기 어려운 곳</strong>에서는 쓸 수 없습니다.</li>
+                        <li>선이 닿는 자리를 벗어나면 <strong>움직이면서 쓸 수 없습니다.</strong></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="section-card space-y-5">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-800 mb-2">무선 네트워크</h3>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>전파로 장치를 이어 놓은</strong> 네트워크입니다.
+                        데이터가 <strong>사방으로 퍼지는 공간</strong>을 지나갑니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-emerald-900"><i class="fa-solid fa-thumbs-up mr-1"></i>잘하는 것</p>
+                    <ul class="space-y-2 text-base text-slate-700 leading-relaxed list-disc list-outside pl-5">
+                        <li><strong>선을 깔기 어려운 곳</strong>에서도 연결할 수 있습니다.</li>
+                        <li>선을 하나씩 꽂지 않아도 되어 <strong>여러 장치를 함께 붙이기</strong> 쉽습니다.</li>
+                        <li><strong>움직이면서</strong> 쓸 수 있습니다. 이것이 유선이 결코 흉내 낼 수 없는 부분입니다.</li>
+                    </ul>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-bold text-base text-rose-900"><i class="fa-solid fa-thumbs-down mr-1"></i>아쉬운 것</p>
+                    <ul class="space-y-2 text-base text-slate-700 leading-relaxed list-disc list-outside pl-5">
+                        <li>전파가 <strong>주변으로 퍼지므로</strong> 남이 받아 볼 여지가 있어 보안에 더 신경 써야 합니다.</li>
+                        <li>같은 <strong>주파수 대역</strong>(통신에 쓰라고 정해 둔 전파의 범위)을 여럿이 함께 쓰면
+                            <strong>신호가 서로 방해</strong>해 전송이 흔들립니다.
+                        </li>
+                        <li>신호를 계속 주고받아야 해서 <strong>전력을 더 씁니다.</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <i class="fa-solid fa-scale-balanced text-teal-500 mr-1"></i>
+                두 목록을 나란히 놓고 보면 <strong>서로의 장점이 상대의 단점</strong>입니다.
+                유선의 강점(안정 &middot; 보안)은 <strong>길이 하나로 정해져 있어서</strong> 생기고,
+                무선의 강점(이동 &middot; 확장)은 <strong>길이 정해져 있지 않아서</strong> 생깁니다.
+                <strong>같은 원인에서 장점과 단점이 함께 나온다</strong>는 것이 이 짝의 핵심입니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                무선의 단점 가운데 <strong>보안</strong>과 <strong>신호 방해</strong> 두 가지는
+                모두 <strong>「전파가 공간으로 퍼진다」</strong>는 성질에서 나옵니다.
+                각각이 그 성질과 어떻게 이어지는지 말로 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 항상 그럴까 ===== -->
+    <section id="tradeoff" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">유선이 언제나 빠르고 안전할까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">앞 절의 장단점에는 전부 <strong>말하지 않은 조건</strong>이 붙어 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 절을 읽고 &lsquo;유선이 더 좋은 것&rsquo;이라고 정리했다면, 절반만 맞습니다.
+                장단점은 <strong>조건이 같을 때</strong> 성립하는 비교이지, 언제나 참인 순위가 아닙니다.
+                조건이 달라지면 뒤집힙니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>&ldquo;유선이 더 빠르다&rdquo; &mdash; 붙는 조건
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 말은 <strong>비슷한 시기에 나온 기술끼리 견줄 때</strong> 맞습니다.
+                    무선 기술은 세대를 거듭하며 계속 빨라져서,
+                    <strong>새 무선 기술이 오래된 유선 설비보다 빠른 경우가 실제로 있습니다.</strong>
+                    &lsquo;선이 있으니 빠르다&rsquo;가 아니라 <strong>&lsquo;어떤 기술을 어떤 환경에서 쓰느냐&rsquo;</strong>가 속도를 정합니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>&ldquo;무선은 보안이 약하다&rdquo; &mdash; 붙는 조건
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    정확히 말하면 <strong>신호가 남에게 닿는다</strong>는 뜻이지, <strong>내용이 읽힌다</strong>는 뜻이 아닙니다.
+                    오늘날 무선 연결은 대개 내용을 알아볼 수 없게 바꿔서 주고받습니다.
+                    그래서 <strong>지켜야 할 것이 하나 더 늘어난다</strong>고 보는 편이 맞습니다.
+                    반대로 유선도 <strong>선에 손을 댈 수 있는 사람에게는</strong> 안전하지 않습니다.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">사람이 몰리면 왜 느려질까</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    무선의 단점 중 학생들이 가장 자주 겪는 것이 <strong>신호 방해</strong>입니다.
+                    전파는 정해진 <strong>주파수 대역</strong>을 여럿이 나눠 씁니다.
+                    같은 대역에 신호가 겹치면 서로를 방해해, 받는 쪽에서 알아듣기 어려워집니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <svg viewBox="0 0 320 150" role="img" class="chart-svg"
+                         aria-label="한 대의 장치에서만 물결 모양의 신호가 퍼져 나가 수신 장치에 또렷하게 닿는 모습.">
+                        <g stroke="#0d9488" stroke-width="3" fill="none" stroke-linecap="round">
+                            <path d="M96 75 q18 -26 36 0 q18 26 36 0 q18 -26 36 0"/>
+                        </g>
+                        <g fill="#ccfbf1" stroke="#0d9488" stroke-width="3">
+                            <rect x="24" y="52" width="56" height="46" rx="10"/>
+                            <rect x="240" y="52" width="56" height="46" rx="10"/>
+                        </g>
+                        <g fill="#0d9488">
+                            <rect x="38" y="68" width="28" height="6" rx="3"/>
+                            <rect x="254" y="68" width="28" height="6" rx="3"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        <strong>한 대만 보낼 때</strong> &mdash; 물결이 흐트러지지 않고 그대로 도착합니다.
+                    </p>
+                </div>
+                <div class="space-y-2">
+                    <svg viewBox="0 0 320 150" role="img" class="chart-svg"
+                         aria-label="세 대의 장치에서 물결 모양의 신호가 동시에 퍼져 나와 서로 겹치면서 어지럽게 뒤엉킨 모습.">
+                        <g stroke="#f43f5e" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.75">
+                            <path d="M96 75 q18 -26 36 0 q18 26 36 0 q18 -26 36 0"/>
+                            <path d="M96 60 q14 -22 28 0 q14 22 28 0 q14 -22 28 0 q14 22 28 0"/>
+                            <path d="M96 92 q22 -30 44 0 q22 30 44 0"/>
+                        </g>
+                        <g fill="#ffe4e6" stroke="#f43f5e" stroke-width="3">
+                            <rect x="24" y="16" width="56" height="36" rx="9"/>
+                            <rect x="24" y="57" width="56" height="36" rx="9"/>
+                            <rect x="24" y="98" width="56" height="36" rx="9"/>
+                            <rect x="240" y="52" width="56" height="46" rx="10"/>
+                        </g>
+                        <g fill="#f43f5e">
+                            <rect x="38" y="30" width="28" height="6" rx="3"/>
+                            <rect x="38" y="71" width="28" height="6" rx="3"/>
+                            <rect x="38" y="112" width="28" height="6" rx="3"/>
+                            <rect x="254" y="68" width="28" height="6" rx="3"/>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        <strong>여럿이 같은 대역으로 보낼 때</strong> &mdash; 물결이 겹쳐 받는 쪽이 알아듣기 어려워집니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    강당에 사람이 가득 찼을 때 무선 연결이 느려지는 것이 이 때문입니다.
+                    <strong>기기가 고장 난 것도, 인터넷 회선이 끊긴 것도 아닙니다.</strong>
+                    같은 공간을 나눠 쓰는 신호가 많아졌을 뿐입니다.
+                    유선에서 이런 일이 잘 생기지 않는 이유도 같은 데서 나옵니다 &mdash; <strong>각자 자기 선으로만 다니기 때문</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                친구가 &ldquo;<strong>무선은 원래 느려</strong>&rdquo;라고 말했습니다.
+                이 말에서 <strong>맞는 부분</strong>과 <strong>빠진 조건</strong>을 각각 짚어 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 대표 기술 ===== -->
+    <section id="tech" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 기술을 어디에 쓸까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이름을 외우는 절이 아닙니다. <strong>왜 그 자리에 그 기술인지</strong>를 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                기술마다 <strong>닿는 거리</strong>와 <strong>쓰는 전력</strong>이 다릅니다.
+                그래서 &lsquo;가장 좋은 기술&rsquo; 하나를 골라 모든 곳에 쓰지 않고,
+                <strong>자리마다 어울리는 것을 골라</strong> 씁니다.
+                무선 이어폰에 이동 통신을 넣지 않는 이유도, 스마트폰에 랜선을 꽂지 않는 이유도 같습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">기술</th>
+                        <th class="w-24">구분</th>
+                        <th class="w-36">닿는 거리(대략)</th>
+                        <th>주로 쓰이는 자리</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>이더넷</strong>(Ethernet)</td>
+                        <td>유선</td>
+                        <td>케이블 길이만큼</td>
+                        <td>학교 &middot; 사무실 &middot; 가정에서 여러 컴퓨터를 잇는 가장 기본적인 방식입니다.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>블루투스</strong>(Bluetooth)</td>
+                        <td>무선</td>
+                        <td>몇 미터에서 십여 미터</td>
+                        <td>전력을 적게 써서 무선 이어폰 &middot; 무선 마우스처럼 몸에 지니는 기기에 어울립니다.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>와이파이</strong>(WiFi)</td>
+                        <td>무선</td>
+                        <td>한 건물이나 한 층 정도</td>
+                        <td>전송이 빠르고 비용이 낮아, 여러 기기를 인터넷에 붙이는 데 널리 쓰입니다.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>근거리 무선 통신</strong>(NFC)</td>
+                        <td>무선</td>
+                        <td>몇 센티미터</td>
+                        <td>거리가 아주 짧아 의도치 않은 접속이 어렵습니다. 교통 카드 &middot; 전자 티켓에 쓰입니다.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>지그비</strong>(ZigBee)</td>
+                        <td>무선</td>
+                        <td>수백 미터 안팎</td>
+                        <td>전력을 적게 쓰고 장애물에도 비교적 강해 집 안 기기를 잇는 데 쓰입니다.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>이동 통신</strong></td>
+                        <td>무선</td>
+                        <td>기지국이 닿는 범위</td>
+                        <td>움직이는 중에도 끊기지 않아 스마트폰 &middot; 태블릿 &middot; 자동차에 쓰입니다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>거리는 고정된 값이 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표의 거리는 <strong>대강의 감을 잡기 위한 값</strong>입니다.
+                    벽이 있는지, 같은 대역을 쓰는 기기가 몇이나 되는지, 기술의 어느 세대를 쓰는지에 따라
+                    <strong>실제로는 크게 달라집니다.</strong> 숫자를 외우기보다 <strong>순서</strong>를 기억하세요 &mdash;
+                    근거리 무선 통신이 가장 짧고, 블루투스, 와이파이, 지그비, 이동 통신 순으로 넓어집니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    거리와 전력은 대체로 <strong>서로 맞바꾸는 관계</strong>입니다.
+                    멀리 보내려면 신호를 세게 내보내야 하고, 그러면 전력을 더 씁니다.
+                    무선 이어폰이 며칠씩 가는 것도, 스마트폰이 하루를 못 넘기는 것도 여기서 설명됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                교통 카드에 <strong>와이파이 대신 근거리 무선 통신</strong>을 쓰는 까닭은 무엇일까요?
+                &lsquo;거리가 짧다&rsquo;는 것이 왜 여기서는 <strong>단점이 아니라 장점</strong>이 되는지 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">네트워크 전송 매체</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">데이터를 실어 나르는 통로</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>전기</strong> &mdash; UTP &middot; 동축 케이블</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>빛</strong> &mdash; 광섬유 케이블</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>전파</strong> &mdash; 라디오파 &middot; 마이크로파(지상 &middot; 위성)</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">유선과 무선</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">선이 있느냐 없느냐</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>유선</strong> &mdash; 길이 정해져 안정 &middot; 보안에 유리, 설치 부담 &middot; 이동 불가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>무선</strong> &mdash; 이동 &middot; 확장에 유리, 신호 방해 &middot; 전력 부담</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>장점과 단점이 <strong>같은 원인</strong>에서 함께 나온다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">「언제나」가 아니다</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">조건이 붙는 비교</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>속도는 <strong>어느 세대의 기술을 어떤 환경에서</strong> 쓰느냐가 정한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>무선의 보안 문제는 <strong>신호가 닿는다</strong>는 것이지 내용이 읽힌다는 뜻이 아니다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>사람이 몰려 느려지는 것은 <strong>같은 대역을 나눠 쓰기</strong> 때문</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">자리마다 다른 기술</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">거리와 전력의 맞바꿈</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>짧은 쪽부터 <strong>NFC &rarr; 블루투스 &rarr; 와이파이 &rarr; 지그비 &rarr; 이동 통신</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>멀리 보낼수록 <strong>전력을 더 쓴다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>거리 값은 <strong>환경에 따라 크게 달라지는 대략치</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>무선</strong> 전송 매체에 해당하는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'UTP 케이블은 구리선에 전기 신호를 흘려보내는 유선 매체입니다.')">
+                    ① UTP 케이블
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '광섬유 케이블은 실 안으로 빛을 보내는 매체입니다. 빛이라도 선 안으로만 다니므로 유선입니다.')">
+                    ② 광섬유 케이블
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 위성 마이크로파는 선 없이 공간을 지나는 전파이므로 무선 매체입니다.')">
+                    ③ 위성 마이크로파
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '동축 케이블도 구리선을 쓰는 유선 매체입니다.')">
+                    ④ 동축 케이블
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    강당에 사람이 가득 차자 무선 연결이 느려졌습니다. 가장 알맞은 설명은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기기가 고장 난 것이 아닙니다. 사람이 빠져나가면 원래대로 돌아옵니다.')">
+                    ① 기기가 고장 났다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 같은 주파수 대역을 여럿이 나눠 쓰면서 신호가 서로 방해해 전송이 흔들린 것입니다.')">
+                    ② 같은 주파수 대역을 쓰는 신호가 많아져 서로 방해했다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전파는 사람 수만큼 나눠 담기는 물건이 아닙니다. 문제는 양이 아니라 같은 대역에서 신호가 겹치는 것입니다.')">
+                    ③ 전파의 양이 사람 수만큼 나뉘어 줄어들었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '무선은 원래 느린 것이 아닙니다. 조건이 좋으면 빠르게 동작합니다.')">
+                    ④ 무선은 원래 유선보다 항상 느리다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    유선 네트워크와 무선 네트워크에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 데이터가 정해진 한 줄기 길로만 다니므로 옆에서 끼어드는 신호가 없습니다.')">
+                    ① 유선은 길이 정해져 있어 전송이 비교적 안정적이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 선이 닿지 않는 곳에도 전파는 갈 수 있고, 움직이면서도 쓸 수 있습니다.')">
+                    ② 무선은 선을 깔기 어려운 곳에서도 쓸 수 있고 이동에 유리하다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 무선 기술은 세대를 거듭하며 빨라져, 새 무선 기술이 오래된 유선 설비보다 빠른 경우가 있습니다. 속도는 선의 유무가 아니라 어떤 기술을 어떤 환경에서 쓰느냐가 정합니다.')">
+                    ③ 유선은 어떤 경우에도 무선보다 전송 속도가 빠르다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 멀리 보내려면 신호를 세게 내보내야 해서 전력을 더 씁니다.')">
+                    ④ 멀리까지 닿는 무선 기술일수록 전력을 더 쓰는 경향이 있다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

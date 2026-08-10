@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인터넷 주소와 네트워크 환경 설정</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-map-pin absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-signs-post absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            인터넷 주소와 네트워크 환경 설정
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+세상에 기기가 <strong>수십억 대</strong>인데<br>
+            내가 보낸 데이터는 어떻게<br>
+            <strong>바로 그 한 대</strong>를 찾아갈까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>인터넷에서 주소가 왜 필요한지 설명하고, IP 주소가 무엇인지 말할 수 있다.</li>
+                    <li>도메인 주소와 IP 주소의 관계를 설명하고, 도메인 이름 서버(DNS)가 그 사이에서 하는 일을 말할 수 있다.</li>
+                    <li>내 기기의 IP 주소를 직접 확인하고, 파일을 공유할 때 <strong>누구에게 무엇까지</strong> 허용할지 정해 공유 환경을 설정할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-map-pin text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">인터넷 주소와 네트워크 환경 설정</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-teal-600 transition">왜 주소가 필요한가</a>
+            <a href="#ip" class="hover:text-teal-600 transition">IP 주소</a>
+            <a href="#dns" class="hover:text-teal-600 transition">도메인과 DNS</a>
+            <a href="#check" class="hover:text-teal-600 transition">내 주소 확인</a>
+            <a href="#share" class="hover:text-teal-600 transition">공유 설정</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 왜 주소가 필요한가 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">받을 기기를 어떻게 지목할까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">지난 시간에 미뤄 두었던 <strong>「주소」</strong> 이야기를 이제 시작합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지난 시간에 접속 장치가 <strong>데이터를 제 갈 곳으로 보내 준다</strong>고 했습니다.
+                그런데 &lsquo;제 갈 곳&rsquo;을 어떻게 알까요?
+                기기들은 이름표를 달고 있지 않고, 눈으로 서로를 알아보지도 못합니다.
+                <strong>기계가 읽을 수 있는 형태로 「어느 기기인지」를 가리키는 표시가 있어야</strong> 합니다.
+                그것이 <strong>주소</strong>입니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-envelope text-teal-500 mr-1"></i>왜 하필 &lsquo;주소&rsquo;라고 부를까
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    편지를 부칠 때를 떠올려 봅시다.
+                    <strong>봉투에 적힌 주소</strong>가 있어야 우체국이 그 편지를 어디로 보낼지 정할 수 있습니다.
+                    받는 사람이 누구인지 우체국이 알 필요는 없습니다. <strong>주소만 정확하면 됩니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    네트워크도 같습니다. 데이터에는 <strong>어디로 가야 하는지</strong>가 함께 적혀 있고,
+                    접속 장치는 그 표시만 보고 방향을 정합니다.
+                    <strong>내용이 무엇인지는 보지 않습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                주소가 <strong>없다면</strong> 어떤 일이 생길까요?
+                지난 시간의 &lsquo;전파는 사방으로 퍼진다&rsquo;와 이어서 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: IP 주소 ===== -->
+    <section id="ip" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">기계가 쓰는 주소는 어떻게 생겼을까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">사람이 읽기 좋게 만든 것이 아니라, <strong>기계가 다루기 좋게</strong> 만든 주소입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6">
+                <p class="text-lg text-teal-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-bookmark text-teal-400 mr-2"></i>
+                    <strong>IP 주소</strong>는 인터넷에 연결된 컴퓨팅 기기에 붙는
+                    <strong>숫자로 된 주소</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                IP는 <strong>Internet Protocol</strong>의 줄임말입니다.
+                <strong>영어 이름까지 외울 필요는 없습니다.</strong>
+                중요한 것은 이 주소가 <strong>숫자</strong>라는 점입니다.
+                기계는 이름보다 숫자를 훨씬 빠르게 견주고 판단할 수 있어서, 주소를 숫자로 정해 두었습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-sky-900">IPv4 &mdash; 네 덩이의 숫자</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        오래전부터 써 온 방식입니다. 숫자를 <strong>네 덩이</strong>로 나눠 점으로 잇습니다.
+                    </p>
+                    <pre class="bg-slate-900 text-slate-100 rounded-xl p-4">192.168.0.1</pre>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        전체를 <strong>32비트</strong>로 나타냅니다. 만들 수 있는 주소의 개수가 정해져 있어,
+                        기기가 늘어나면서 <strong>모자라게 되었습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-violet-900">IPv6 &mdash; 훨씬 넓힌 방식</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        주소가 모자라는 문제를 풀려고 만든 방식입니다. <strong>128비트</strong>를 씁니다.
+                    </p>
+                    <pre class="bg-slate-900 text-slate-100 rounded-xl p-4">2001:0db8:85a3:0000:
+0000:8a2e:0370:7334</pre>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        훨씬 많은 주소를 만들 수 있어, 기기가 더 늘어나도 <strong>당분간 걱정이 없습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    두 방식의 <strong>비트 수를 외울 필요는 없습니다.</strong>
+                    <strong>「주소를 담을 자리를 늘렸다」</strong>는 것, 그리고
+                    <strong>왜 늘려야 했는지</strong>만 잡아 두면 됩니다.
+                    인터넷에 붙는 기기가 늘어난 만큼 주소도 더 필요해진 것입니다.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">주소는 누가 정해 줄까</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 가지 방법이 있고, 우리가 평소 쓰는 것은 앞쪽입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">자동으로 받기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        기기를 네트워크에 붙이면 <strong>접속 장치가 알아서 주소를 하나 내어 줍니다.</strong>
+                        우리가 공유기에 연결만 하면 바로 인터넷이 되는 것이 이 때문입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">직접 적어 넣기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        사람이 주소를 <strong>손으로 지정</strong>합니다. 늘 같은 주소를 써야 하는 장비에 씁니다.
+                        대신 <strong>같은 주소를 두 기기에 주면 충돌</strong>이 생깁니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                IPv6를 만들어야 했던 까닭을 <strong>한 문장</strong>으로 말해 보세요.
+                &lsquo;128비트&rsquo;라는 말을 쓰지 않고 설명할 수 있나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 도메인과 DNS ===== -->
+    <section id="dns" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">우리는 왜 숫자를 외우지 않을까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">주소가 숫자라면, 누리집에 갈 때마다 숫자를 쳐야 할 텐데요.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                기계에게는 숫자가 편하지만 <strong>사람에게는 아닙니다.</strong>
+                자주 가는 누리집 열 곳의 숫자 주소를 외울 수 있을까요?
+                그래서 <strong>사람이 읽을 수 있는 이름</strong>을 따로 두었습니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6">
+                <p class="text-lg text-teal-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-bookmark text-teal-400 mr-2"></i>
+                    <strong>도메인 주소</strong>는 IP 주소를 <strong>사람이 알아보기 쉬운 문자로 바꿔 표현한 것</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-teal-500 mr-1"></i>둘은 같은 곳을 가리킵니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 누리집에는 <strong>숫자로 된 주소</strong>와 <strong>문자로 된 이름</strong>이 함께 있습니다.
+                    사람은 이름을 쓰고, 기계는 숫자를 씁니다.
+                    <strong>둘은 다른 곳이 아니라 같은 곳의 두 표기</strong>입니다.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">그렇다면 누가 이름을 숫자로 바꿔 줄까</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    우리가 이름을 입력해도 기계는 결국 <strong>숫자가 있어야</strong> 움직입니다.
+                    그 사이를 이어 주는 것이 <strong>도메인 이름 서버</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6">
+                <p class="text-lg text-teal-900 font-bold leading-relaxed">
+                    <i class="fa-solid fa-bookmark text-teal-400 mr-2"></i>
+                    <strong>도메인 이름 서버(DNS)</strong>는 <strong>문자로 된 이름을 받아 숫자 주소로 바꿔 알려 주는</strong> 서버입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <span class="inline-flex w-9 h-9 rounded-full bg-sky-600 text-white items-center justify-center font-black text-base">1</span>
+                    <p class="font-black text-lg text-sky-900">이름을 친다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        브라우저 주소창에 <strong>문자로 된 이름</strong>을 입력합니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-teal-200 rounded-2xl p-5 space-y-2">
+                    <span class="inline-flex w-9 h-9 rounded-full bg-teal-600 text-white items-center justify-center font-black text-base">2</span>
+                    <p class="font-black text-lg text-teal-900">서버에 물어본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        내 기기가 도메인 이름 서버에 <strong>&ldquo;이 이름의 숫자 주소가 뭐냐&rdquo;</strong>고 묻습니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-2">
+                    <span class="inline-flex w-9 h-9 rounded-full bg-violet-600 text-white items-center justify-center font-black text-base">3</span>
+                    <p class="font-black text-lg text-violet-900">숫자로 찾아간다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        받아 온 숫자 주소로 <strong>실제 접속</strong>이 이루어집니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>이 과정은 눈에 보이지 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    세 단계는 <strong>순식간에</strong> 끝나기 때문에 우리는 알아채지 못합니다.
+                    &lsquo;이름을 쳤더니 바로 열렸다&rsquo;고 느낄 뿐이지요.
+                    <strong>보이지 않는다고 해서 일어나지 않은 것은 아닙니다.</strong>
+                    도메인 이름 서버에 문제가 생기면, 인터넷 연결은 멀쩡한데도
+                    <strong>이름으로는 아무 데도 못 가는 상황</strong>이 벌어집니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                도메인 이름 서버가 멈추면 <strong>왜 인터넷이 &lsquo;안 되는 것처럼&rsquo;</strong> 느껴질까요?
+                실제로 끊긴 것은 무엇이고, 끊기지 않은 것은 무엇인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 내 주소 확인 ===== -->
+    <section id="check" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">내 기기의 주소는 몇 번일까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">읽기만 해서는 와닿지 않습니다. 직접 확인해 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-sky-900">
+                        <i class="fa-solid fa-desktop mr-2"></i>컴퓨터에서 (윈도 기준)
+                    </p>
+                    <ol class="space-y-2 text-base text-slate-700 leading-relaxed list-decimal list-outside pl-5">
+                        <li>키보드에서 <kbd class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded">윈도</kbd> 키와
+                            <kbd class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded">R</kbd> 키를 함께 누릅니다.
+                        </li>
+                        <li>실행 창에 <code>cmd</code>를 입력하고 확인을 누릅니다.</li>
+                        <li>까만 창이 열리면 아래를 입력하고 <kbd class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded">Enter</kbd>를 누릅니다.</li>
+                    </ol>
+                    <pre class="bg-slate-900 text-slate-100 rounded-xl p-4">ipconfig</pre>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        여러 줄이 쏟아지지만 <strong>IPv4 주소</strong>라고 적힌 줄만 찾으면 됩니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-violet-900">
+                        <i class="fa-solid fa-mobile-screen mr-2"></i>스마트폰에서
+                    </p>
+                    <ol class="space-y-2 text-base text-slate-700 leading-relaxed list-decimal list-outside pl-5">
+                        <li>설정에서 <strong>연결</strong> 또는 <strong>네트워크</strong> 항목으로 들어갑니다.</li>
+                        <li>지금 접속해 있는 <strong>무선 네트워크의 이름</strong>을 누릅니다.</li>
+                        <li>세부 정보 &middot; 고급 항목을 펼치면 <strong>IP 주소</strong>가 보입니다.</li>
+                    </ol>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        기기 제조사에 따라 메뉴 이름이 조금씩 다릅니다.
+                        <strong>&lsquo;IP&rsquo;라는 글자를 찾는다</strong>고 생각하면 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-users text-teal-500 mr-1"></i>친구와 견주어 보세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    같은 교실에서 확인한 주소들을 나란히 놓아 보면,
+                    <strong>앞부분은 서로 같고 뒷부분만 다른</strong> 경우가 많을 것입니다.
+                    같은 근거리 네트워크에 속한 기기들이기 때문입니다.
+                    <strong>앞부분이 &lsquo;어느 네트워크인가&rsquo;를, 뒷부분이 &lsquo;그 안의 어느 기기인가&rsquo;를</strong> 나타낸다고
+                    생각하면 이해하기 쉽습니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>확인만 하고 설정은 바꾸지 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    주소를 <strong>손으로 고쳐 넣으면</strong> 다른 기기와 같은 주소가 되어 충돌이 나거나,
+                    아예 연결이 끊길 수 있습니다.
+                    <strong>학교 기기의 설정은 함부로 바꾸지 않습니다.</strong>
+                    오늘 할 일은 <strong>읽어 보는 것까지</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                친구의 주소와 내 주소에서 <strong>같은 부분</strong>과 <strong>다른 부분</strong>을 찾아보세요.
+                같은 부분이 있다는 것은 무엇을 뜻할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 공유 설정 ===== -->
+    <section id="share" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">누구에게, 무엇까지 열어 줄까?</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">네트워크 환경을 갖추는 마지막 걸음은 <strong>공유 설정</strong>입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                주소가 있으면 데이터를 보낼 수는 있습니다.
+                하지만 여럿이 함께 자료를 만들려면 <strong>같은 파일에 여러 사람이 닿을 수 있어야</strong> 합니다.
+                이때 쓰는 것이 <strong>클라우드 저장소</strong> &mdash; 내 기기가 아니라
+                <strong>인터넷 너머의 서버에 파일을 두는</strong> 방식입니다.
+                파일이 그곳에 있으면 인터넷이 되는 곳이면 어디서든 열 수 있습니다.
+            </p>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">공유는 두 가지를 정하는 일이다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    어떤 서비스를 쓰든 <strong>물어보는 것은 결국 이 둘</strong>입니다.
+                    화면 생김새는 서비스마다 다르지만 <strong>정해야 할 것은 같습니다.</strong>
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-5 space-y-3">
+                    <span class="w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-user-check"></i>
+                    </span>
+                    <p class="font-black text-lg text-sky-900">① 누구에게 열까</p>
+                    <ul class="space-y-2 text-base text-slate-700 leading-relaxed list-disc list-outside pl-5">
+                        <li><strong>지정한 사람에게만</strong> &mdash; 이름이나 계정을 하나씩 적어 넣습니다.
+                            적히지 않은 사람은 열 수 없습니다.
+                        </li>
+                        <li><strong>링크를 아는 모든 사람에게</strong> &mdash; 주소만 있으면 누구나 열 수 있습니다.
+                            나눠 주기는 편하지만 <strong>링크가 옮겨 다니면 통제할 수 없습니다.</strong>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-5 space-y-3">
+                    <span class="w-12 h-12 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </span>
+                    <p class="font-black text-lg text-violet-900">② 무엇까지 하게 할까</p>
+                    <ul class="space-y-2 text-base text-slate-700 leading-relaxed list-disc list-outside pl-5">
+                        <li><strong>보기만</strong> &mdash; 읽을 수는 있지만 고칠 수 없습니다.</li>
+                        <li><strong>의견 남기기</strong> &mdash; 본문은 못 고치고 의견만 붙일 수 있습니다.</li>
+                        <li><strong>고치기</strong> &mdash; 내용을 직접 바꿀 수 있습니다. 실수로 지우는 것도 가능합니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-scale-balanced text-teal-500 mr-1"></i>
+                    두 선택은 <strong>편함과 안전함을 맞바꾸는 자리</strong>입니다.
+                    넓게 열수록 나눠 주기 편하고, 좁게 열수록 통제하기 쉽습니다.
+                    <strong>어느 쪽이 정답이라고 정해져 있지 않습니다.</strong>
+                    모둠 과제라면 넓게 여는 편이 낫고, 개인 정보가 담겼다면 좁게 여는 편이 낫습니다.
+                    <strong>무엇을 담은 파일인지</strong>가 선택을 정합니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>한 번 넓게 연 것은 되돌리기 어렵습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    링크를 아는 모두에게 연 파일은, 나중에 설정을 되돌려도
+                    <strong>그사이 누군가 내려받은 사본까지 거둬들일 수는 없습니다.</strong>
+                    그래서 공유는 <strong>필요한 만큼만 열고, 필요가 끝나면 닫는 것</strong>이 기본입니다.
+                    정보를 지키는 문제는 마지막 단원에서 더 깊이 다룹니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                모둠 발표 자료와, 학급 학생들의 연락처가 적힌 표 &mdash;
+                두 파일의 공유 설정을 <strong>다르게</strong> 해야 한다면 각각 어떻게 정하겠습니까? 왜 그런가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">IP 주소</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">기계가 쓰는 숫자 주소</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>인터넷에 연결된 기기에 붙는 <strong>숫자 주소</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>IPv4</strong>(네 덩이) &rarr; 주소가 모자라 <strong>IPv6</strong>로 자리를 넓힘</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>대개 <strong>자동으로 받고</strong>, 필요할 때만 손으로 지정</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">도메인 주소와 DNS</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">사람은 이름, 기계는 숫자</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>도메인 주소</strong> &mdash; IP 주소를 문자로 바꿔 표현한 것</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>둘은 다른 곳이 아니라 <strong>같은 곳의 두 표기</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>도메인 이름 서버(DNS)</strong>가 이름을 숫자로 바꿔 알려 준다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">내 주소 확인하기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">읽어 보는 것까지</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>컴퓨터는 <strong>ipconfig</strong>, 스마트폰은 무선 네트워크 세부 정보</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>같은 네트워크의 기기끼리는 <strong>주소 앞부분이 같다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>설정을 함부로 <strong>바꾸지 않는다</strong> &mdash; 충돌이나 연결 끊김</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">공유 설정</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">편함과 안전함의 맞바꿈</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>정할 것은 둘 &mdash; <strong>누구에게</strong>, <strong>무엇까지</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>넓게 열수록 편하고, 좁게 열수록 통제하기 쉽다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-amber-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>한 번 퍼진 사본은 <strong>거둬들일 수 없다</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>도메인 이름 서버(DNS)</strong>가 하는 일로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기기에 IP 주소를 나눠 주는 일은 접속 장치가 맡습니다.')">
+                    ① 기기에 IP 주소를 나눠 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사람이 입력한 문자 이름을 받아 그에 해당하는 숫자 주소를 알려 줍니다.')">
+                    ② 문자로 된 이름을 숫자 주소로 바꿔 알려 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '경로를 골라 다른 네트워크로 넘기는 일은 라우터가 합니다.')">
+                    ③ 데이터가 갈 경로를 골라 다른 네트워크로 넘긴다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '파일을 보관하는 것은 클라우드 저장소의 일입니다. 도메인 이름 서버는 주소를 알려 줄 뿐입니다.')">
+                    ④ 공유할 파일을 대신 보관해 준다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>IPv6</strong>가 만들어진 가장 큰 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '주소가 길다고 해서 전송이 빨라지지는 않습니다. 속도는 전송 매체와 기술이 정합니다.')">
+                    ① 데이터 전송 속도를 높이려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 인터넷에 붙는 기기가 늘면서 IPv4로 만들 수 있는 주소가 모자라게 되었습니다.')">
+                    ② 만들 수 있는 주소의 개수가 모자라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람이 외우기에는 IPv6가 오히려 더 어렵습니다. 사람을 위한 표기는 도메인 주소 쪽입니다.')">
+                    ③ 사람이 주소를 외우기 쉽게 하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '유선과 무선의 구분은 전송 매체의 문제로, 주소 방식과는 다른 이야기입니다.')">
+                    ④ 유선과 무선을 구분하려고
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    파일 공유 설정에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 어떤 서비스를 쓰든 정해야 할 것은 「누구에게」와 「무엇까지」 둘입니다.')">
+                    ① 공유할 때는 대상과 허용 범위를 함께 정해야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 넓게 열면 나눠 주기 편한 대신 링크가 옮겨 다니면 통제하기 어려워집니다.')">
+                    ② 넓게 열수록 편하지만 통제하기는 어려워진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 설정을 되돌려도 그사이 내려받은 사본까지 거둬들일 수는 없습니다. 그래서 필요한 만큼만 열어야 합니다.')">
+                    ③ 설정을 되돌리면 이미 퍼진 사본도 함께 사라진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 담긴 내용에 따라 알맞은 설정이 달라지므로 하나의 정답은 없습니다.')">
+                    ④ 무엇을 담은 파일인지에 따라 알맞은 설정이 달라진다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

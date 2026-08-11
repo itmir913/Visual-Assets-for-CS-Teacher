@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 압축이란 무엇인가</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-file-zipper absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-compress absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터 압축이란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            같은 내용인데 파일이 작아집니다.<br>
+            <strong>무엇을 버린 걸까요?</strong> 아니면 버리지 않은 걸까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터 압축이 무엇을 줄이는 일인지 설명하고, 압축과 압축 해제가 짝을 이루어야 하는 까닭을 말할 수 있다.</li>
+                    <li>줄어든 비율을 계산해 두 압축 결과를 견주고, 「압축률」이라는 말이 두 가지 뜻으로 쓰인다는 것을 알고 어느 쪽인지 확인할 수 있다.</li>
+                    <li>무손실 압축과 손실 압축을 구별하고, 다루는 데이터의 성격에 따라 어느 쪽이 알맞은지 판단할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-file-zipper text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 압축이란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-teal-600 transition">왜 줄이는가</a>
+            <a href="#pair" class="hover:text-teal-600 transition">줄이고 되돌리기</a>
+            <a href="#rate" class="hover:text-teal-600 transition">얼마나 줄었나</a>
+            <a href="#two" class="hover:text-teal-600 transition">무손실과 손실</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 왜 줄이는가 ══════════ -->
+    <section id="why" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-weight-hanging text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">왜 줄이는가</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 단원에서 <strong>데이터</strong>를 「컴퓨팅 시스템이 다룰 수 있는 형태로 적어 둔 값」이라고 했습니다.
+                적어 둔 것인 이상 <strong>어딘가에 자리를 차지합니다.</strong> 사진 한 장, 노래 한 곡, 문서 하나가
+                각각 얼마만큼의 자리를 쓰는지를 우리는 「용량」이라고 부릅니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">자리를 세는 단위 &mdash; 비트와 바이트</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 단원에서 <strong>비트(bit)</strong>를 「값을 담는 가장 작은 칸 하나」라고 했습니다. 칸 하나에는
+                    0 또는 1만 들어갑니다. 칸이 하나뿐이면 두 가지밖에 구별할 수 없으니, 실제로는 여러 칸을 묶어 씁니다.
+                    <strong>비트 여덟 개를 묶은 것이 1바이트(byte)</strong>이고, 영어 글자 하나가 대체로 1바이트를
+                    차지합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    파일 크기에 붙는 <strong>KB</strong>는 약 1,000바이트, <strong>MB</strong>는 약 1,000KB입니다.
+                    「사진이 1,240KB」라는 말은 그 사진을 적어 두는 데 칸이 그만큼 필요했다는 뜻입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                데이터를 줄이면 무엇이 좋아질까요. 크게 셋입니다. 그리고 셋 다
+                <strong>앞 단원에서 이미 마주친 문제</strong>입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-hard-drive"></i>
+                    </div>
+                    <p class="font-black text-lg text-sky-900">저장할 자리가 덜 든다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        같은 자리에 더 많이 담을 수 있습니다. 사물 인터넷 장치처럼 저장 공간이 아주 작은 기기에서는
+                        이것이 곧 「담을 수 있느냐 없느냐」의 문제가 됩니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-gauge-simple-high"></i>
+                    </div>
+                    <p class="font-black text-lg text-teal-900">보내는 시간이 짧아진다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        네트워크로 옮길 양이 줄어드니 그만큼 빨리 도착합니다. 통신 기술을 고를 때 「보낼 데이터의 양」이
+                        기준 가운데 하나였던 것을 떠올려 보세요.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-10 h-10 bg-violet-500 rounded-xl flex items-center justify-center text-white">
+                        <i class="fa-solid fa-plug"></i>
+                    </div>
+                    <p class="font-black text-lg text-violet-900">전기를 덜 쓴다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        데이터를 저장하고 보내는 데는 전기가 듭니다. 건전지로 몇 달을 버텨야 하는 장치에서는
+                        보낼 양을 줄이는 것이 곧 수명을 늘리는 일입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">데이터 압축(data compression)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>같은 내용을 더 적은 자리에 적어 두도록 표현 방식을 바꾸는 것</strong>입니다. 되풀이되는
+                    부분을 짧게 적거나, 없어도 되는 부분을 덜어 냅니다. 핵심은
+                    <strong>「내용을 줄이는 것이 아니라 적는 방식을 바꾸는 것」</strong>이라는 점입니다.
+                    옷을 압축 팩에 넣어 부피를 줄여도 옷 자체는 그대로인 것과 같습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                저장 공간이 넉넉하고 네트워크도 빠른 컴퓨터에서라면 압축이 필요 없을까요? 위의 세 가지 가운데
+                그래도 남는 이유가 있는지 찾아보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 줄이고 되돌리기 ══════════ -->
+    <section id="pair" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-right-left text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">줄이고 되돌리기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                압축은 혼자 쓰이지 않습니다. 줄여 두었다가 <strong>다시 쓸 수 있는 형태로 되돌리는 일</strong>이
+                반드시 뒤따릅니다. 두 일에는 각각 이름이 있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-sky-900">인코딩(encoding) &mdash; 압축</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        원본 데이터를 정해진 규칙에 따라 <strong>더 짧은 표현으로 바꾸는</strong> 일입니다.
+                        결과로 나온 것이 압축된 데이터입니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-teal-900">디코딩(decoding) &mdash; 압축 해제</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        압축된 데이터를 <strong>같은 규칙을 거꾸로 적용해</strong> 쓸 수 있는 형태로 되돌리는
+                        일입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <svg class="chart-svg" viewBox="0 0 360 120" role="img"
+                     aria-label="큰 사각형에서 작은 사각형으로 화살표가 가고, 다시 작은 사각형에서 큰 사각형으로 화살표가 돌아오는 그림">
+                    <defs>
+                        <marker id="pr-f" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L7,3.2 L0,6.4 z" fill="#0284c7"></path>
+                        </marker>
+                        <marker id="pr-b" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L7,3.2 L0,6.4 z" fill="#0d9488"></path>
+                        </marker>
+                    </defs>
+                    <rect x="16" y="26" width="84" height="68" rx="12" fill="#e0f2fe" stroke="#0284c7"
+                          stroke-width="2.5"></rect>
+                    <rect x="150" y="44" width="60" height="32" rx="10" fill="#ede9fe" stroke="#7c3aed"
+                          stroke-width="2.5"></rect>
+                    <rect x="260" y="26" width="84" height="68" rx="12" fill="#ccfbf1" stroke="#0d9488"
+                          stroke-width="2.5"></rect>
+                    <path d="M104,44 C124,32 130,32 146,44" fill="none" stroke="#0284c7" stroke-width="3"
+                          marker-end="url(#pr-f)"></path>
+                    <path d="M214,76 C230,88 236,88 256,76" fill="none" stroke="#0d9488" stroke-width="3"
+                          marker-end="url(#pr-b)"></path>
+                </svg>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2">
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-sky-100 border-2 border-sky-600"></span>
+                        <span>왼쪽 &mdash; <strong class="text-slate-800">원본 데이터</strong></span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-violet-100 border-2 border-violet-600"></span>
+                        <span>가운데 &mdash; <strong class="text-slate-800">압축된 데이터</strong></span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-teal-100 border-2 border-teal-600"></span>
+                        <span>오른쪽 &mdash; <strong class="text-slate-800">되돌린 데이터</strong></span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>규칙을 양쪽이 알고 있어야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    압축은 <strong>「이렇게 줄여 적겠다」는 약속</strong>이 있어야 성립합니다. 줄인 쪽만 규칙을 알고
+                    받는 쪽이 모르면, 받은 것은 그냥 알아볼 수 없는 값 덩어리입니다. 그래서 압축 방식마다 이름이
+                    붙어 있고, 파일 이름 끝의 <span class="attr-name">.zip</span>,
+                    <span class="attr-name">.jpg</span>, <span class="attr-name">.mp3</span> 같은 표시가
+                    <strong>「어느 규칙으로 줄였는지」</strong>를 알려 줍니다. 프로그램은 그 표시를 보고 되돌리는
+                    방법을 고릅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 단원에서 사물끼리 값을 주고받으려면 서로 지키기로 한 약속이 필요하다고 했던 것과 같은
+                    이야기입니다. 압축도 <strong>주고받는 양쪽의 약속</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「데이터를 반으로 줄이려고 뒤쪽 절반을 잘라 버렸다」면 이것을 압축이라고 부를 수 있을까요?
+                위의 두 이름 가운데 무엇이 없어서 그럴까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 얼마나 줄었나 ══════════ -->
+    <section id="rate" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-percent text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">얼마나 줄었나</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                「많이 줄었다」는 말만으로는 두 방법을 견줄 수 없습니다. 원본이 큰 파일은 조금만 줄여도 줄어든
+                양이 커 보이기 때문입니다. 그래서 <strong>원본에 견주어 얼마만큼이 줄었는지</strong>를 백분율로
+                나타내고, 이 값을 <strong>압축률</strong>이라고 부릅니다.
+            </p>
+
+            <div class="bg-teal-50 border-2 border-teal-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">압축률 구하기</p>
+                <p class="text-base text-slate-800 leading-relaxed font-bold">
+                    압축률(%) = ( 1 &minus; 압축한 뒤의 크기 &divide; 원본의 크기 ) &times; 100
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    원본이 1,000KB이고 압축한 뒤가 300KB라면, 1 &minus; (300 &divide; 1000) = 0.7이므로
+                    압축률은 <strong>70%</strong>입니다. <strong>원본의 70%가 사라지고 30%만 남았다</strong>는 뜻입니다.
+                    값이 클수록 많이 줄어든 것입니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        압축률 계산해 보기 (수업에서 원리를 확인하려고 지어낸 값)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">원본</th>
+                        <th class="w-32">압축한 뒤</th>
+                        <th>계산</th>
+                        <th class="w-24">압축률</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>100KB</td>
+                        <td>60KB</td>
+                        <td>1 &minus; 60 &divide; 100 = 0.4</td>
+                        <td class="font-bold">40%</td>
+                    </tr>
+                    <tr>
+                        <td>100KB</td>
+                        <td>20KB</td>
+                        <td>1 &minus; 20 &divide; 100 = 0.8</td>
+                        <td class="font-bold">80%</td>
+                    </tr>
+                    <tr>
+                        <td>2,400KB</td>
+                        <td>240KB</td>
+                        <td>1 &minus; 240 &divide; 2400 = 0.9</td>
+                        <td class="font-bold">90%</td>
+                    </tr>
+                    <tr>
+                        <td>500KB</td>
+                        <td>500KB</td>
+                        <td>1 &minus; 500 &divide; 500 = 0</td>
+                        <td class="font-bold">0%</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                맨 아래 줄을 눈여겨보세요. <strong>압축률이 0%</strong>인 경우, 곧 하나도 줄지 않는 경우도 있습니다.
+                줄일 거리가 없는 데이터를 압축하려 들면 이런 일이 생깁니다. 어떤 데이터가 그런지는 다음 차시에서
+                다룹니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>「압축률」은 두 가지 뜻으로 쓰입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 강의노트에서 압축률은 위의 식대로 <strong>「줄어든 비율」</strong>을 뜻합니다. 그런데 같은 말이
+                    <strong>「원본이 압축본의 몇 배인가」</strong>라는 뜻으로 쓰이기도 합니다. 1,000KB가 200KB가 되었을 때
+                    앞의 뜻으로는 <strong>80%</strong>, 뒤의 뜻으로는 <strong>5배</strong>입니다. 같은 상황을 두고 나온
+                    전혀 다른 숫자입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 어디선가 「압축률 5」나 「압축률 0.2」 같은 값을 만나면, 먼저
+                    <strong>어느 뜻으로 쓴 것인지 확인</strong>해야 합니다. 백분율이고 클수록 파일이 작아지면 앞의 뜻,
+                    배수로 적혀 있으면 뒤의 뜻입니다. <strong>숫자만 보고 크고 작음을 견주면 틀립니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                같은 사진을 A는 「압축률 90%」로, B는 「압축률 4배」로 줄였다고 합니다. 어느 쪽이 더 작아졌을까요?
+                두 값을 같은 뜻으로 맞춰서 견주어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 무손실과 손실 ══════════ -->
+    <section id="two" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-scissors text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">무손실과 손실</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞에서 압축을 「되풀이되는 부분을 짧게 적거나, 없어도 되는 부분을 덜어 내는 것」이라고 했습니다.
+                이 문장 안에 이미 두 갈래가 들어 있습니다. <strong>짧게 적기만 한 것</strong>과
+                <strong>덜어 낸 것</strong>은 결과가 다릅니다. 되돌렸을 때 원본과 똑같은지로 갈립니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">무손실 압축</p>
+                    <svg class="chart-svg" viewBox="0 0 320 130" role="img"
+                         aria-label="점 아홉 개가 든 사각형이 작아졌다가 다시 커지면서 점 아홉 개가 그대로 있는 그림">
+                        <defs>
+                            <marker id="ls-a" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                    orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L7,3.2 L0,6.4 z" fill="#0d9488"></path>
+                            </marker>
+                        </defs>
+                        <rect x="12" y="28" width="86" height="74" rx="12" fill="#f0fdfa" stroke="#0d9488"
+                              stroke-width="2.5"></rect>
+                        <g fill="#0d9488">
+                            <circle cx="34" cy="50" r="6"></circle>
+                            <circle cx="55" cy="50" r="6"></circle>
+                            <circle cx="76" cy="50" r="6"></circle>
+                            <circle cx="34" cy="66" r="6"></circle>
+                            <circle cx="55" cy="66" r="6"></circle>
+                            <circle cx="76" cy="66" r="6"></circle>
+                            <circle cx="34" cy="82" r="6"></circle>
+                            <circle cx="55" cy="82" r="6"></circle>
+                            <circle cx="76" cy="82" r="6"></circle>
+                        </g>
+                        <rect x="140" y="50" width="44" height="30" rx="8" fill="#ccfbf1" stroke="#0d9488"
+                              stroke-width="2.5"></rect>
+                        <rect x="222" y="28" width="86" height="74" rx="12" fill="#f0fdfa" stroke="#0d9488"
+                              stroke-width="2.5"></rect>
+                        <g fill="#0d9488">
+                            <circle cx="244" cy="50" r="6"></circle>
+                            <circle cx="265" cy="50" r="6"></circle>
+                            <circle cx="286" cy="50" r="6"></circle>
+                            <circle cx="244" cy="66" r="6"></circle>
+                            <circle cx="265" cy="66" r="6"></circle>
+                            <circle cx="286" cy="66" r="6"></circle>
+                            <circle cx="244" cy="82" r="6"></circle>
+                            <circle cx="265" cy="82" r="6"></circle>
+                            <circle cx="286" cy="82" r="6"></circle>
+                        </g>
+                        <line x1="102" y1="65" x2="134" y2="65" stroke="#0d9488" stroke-width="3"
+                              marker-end="url(#ls-a)"></line>
+                        <line x1="188" y1="65" x2="218" y2="65" stroke="#0d9488" stroke-width="3"
+                              marker-end="url(#ls-a)"></line>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        점 아홉 개가 그대로 아홉 개로 돌아옵니다. <strong>되돌린 것이 원본과 완전히 같습니다.</strong>
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">손실 압축</p>
+                    <svg class="chart-svg" viewBox="0 0 320 130" role="img"
+                         aria-label="점 아홉 개가 든 사각형이 더 작아졌다가 다시 커지지만 점이 다섯 개만 남은 그림">
+                        <defs>
+                            <marker id="ls-b" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                    orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L7,3.2 L0,6.4 z" fill="#e11d48"></path>
+                            </marker>
+                        </defs>
+                        <rect x="12" y="28" width="86" height="74" rx="12" fill="#fff1f2" stroke="#e11d48"
+                              stroke-width="2.5"></rect>
+                        <g fill="#e11d48">
+                            <circle cx="34" cy="50" r="6"></circle>
+                            <circle cx="55" cy="50" r="6"></circle>
+                            <circle cx="76" cy="50" r="6"></circle>
+                            <circle cx="34" cy="66" r="6"></circle>
+                            <circle cx="55" cy="66" r="6"></circle>
+                            <circle cx="76" cy="66" r="6"></circle>
+                            <circle cx="34" cy="82" r="6"></circle>
+                            <circle cx="55" cy="82" r="6"></circle>
+                            <circle cx="76" cy="82" r="6"></circle>
+                        </g>
+                        <rect x="146" y="56" width="32" height="18" rx="6" fill="#ffe4e6" stroke="#e11d48"
+                              stroke-width="2.5"></rect>
+                        <rect x="222" y="28" width="86" height="74" rx="12" fill="#fff1f2" stroke="#e11d48"
+                              stroke-width="2.5"></rect>
+                        <g fill="#e11d48">
+                            <circle cx="244" cy="50" r="6"></circle>
+                            <circle cx="286" cy="50" r="6"></circle>
+                            <circle cx="265" cy="66" r="6"></circle>
+                            <circle cx="244" cy="82" r="6"></circle>
+                            <circle cx="286" cy="82" r="6"></circle>
+                        </g>
+                        <g fill="none" stroke="#fca5a5" stroke-width="2" stroke-dasharray="3 3">
+                            <circle cx="265" cy="50" r="6"></circle>
+                            <circle cx="244" cy="66" r="6"></circle>
+                            <circle cx="286" cy="66" r="6"></circle>
+                            <circle cx="265" cy="82" r="6"></circle>
+                        </g>
+                        <line x1="102" y1="65" x2="140" y2="65" stroke="#e11d48" stroke-width="3"
+                              marker-end="url(#ls-b)"></line>
+                        <line x1="182" y1="65" x2="218" y2="65" stroke="#e11d48" stroke-width="3"
+                              marker-end="url(#ls-b)"></line>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        점 네 개가 점선으로만 남았습니다. <strong>되돌려도 원본으로 돌아오지 않습니다.</strong>
+                        대신 가운데 상자가 훨씬 작습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-teal-900">무손실 압축(lossless compression)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>되돌리면 원본과 한 치도 다르지 않은</strong> 압축입니다. 되풀이되는 부분을 짧게 적어
+                        두었다가 그대로 펼쳐 놓는 식이라, 버린 것이 없습니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        대신 줄일 수 있는 정도에 한계가 있어 <strong>압축률이 낮은 편</strong>입니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-rose-900">손실 압축(lossy compression)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>일부를 아예 버리는</strong> 압축입니다. 버린 것은 되돌릴 수 없으므로, 압축 해제해도
+                        원본과 똑같아지지 않습니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        대신 버리는 만큼 <strong>압축률이 훨씬 높습니다.</strong> 수십 배까지 줄어들기도 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>가르는 물음: 되돌린 것이 원본과 같은가
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 방식은 「얼마나 줄었는가」로 갈리는 것이 아닙니다. 압축률이 낮은 손실 압축도 있고 높은 무손실
+                    압축도 있습니다. 갈리는 지점은 오직 하나, <strong>압축 해제한 결과가 원본과 같은가</strong>입니다.
+                    압축률은 그 선택에 따라오는 결과일 뿐입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그러면 어느 쪽을 써야 할까요. <strong>정해진 답은 없고, 다루는 데이터의 성격이 정합니다.</strong>
+                기준은 「조금 달라져도 알아보는 데 지장이 없는가」입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">데이터의 성격에 따라 고르는 압축 방식</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">데이터</th>
+                        <th>조금 달라지면</th>
+                        <th class="w-32">어울리는 방식</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">거래 내역의 숫자</td>
+                        <td>금액이 달라진다. 한 자리만 틀려도 못 쓴다</td>
+                        <td class="font-bold">무손실</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">프로그램 파일</td>
+                        <td>한 비트만 달라져도 실행되지 않을 수 있다</td>
+                        <td class="font-bold">무손실</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">진료용 영상</td>
+                        <td>지워진 부분이 병을 놓치게 만들 수 있다</td>
+                        <td class="font-bold">무손실</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">감상용 사진</td>
+                        <td>눈으로는 차이를 알아채기 어렵다</td>
+                        <td class="font-bold">손실도 가능</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">감상용 음악</td>
+                        <td>귀로는 차이를 알아채기 어렵다</td>
+                        <td class="font-bold">손실도 가능</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>같은 사진이라도 쓰임에 따라 답이 달라집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표의 아래 두 줄에 「손실도 가능」이라고 적은 것에 주의하세요. <strong>「사진은 손실 압축」이 아닙니다.</strong>
+                    같은 사진이라도 친구에게 보내 보는 용도라면 손실 압축으로 충분하지만, 나중에 크게 인쇄하거나
+                    여러 번 고쳐 가며 편집할 사진이라면 무손실 쪽이 낫습니다. 손실 압축은 <strong>고칠 때마다 조금씩
+                    더 나빠지기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 「어떤 데이터인가」만이 아니라 <strong>「그 데이터를 앞으로 어떻게 쓸 것인가」</strong>까지
+                    보아야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                수업 시간에 칠판을 찍어 두었다가 나중에 글씨를 읽어야 하는 사진이라면 어느 쪽이 나을까요?
+                「눈으로 차이를 알아채기 어렵다」는 기준이 여기서도 그대로 통하는지 따져 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">데이터 압축</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>같은 내용을 더 적은 자리에 적어 두도록 표현 방식을 바꾸는 것이다.</li>
+                    <li>내용을 줄이는 것이 아니라 적는 방식을 바꾸는 것이다.</li>
+                    <li>저장 공간 &middot; 전송 시간 &middot; 전기를 함께 아낀다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">인코딩과 디코딩</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>줄이는 일이 인코딩, 되돌리는 일이 디코딩이며 늘 짝을 이룬다.</li>
+                    <li>같은 규칙을 양쪽이 알아야 한다. 파일 이름 끝의 표시가 그 규칙을 알려 준다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">압축률</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>( 1 &minus; 압축한 뒤 &divide; 원본 ) &times; 100. 클수록 많이 줄어든 것이다.</li>
+                    <li>줄일 거리가 없으면 0%가 되기도 한다.</li>
+                    <li><strong>같은 말이 「원본이 몇 배인가」라는 뜻으로도 쓰인다.</strong> 어느 쪽인지 먼저 확인한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">무손실과 손실</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>가르는 것은 압축률이 아니라 「되돌린 것이 원본과 같은가」이다.</li>
+                    <li>무손실은 완전히 같고 압축률이 낮은 편, 손실은 일부를 버리고 압축률이 높다.</li>
+                    <li>어느 쪽이 옳다고 정해져 있지 않다. 데이터의 성격과 앞으로의 쓰임이 정한다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    원본이 800KB인 파일을 압축했더니 200KB가 되었습니다. <strong>압축률</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '200 ÷ 800 = 0.25는 남은 비율입니다. 압축률은 줄어든 비율이므로 1에서 빼야 합니다.')">
+                    ① 25%
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 1 − (200 ÷ 800) = 0.75이므로 75%가 줄어들고 25%만 남았습니다.')">
+                    ② 75%
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '800 ÷ 200 = 4는 「원본이 몇 배인가」라는 다른 뜻의 값입니다. 백분율로 묻고 있습니다.')">
+                    ③ 4%
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '600KB는 줄어든 「양」이지 비율이 아닙니다. 압축률은 원본에 견준 비율입니다.')">
+                    ④ 600%
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    무손실 압축과 손실 압축을 <strong>가르는 기준</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '압축률은 선택에 따라오는 결과입니다. 압축률이 낮은 손실 압축도 있을 수 있습니다.')">
+                    ① 압축률이 높은가 낮은가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 압축 해제한 결과가 원본과 한 치도 다르지 않으면 무손실입니다.')">
+                    ② 되돌린 것이 원본과 완전히 같은가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '문자든 사진이든 두 방식 모두 쓸 수 있습니다. 데이터의 종류가 기준을 정하지는 않습니다.')">
+                    ③ 문자 데이터인가 사진 데이터인가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '압축과 압축 해제는 어느 방식에서든 짝을 이룹니다. 손실 압축도 압축 해제를 합니다.')">
+                    ④ 압축 해제를 할 수 있는가 없는가
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 가운데 <strong>무손실 압축을 써야 하는</strong> 경우로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '눈으로 차이를 알아채기 어려운 쪽이라 손실 압축으로도 충분한 경우가 많습니다.')">
+                    ① 친구에게 보내 볼 여행 사진
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 숫자가 한 자리만 달라져도 못 쓰게 되므로 버리는 압축을 쓸 수 없습니다.')">
+                    ② 은행의 거래 내역 기록
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '귀로 차이를 알아채기 어려운 쪽이라 손실 압축이 흔히 쓰입니다.')">
+                    ③ 휴대용 기기에서 들을 음악
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '보고 넘길 용도라면 손실 압축으로도 충분합니다.')">
+                    ④ 누리소통망에 한 번 올리고 말 사진
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    압축된 파일을 받았는데 <strong>어떤 프로그램으로도 열리지 않습니다.</strong>
+                    가장 그럴듯한 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '압축률이 높은 것과 열리는 것은 상관이 없습니다. 규칙만 알면 얼마나 줄었든 되돌릴 수 있습니다.')">
+                    ① 압축률이 너무 높아서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 압축은 양쪽이 같은 규칙을 알고 있어야 성립합니다. 되돌리는 규칙을 모르면 값 덩어리일 뿐입니다.')">
+                    ② 내 컴퓨터가 그 압축 규칙을 모르기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '손실 압축이어도 압축 해제 자체는 됩니다. 다만 되돌린 결과가 원본과 조금 다를 뿐입니다.')">
+                    ③ 손실 압축이라 되돌릴 수 없어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '파일이 작아졌다고 열리지 않는 것은 아닙니다. 작아지는 것이 압축의 목적입니다.')">
+                    ④ 파일 크기가 작아졌기 때문에
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

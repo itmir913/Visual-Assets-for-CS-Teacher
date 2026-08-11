@@ -309,8 +309,12 @@ npm run build     # 전체, 배포와 같은 것
 git이 그 안으로 내려가지 않아 예외가 먹지 않는다** — 반드시 `.idea/*`여야 한다.
 그래서 새 실행 구성을 넣을 때 `git add -f`가 필요 없다.
 
-셋 다 powershell로 `npm run`을 부른다. 무엇을 실제로 돌릴지는 `package.json`에만
-적혀 있으므로, 명령을 고치면 **IDE 버튼도 같이 바뀐다.**
+셋 다 **npm 실행 구성**(`js.build_tools.npm`)이라 Run 탭에서 바로 돈다.
+셸을 거치지 않으므로 **Windows 전용 설정이 되지 않는다** — powershell 경로를 박으면
+macOS·Linux에서 그대로 죽는다.
+
+무엇을 실제로 돌릴지는 `package.json`에만 적혀 있으므로, 명령을 고치면
+**IDE 버튼도 같이 바뀐다.**
 
 ### 새 컴퓨터에서 clone한 뒤 — 최초 1회
 

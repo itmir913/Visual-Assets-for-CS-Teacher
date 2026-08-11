@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정보 보안과 정보를 지키는 방법</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 설명용 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-shield-halved absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-key absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            정보 보안과 정보를 지키는 방법
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            훔쳐보지 못하게, 바꾸지 못하게<br>
+            <strong>그리고 필요할 때 쓸 수 있게</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>정보 보안이 지키려는 것을 <strong>기밀성 &middot; 무결성 &middot; 가용성</strong> 셋으로 나누어 설명할 수 있다.</li>
+                    <li>세 요소가 서로 부딪히는 경우가 있다는 것을 예를 들어 말할 수 있다.</li>
+                    <li>정보를 내줄 때와 쓸 때 각각 어떤 방법으로 지키는지 알고, 왜 그 방법이 통하는지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-shield-halved text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">정보 보안과 정보를 지키는 방법</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-teal-600 transition">지켜야 할 세 가지</a>
+            <a href="#conflict" class="hover:text-teal-600 transition">셋은 부딪힌다</a>
+            <a href="#threat" class="hover:text-teal-600 transition">어떻게 뚫리는가</a>
+            <a href="#howto" class="hover:text-teal-600 transition">지키는 방법</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 지켜야 할 세 가지 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-shield-halved text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">지켜야 할 세 가지</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지난 시간에 <strong>지켜야 할 정보</strong>가 무엇인지 보았습니다. 이제 그것을
+                <strong>어떻게 지키는가</strong>를 봅니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">정보 보안(information security)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    정보를 여러 가지 위협에서 안전하게 지키기 위한 <strong>절차와 도구</strong>를
+                    통틀어 이르는 말입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                「안전하게 지킨다」는 말은 뭉뚱그려져 있습니다. 무엇이 어떻게 잘못될 수 있는지 나누어
+                보면, <strong>세 가지 서로 다른 사고</strong>가 나옵니다.
+            </p>
+
+            <!-- 편지가 오가는 길에서 생길 수 있는 세 가지 사고. 글자는 아래 HTML로 뺀다. -->
+            <svg class="chart-svg" viewBox="0 0 810 220" role="img"
+                 aria-label="보내는 사람에서 받는 사람으로 정보가 가는 길에 생기는 세 가지 사고. 첫째는 도중에 훔쳐보는 것, 둘째는 도중에 내용이 바뀌는 것, 셋째는 길이 막혀 닿지 못하는 것">
+                <!-- ─ 1) 훔쳐보기 ─ -->
+                <rect x="10" y="20" width="250" height="180" rx="16" fill="#fff1f2" stroke="#f43f5e" stroke-width="3"/>
+                <circle cx="55" cy="150" r="15" fill="#64748b"/>
+                <path d="M34 178 a21 26 0 0 1 42 0 z" fill="#64748b"/>
+                <circle cx="215" cy="150" r="15" fill="#64748b"/>
+                <path d="M194 178 a21 26 0 0 1 42 0 z" fill="#64748b"/>
+                <path d="M78 152 L190 152" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <path d="M182 145 L193 152 L182 159 Z" fill="#94a3b8"/>
+                <rect x="118" y="140" width="34" height="24" rx="4" fill="#ffffff" stroke="#475569" stroke-width="3"/>
+                <path d="M118 140 L135 153 L152 140" fill="none" stroke="#475569" stroke-width="3"/>
+                <!-- 훔쳐보는 눈 -->
+                <path d="M105 88 a32 26 0 0 1 60 0 a32 26 0 0 1 -60 0 z" fill="#ffe4e6" stroke="#f43f5e" stroke-width="3"/>
+                <circle cx="135" cy="88" r="13" fill="#f43f5e"/>
+                <path d="M135 110 L135 132" stroke="#f43f5e" stroke-width="3" stroke-dasharray="6 5"/>
+
+                <!-- ─ 2) 바뀌기 ─ -->
+                <rect x="280" y="20" width="250" height="180" rx="16" fill="#fffbeb" stroke="#f59e0b" stroke-width="3"/>
+                <circle cx="325" cy="150" r="15" fill="#64748b"/>
+                <path d="M304 178 a21 26 0 0 1 42 0 z" fill="#64748b"/>
+                <circle cx="485" cy="150" r="15" fill="#64748b"/>
+                <path d="M464 178 a21 26 0 0 1 42 0 z" fill="#64748b"/>
+                <path d="M348 152 L460 152" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <path d="M452 145 L463 152 L452 159 Z" fill="#94a3b8"/>
+                <!-- 바뀐 편지 -->
+                <rect x="388" y="140" width="34" height="24" rx="4" fill="#f59e0b" stroke="#b45309" stroke-width="3"/>
+                <path d="M388 140 L405 153 L422 140" fill="none" stroke="#b45309" stroke-width="3"/>
+                <!-- 손대는 표시 -->
+                <path d="M405 132 L405 112" stroke="#d97706" stroke-width="3" stroke-dasharray="6 5"/>
+                <path d="M382 84 L428 84 M405 61 L405 107" stroke="#f59e0b" stroke-width="9" stroke-linecap="round"
+                      transform="rotate(45 405 84)"/>
+
+                <!-- ─ 3) 막히기 ─ -->
+                <rect x="550" y="20" width="250" height="180" rx="16" fill="#f1f5f9" stroke="#64748b" stroke-width="3"/>
+                <circle cx="595" cy="150" r="15" fill="#64748b"/>
+                <path d="M574 178 a21 26 0 0 1 42 0 z" fill="#64748b"/>
+                <circle cx="755" cy="150" r="15" fill="#64748b"/>
+                <path d="M734 178 a21 26 0 0 1 42 0 z" fill="#64748b"/>
+                <path d="M618 152 L660 152" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <!-- 막는 벽 -->
+                <rect x="668" y="96" width="18" height="94" rx="5" fill="#475569"/>
+                <path d="M652 128 L702 178 M702 128 L652 178" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/>
+            </svg>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-eye-slash text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-rose-900">기밀성 &mdash; 아무나 못 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>허락된 사람만 볼 수 있어야</strong> 합니다. 도중에 누가 들여다보면
+                        기밀성이 깨진 것입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-file-shield text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-amber-900">무결성 &mdash; 함부로 안 바뀐다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>내용이 보낸 그대로여야</strong> 합니다. 도중에 한 글자라도 바뀌었다면
+                        무결성이 깨진 것입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-100 border border-slate-300 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-slate-600 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-plug-circle-check text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-slate-800">가용성 &mdash; 쓸 때 쓸 수 있다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>필요한 때에 닿을 수 있어야</strong> 합니다. 아무도 못 보게 잘 지켰어도
+                        주인마저 못 쓰면 소용이 없습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 border-l-4 border-l-slate-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">셋 중 하나만 무너져도 사고입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    보안이라고 하면 흔히 <strong>기밀성만</strong> 떠올립니다. 그런데 성적표가 새어 나가는
+                    것만 사고가 아닙니다. <strong>성적이 몰래 고쳐지는 것</strong>도, 시험 접수하는 날
+                    <strong>하루 종일 접속이 안 되는 것</strong>도 똑같이 보안 사고입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「도서관 대출 기록이 사라져 누가 무슨 책을 빌렸는지 알 수 없게 되었다」 &mdash; 셋 가운데
+                <strong>어느 것이 깨진</strong> 것일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 셋은 부딪힌다 ══════════ -->
+    <section id="conflict" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-scale-unbalanced text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">셋은 부딪힌다</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 가지를 나란히 적어 두면 <strong>「셋 다 최대한 높이면 되겠다」</strong>고 생각하기
+                쉽습니다. 그런데 그렇게 되지 않습니다. <strong>하나를 올리면 다른 하나가 내려가는</strong>
+                자리가 있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-rose-900">
+                        <i class="fa-solid fa-lock mr-2"></i>기밀성을 끝까지 올리면
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        볼 때마다 여러 단계로 확인하고, 아무 데서나 못 열게 하고, 비밀번호를 아주
+                        복잡하게 만듭니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>대신 급할 때 못 엽니다.</strong> 정작 주인이 들어가지 못하는 일이
+                        생깁니다 &mdash; 가용성이 내려간 것입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-100 border border-slate-300 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-slate-800">
+                        <i class="fa-solid fa-door-open mr-2"></i>가용성을 끝까지 올리면
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        어디서나 바로 열리고, 확인 절차를 줄이고, 여러 곳에 복사해 둡니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>대신 새어 나갈 구멍이 늘어납니다.</strong> 복사본이 많다는 것은
+                        지킬 곳이 많다는 뜻입니다 &mdash; 기밀성이 내려간 것입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-violet-900">그래서 「무엇을 얼마나」를 정해야 합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학교 누리집의 공지 사항은 <strong>가용성이 가장 중요합니다.</strong> 누구나 언제든
+                    볼 수 있어야 하고, 감출 것이 없습니다. 반대로 학생 상담 기록은
+                    <strong>기밀성이 가장 중요합니다.</strong> 조금 불편하더라도 아무나 못 보게 해야
+                    합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>모든 정보에 같은 잣대를 대는 것이 오히려 위험합니다.</strong> 다 잠가 두면
+                    사람들이 지키기 어려운 규칙을 우회하기 시작하고, 다 열어 두면 지켜야 할 것까지
+                    열립니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅱ단원의 마지막에 <strong>「이 결정으로 무엇을 지키고 무엇을 내려놓는가」</strong>를
+                물었습니다. 보안에서도 같은 물음이 그대로 쓰입니다. 보안은 <strong>세게 걸수록 좋은
+                것이 아니라, 지킬 것에 맞게 거는 것</strong>입니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>병원의 진료 기록</strong>은 셋 중 무엇이 가장 중요할까요? 응급실에 실려 온
+                상황이라면 답이 달라질까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 어떻게 뚫리는가 ══════════ -->
+    <section id="threat" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bug text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">어떻게 뚫리는가</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                막는 법을 알려면 먼저 <strong>어디로 들어오는지</strong>를 알아야 합니다. 크게 두 갈래가
+                있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-slate-800">
+                        <i class="fa-solid fa-screwdriver-wrench mr-2 text-slate-500"></i>기계의 빈틈으로
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        프로그램에 남아 있는 허술한 곳을 찾아 들어옵니다. 남의 시스템에 허락 없이 들어가
+                        정보를 보거나 바꾸거나 망가뜨리는 행위를 <strong>해킹</strong>이라고 합니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        허술한 곳은 대개 <strong>고쳐서 내놓은 새 버전</strong>에서 막혀 있습니다.
+                        그래서 갱신을 미루는 것 자체가 문을 열어 두는 일이 됩니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-rose-900">
+                        <i class="fa-solid fa-user-large-slash mr-2"></i>사람을 속여서
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        믿을 만한 곳인 척해서 <strong>스스로 열어 주게</strong> 만듭니다. 이런 수법을
+                        <strong>피싱</strong>이라 하고, 문자 메시지로 하는 것을
+                        <strong>스미싱</strong>이라 합니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        택배 확인이나 안내를 가장한 문자에 담긴 주소를 누르면
+                        <strong>악성 코드</strong>(해를 끼치려고 만든 프로그램)가 설치되어 기기 안의
+                        정보가 넘어갑니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">약한 고리는 대개 사람 쪽입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아무리 튼튼한 자물쇠를 달아도 <strong>주인이 열쇠를 건네주면</strong> 소용이 없습니다.
+                    피싱이 사라지지 않는 까닭이 여기 있습니다. 기술을 뚫는 것보다 사람을 속이는 편이
+                    쉽기 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 속지 않는 요령이 곧 보안입니다. <strong>급하다고 재촉하는 것,
+                    누르라고 보채는 주소, 원래 알던 것과 조금 다른 주소</strong> &mdash; 이 셋이
+                    나오면 일단 멈추는 편이 좋습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                덧붙여, 「나는 가진 것이 없으니 노릴 이유가 없다」고 생각하기 쉽습니다. 그런데 노리는
+                쪽은 한 사람을 골라 뚫는 것이 아니라 <strong>수많은 사람에게 한꺼번에 뿌려 놓고 걸리는
+                사람을 기다립니다.</strong> 대상이 되지 않으려면 눈에 띄지 않기보다
+                <strong>걸리지 않는 쪽</strong>이 확실합니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                받아 본 문자 중 <strong>수상했던 것</strong>을 떠올려 보세요. 위의 세 가지 가운데
+                무엇이 들어 있었나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 지키는 방법 ══════════ -->
+    <section id="howto" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-700 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-key text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">지키는 방법</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 방법입니다. <strong>정보를 내주는 쪽</strong>과 <strong>정보를 쓰는 쪽</strong>이
+                할 일이 다릅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">정보를 지키는 방법과 그것이 지키는 요소</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">방법</th>
+                        <th>무엇을 하는가</th>
+                        <th class="w-28">지키는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">암호화</td>
+                        <td>가로채도 읽지 못하게 내용을 바꿔서 보낸다. Ⅱ단원에서 배운 그 방법이다.</td>
+                        <td class="text-slate-600">기밀성</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">접근 제어</td>
+                        <td>누가 무엇을 볼 수 있고 고칠 수 있는지 미리 정해 둔다. 파일과 폴더에도
+                            걸 수 있다.
+                        </td>
+                        <td class="text-slate-600">기밀성 &middot; 무결성</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">본인 확인</td>
+                        <td>비밀번호를 묻거나, 지문 &middot; 얼굴 같은 몸의 특징으로 확인한다
+                            (<strong>생체 인식</strong>).
+                        </td>
+                        <td class="text-slate-600">기밀성</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">방화벽</td>
+                        <td>드나드는 통신을 살펴 허락되지 않은 것을 막는다. 문 앞에 세워 둔 검문소에
+                            가깝다.
+                        </td>
+                        <td class="text-slate-600">기밀성 &middot; 가용성</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">백신 프로그램</td>
+                        <td>이미 들어와 있는 악성 코드를 찾아 지운다.</td>
+                        <td class="text-slate-600">무결성</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">백업</td>
+                        <td>따로 한 벌 복사해 둔다. 망가져도 되돌릴 수 있다.</td>
+                        <td class="text-slate-600">가용성 &middot; 무결성</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                오른쪽 칸을 보세요. <strong>한 방법이 한 가지만 지키는 것이 아닙니다.</strong> 그리고
+                어느 방법도 셋을 다 막아 주지 못합니다. 그래서 보안은 하나를 잘 거는 것이 아니라
+                <strong>여러 겹을 겹쳐 두는</strong> 일입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">비밀번호가 왜 길어야 하는가</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅱ단원에서 카이사르 암호를 다 풀어 본 것을 떠올려 봅시다. 열쇠가 25가지뿐이라
+                <strong>전부 해 보는 것만으로 풀렸습니다.</strong> 비밀번호도 똑같습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 border-l-4 border-l-slate-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">경우의 수를 늘리는 것이 핵심입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    숫자 네 자리는 만 가지입니다. 사람에게는 많아 보이지만 컴퓨터에게는 순식간입니다.
+                    자리를 늘리고 쓰는 글자의 종류를 늘릴수록 <strong>다 해 보는 데 걸리는 시간이
+                    가파르게</strong> 늘어납니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그리고 하나 더 &mdash; <strong>여러 곳에 같은 비밀번호를 쓰지 않는 것</strong>이
+                    길이만큼 중요합니다. 한 곳에서 새면 나머지가 통째로 함께 열리기 때문입니다.
+                    아무리 긴 비밀번호라도 이러면 소용이 없습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                생체 인식은 외울 필요가 없어 편하지만, 지난 시간에 본 것을 떠올려 보세요.
+                <strong>지문과 얼굴은 새어 나가도 바꿀 수가 없습니다.</strong> 편한 만큼 잃었을 때
+                되돌릴 방법이 없다는 것도 함께 알아 두어야 합니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">오늘 당장 할 수 있는 것</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li>기기와 프로그램의 <strong>갱신을 미루지 않습니다.</strong> 대부분 빈틈을 막는
+                        내용입니다.
+                    </li>
+                    <li>중요한 곳에는 <strong>확인 단계를 하나 더</strong> 겁니다. 비밀번호가 새어도
+                        한 겹이 남습니다.
+                    </li>
+                    <li>재촉하는 문자의 주소는 <strong>누르지 않고</strong>, 원래 알던 곳으로 직접
+                        들어가 확인합니다.
+                    </li>
+                    <li>잃으면 곤란한 것은 <strong>따로 한 벌 복사해 둡니다.</strong></li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다음 시간에는 이런 실천을 떠받치는 <strong>디지털 윤리</strong>를 보며 단원을
+                    마무리합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「네 자리 숫자」와 「여덟 자리 영문 소문자」 가운데 <strong>다 해 보기가 훨씬 오래
+                걸리는</strong> 쪽은 어디일까요? 왜 그럴까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">지켜야 할 세 가지</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>기밀성</strong> &mdash; 허락된 사람만 본다.</li>
+                    <li><strong>무결성</strong> &mdash; 내용이 함부로 바뀌지 않는다.</li>
+                    <li><strong>가용성</strong> &mdash; 필요할 때 쓸 수 있다.</li>
+                    <li>새는 것만 사고가 아니다. <strong>몰래 고쳐지는 것도, 접속이 안 되는 것도</strong>
+                        사고다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">셋은 부딪힌다</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>기밀성을 끝까지 올리면 <strong>주인마저 못 쓰게</strong> 된다.</li>
+                    <li>가용성을 끝까지 올리면 <strong>새어 나갈 구멍이 늘어난다.</strong></li>
+                    <li>보안은 세게 걸수록 좋은 것이 아니라 <strong>지킬 것에 맞게 거는</strong> 것이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">어떻게 뚫리는가</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>기계의 빈틈으로 들어오는 <strong>해킹</strong>, 사람을 속이는
+                        <strong>피싱</strong>(문자로 하면 스미싱).
+                    </li>
+                    <li>빈틈은 대개 새 버전에서 막힌다. <strong>갱신을 미루는 것이 문을 열어 두는 일</strong>이다.</li>
+                    <li>약한 고리는 대개 사람 쪽이다. <strong>재촉 &middot; 누르라는 주소 &middot;
+                        조금 다른 주소</strong>가 신호다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-slate-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">지키는 방법</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>암호화 &middot; 접근 제어 &middot; 본인 확인 &middot; 방화벽 &middot; 백신
+                        &middot; 백업을 <strong>여러 겹으로</strong> 겹쳐 둔다.
+                    </li>
+                    <li>비밀번호는 <strong>경우의 수</strong>가 핵심이다. 길수록 다 해 보기가 어려워진다.</li>
+                    <li>여러 곳에 <strong>같은 비밀번호를 쓰지 않는 것</strong>이 길이만큼 중요하다.</li>
+                    <li>생체 인식은 편하지만 <strong>새어도 바꿀 수 없다.</strong></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「학교 성적 처리 시스템이 시험 기간 내내 접속되지 않았다」 &mdash; 깨진 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '내용이 남에게 새어 나간 것은 아닙니다. 기밀성은 지켜졌습니다.')">
+                    ① 기밀성
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '내용이 바뀐 것은 아닙니다. 무결성은 지켜졌습니다.')">
+                    ② 무결성
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 필요한 때에 쓸 수 없었으니 가용성이 깨진 것입니다. 새지 않았어도 이것 역시 보안 사고입니다.')">
+                    ③ 가용성
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '단순한 고장이라도 필요할 때 쓸 수 없었다면 보안에서 다루는 문제입니다.')">
+                    ④ 셋 다 아니다. 보안과 무관한 고장이다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    보안을 <strong>무조건 세게 거는 것이 답이 아닌</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 드는 것도 사실이지만, 더 근본적인 까닭이 있습니다.')">
+                    ① 보안 장비를 갖추는 데 값이 많이 들어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 기밀성을 끝까지 올리면 가용성이 내려갑니다. 정작 주인이 못 쓰는 일이 생깁니다.')">
+                    ② 하나를 끝까지 올리면 다른 하나가 내려가기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어차피 뚫린다는 뜻이 아닙니다. 겹겹이 걸면 실제로 훨씬 안전해집니다.')">
+                    ③ 어차피 뚫릴 것이라 소용이 없어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '법으로 정해진 상한 때문이 아닙니다. 세 요소가 서로 부딪히기 때문입니다.')">
+                    ④ 법으로 정해진 한도를 넘을 수 없어서
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「택배 주소를 확인하라」는 문자의 주소를 눌렀더니 알 수 없는 프로그램이 깔렸습니다.
+                    이 수법은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 믿을 만한 곳인 척해 스스로 열게 만드는 것이 피싱이고, 문자로 하는 것을 스미싱이라 합니다.')">
+                    ① 스미싱
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '접근 제어는 누가 무엇을 볼 수 있는지 정해 두는 지키는 쪽 방법입니다.')">
+                    ② 접근 제어
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '백업은 따로 한 벌 복사해 두는 것으로, 공격 수법이 아닙니다.')">
+                    ③ 백업
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '방화벽은 드나드는 통신을 살펴 막는 장치입니다. 공격 수법이 아닙니다.')">
+                    ④ 방화벽
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    비밀번호에 대한 설명으로 <strong>가장 알맞은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '외우기 쉬운 것은 대개 남도 짐작하기 쉽습니다. 생일이나 전화번호가 그렇습니다.')">
+                    ① 외우기 쉬운 것으로 정하는 것이 가장 중요하다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 곳에서 새면 같은 것을 쓴 나머지가 통째로 함께 열립니다. 아무리 길어도 소용이 없습니다.')">
+                    ② 아주 길게 만들었다면 여러 곳에 같은 것을 써도 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 자리와 글자 종류를 늘리면 다 해 보는 데 걸리는 시간이 가파르게 늘어납니다.')">
+                    ③ 길고 쓰는 글자의 종류가 많을수록 다 해 보기가 어려워진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '생체 인식은 편하지만 새어 나가도 바꿀 수 없다는 약점이 있습니다. 무조건 낫다고 할 수 없습니다.')">
+                    ④ 지문을 쓰면 어떤 경우에도 비밀번호보다 안전하다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

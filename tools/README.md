@@ -130,7 +130,7 @@ node tools/docx/build.js         # 저장소 어디서든 실행 가능
 출력 루트는 `DOCX_OUT_ROOT`로 바꿀 수 있다. 배포 빌드가 `dist/` 안으로 바로 뽑을 때 쓴다.
 
 ```bash
-DOCX_OUT_ROOT=dist-pages node tools/docx/build.js   # dist-pages/templates/py/… 로 나간다
+DOCX_OUT_ROOT=dist node tools/docx/build.js   # dist/templates/py/… 로 나간다
 ```
 
 | 파일 | 역할 |

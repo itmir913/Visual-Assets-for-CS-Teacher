@@ -4,18 +4,21 @@
 읽기: 레포 소스(HTML)만 읽는다.
 쓰기: --out(기본 dist/)에만 쓴다. 소스 트리에는 절대 쓰지 않는다.
 
+배포 산출물은 하나뿐이다. offline 프로필로 구운 것을 Pages와 릴리즈 zip에 똑같이 쓴다.
+따로 만들던 시절에는 zip을 아무도 열어 보지 않아 결함이 그쪽에만 조용히 쌓였다.
+
 프로필 둘:
-    online   GitHub Pages용. CDN 참조를 그대로 둔다. 학교는 온라인 환경이므로
-             이쪽이 기본 배포다. Tailwind CSS를 굽지 않아 빠르다.
-    offline  릴리즈 zip용. CDN 자산을 전부 로컬 파일로 바꾼다.
+    offline  기본이자 배포되는 것. CDN 자산을 전부 로컬 파일로 바꾼다.
+    online   **로컬 미리보기 전용.** CDN 참조를 그대로 두고 Tailwind를 굽지 않아
+             8초면 끝난다. 작성 중 빠르게 확인할 때만 쓰고, 배포에는 쓰지 않는다.
 
 어느 프로필이든 배부용 .docx는 tools/docx/의 생성기를 돌려 --out 안에 새로 만든다.
 저장소에 커밋된 .docx를 복사하지 않는다 — 생성물이 스크립트와 어긋나는 것을 막기 위함이다.
 
 사용법:
-    python .github/scripts/build_site.py --profile online  --out dist-pages
-    python .github/scripts/build_site.py --profile offline --out dist-offline
-    python .github/scripts/build_site.py --only <상대경로>   # 파일 하나만 (파일럿·디버그용)
+    python .github/scripts/build_site.py --out dist              # 배포와 같은 빌드
+    python .github/scripts/build_site.py --profile online --out dist-preview
+    python .github/scripts/build_site.py --only <상대경로>        # 파일 하나만 (파일럿·디버그용)
 
 전제:
     - node가 있어야 한다. .docx 생성에는 tools/docx/의 npm 의존성이 필요하다
@@ -317,7 +320,7 @@ def main() -> int:
     parser.add_argument("--only", help="이 상대경로 파일 하나만 빌드 (파일럿·디버그용)")
     parser.add_argument(
         "--profile", choices=["online", "offline"], default="offline",
-        help="online=CDN 유지(Pages) / offline=CDN 로컬화(zip). 기본 offline",
+        help="offline=CDN 로컬화, 배포되는 것(기본) / online=CDN 유지, 로컬 미리보기 전용",
     )
     parser.add_argument("--skip-docx", action="store_true", help="배부용 .docx 생성을 건너뛴다")
     args = parser.parse_args()

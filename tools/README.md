@@ -233,7 +233,8 @@ npm run check:stale -- 3.1.0..HEAD     # 범위를 준다
 
 ## `extract_prose.py`
 
-HTML의 83%는 Tailwind 클래스와 SVG 좌표다. 서술만 보려면 이걸로 뽑는다.
+HTML의 대부분은 Tailwind 클래스와 SVG 좌표다. 서술만 보려면 이걸로 뽑는다.
+**얼마나 줄어드는지는 `--stats`가 재 준다** — 파일마다 다르므로 짐작하지 않는다.
 
 - `h1`/`h2`/`h3`를 **섹션 id와 함께** 마크다운 제목으로 남겨 위치를 짚어 회신할 수 있다.
 - `head`/`style`/`script`는 버리고, SVG는 `aria-label`만 `[그림] …`으로,

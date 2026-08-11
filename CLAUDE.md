@@ -59,6 +59,9 @@
     파일을 다 쓴 뒤 한 번만 재고 보고한다. 섹션 화면수와 가로 넘침은
     `check_html.py`로 못 잡고, 특히 **flex 자식 안의 표가 페이지를 넘치는 것은
     실측에서만** 드러난다. 파일당 1회를 넘겨 반복해서 띄우지는 않는다.
+  - **실측 대상은 소스가 아니라 `dist/`다.** 소스는 CDN 판이라 배포본과 다를 수 있다.
+    `python .github/scripts/build_site.py --only "<파일>" --out dist`로 구운 뒤 그쪽을 잰다
+    → [`tools/README.md`](tools/README.md)의 「미리보기」.
 
 ---
 

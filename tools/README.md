@@ -118,6 +118,44 @@ HTML의 83%는 Tailwind 클래스와 SVG 좌표다. 서술만 보려면 이걸�
   `<summary>`는 `[접기] …`로 남긴다.
 - 읽을 때는 `limit`을 파일 줄 수보다 크게 줘서 **한 번에** 읽는다. 나눠 읽으면 토큰이 몇 배가 된다.
 
+## 미리보기 — 소스가 아니라 `dist/`를 연다
+
+배포되는 것은 `.github/scripts/build_site.py`가 구운 번들이다. **소스를 열면 CDN 판이라
+배포본과 다를 수 있다.** 375px 실측처럼 눈으로 재는 일은 반드시 `dist/` 쪽에서 한다.
+
+```
+IntelliJ 기본 웹서버 그대로 쓴다. 여는 주소만 바뀐다.
+  http://localhost:63342/_Visual_Assets/dist/정보(고등학교)/1-1-1.….html
+```
+
+`dist/`는 gitignore돼 있어 커밋에 섞이지 않는다.
+
+```bash
+python .github/scripts/build_site.py --watch --out dist       # 저장하면 그 파일만 다시 굽는다
+python .github/scripts/build_site.py --only "<상대경로>" --out dist
+python .github/scripts/build_site.py --out dist               # 전체, 배포와 같은 것
+```
+
+`--watch`는 표준 라이브러리만 쓴다. 시작할 때 **밀린 파일만** 먼저 굽고, 그 뒤로는 저장된
+파일 하나를 약 3~4초에 다시 굽는다. 프로필도 배포와 같은 것이라 **보이는 것이 곧 배포본**이다.
+
+### 실행 구성은 `.run/`에 있다
+
+`.idea/`는 gitignore라 실행 구성이 공유되지 않는다. IntelliJ는 `.run/`의 XML도
+실행 구성으로 읽으므로 그쪽에 둔다. Run 드롭다운에 바로 뜬다.
+
+| 구성 | 하는 일 |
+|---|---|
+| 미리보기 · 감시 (저장하면 자동) | `--watch`. 켜 두고 작업한다 |
+| 미리보기 · 현재 파일 | 열어 둔 파일 하나만 다시 굽는다 |
+| 미리보기 · 전체 (빠름, CDN 유지) | 146개를 훑어볼 때만. **배포본과 다르다** |
+| 배포와 같은 빌드 (전체) | 최종 확인용 |
+| 검사 · 현재 파일 | `check_html.py` |
+| 검사 · 런타임 조립 클래스 | `check_dynamic_classes.py` |
+
+「현재 파일」계열은 `$FilePathRelativeToProjectRoot$` 매크로를 쓴다 — 편집기에서 보고 있는
+파일이 그대로 대상이 된다.
+
 ## 배부 문서 생성기 — `docx/`
 
 학생에게 나눠 주는 보고서 양식 `.docx`를 만든다. node와 `docx` 패키지가 필요하다.

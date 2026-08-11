@@ -34,6 +34,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -314,6 +315,62 @@ def build_one(src_html: Path, dist_root: Path, assets_dir: Path, localize: bool 
     return unsupported
 
 
+def stale_files(files: list[Path], dist_root: Path) -> list[Path]:
+    """dist 쪽 결과가 없거나 소스보다 오래된 파일만 추린다."""
+    out = []
+    for f in files:
+        dest = dist_root / f.relative_to(REPO_ROOT)
+        if not dest.exists() or dest.stat().st_mtime_ns < f.stat().st_mtime_ns:
+            out.append(f)
+    return out
+
+
+def watch(dist_root: Path, assets_dir: Path, localize: bool, skip_docx: bool) -> int:
+    """소스를 지켜보다 바뀐 파일만 다시 굽는다. 표준 라이브러리만 쓴다.
+
+    IntelliJ 기본 웹서버로 dist/를 열어 두고 쓰는 것을 전제로 한다.
+    저장 → 그 파일만 재빌드 → 브라우저 새로 고침.
+    """
+    if not skip_docx and not any(dist_root.rglob("*.docx")):
+        log("배부용 .docx가 없어 먼저 만든다")
+        build_templates(dist_root)
+
+    files = discover_html_files()
+    todo = stale_files(files, dist_root)
+    if todo:
+        log(f"밀린 파일 {len(todo)}개를 먼저 빌드한다")
+        for i, f in enumerate(todo, 1):
+            log(f"({i}/{len(todo)}) {f.relative_to(REPO_ROOT)}")
+            try:
+                build_one(f, dist_root, assets_dir, localize=localize)
+            except Exception as e:
+                log(f"  실패: {e}")
+
+    stamps = {f: f.stat().st_mtime_ns for f in files if f.exists()}
+    log(f"감시 시작 — {len(stamps)}개 파일. 멈추려면 Ctrl+C")
+    try:
+        while True:
+            time.sleep(0.7)
+            for f in discover_html_files():
+                try:
+                    m = f.stat().st_mtime_ns
+                except OSError:
+                    continue
+                if stamps.get(f) == m:
+                    continue
+                stamps[f] = m
+                rel = f.relative_to(REPO_ROOT)
+                started = time.monotonic()
+                try:
+                    build_one(f, dist_root, assets_dir, localize=localize)
+                    log(f"다시 빌드: {rel}  ({time.monotonic() - started:.1f}초)")
+                except Exception as e:
+                    log(f"빌드 실패: {rel} — {e}")
+    except KeyboardInterrupt:
+        log("감시를 멈춘다")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(REPO_ROOT / "dist"), help="출력 루트 (기본 dist/)")
@@ -323,6 +380,10 @@ def main() -> int:
         help="offline=CDN 로컬화, 배포되는 것(기본) / online=CDN 유지, 로컬 미리보기 전용",
     )
     parser.add_argument("--skip-docx", action="store_true", help="배부용 .docx 생성을 건너뛴다")
+    parser.add_argument(
+        "--watch", action="store_true",
+        help="소스를 지켜보다 바뀐 파일만 다시 굽는다 (작성 중 미리보기용)",
+    )
     args = parser.parse_args()
 
     localize = args.profile == "offline"
@@ -332,6 +393,9 @@ def main() -> int:
     # 나눠서, 워크플로가 cdn/ 통째로 캐싱할 수 있게 한다. dist 루트에는 여전히 assets/
     # 하나만 자동 생성된다.
     assets_dir = dist_root / "assets" / "cdn"
+
+    if args.watch:
+        return watch(dist_root, assets_dir, localize, args.skip_docx)
 
     if args.only:
         files = [REPO_ROOT / args.only]

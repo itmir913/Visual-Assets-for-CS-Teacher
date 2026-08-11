@@ -26,11 +26,11 @@
 | `dist/templates/py`·`c` | 프로그래밍 배부 양식이 나가는 **옛 자리.** 소스에는 없고 빌드만 만든다. 강의노트 15개가 이 URL을 링크한다 — C·Python 통합 때 위 규칙으로 옮긴다 |
 | `tools/` | 점검 스크립트와 배부 양식 생성기 |
 | `subjects.json` | **어떤 과목이 있는지 정하는 유일한 곳.** 파이썬과 Vite가 함께 읽는다 |
-| `vite.config.js` | 빌드 조립기. 하는 일은 `build/`에 나뉘어 있다 |
+| `vite.config.js` | **빌드 설정은 이 파일 하나다.** 조립만 하고 하는 일은 `build/`에 나뉘어 있다. CSS 파이프라인(Tailwind·autoprefixer)도 여기 접어 넣었다 — 별도 `postcss.config.js`를 두지 않는다 |
 | `build/` | Vite 빌드 플러그인. 하는 일마다 파일 하나 |
 | `src/styles/<단위>.css` | 단위별 스타일 진입점. HTML이 이것 하나를 링크한다 |
 | `src/entries/<페이지>.js` | **페이지별** 라이브러리 진입점. 그 페이지가 쓰는 것만 담는다 |
-| `tailwind/<단위>.config.js` | 단위별 Tailwind 설정(`content`를 그 단위로 좁힌다) |
+| `src/tailwind/<단위>.config.js` | 단위별 Tailwind 설정(`content`를 그 단위로 좁힌다). `base.config.js`는 의존 패키지 CSS가 지나갈 때의 기본값 |
 | `public/` | **이름이 그대로여야 하는 파일**만. 지금은 MathJax 글꼴뿐. 저장소에 담지 않는다 |
 | `.github/workflows/` | 배포 워크플로 |
 | `.idea/runConfigurations/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |

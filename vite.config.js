@@ -4,10 +4,14 @@
 // 그 CSS가 Tailwind와 글꼴·아이콘을 npm에서 `@import` 한다. Vite가 글꼴 파일까지 함께
 // 묶어 해시된 자산으로 내보낸다.
 //
-// 전역으로 쓰는 JS 라이브러리(`Prism`·`lucide`·`Chart` …)만 `public/vendor/`에서
-// 클래식 스크립트로 부른다. 모듈로 바꾸면 defer라 body 끝의 인라인 스크립트보다
-// 늦게 실행되어 48개 파일이 깨진다 → build/vendor-public.js
+// JS 라이브러리는 **페이지별 진입점(`src/entries/`)에서 import** 한다. 전역으로 쓰는
+// 것이면 거기서 `window`에 얹는다. `public/`에 남는 것은 MathJax 글꼴뿐이다 —
+// 실행 중에 이름을 조립해 받아오므로 해시된 자산으로 바꾸면 못 찾는다.
 //
+// **모듈은 defer라 body 끝의 인라인 스크립트보다 늦게 돈다.** 인라인이 최상위에서
+// 라이브러리를 바로 부르면 ReferenceError로 죽고 기다려도 낫지 않는다 → load 핸들러로 감싼다.
+//
+// **빌드 설정은 이 파일 하나다.** CSS 파이프라인도 여기 있고 postcss.config.js는 두지 않는다.
 // 이 파일은 **조립만** 한다. 실제로 하는 일은 build/ 밑에 하나씩 나뉘어 있다.
 //
 //   build/units.js               무엇을 굽는가 (subjects.json을 읽는다)
@@ -16,6 +20,9 @@
 //   build/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
 //   build/strip-crossorigin.js   원본에 없던 속성 제거
 import { resolve } from 'node:path';
+
+import autoprefixer from 'autoprefixer';
+import tailwindcss from 'tailwindcss';
 
 import { ROOT, UNITS } from './build/units.js';
 import injectCode from './build/inject-code.js';
@@ -44,6 +51,13 @@ export default {
     base: './',
     // 포트를 못 박지 않는다. 다른 것이 쓰고 있으면 환경변수로 넘겨받는다.
     server: { port: Number(process.env.PORT) || 5173 },
+    // CSS 파이프라인. 별도 postcss.config.js를 두지 않는다 — 빌드 설정은 이 파일 하나다.
+    // 단위별 설정은 각 CSS가 @config 로 자기 것을 가리키므로 여기 base는 기본값일 뿐이다.
+    css: {
+        postcss: {
+            plugins: [tailwindcss({ config: resolve(ROOT, 'src/tailwind/base.config.js') }), autoprefixer()],
+        },
+    },
     plugins: [
         // 코드 주입이 먼저다 — 넣은 코드가 나중 단계의 치환에 걸리지 않도록.
         injectCode(),

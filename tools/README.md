@@ -13,7 +13,14 @@
 | `check_code.py` | 강의노트가 끌어다 쓰는 `.py`·`.c`의 구문 오류 + `data-src` 마커 해석 | **코드 파일을 고칠 때마다** |
 | `check_dist.py` | **산출물** 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 | 배포 전. `npm run ci`가 부른다 |
 | `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
+| `audit_svg_maxwidth.py` | 데스크톱에서 글자가 한없이 커지는 SVG 검출 | 도해를 넣거나 고쳤을 때 |
 | `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
+| `subjects.py` | 스크립트가 아니라 **데이터** — 어떤 과목이 있는지 정하는 유일한 곳 | 새 과목을 만들 때 |
+
+**`subjects.py`가 검사 대상의 단일 출처다.** 예전에는 과목 목록이 빌드와 두 감사 도구에
+따로 박혀 있었고 셋이 서로 달랐다. 「정보(고등학교)」가 빌드 쪽에만 들어가 있어서
+**25개 파일이 두 감사에서 통째로 빠진 채** 한동안 남아 있었다 — 그 파일들에는
+검사를 통과했다는 말이 아무 의미가 없었다.
 
 ## 명령은 `package.json`에 못박혀 있다
 
@@ -31,6 +38,14 @@
 | `npm run preview` | `--watch`. 켜 두고 작업한다 |
 | `npm run build:fast` | CDN 유지, 훑어보기용. **배포본과 다르다** |
 | `npm run docx` | 배부용 `.docx`만 다시 만든다 |
+| `npm run check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
+| `npm run audit:pre` | `<pre>` 가로 넘침 방어 감사 |
+| `npm run audit:svg` | 데스크톱에서 글자가 한없이 커지는 SVG 감사 |
+| `npm run prose -- <글롭>` | 서술만 뽑기 |
+| `npm run check:inject` | 코드 주입기 자체 검사 |
+| `npm run setup:venv` | `.venv` 만들기 (IntelliJ 실행 구성용) |
+
+**인자를 받는 것은 `--` 뒤에 넘긴다.** 앞에 두면 npm이 자기 것으로 가져간다.
 
 검사 스크립트는 표준 라이브러리만 쓰므로 **venv 없이도 돈다.** `npm run setup`이 필요한
 것은 node 쪽뿐이다.
@@ -38,28 +53,28 @@
 `check_dist.py`는 **배포 빌드 결과에만** 쓴다. `build:fast`는 CDN을 일부러 남기므로
 그 결과에 돌리면 CDN 잔존으로 걸린다.
 
-`check_html.py`는 파일 단위로 쓰는 도구라 여기 없다 — 아래 「사용」을 볼 것.
-
 ## 사용
 
 `check_html.py`는 **검사 대상을 파일 안에 적어 둔다.** 지금 손대는 파일만 `TARGETS`에 남기면
-`python tools/check_html.py`만 쳐도 그것만 돈다. 끝난 파일은 지운다 —
+`npm run check:html`만 쳐도 그것만 돈다. 끝난 파일은 지운다 —
 **과거 파일이 계속 결과에 섞이지 않게 하는 것이 이 배열의 목적이다.**
 
 ```python
 # tools/check_html.py 윗부분
 TARGETS = [
-    "인공지능기초/1-1-2.인공지능의-원리.html",
+    "정보(고등학교)/1-1-1.네트워크란-무엇인가.html",
 ]
 ```
 
 ```bash
-python tools/check_html.py                            # TARGETS만
-python tools/check_html.py 인공지능기초/1-1-1.*.html   # 인자를 주면 인자가 우선
-python tools/audit_pre.py
-python tools/extract_prose.py "데이터과학/1-*.html" --stats
-python tools/extract_prose.py "인공지능기초/2-1-*.html" -o 본문.md
+npm run check:html                                  # TARGETS만
+npm run check:html -- "인공지능기초/1-1-1.*.html"    # 인자를 주면 인자가 우선
+npm run audit:pre
+npm run prose -- "데이터과학/1-*.html" --stats
+npm run prose -- "인공지능기초/2-1-*.html" -o 본문.md
 ```
+
+인자는 `--` **뒤에** 붙인다. 앞에 두면 npm이 자기 것으로 가져간다.
 
 글롭은 **여러 개를 이어서** 줄 수 있다(`"…/3-1-*.html" "…/3-2-*.html"`).
 경로는 현재 디렉터리 → 저장소 루트 순으로 찾으므로 어디서 실행해도 된다.
@@ -113,8 +128,8 @@ python tools/extract_prose.py "인공지능기초/2-1-*.html" -o 본문.md
 리터럴로 또 있어서 살아남은 것뿐이다.
 
 ```bash
-python tools/check_dynamic_classes.py                 # 저장소 전체
-python tools/check_dynamic_classes.py "정보*/*.html"   # 글롭도 된다
+npm run check:classes                          # 저장소 전체
+npm run check:classes -- "정보*/*.html"          # 글롭도 된다
 ```
 
 배포 워크플로가 빌드 전에 이 검사를 돌린다. 위반이 있으면 종료 코드 1.
@@ -211,11 +226,11 @@ int main(void) {
 구역으로 일부만 뽑아 쓰면, 구문 검사도 받고 학생에게 통째로 줄 수도 있다.
 
 ```bash
-python tools/check_code.py
+npm run check:code
 ```
 
 `.c` 검사에는 `gcc`가 필요하다. 없으면 건너뛰되 CI에서는 검사된다.
-`python .github/scripts/inject_code.py --self-test`로 주입기 자체를 확인할 수 있다.
+`npm run check:inject`로 주입기 자체를 확인할 수 있다.
 
 ### 복사 버튼 — 위임 리스너 하나로
 
@@ -264,9 +279,9 @@ IntelliJ 기본 웹서버 그대로 쓴다. 여는 주소만 바뀐다.
 `dist/`는 gitignore돼 있어 커밋에 섞이지 않는다.
 
 ```bash
-python .github/scripts/build_site.py --watch --out dist       # 저장하면 그 파일만 다시 굽는다
-python .github/scripts/build_site.py --only "<상대경로>" --out dist
-python .github/scripts/build_site.py --out dist               # 전체, 배포와 같은 것
+npm run preview                       # 저장하면 그 파일만 다시 굽는다
+npm run build:one -- "<상대경로>"       # 파일 하나만
+npm run build                         # 전체, 배포와 같은 것
 ```
 
 `--watch`는 표준 라이브러리만 쓴다. 시작할 때 **밀린 파일만** 먼저 굽고, 그 뒤로는 저장된
@@ -303,7 +318,7 @@ python .github/scripts/build_site.py --out dist               # 전체, 배포�
 **Run 드롭다운의 「최초 설정 · venv 만들기」를 한 번 돌리면** 끝이다. 같은 일을 손으로 하려면
 
 ```bash
-python -m venv .venv              # pip 포함, 약 1분
+npm run setup:venv               # pip 포함, 약 1분
 python -m venv --without-pip .venv  # 약 3초. 이 저장소는 이걸로 충분하다
 ```
 
@@ -319,14 +334,14 @@ python -m venv --without-pip .venv  # 약 3초. 이 저장소는 이걸로 충�
 학생에게 나눠 주는 보고서 양식 `.docx`를 만든다. node와 `docx` 패키지가 필요하다.
 
 ```bash
-cd tools/docx && npm ci          # 최초 1회. 락파일이 추적되므로 install이 아니라 ci
-node tools/docx/build.js         # 저장소 어디서든 실행 가능
+npm run setup                    # 최초 1회. 락파일이 추적되므로 install이 아니라 ci
+npm run docx                     # 저장소 어디서든 실행 가능
 ```
 
 출력 루트는 `DOCX_OUT_ROOT`로 바꿀 수 있다. 배포 빌드가 `dist/` 안으로 바로 뽑을 때 쓴다.
 
 ```bash
-DOCX_OUT_ROOT=dist node tools/docx/build.js   # dist/templates/py/… 로 나간다
+DOCX_OUT_ROOT=dist npm run docx   # dist/templates/py/… 로 나간다
 ```
 
 | 파일 | 역할 |

@@ -4,8 +4,8 @@
 배포 빌드가 매번 새로 만든다.
 
 ```bash
-cd tools/docx && npm ci     # 최초 1회
-node tools/docx/build.js    # 저장소 어디서든
+npm run setup     # 최초 1회 (docx 생성기 + tailwindcss)
+npm run docx      # 저장소 어디서든
 ```
 
 ## 구조
@@ -61,7 +61,7 @@ makeDocument({
 ### 3. 돌려서 확인한다
 
 ```bash
-node tools/docx/build.js
+npm run docx
 ```
 
 **산출물은 커밋하지 않는다.** `.gitignore`가 `**/docx/`를 통째로 무시한다.
@@ -87,7 +87,7 @@ const DEST = {
 출력 루트는 `DOCX_OUT_ROOT`로 바꿀 수 있다. 배포 빌드가 이걸로 `dist/` 안에 뽑는다.
 
 ```bash
-DOCX_OUT_ROOT=dist node tools/docx/build.js   # dist/인공지능기초/ai-projects/docx/…
+DOCX_OUT_ROOT=dist npm run docx   # dist/인공지능기초/ai-projects/docx/…
 ```
 
 ---

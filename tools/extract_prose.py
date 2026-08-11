@@ -11,7 +11,7 @@
 그래서 h1/h2/h3와 section id를 마크다운 제목으로 살려 둔다.
 
 사용법
-    python .git/작업도구/extract_prose.py 데이터과학/3-2-*.html
+    npm run prose -- "데이터과학/3-2-*.html"
     python .git/작업도구/extract_prose.py 인공지능기초/*.html -o out.md
     python .git/작업도구/extract_prose.py 데이터과학/*.html --stats   # 크기만 보고 싶을 때
 

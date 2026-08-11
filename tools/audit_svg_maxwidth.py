@@ -17,6 +17,10 @@ import re
 import sys
 import glob
 from html.parser import HTMLParser
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from subjects import html_files  # noqa: E402
 
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
         "link", "meta", "param", "source", "track", "wbr"}
@@ -86,12 +90,15 @@ def scan_file(path):
 
 
 def main():
-    targets = sys.argv[1:] or ["인공지능기초", "데이터과학", "프로그래밍(Python)",
-                                "프로그래밍(C)", "simulator"]
-    files = []
-    for t in targets:
-        files += glob.glob(f"{t}/**/*.html", recursive=True)
-    files = sorted(set(files))
+    if sys.argv[1:]:
+        files = []
+        for t in sys.argv[1:]:
+            files += glob.glob(f"{t}/**/*.html", recursive=True)
+        files = sorted(set(files))
+    else:
+        # 과목 목록은 tools/subjects.py가 혼자 정한다. 여기 따로 적어 두었을 때
+        # 「정보(고등학교)」가 빠진 채로 남아 검사 대상에서 통째로 새어 나갔다.
+        files = [str(p) for p in html_files()]
 
     total_files = 0
     total_svgs = 0

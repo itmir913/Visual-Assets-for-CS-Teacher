@@ -44,8 +44,10 @@ from inject_code import inject as inject_code, markers as code_markers
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-TARGET_DIRS = ["인공지능기초", "데이터과학", "정보(고등학교)", "프로그래밍(Python)", "프로그래밍(C)", "simulator/ai"]
-TARGET_FILES = ["index.html"]
+# 어떤 과목이 있는지는 tools/subjects.py가 혼자 정한다. 빌드와 검사가 같은 목록을
+# 봐야 하기 때문이다 — 따로 두었을 때 「정보(고등학교)」가 검사 쪽에만 빠져 있었다.
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+from subjects import DIRS as TARGET_DIRS, FILES as TARGET_FILES  # noqa: E402
 
 # 배부용 .docx 생성기. 출력 위치는 생성기 쪽 outpath.js의 DEST 표가 정하고,
 # 출력 루트만 DOCX_OUT_ROOT로 dist 안으로 돌린다.

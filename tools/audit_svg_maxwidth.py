@@ -25,6 +25,16 @@ from subjects import html_files  # noqa: E402
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
         "link", "meta", "param", "source", "track", "wbr"}
 
+# Tailwind의 폭 천장 클래스. max-w-full·max-w-none은 천장 구실을 못 하므로 뺀다.
+# 끝에 \b를 쓰면 안 된다 — `max-w-[200px]`는 `]` 다음이 공백이라 경계가 서지 않아
+# 통째로 안 잡힌다. 대신 클래스 구분자가 오는지를 본다.
+MAXW_CLASS_RE = re.compile(
+    r"(?:^|\s)max-w-(?:\[[^\]]+\]|xs|sm|md|lg|\d?xl|screen-\w+|prose|fit|min|max)(?=\s|$)"
+)
+
+# 폭·높이가 값으로 박혀 있으면(%가 아니면) 아예 늘어나지 않는다.
+FIXED_LEN_RE = re.compile(r"^\s*[\d.]+\s*(px)?\s*$")
+
 
 class SvgScanner(HTMLParser):
     def __init__(self):
@@ -53,10 +63,10 @@ class SvgScanner(HTMLParser):
                 node = self.stack[i]
                 del self.stack[i:]
                 if tag == "svg" and self._svg_has_text.get(id(node)):
-                    self._check_svg(node)
+                    self._check_svg(node, self.stack[:])
                 return
 
-    def _check_svg(self, node):
+    def _check_svg(self, node, ancestors):
         _, line, a = node
         vb = a.get("viewBox") or a.get("viewbox")
         if not vb:
@@ -68,14 +78,51 @@ class SvgScanner(HTMLParser):
             vb_w = float(parts[2])
         except ValueError:
             return
+
         style = a.get("style") or ""
-        has_max = re.search(r"max-width\s*:", style) is not None
+        cls = a.get("class") or ""
+
+        # 글자가 한없이 커지지 않게 막는 방법은 폭 천장만이 아니다.
+        # 높이가 묶여도 preserveAspectRatio 때문에 확대 배율이 함께 묶인다.
+        # 폭을 묶는 것과 높이를 묶는 것을 구분한다. 높이로 묶으면 그림은 편지지처럼
+        # 남는 자리가 생기는데, preserveAspectRatio 기본값이 그것을 이미 가운데 놓는다.
+        # 그래서 가운데 정렬을 따로 챙겨야 하는 것은 **폭 천장이 있을 때뿐**이다.
+        why = width_capped = None
+        if FIXED_LEN_RE.match(a.get("width") or ""):
+            why = width_capped = "width 속성 고정"
+        elif re.search(r"max-width\s*:", style):
+            why = width_capped = "style max-width"
+        elif MAXW_CLASS_RE.search(cls):
+            why = width_capped = f"Tailwind {MAXW_CLASS_RE.search(cls).group(0).strip()}"
+        elif FIXED_LEN_RE.match(a.get("height") or ""):
+            why = "height 속성 고정"
+        elif re.search(r"max-height\s*:", style):
+            why = "style max-height"
+        elif "h-full" in cls.split() or re.search(r"\bheight\s*:", style):
+            # 높이가 고정된 조상 안에서 h-full이면 배율이 그 높이로 묶인다.
+            for _t, _l, pa in ancestors:
+                if re.search(r"\bheight\s*:\s*[\d.]+(px|rem|vh)", pa.get("style") or ""):
+                    why = "높이 고정 조상"
+                    break
+
         m = re.search(r"min-width\s*:\s*([\d.]+)(px|rem)", style)
-        min_w = None
-        if m:
-            min_w = float(m.group(1)) * (1.0 if m.group(2) == "px" else 16.0)
-        if not has_max:
-            self.flagged.append((line, vb_w, min_w))
+        min_w = float(m.group(1)) * (1.0 if m.group(2) == "px" else 16.0) if m else None
+
+        if why:
+            if not width_capped:
+                return
+            # 폭 천장은 있는데 가운데 정렬이 없으면 좁아진 그림이 왼쪽에 붙는다.
+            centered = ("mx-auto" in cls.split()
+                        or re.search(r"margin\s*:\s*[^;]*auto|margin-inline\s*:", style)
+                        or any("items-center" in (pa.get("class") or "")
+                               or "justify-center" in (pa.get("class") or "")
+                               or "text-center" in (pa.get("class") or "")
+                               for _t, _l, pa in ancestors[-3:]))
+            if not centered:
+                self.flagged.append((line, vb_w, min_w, "정렬", why))
+            return
+
+        self.flagged.append((line, vb_w, min_w, "천장", None))
 
 
 def scan_file(path):
@@ -101,19 +148,29 @@ def main():
         files = [str(p) for p in html_files()]
 
     total_files = 0
-    total_svgs = 0
+    counts = {"천장": 0, "정렬": 0}
     for f in files:
         flagged = scan_file(f)
         if not flagged:
             continue
         total_files += 1
-        total_svgs += len(flagged)
         print(f"\n=== {f} ===")
-        for line, vb_w, min_w in flagged:
+        for line, vb_w, min_w, kind, why in flagged:
+            counts[kind] += 1
             minw_s = f"{min_w:g}px" if min_w is not None else "없음"
-            print(f"  {line}행: viewBox 폭 {vb_w:g}, min-width={minw_s}, max-width 없음")
+            if kind == "천장":
+                print(f"  {line}행: [천장 없음] viewBox 폭 {vb_w:g}, min-width={minw_s}"
+                      f" — 화면이 넓어질수록 글자가 계속 커진다")
+            else:
+                print(f"  {line}행: [가운데 정렬 없음] viewBox 폭 {vb_w:g}, 천장={why}"
+                      f" — 좁아진 그림이 왼쪽에 붙는다")
 
-    print(f"\n--- {len(files)}개 파일 검사, {total_files}개 파일에 max-width 없는 글자 SVG 총 {total_svgs}건 ---")
+    print(f"\n--- {len(files)}개 파일 검사, {total_files}개 파일에서 "
+          f"천장 없음 {counts['천장']}건, 가운데 정렬 없음 {counts['정렬']}건 ---")
+    print("천장은 width·height 속성, style의 max-width·max-height, Tailwind max-w-*,\n"
+          "높이가 고정된 조상 중 하나만 있으면 선 것으로 본다.\n"
+          "가운데 정렬은 **폭 천장이 있을 때만** 따진다 — 높이로 묶인 그림은\n"
+          "preserveAspectRatio 기본값이 이미 가운데 놓는다.")
 
 
 if __name__ == "__main__":

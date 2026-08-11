@@ -190,6 +190,21 @@ table.table-prose { min-width: 32rem; }
 - 마커가 콘텐츠 박스 밖에 그려지므로 **`pl-5` 이상을 반드시 함께 준다.**
 - **학습 목표 번호는 `①②③` 대신 `list-decimal` 자동 번호.**
 
+### 글자가 있는 SVG에는 폭 천장과 가운데 정렬을 함께 준다
+
+`class="w-full"`인 SVG는 부모 폭에 맞춰 늘어나고, `<text font-size>`도 그 비율로 함께 커진다.
+천장이 없으면 **데스크톱·빔프로젝터에서 도해의 글자만 과하게 커진다.**
+
+```html
+<svg class="w-full h-auto max-w-xl mx-auto" viewBox="0 0 520 300" style="min-width:495px">
+```
+
+- 천장은 **viewBox 폭에 가까운 `max-w-*`**로 준다. 배율이 1에 가까워야 의도한 크기로 그려진다.
+- **폭 천장을 주면 `mx-auto`를 반드시 함께 준다.** 없으면 좁아진 그림이 왼쪽에 붙는다.
+- **높이로 묶인 그림(`max-height`, 높이 고정 부모 + `h-full`)에는 정렬을 따로 주지 않는다.**
+  `preserveAspectRatio` 기본값이 이미 가운데 놓는다.
+- `npm run audit:svg`가 둘 다 본다.
+
 ### 코드 요소의 한글 글꼴
 
 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight에 밀린다. `body`를 붙인다.

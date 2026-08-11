@@ -25,9 +25,10 @@
 | `**/docx/` | 배부용 보고서 양식이 **빌드 때 생성되는** 자리. 저장소에 담지 않는다 |
 | `templates/py`·`c` | 프로그래밍 배부 양식의 옛 자리. C·Python 통합 때 위 규칙으로 옮긴다 |
 | `tools/` | 점검 스크립트와 배부 양식 생성기 |
-| `tools/subjects.py` | **어떤 과목이 있는지 정하는 유일한 곳** |
+| `subjects.json` | **어떤 과목이 있는지 정하는 유일한 곳.** 파이썬과 Vite가 함께 읽는다 |
+| `vite.config.js` · `tailwind/` · `src/styles/` | Vite 빌드. 과목마다 Tailwind 설정과 CSS 진입점이 하나씩 |
 | `.github/scripts/` · `.github/workflows/` | 빌드 스크립트와 배포 워크플로 |
-| `.run/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다** (`.idea/`는 gitignore라 공유되지 않는다) |
+| `.idea/runConfigurations/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
 | `package.json` | **명령을 정의하는 유일한 곳** |
 | `docs/` | 근거·절차·리포트 |
 
@@ -36,7 +37,7 @@
 ## 명령은 `package.json`에서만 정의한다
 
 **스크립트 경로를 직접 치지 않는다.** 새 명령이 필요하면 `package.json`에 이름을 붙인다.
-**CI도 `.run/`의 IDE 버튼도 같은 이름을 부른다** — 여기만 고치면 셋이 함께 바뀐다.
+**CI도 IDE 실행 구성도 같은 이름을 부른다** — 여기만 고치면 셋이 함께 바뀐다.
 
 | | |
 |---|---|

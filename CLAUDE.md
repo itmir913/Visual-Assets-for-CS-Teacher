@@ -27,7 +27,7 @@
 | `tools/` | 점검 스크립트와 배부 양식 생성기 |
 | `tools/subjects.py` | **어떤 과목이 있는지 정하는 유일한 곳** |
 | `.github/scripts/` · `.github/workflows/` | 빌드 스크립트와 배포 워크플로 |
-| `.run/` | IntelliJ 실행 구성 (`.idea/`는 gitignore라 공유되지 않는다) |
+| `.run/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다** (`.idea/`는 gitignore라 공유되지 않는다) |
 | `package.json` | **명령을 정의하는 유일한 곳** |
 | `docs/` | 근거·절차·리포트 |
 
@@ -36,6 +36,7 @@
 ## 명령은 `package.json`에서만 정의한다
 
 **스크립트 경로를 직접 치지 않는다.** 새 명령이 필요하면 `package.json`에 이름을 붙인다.
+**CI도 `.run/`의 IDE 버튼도 같은 이름을 부른다** — 여기만 고치면 셋이 함께 바뀐다.
 
 | | |
 |---|---|

@@ -43,7 +43,7 @@
 | `npm run audit:svg` | 데스크톱에서 글자가 한없이 커지는 SVG 감사 |
 | `npm run prose -- <글롭>` | 서술만 뽑기 |
 | `npm run check:inject` | 코드 주입기 자체 검사 |
-| `npm run setup:venv` | `.venv` 만들기 (IntelliJ 실행 구성용) |
+| `npm run setup:venv` | `.venv` 만들기. **실행에는 필요 없다** — IntelliJ 파이썬 코드 지원용 |
 
 **인자를 받는 것은 `--` 뒤에 넘긴다.** 앞에 두면 npm이 자기 것으로 가져간다.
 
@@ -301,33 +301,38 @@ npm run build                         # 전체, 배포와 같은 것
 | 미리보기 · 현재 파일 | 열어 둔 파일 하나만 다시 굽는다 |
 | 미리보기 · 전체 (빠름, CDN 유지) | 146개를 훑어볼 때만. **배포본과 다르다** |
 | 배포와 같은 빌드 (전체) | 최종 확인용 |
-| 검사 · 현재 파일 | `check_html.py` |
-| 검사 · 런타임 조립 클래스 | `check_dynamic_classes.py` |
-| 검사 · 강의노트 코드 | `check_code.py` |
+| 검사 · 현재 파일 | `npm run check:html -- <파일>` |
+| 검사 · 런타임 조립 클래스 | `npm run check:classes` |
+| 검사 · 강의노트 코드 | `npm run check:code` |
+| 검사 · 전체 (CI와 같은 것) | `npm run ci` |
+| 최초 설정 · node 의존성 | `npm run setup` |
+| 최초 설정 · venv 만들기 | `npm run setup:venv` |
+
+**실행 구성은 전부 `npm run`을 부른다**(`js.build_tools.npm` 타입). 무엇을 실제로 돌릴지는
+`package.json`에만 적혀 있으므로, 명령을 고치면 **IDE 버튼도 같이 바뀐다.**
+
+전에는 실행 구성이 `.py`를 직접 부르고 인터프리터를 `.venv/Scripts/python.exe`로 못박아
+두었다. 그래서 **인자와 경로가 `package.json`과 실행 구성 두 곳에 적혀 어긋났고**
+(`build:fast`에 `--skip-docx`가 빠져 있었다), Windows 경로가 박혀 macOS·Linux에서는
+파일마다 고쳐야 했다. npm을 거치면 둘 다 사라진다.
 
 「현재 파일」계열은 `$FilePathRelativeToProjectRoot$` 매크로를 쓴다 — 편집기에서 보고 있는
 파일이 그대로 대상이 된다.
 
-**인터프리터는 `$PROJECT_DIR$/.venv/Scripts/python.exe`로 못 박았다.** 모듈 SDK를
-물려받게 두면 IDE의 SDK 등록이 깨졌을 때 실행 구성이 통째로 안 돈다(실제로 겪었다 —
-`CreateProcess error=2`). 상대 경로라 저장소에 넣어도 기기 경로가 박히지 않는다.
-
 ### 새 컴퓨터에서 clone한 뒤 — 최초 1회
 
-**`.venv`는 git에 없다.** 그래서 clone 직후에는 실행 구성이 위 오류로 죽는다.
-**Run 드롭다운의 「최초 설정 · venv 만들기」를 한 번 돌리면** 끝이다. 같은 일을 손으로 하려면
+Run 드롭다운의 **「최초 설정 · node 의존성」** 하나면 된다(`npm run setup`).
+실행 구성이 IDE의 node 인터프리터를 쓰므로 **`.venv`가 없어도 전부 돈다.**
 
 ```bash
-npm run setup:venv               # pip 포함, 약 1분
-python -m venv --without-pip .venv  # 약 3초. 이 저장소는 이걸로 충분하다
+npm run setup       # docx 생성기 + tailwindcss
 ```
 
-**설치할 패키지는 없다.** 검사 스크립트도 빌드 스크립트도 **표준 라이브러리만** 쓴다.
-`.venv`가 필요한 이유는 의존성이 아니라 IntelliJ가 가리킬 인터프리터가 하나 있어야 해서다.
-그래서 `--without-pip`으로 만들어도 전부 동작한다.
+**파이썬 쪽은 설치할 패키지가 없다.** 검사 스크립트도 빌드 스크립트도 **표준 라이브러리만**
+쓰므로 시스템 `python`으로 그대로 돌아간다.
 
-> **Windows 기준 경로다.** macOS·Linux에서 쓰려면 `.run/*.run.xml`의 `SDK_HOME`을
-> `$PROJECT_DIR$/.venv/bin/python`으로 바꿔야 한다. 실행 구성 하나에 한 줄씩이다.
+`npm run setup:venv`(`.venv` 만들기)는 **IntelliJ의 파이썬 코드 지원용**으로만 남겨 두었다.
+실행에는 필요 없다. `--without-pip`으로 만들어도 충분하다(약 3초).
 
 ## 배부 문서 생성기 — `docx/`
 

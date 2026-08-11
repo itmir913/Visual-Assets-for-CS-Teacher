@@ -20,14 +20,18 @@
 | 경로 | 내용 |
 |---|---|
 | `인공지능기초/` · `데이터과학/` · `정보(고등학교)/` · `프로그래밍(Python)/` · `프로그래밍(C)/` | 강의노트 HTML (`단원번호.제목.html`) |
-| `simulator/ai/` | AI 시뮬레이터 18종 (단일 HTML, 자체 완결형) |
+| `simulator/ai/` | AI 시뮬레이터 18종 |
 | `**/code/` | 강의노트가 끌어다 쓰는 `.py`·`.c` 실파일 |
 | `**/docx/` | 배부용 보고서 양식이 **빌드 때 생성되는** 자리. 저장소에 담지 않는다 |
 | `templates/py`·`c` | 프로그래밍 배부 양식의 옛 자리. C·Python 통합 때 위 규칙으로 옮긴다 |
 | `tools/` | 점검 스크립트와 배부 양식 생성기 |
 | `subjects.json` | **어떤 과목이 있는지 정하는 유일한 곳.** 파이썬과 Vite가 함께 읽는다 |
-| `vite.config.js` · `tailwind/` · `src/styles/` | 빌드 조립기와 단위별 Tailwind 설정·CSS 진입점 |
+| `vite.config.js` | 빌드 조립기. 하는 일은 `build/`에 나뉘어 있다 |
 | `build/` | Vite 빌드 플러그인. 하는 일마다 파일 하나 |
+| `src/styles/<단위>.css` | 단위별 스타일 진입점. HTML이 이것 하나를 링크한다 |
+| `src/entries/<페이지>.js` | **페이지별** 라이브러리 진입점. 그 페이지가 쓰는 것만 담는다 |
+| `tailwind/<단위>.config.js` | 단위별 Tailwind 설정(`content`를 그 단위로 좁힌다) |
+| `public/` | **이름이 그대로여야 하는 파일**만. 지금은 MathJax 글꼴뿐. 저장소에 담지 않는다 |
 | `.github/workflows/` | 배포 워크플로 |
 | `.idea/runConfigurations/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
 | `package.json` | **명령을 정의하는 유일한 곳** |
@@ -93,13 +97,22 @@
   시뮬레이터의 조작 UI는 이 규칙의 범위 밖이다.
 - **테이블은 반드시 `overflow-x-auto` 컨테이너로 감싼다.** 래퍼만으로는 부족하다 → `table-prose`.
 - **375px 폭에서 가로 스크롤이 생기지 않아야 한다.**
-- Tailwind CDN + Font Awesome + Pretendard. 각 HTML은 단일 파일로 자체 완결.
-  Font Awesome은 **6.7.2로 통일**한다.
-- **소스 HTML은 CDN 그대로 둔다.** **소스에 로컬 번들링을 넣자고 제안하지 않는다.**
-  - **로컬화는 빌드가 한다.** CDN 자산을 정적 파일로 바꾼 번들 하나를
-    **Pages와 릴리즈 zip에 똑같이** 쓴다. **산출물을 둘로 나누지 않는다.**
+- **HTML에 CDN 주소를 쓰지 않는다.** 의존성은 전부 npm이고 Vite가 묶는다.
+  스타일은 진입점 하나를 링크하고, 라이브러리를 쓰면 진입점 하나를 더 건다.
+
+  ```html
+  <link rel="stylesheet" href="/src/styles/<단위>.css">
+  <script type="module" src="/src/entries/<페이지>.js"></script>
+  ```
+
+  - 새 라이브러리는 **`npm i` 뒤 진입점에서 `import`** 한다. 전역으로 쓰는 것이면
+    거기서 `window`에 얹는다. 절차 → [`tools/README.md`](tools/README.md)
+  - **버전은 락파일이 정한다.** 아무 생각 없이 최신을 받지 않는다 —
+    Font Awesome은 7에서 아이콘 이름이 바뀌고 p5는 2에서 호환이 깨진다.
+  - **산출물을 둘로 나누지 않는다.** 같은 `dist/`를 Pages와 릴리즈 zip에 똑같이 쓴다.
   - **클래스 이름을 코드로 조립하지 않는다.** 빌드가 리터럴로 있는 클래스만 굽는다.
-    `bg-${x}-50`은 CSS에서 빠지는데 소스를 열면 멀쩡히 보인다. `npm run check:classes`가 잡는다.
+    `bg-${x}-50`은 CSS에서 빠지는데 dev에서는 멀쩡히 보인다. `npm run check:classes`가 잡는다.
+- **`npm run dev`로 본다.** 소스 HTML을 파일로 직접 열면 스타일이 붙지 않는다.
 - **강의노트끼리 잇는 「이전 차시 · 다음 차시」 바로가기를 만들지 않는다.**
   이동은 푸터의 목록 링크로 한다. 본문에서 **글로 예고하는 것은 괜찮다.**
 - 파일을 고칠 때마다 `npm run check:html -- <파일>`.
@@ -213,7 +226,7 @@ table.table-prose { min-width: 32rem; }
 
 ### 코드 요소의 한글 글꼴
 
-요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight에 밀린다. `body`를 붙인다.
+요소 선택자만 쓰면 Tailwind의 Preflight에 밀린다. `body`를 붙여 특정도를 올린다.
 
 ```css
 body code, body kbd, body samp, body pre,

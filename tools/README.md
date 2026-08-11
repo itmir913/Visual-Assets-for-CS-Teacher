@@ -38,7 +38,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | | |
 |---|---|
 | `setup` | 최초 1회. node 의존성 |
-| `build:vite` · `build:legacy` | `build`가 순서대로 부른다 |
+| `build`가 부르는 것 | `vite build` → 배부 문서 생성 |
 | `check:classes` · `check:code` | `check`가 부른다 |
 | `check:dist` | 산출물 검사 |
 | `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
@@ -57,14 +57,67 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 |---|---|
 | `units.js` | 무엇을 굽는가 — `subjects.json`을 읽는다 |
 | `inject-code.js` | `data-src` 마커 자리에 실파일의 코드를 넣는다 |
-| `tailwind-swap.js` | Tailwind CDN `<script>` → 구워진 스타일시트 |
-| `vendor-assets.js` | CDN 자산 → npm 패키지 |
+| `vendor-public.js` | 이름이 그대로여야 하는 파일(MathJax 글꼴)만 `public/`으로 |
 | `copy-lecture-assets.js` | 강의노트 딸림 파일(`.py`·`.c`)을 산출물로 |
 | `strip-crossorigin.js` | 원본에 없던 속성 제거 |
 
 **Tailwind는 단위마다 한 번씩** 굽는다. 파일마다 굽던 때는 146번이었고 3분 32초가 걸렸다.
 
-검사 스크립트는 표준 라이브러리만 쓰므로 **파이썬 venv 없이도 돈다.**
+### 의존성은 전부 npm이다 — 새 라이브러리를 넣는 법
+
+HTML에 CDN 주소를 쓰지 않는다. 어디에 넣을지는 **CSS냐 JS냐**로 갈린다.
+
+**CSS라면** 그 단위의 `src/styles/<단위>.css`에 `@import` 한다.
+
+```css
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+```
+
+**JS라면** 그 페이지의 `src/entries/<페이지>.js`에서 `import` 한다.
+인라인 스크립트가 전역으로 쓰면 거기서 `window`에 얹는다.
+
+```js
+import Chart from 'chart.js/auto';
+window.Chart = Chart;
+```
+
+**진입점을 페이지마다 두는 이유** — 단위로 묶으면 시뮬레이터 한 장을 열 때
+d3·p5·ml5·chart·vis를 전부 받게 된다. 페이지마다 두면 그 페이지가 쓰는 것만 받고,
+여러 페이지가 함께 쓰는 것은 Vite가 공통 청크로 뽑아 캐시된다.
+
+**옮기며 밟은 함정 넷.** 새 라이브러리를 넣을 때 같은 것을 겪을 수 있다.
+
+| | |
+|---|---|
+| **npm 판과 CDN 판의 API가 다를 수 있다** | lucide는 UMD 판이 `createIcons()`만으로 됐지만 npm 판은 아이콘 목록을 받는다. 호출부를 다 고치는 대신 진입점에서 감쌌다 |
+| **최상위 `await`를 쓰지 않는다** | 모듈 완료가 `window.onload`보다 늦어져 그때 부르는 코드가 조용히 실패한다. Prism 하이라이팅이 그렇게 죽었다 |
+| **전역에 얹는 순서** | Prism 언어 확장은 전역 `Prism`이 선 뒤에 평가되어야 한다. `_lib/prism.js`를 먼저 `import` 하는 정적 순서로 맞춘다 |
+| **모듈은 defer다** | body 끝 인라인 스크립트가 **먼저** 돈다. 거기서 라이브러리를 바로 부르면 깨진다 — `DOMContentLoaded`로 미룬다 |
+
+**이름이 그대로여야 하는 파일만 `public/`에 둔다.** 지금은 MathJax 글꼴뿐이다.
+MathJax는 실행 중에 `${fontURL}/MathJax_Main-Regular.woff` 식으로 이름을 조립해
+받아오므로 해시된 자산으로 바꾸면 못 찾는다. `public/`은 저장소에 담지 않고
+빌드와 dev가 매번 `node_modules`에서 채운다.
+
+검사 스크립트는 표준 라이브러리만 쓰므로 설치할 것이 없다.
+생성기는 node 의존성이 있다 → [배부 문서 생성기](#배부-문서-생성기--docx).
+
+| 파일 | 용도 | 언제 쓰나 |
+|---|---|---|
+| `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 검사 | **파일을 고칠 때마다** |
+| `check_dynamic_classes.py` | 런타임에 조립되는 Tailwind 클래스 검출 | **JS로 클래스를 붙이는 코드를 쓸 때마다** |
+| `check_code.py` | 강의노트가 끌어다 쓰는 `.py`·`.c`의 구문 오류 + `data-src` 마커 해석 | **코드 파일을 고칠 때마다** |
+| `check_dist.py` | **산출물** 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 | 배포 전. `npm run ci`가 부른다 |
+| `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
+| `audit_svg_maxwidth.py` | 데스크톱에서 글자가 한없이 커지는 SVG 검출 | 도해를 넣거나 고쳤을 때 |
+| `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
+| `subjects.py` | 루트 [`subjects.json`](../subjects.json)을 읽는 얇은 층 | 새 과목을 만들 때 |
+
+**[`subjects.json`](../subjects.json)이 검사 대상의 단일 출처다.** 파이썬(검사·구 빌더)과
+Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는 과목 목록이 빌드와 두 감사 도구에
+따로 박혀 있었고 셋이 서로 달랐다. 「정보(고등학교)」가 빌드 쪽에만 들어가 있어서
+**25개 파일이 두 감사에서 통째로 빠진 채** 한동안 남아 있었다 — 그 파일들에는
+검사를 통과했다는 말이 아무 의미가 없었다.
 
 ## 사용
 
@@ -213,8 +266,8 @@ int main(void) {
 **런타임 `fetch`가 아니라 빌드 주입인 이유** — 페이지를 열 때 왕복이 한 번 더 생기지 않고,
 마커가 깨졌으면 배포가 아니라 **빌드가 선다.** 웹이든 내려받은 사본이든 같은 파일이 된다.
 
-그래서 **`data-src`를 쓰는 강의노트는 소스를 직접 열면 코드 자리가 비어 있다.**
-`npm run dev`로 본다. 실측도 원래 소스가 아니라 빌드 결과에서 하게 되어 있다.
+**소스 HTML은 파일로 직접 열지 않는다.** 스타일도 코드도 빌드가 넣으므로
+`npm run dev`로 봐야 한다.
 
 ### 지켜야 할 것
 
@@ -284,8 +337,8 @@ npm run check:code
 
 ## 미리보기 — 소스가 아니라 `dist/`를 연다
 
-배포되는 것은 Vite가 구운 번들이다. **소스를 열면 CDN 판이라
-배포본과 다를 수 있다.** 375px 실측처럼 눈으로 재는 일은 반드시 `dist/` 쪽에서 한다.
+**소스 HTML을 파일로 직접 열면 아무것도 안 보인다.** 스타일도 라이브러리도 코드도
+빌드가 넣는다. `npm run dev`로 보거나, 배포본을 확인할 일이면 `npm run build` 뒤 `dist/`를 연다.
 
 ```
 IntelliJ 기본 웹서버 그대로 쓴다. 여는 주소만 바뀐다.

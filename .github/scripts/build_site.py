@@ -1,21 +1,32 @@
 #!/usr/bin/env python3
-"""오프라인 배포용 정적 빌드 스크립트.
+"""배포용 정적 빌드 스크립트.
 
 읽기: 레포 소스(HTML)만 읽는다.
 쓰기: --out(기본 dist/)에만 쓴다. 소스 트리에는 절대 쓰지 않는다.
 
+프로필 둘:
+    online   GitHub Pages용. CDN 참조를 그대로 둔다. 학교는 온라인 환경이므로
+             이쪽이 기본 배포다. Tailwind CSS를 굽지 않아 빠르다.
+    offline  릴리즈 zip용. CDN 자산을 전부 로컬 파일로 바꾼다.
+
+어느 프로필이든 배부용 .docx는 tools/docx/의 생성기를 돌려 --out 안에 새로 만든다.
+저장소에 커밋된 .docx를 복사하지 않는다 — 생성물이 스크립트와 어긋나는 것을 막기 위함이다.
+
 사용법:
-    python .github/scripts/build_offline.py                    # 전체 빌드
-    python .github/scripts/build_offline.py --only <상대경로>   # 파일 하나만 (파일럿·디버그용)
+    python .github/scripts/build_site.py --profile online  --out dist-pages
+    python .github/scripts/build_site.py --profile offline --out dist-offline
+    python .github/scripts/build_site.py --only <상대경로>   # 파일 하나만 (파일럿·디버그용)
 
 전제:
-    - node/npx로 tailwindcss CLI(v3)를 받아 쓸 수 있어야 한다 (인터넷 필요).
-    - 실행 중 CDN에서 자산을 내려받는다 (인터넷 필요). 이미 받은 자산은 --out 안의
-      assets/ 캐시를 재사용한다.
+    - node가 있어야 한다. .docx 생성에는 tools/docx/의 npm 의존성이 필요하다
+      (`cd tools/docx && npm ci`). --skip-docx로 건너뛸 수 있다.
+    - offline 프로필은 추가로 tailwindcss CLI(v3)와 CDN 접근이 필요하다.
+      이미 받은 자산은 --out 안의 assets/ 캐시를 재사용한다.
 """
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -30,9 +41,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 TARGET_DIRS = ["인공지능기초", "데이터과학", "정보(고등학교)", "프로그래밍(Python)", "프로그래밍(C)", "simulator/ai"]
 TARGET_FILES = ["index.html"]
 
-# templates/ 전체(node_modules, .claude, docx 생성 스크립트 등)가 아니라 강의노트가
-# 실제로 다운로드 링크로 참조하는 .docx 폴더만 그대로 복사한다.
-TEMPLATE_DIRS = ["templates/py", "templates/c", "templates/ai"]
+# 배부용 .docx 생성기. 출력 위치는 생성기 쪽 outpath.js의 DEST 표가 정하고,
+# 출력 루트만 DOCX_OUT_ROOT로 dist 안으로 돌린다.
+DOCX_BUILD_JS = REPO_ROOT / "tools" / "docx" / "build.js"
 
 FA_VERSION = "6.7.2"
 FA_CSS_URL = f"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/{FA_VERSION}/css/all.min.css"
@@ -89,7 +100,7 @@ PRETENDARD_LINK_RE = re.compile(
 
 
 def log(msg: str) -> None:
-    print(f"[build_offline] {msg}", flush=True)
+    print(f"[build_site] {msg}", flush=True)
 
 
 def fetch(url: str, dest: Path) -> None:
@@ -115,17 +126,28 @@ def discover_html_files() -> list[Path]:
     return files
 
 
-def copy_templates(dist_root: Path) -> None:
-    """강의노트가 링크로 참조하는 .docx만 원본 그대로(가공 없이) dist에 복사한다."""
-    for d in TEMPLATE_DIRS:
-        src = REPO_ROOT / d
-        if not src.exists():
-            continue
-        dest = dist_root / d
-        dest.mkdir(parents=True, exist_ok=True)
-        for f in src.iterdir():
-            if f.is_file():
-                shutil.copy2(f, dest / f.name)
+def build_templates(dist_root: Path) -> int:
+    """배부용 .docx를 dist 안에 새로 만든다. 만들어진 개수를 돌려준다.
+
+    저장소의 .docx를 복사하지 않고 매번 생성기를 돌린다. 복사하던 시절에는
+    make 스크립트만 고치고 산출물을 다시 만들지 않아 두 달 동안 어긋난 적이 있다.
+    """
+    if not DOCX_BUILD_JS.exists():
+        log(f"경고: {DOCX_BUILD_JS}가 없어 .docx 생성을 건너뛴다")
+        return 0
+
+    env = {**os.environ, "DOCX_OUT_ROOT": str(dist_root)}
+    proc = subprocess.run(
+        ["node", str(DOCX_BUILD_JS)],
+        env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if proc.returncode != 0:
+        # 생성기가 실패하면 다운로드 링크가 통째로 깨진 채 배포된다. 조용히 넘기지 않는다.
+        raise RuntimeError(
+            f"docx 생성기 실패 (종료 코드 {proc.returncode}).\n"
+            f"tools/docx에 npm ci를 했는지 확인할 것.\n{proc.stdout}\n{proc.stderr}"
+        )
+    return len(list(dist_root.rglob("*.docx")))
 
 
 def depth_prefix(rel_path: Path) -> str:
@@ -222,12 +244,23 @@ def localize_vendor(assets_dir: Path, url: str) -> str:
     return filename
 
 
-def build_one(src_html: Path, dist_root: Path, assets_dir: Path) -> list[str]:
-    """src_html 하나를 빌드한다. 처리 못 한(로컬화 미지원) CDN URL 목록을 돌려준다."""
+def build_one(src_html: Path, dist_root: Path, assets_dir: Path, localize: bool = True) -> list[str]:
+    """src_html 하나를 빌드한다. 처리 못 한(로컬화 미지원) CDN URL 목록을 돌려준다.
+
+    localize=False(online 프로필)이면 CDN 참조를 건드리지 않고 그대로 내보낸다.
+    """
     rel = src_html.relative_to(REPO_ROOT)
     prefix = depth_prefix(rel)
     html = src_html.read_text(encoding="utf-8")
     unsupported: list[str] = []
+
+    if not localize:
+        # online 프로필 — CDN은 의도된 설계이므로 손대지 않는다.
+        # 나중에 코드 주입이 생기면 이 자리에서 두 프로필 공통으로 처리한다.
+        out_path = dist_root / rel
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(html, encoding="utf-8")
+        return unsupported
 
     # 1) Tailwind CDN 스크립트 제거 + 파일 전용 정적 CSS 빌드
     # 산출물 최상위에 자동 생성 폴더가 assets/ 하나만 있으면 되도록 css/도 그 밑에 둔다.
@@ -282,7 +315,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(REPO_ROOT / "dist"), help="출력 루트 (기본 dist/)")
     parser.add_argument("--only", help="이 상대경로 파일 하나만 빌드 (파일럿·디버그용)")
+    parser.add_argument(
+        "--profile", choices=["online", "offline"], default="offline",
+        help="online=CDN 유지(Pages) / offline=CDN 로컬화(zip). 기본 offline",
+    )
+    parser.add_argument("--skip-docx", action="store_true", help="배부용 .docx 생성을 건너뛴다")
     args = parser.parse_args()
+
+    localize = args.profile == "offline"
 
     dist_root = Path(args.out).resolve()
     # assets/ 밑을 캐시 대상(cdn/ — CDN에서 받은 것)과 매번 새로 빌드되는 것(css/)으로
@@ -295,7 +335,7 @@ def main() -> int:
     else:
         files = discover_html_files()
 
-    log(f"대상 파일 {len(files)}개, 출력: {dist_root}")
+    log(f"프로필 {args.profile}, 대상 파일 {len(files)}개, 출력: {dist_root}")
 
     all_unsupported: dict[str, list[str]] = {}
     failed: list[tuple[str, str]] = []
@@ -303,16 +343,16 @@ def main() -> int:
         rel = str(f.relative_to(REPO_ROOT))
         log(f"({i}/{len(files)}) {rel}")
         try:
-            unsupported = build_one(f, dist_root, assets_dir)
+            unsupported = build_one(f, dist_root, assets_dir, localize=localize)
         except Exception as e:  # 파일 하나가 실패해도 나머지는 계속 진행
             failed.append((rel, str(e)))
             continue
         if unsupported:
             all_unsupported[rel] = unsupported
 
-    if not args.only:
-        copy_templates(dist_root)
-        log("templates/py·c·ai 복사 완료")
+    if not args.only and not args.skip_docx:
+        made = build_templates(dist_root)
+        log(f"배부용 .docx {made}개 생성 완료")
 
     if all_unsupported:
         log("=== 로컬화 미지원 CDN 참조 (수동 확인 필요) ===")

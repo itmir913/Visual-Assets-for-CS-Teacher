@@ -100,8 +100,14 @@ HTML의 83%는 Tailwind 클래스와 SVG 좌표다. 서술만 보려면 이걸�
 학생에게 나눠 주는 보고서 양식 `.docx`를 만든다. node와 `docx` 패키지가 필요하다.
 
 ```bash
-cd tools/docx && npm install     # 최초 1회
+cd tools/docx && npm ci          # 최초 1회. 락파일이 추적되므로 install이 아니라 ci
 node tools/docx/build.js         # 저장소 어디서든 실행 가능
+```
+
+출력 루트는 `DOCX_OUT_ROOT`로 바꿀 수 있다. 배포 빌드가 `dist/` 안으로 바로 뽑을 때 쓴다.
+
+```bash
+DOCX_OUT_ROOT=dist-pages node tools/docx/build.js   # dist-pages/templates/py/… 로 나간다
 ```
 
 | 파일 | 역할 |

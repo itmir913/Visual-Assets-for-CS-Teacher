@@ -11,6 +11,13 @@ const path = require('path');
 // 이 파일 기준으로 저장소 루트를 잡는다. 스크립트를 어느 폴더에서 실행하든 결과가 같다.
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+// 출력 루트는 기본이 저장소 루트지만, DOCX_OUT_ROOT로 바꿀 수 있다.
+// 배포 빌드가 dist/ 안으로 바로 뽑을 때 쓴다.
+//   DOCX_OUT_ROOT=dist node tools/docx/build.js  ->  dist/templates/py/3-2-1.docx
+const OUT_ROOT = process.env.DOCX_OUT_ROOT
+    ? path.resolve(process.env.DOCX_OUT_ROOT)
+    : REPO_ROOT;
+
 const DEST = {
     ai: 'templates/ai',
     py: 'templates/py',
@@ -22,7 +29,7 @@ module.exports = function out(group, filename) {
     if (!dir) {
         throw new Error(`알 수 없는 산출물 그룹: '${group}' (가능: ${Object.keys(DEST).join(', ')})`);
     }
-    const abs = path.join(REPO_ROOT, dir, filename);
+    const abs = path.join(OUT_ROOT, dir, filename);
     fs.mkdirSync(path.dirname(abs), {recursive: true});
     return abs;
 };

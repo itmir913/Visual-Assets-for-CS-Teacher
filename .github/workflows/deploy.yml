@@ -1,0 +1,172 @@
+name: Build & Deploy
+
+# 소스는 항상 CDN 그대로 둔다. 이 워크플로가 두 가지를 만든다.
+#
+#   online   → GitHub Pages. CDN 유지. 배부용 .docx는 여기서 생성한다.
+#   offline  → 릴리즈 zip. CDN 자산을 전부 로컬 파일로 바꾼다.
+#
+# dist-*/ 는 어떤 경우에도 저장소에 커밋되지 않는다.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch: { }
+
+permissions:
+  contents: write # 릴리즈 자산 업로드
+  pages: write # Pages 배포
+  id-token: write # Pages 배포
+
+env:
+  ZIP_NAME: lecture-notes-offline.zip
+  RELEASE_TAG: offline-latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # 배부용 .docx 생성기. 산출물은 저장소에 없고 매 빌드에서 새로 만든다.
+      - name: Install docx generator deps
+        working-directory: tools/docx
+        run: npm ci
+
+      # tailwindcss CLI. offline 프로필에서만 쓰지만 설치는 한 번이면 된다.
+      - name: Install tailwindcss (build script only, unrelated to source)
+        working-directory: .github/scripts
+        run: npm ci
+
+      - name: Cache CDN assets (Font Awesome, Pretendard, MathJax, vendor JS)
+        uses: actions/cache@v6
+        with:
+          # build_site.py가 CDN에서 받은 것만 assets/cdn/ 밑에 모으고, 파일마다
+          # 매번 새로 빌드되는 assets/css/는 따로 둔다 — 그래서 cdn/ 통째로 캐싱해도
+          # 삭제·개명된 강의노트의 옛 css가 캐시에 쌓이는 일이 없다.
+          path: dist-assets-cache
+          # 자산 URL·버전은 build_site.py 안에 박혀 있으므로, 그 파일이
+          # 바뀔 때만(=버전이 바뀔 때만) 캐시를 새로 받는다.
+          key: offline-assets-${{ hashFiles('.github/scripts/build_site.py') }}
+
+      - name: Restore cache into dist-offline/assets/cdn
+        run: |
+          mkdir -p dist-offline/assets/cdn
+          if [ -d dist-assets-cache ] && [ -n "$(ls -A dist-assets-cache 2>/dev/null)" ]; then
+            cp -r dist-assets-cache/. dist-offline/assets/cdn/
+            echo "캐시된 자산 재사용"
+          else
+            echo "캐시 없음 — 이번 실행에서 전부 새로 받음"
+          fi
+
+      - name: Build online bundle (Pages)
+        run: python .github/scripts/build_site.py --profile online --out dist-pages
+
+      - name: Build offline bundle (release zip)
+        run: python .github/scripts/build_site.py --profile offline --out dist-offline
+
+      - name: Update asset cache for next run
+        run: |
+          rm -rf dist-assets-cache
+          cp -r dist-offline/assets/cdn dist-assets-cache
+
+      - name: Verify docx download links resolve
+        # .docx를 저장소에서 뺀 뒤로는 이 검사가 다운로드 링크의 유일한 방어선이다.
+        run: |
+          python - <<'PY'
+          import re, sys
+          from pathlib import Path
+          bad = total = 0
+          for root in (Path("dist-pages"), Path("dist-offline")):
+              for h in root.rglob("*.html"):
+                  for m in re.finditer(r'href="([^"]+\.docx)"', h.read_text(encoding="utf-8")):
+                      total += 1
+                      if not (h.parent / m.group(1)).resolve().exists():
+                          bad += 1
+                          print(f"::error::깨진 다운로드 링크: {h} -> {m.group(1)}")
+          print(f"docx 링크 {total}건 중 깨진 것 {bad}건")
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Verify no CDN references remain (offline only)
+        run: |
+          remaining=$(grep -rloE 'https://(cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*' dist-offline --include='*.html' || true)
+          if [ -n "$remaining" ]; then
+            echo "::error::로컬화되지 않은 CDN 참조가 남아있습니다:"
+            echo "$remaining"
+            exit 1
+          fi
+          echo "CDN 참조 잔존 0건 확인"
+
+      - name: Verify tag nesting
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            if python tools/check_html.py "$f" 2>&1 | grep -q "태그 중첩\] 위반"; then
+              echo "::error::태그 중첩 위반: $f"
+              fail=1
+            fi
+          done < <(find dist-pages -iname '*.html' -print0)
+          exit $fail
+
+      - name: Record build info
+        id: meta
+        run: |
+          echo "built_at=$(date -u +'%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+          cat > dist-offline/BUILD_INFO.txt <<EOF
+          Built at: $(date -u +'%Y-%m-%d %H:%M UTC')
+          Commit: ${{ github.sha }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist-pages
+
+      - name: Create zip archive
+        run: cd dist-offline && zip -rq "../${{ env.ZIP_NAME }}" .
+
+      - name: Publish release (fixed tag offline-latest, overwritten each run)
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Offline Bundle (auto-updated)
+          body: |
+            Automatically built offline bundle. This release's asset is overwritten on every commit.
+
+            - Built at: ${{ steps.meta.outputs.built_at }}
+            - Commit: ${{ github.sha }}
+          make_latest: false
+          files: ${{ env.ZIP_NAME }}
+
+  deploy-pages:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    # 배포는 중간에 끊지 않는다. 끊긴 배포는 사이트를 반쯤 갱신된 상태로 남긴다.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

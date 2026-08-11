@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>빅데이터 수집하기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-filter absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-cloud-arrow-down absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            빅데이터 수집하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            많이 모으는 것이 목적이 아닙니다.<br>
+            <strong>무엇을 알고 싶은지</strong>부터 정해야 합니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>빅데이터 수집의 다섯 단계를 순서대로 들고, 첫 단계를 건너뛰면 무엇이 어긋나는지 설명할 수 있다.</li>
+                    <li>직접 모으는 방법과 이미 있는 것을 받아 오는 방법을 구분하고, 상황에 맞는 쪽을 고를 수 있다.</li>
+                    <li>전처리가 무엇을 하는 일인지 설명하고, 수집한 표에서 손봐야 할 자리를 찾아낼 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-filter text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">빅데이터 수집하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#steps" class="hover:text-teal-600 transition">다섯 단계</a>
+            <a href="#how" class="hover:text-teal-600 transition">어떻게 모으나</a>
+            <a href="#clean" class="hover:text-teal-600 transition">전처리</a>
+            <a href="#careful" class="hover:text-teal-600 transition">조심할 것</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 다섯 단계 ══════════ -->
+    <section id="steps" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-list-ol text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">다섯 단계</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 차시에서 빅데이터가 저절로 쌓인다고 했습니다. 그렇다면 그냥 가져다 쓰면 될까요? 그렇지
+                않습니다. <strong>쌓여 있는 것과 내가 쓸 수 있는 것은 다릅니다.</strong> 쌓인 더미에서 내 물음에
+                답할 수 있는 부분만 꺼내고, 쓸 수 있는 모양으로 다듬는 일이 필요합니다. 이 과정이
+                <strong>빅데이터 수집</strong>이며 다섯 단계로 이루어집니다.
+            </p>
+
+            <div class="space-y-4">
+                <div class="flex gap-4 items-start bg-violet-50 border border-violet-200 rounded-2xl p-5">
+                    <span class="shrink-0 w-10 h-10 bg-violet-500 text-white rounded-xl grid place-items-center font-black text-base">1</span>
+                    <div class="min-w-0 space-y-1">
+                        <p class="font-black text-lg text-violet-900">목표 이해하기</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            <strong>무엇을 알고 싶은지</strong>를 먼저 정합니다. 그리고 그것을 알려면 어떤 정보가
+                            있어야 하는지를 적습니다. 아직 데이터를 건드리지 않습니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start bg-sky-50 border border-sky-200 rounded-2xl p-5">
+                    <span class="shrink-0 w-10 h-10 bg-sky-500 text-white rounded-xl grid place-items-center font-black text-base">2</span>
+                    <div class="min-w-0 space-y-1">
+                        <p class="font-black text-lg text-sky-900">계획 세우기</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            그 정보를 <strong>어디에서 어떤 방법으로</strong> 얻을지 정합니다. 직접 잴 것인지,
+                            물어볼 것인지, 이미 있는 것을 받아 올 것인지가 여기서 갈립니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start bg-teal-50 border border-teal-200 rounded-2xl p-5">
+                    <span class="shrink-0 w-10 h-10 bg-teal-500 text-white rounded-xl grid place-items-center font-black text-base">3</span>
+                    <div class="min-w-0 space-y-1">
+                        <p class="font-black text-lg text-teal-900">수집하기</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            계획대로 실제로 모읍니다. 이 단계는 <strong>계획이 제대로 서 있으면 가장 단순한
+                            단계</strong>입니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                    <span class="shrink-0 w-10 h-10 bg-amber-500 text-white rounded-xl grid place-items-center font-black text-base">4</span>
+                    <div class="min-w-0 space-y-1">
+                        <p class="font-black text-lg text-amber-900">전처리하기</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            모은 것을 <strong>쓸 수 있는 모양으로 손봅니다.</strong> 실제로 가장 손이 많이 가는
+                            단계입니다. 세 번째 절에서 따로 봅니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start bg-rose-50 border border-rose-200 rounded-2xl p-5">
+                    <span class="shrink-0 w-10 h-10 bg-rose-500 text-white rounded-xl grid place-items-center font-black text-base">5</span>
+                    <div class="min-w-0 space-y-1">
+                        <p class="font-black text-lg text-rose-900">저장하기</p>
+                        <p class="text-base text-slate-600 leading-relaxed">
+                            다듬은 데이터를 <strong>다음에 꺼내 쓸 수 있는 형식으로</strong> 저장합니다.
+                            나중에 여러 사람이 함께 쓸 것이라면 형식을 잘 골라 두어야 합니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>1단계를 건너뛰면 벌어지는 일
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「일단 많이 모아 두고 나중에 생각하자」가 가장 흔한 실수입니다. 목표가 없으면
+                    <strong>무엇을 모아야 할지 정할 수 없으니 손에 잡히는 대로 모으게 되고</strong>, 정작 알고
+                    싶은 것을 알아낼 데이터는 빠져 있기 일쑤입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 단원의 사물 인터넷 설계에서 「부품부터 고르지 않는다」고 했던 것과 같은 이야기입니다.
+                    <strong>목표가 무엇을 모을지 정하는 것이지, 모은 것이 목표를 정하는 것이 아닙니다.</strong>
+                    게다가 필요 없는 것까지 모으면 그만큼 남의 정보를 쓸데없이 가져오게 됩니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        「우리 학교 앞 버스 정류장이 언제 가장 붐비는가」를 알아보는 계획 (수업용 예)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">단계</th>
+                        <th>적은 내용</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">목표 이해하기</td>
+                        <td>학교 앞 정류장이 붐비는 시간대를 찾아 등교 시간을 조정할지 판단한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">계획 세우기</td>
+                        <td>공공 데이터 포털의 정류장별 &middot; 시간대별 승하차 인원 자료를 받아 온다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">수집하기</td>
+                        <td>우리 학교 앞 정류장이 들어 있는 자료를 내려받는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">전처리하기</td>
+                        <td>다른 정류장의 줄과 쓰지 않을 칸을 지우고, 시간대별로 승하차를 더한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">저장하기</td>
+                        <td>표 형식으로 저장해 다음 시간에 그래프를 그릴 수 있게 한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                위 표의 목표가 「학생들이 어느 정류장에서 타는지 알아본다」였다면, 2단계의 계획은 어떻게
+                달라졌을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 어떻게 모으나 ══════════ -->
+    <section id="how" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-hand-holding-droplet text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">어떻게 모으나</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                2단계에서 정해야 할 것이 방법입니다. 크게 두 갈래입니다 &mdash;
+                <strong>내가 직접 만들어 내는 것</strong>과 <strong>이미 있는 것을 받아 오는 것</strong>입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-sky-900">
+                        <i class="fa-solid fa-gauge-high mr-2"></i>직접 모으기 &mdash; 센서로 재기
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        앞 단원에서 만든 사물 인터넷 장치가 그대로 데이터 수집 장치가 됩니다. 교실 온도, 복도의
+                        사람 수, 흙의 물기를 계속 재서 쌓습니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>내가 원하는 것을 정확히 잴 수 있지만</strong> 장치를 만들고 관리해야 하고,
+                        재기 시작한 뒤의 것만 모입니다. <strong>지난달 자료는 얻을 수 없습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-sky-900">
+                        <i class="fa-solid fa-clipboard-list mr-2"></i>직접 모으기 &mdash; 물어보기
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        설문으로 답을 받습니다. 온라인 설문 도구를 쓰면 모으고 정리하는 일이 한꺼번에 됩니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>센서로는 잴 수 없는 것</strong>을 얻을 수 있습니다. 「왜 그랬는가」나 「어떻게
+                        느꼈는가」는 물어야만 알 수 있습니다. 대신 답한 사람만큼만 모이고, 답이 사실과 다를 수도
+                        있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 번째 갈래는 <strong>남이 이미 모아 둔 것</strong>을 받아 오는 것입니다. 규모가 큰 데이터는
+                대개 이쪽입니다. 학생 혼자 몇 해치 버스 승객 수를 잴 수는 없기 때문입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-emerald-900">
+                        <i class="fa-solid fa-building-columns mr-2"></i>공개된 데이터 받아 오기
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        나라나 지방 자치 단체가 모은 자료를 누구나 쓰도록 열어 둔 것을
+                        <strong>공공 데이터</strong>라고 합니다. 교통 &middot; 인구 &middot; 날씨 &middot; 환경처럼
+                        개인이 모을 수 없는 규모의 자료를 얻을 수 있습니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        내려받아 바로 쓸 수 있는 파일로 주는 곳이 많아 <strong>수업에서 쓰기에 가장 좋은
+                        방법</strong>입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-amber-900">
+                        <i class="fa-solid fa-spider mr-2"></i>누리집에서 긁어 오기
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        프로그램이 누리집을 돌아다니며 데이터를 모으게 하는 방법입니다. 자주 짝지어 나오는
+                        두 낱말이 있습니다.
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                        <li><strong>크롤링</strong> &mdash; 누리집을 따라다니며 <strong>어디에 무엇이 있는지
+                            훑는</strong> 일. 지도를 그리는 쪽입니다.
+                        </li>
+                        <li><strong>스크래핑</strong> &mdash; 찾아 둔 자리에서 <strong>필요한 값을 실제로 뽑아
+                            오는</strong> 일. 캐내는 쪽입니다.
+                        </li>
+                    </ul>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        검색 서비스가 세상의 누리집을 미리 훑어 두는 것이 크롤링, 그 가운데 가격만 골라 모으는
+                        것이 스크래핑입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>고르는 기준은 「목표에 답할 수 있는가」입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    네 방법 가운데 <strong>더 좋은 방법이 정해져 있지 않습니다.</strong> 「우리 반이 왜 급식을
+                    남기는가」를 알고 싶다면 아무리 큰 공공 데이터를 뒤져도 답이 없습니다. 물어봐야 합니다.
+                    반대로 「우리 지역 버스가 언제 붐비는가」를 설문으로 알아내려 하면, 몇십 명의 기억에 기대게 되어
+                    실제와 크게 어긋납니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>여러 방법을 겹쳐 쓰는 것이 흔합니다.</strong> 공공 데이터로 「언제 붐비는지」를
+                    알아낸 다음, 설문으로 「그 시간에 왜 그 정류장을 쓰는지」를 물으면 서로가 못 하는 것을
+                    메워 줍니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「우리 학교 도서관에서 어떤 책이 인기 있는가」를 알아보려 합니다. 네 방법 가운데 무엇을 고르겠습니까?
+                고른 방법으로는 알 수 없는 것도 하나 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 전처리 ══════════ -->
+    <section id="clean" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-broom text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">전처리</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                모아 온 데이터는 <strong>거의 언제나 그대로 쓸 수 없습니다.</strong> 빠진 값이 있고, 같은 것이
+                두 번 들어가 있고, 있을 수 없는 값이 섞여 있습니다. 이것을 쓸 수 있는 모양으로 손보는 일을
+                <strong>전처리</strong>라고 합니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                아래는 우리 반의 급식 잔반량을 모아 본 표입니다. <strong>손봐야 할 자리가 다섯 군데</strong>
+                있습니다. 찾아보세요.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        모은 그대로의 표 (수업에서 원리를 확인하려고 지어낸 값)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">번호</th>
+                        <th class="w-28">학생</th>
+                        <th class="w-20">요일</th>
+                        <th class="w-32">잔반량</th>
+                        <th>만족도 (1&ndash;5)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>학생 A</td>
+                        <td>월</td>
+                        <td>120 g</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>학생 B</td>
+                        <td>월</td>
+                        <td class="text-rose-700 font-bold">(비어 있음)</td>
+                        <td>4</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td class="text-rose-700 font-bold">학생 A</td>
+                        <td class="text-rose-700 font-bold">월</td>
+                        <td class="text-rose-700 font-bold">120 g</td>
+                        <td class="text-rose-700 font-bold">3</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>학생 C</td>
+                        <td>화</td>
+                        <td class="text-rose-700 font-bold">9999 g</td>
+                        <td>5</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>학생 D</td>
+                        <td>화</td>
+                        <td>80 g</td>
+                        <td class="text-rose-700 font-bold">7</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>학생 E</td>
+                        <td>수</td>
+                        <td class="text-rose-700 font-bold">0.09 kg</td>
+                        <td>2</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">붉은 자리를 어떻게 손볼까</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-20">번호</th>
+                        <th class="w-32">무엇이 문제인가</th>
+                        <th>어떻게 할 수 있나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>2</td>
+                        <td class="font-bold">빠진 값</td>
+                        <td>그 줄을 통째로 뺀다. 또는 다른 값으로 채운다. 어느 쪽이든 <strong>무엇을 했는지 적어 둔다</strong></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td class="font-bold">겹친 줄</td>
+                        <td>1번과 똑같으므로 하나만 남긴다</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td class="font-bold">있을 수 없는 값</td>
+                        <td>한 사람이 9,999g을 남길 수는 없다. 잘못 적힌 것으로 보고 빼거나 원래 값을 확인한다</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td class="font-bold">정해진 범위 밖</td>
+                        <td>만족도는 1에서 5까지인데 7이 들어왔다. 입력이 잘못된 것이므로 확인하거나 뺀다</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td class="font-bold">단위가 다름</td>
+                        <td>0.09kg은 90g이다. <strong>모든 값의 단위를 g으로 맞춘다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">전처리는 「지우는 일」만이 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표의 오른쪽 칸을 다시 보세요. <strong>지우는 것은 다섯 가운데 셋뿐</strong>이고, 나머지는
+                    <strong>고치고 맞추는 일</strong>입니다. 특히 6번의 단위 맞추기는 지우면 안 되고 반드시
+                    고쳐야 합니다. 앞 차시들에서 「처리는 값을 다루기 좋게 만드는 일」이라고 했던 것과 같은
+                    이야기입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>지운 것을 적어 두지 않으면 결론이 흔들립니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    2번 줄을 빼기로 했다고 합시다. 그러면 <strong>월요일의 자료가 한 사람만큼 줄어듭니다.</strong>
+                    나중에 「월요일에 잔반이 적었다」는 결론이 나왔을 때, 그것이 정말 적었기 때문인지 한 줄을
+                    빼서인지 알 수 없게 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 전처리에서는 <strong>무엇을 왜 뺐는지 반드시 적어 둡니다.</strong> 데이터를 다룬 사람이
+                    스스로를 속이지 않기 위한 장치입니다. 특히 <strong>마음에 안 드는 값만 골라 빼면</strong>
+                    원하는 결론이 저절로 나오게 됩니다. 그것은 전처리가 아니라 결과를 만들어 내는 일입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                4번의 <strong>9999 g</strong>은 정말 잘못 적힌 값일까요? 빼기 전에 확인해 봐야 할 것이 있다면
+                무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 조심할 것 ══════════ -->
+    <section id="careful" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-hand text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">조심할 것</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                데이터를 모으는 일에는 기술만 필요한 것이 아닙니다. <strong>모아도 되는 것인지</strong>를 먼저
+                따져야 합니다. 특히 사람에 관한 데이터라면 더 그렇습니다.
+            </p>
+
+            <div class="space-y-4">
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">필요 없는 것은 아예 모으지 않는다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        급식 잔반량을 알아보는 데 <strong>이름이 필요할까요?</strong> 「학생 A」처럼 누구인지 알 수
+                        없게 바꿔 두어도 잔반량을 세는 데는 아무 지장이 없습니다. 이렇게 누구인지 알아볼 수 없게
+                        만드는 것을 <strong>익명화</strong>라고 합니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        앞 단원에서 <strong>「모으지 않은 데이터는 새어 나갈 수 없다」</strong>고 했습니다.
+                        여기서도 그대로입니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">모으기 전에 알리고 동의를 받는다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>무엇을 왜 모으는지, 어디에 쓸 것인지, 언제 지울 것인지</strong>를 밝히고 동의를
+                        받습니다. 반 친구들의 설문이라고 예외가 아닙니다. 답하고 싶지 않은 사람이 답하지 않을
+                        자유도 함께 지켜야 합니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">공개된 데이터에도 쓰는 조건이 있다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        공공 데이터는 누구나 쓸 수 있지만 <strong>대개 출처를 밝히라는 조건</strong>이 붙어 있습니다.
+                        누리집에서 긁어 오는 것도 마찬가지로, <strong>그 누리집이 정해 둔 규칙</strong>을 따라야 합니다.
+                        <strong>기술적으로 가져올 수 있다는 것과 가져와도 된다는 것은 다릅니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-triangle-exclamation text-slate-500 mr-2"></i>익명화했다고 늘 안심할 수는 없습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이름을 지웠어도 <strong>남은 값들을 짜 맞추면 누구인지 드러나는</strong> 일이 있습니다.
+                    「3학년 2반 &middot; 남 &middot; 축구부 &middot; 등교 시각 7시 10분」이라면 이름이 없어도
+                    한 사람으로 좁혀질 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 익명화는 <strong>「이름을 지웠는가」가 아니라 「짜 맞춰도 알아낼 수 없는가」</strong>로
+                    판단해야 합니다. 확실하지 않다면 칸을 더 지우거나, 학년처럼 <strong>덩어리로 묶어</strong>
+                    적는 편이 낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 반 설문에서 「이름」 칸을 지웠는데도 누구인지 알 수 있게 만드는 칸이 남아 있을 수 있습니다.
+                어떤 칸이 위험할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">수집의 다섯 단계</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>목표 이해 &rarr; 계획 &rarr; 수집 &rarr; 전처리 &rarr; 저장.</li>
+                    <li><strong>목표가 무엇을 모을지 정한다.</strong> 모은 것이 목표를 정하는 것이 아니다.</li>
+                    <li>1단계를 건너뛰면 손에 잡히는 대로 모으게 되고, 정작 필요한 것이 빠진다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">모으는 방법</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>직접 모으기 &mdash; 센서로 재기, 물어보기.</li>
+                    <li>받아 오기 &mdash; 공공 데이터, 누리집에서 긁어 오기.</li>
+                    <li>크롤링은 어디에 있는지 훑는 일, 스크래핑은 값을 뽑아 오는 일이다.</li>
+                    <li>더 좋은 방법이 정해져 있지 않다. 겹쳐 쓰면 서로가 못 하는 것을 메운다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">전처리</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>빠진 값 &middot; 겹친 줄 &middot; 있을 수 없는 값 &middot; 범위 밖 &middot; 단위 어긋남을 손본다.</li>
+                    <li>지우는 일만이 아니다. 고치고 맞추는 일이 함께 있다.</li>
+                    <li><strong>무엇을 왜 뺐는지 적어 둔다.</strong> 마음에 안 드는 값만 빼면 원하는 결론이 저절로 나온다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">조심할 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>필요 없는 것은 아예 모으지 않는다. 모으지 않은 데이터는 새어 나갈 수 없다.</li>
+                    <li>모으기 전에 무엇을 왜 모으는지 알리고 동의를 받는다.</li>
+                    <li>기술적으로 가져올 수 있다는 것과 가져와도 된다는 것은 다르다.</li>
+                    <li>익명화는 「이름을 지웠는가」가 아니라 <strong>「짜 맞춰도 알아낼 수 없는가」</strong>로 판단한다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「일단 많이 모아 두고 나중에 무엇에 쓸지 생각하자」가 <strong>좋지 않은 까닭</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '저장 공간이 문제인 경우도 있지만, 그것만 해결하면 되는 문제가 아닙니다.')">
+                    ① 저장할 공간이 부족해서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 목표가 없으면 손에 잡히는 대로 모으게 되어, 정작 알고 싶은 것을 알아낼 데이터가 빠지기 쉽습니다.')">
+                    ② 무엇을 모아야 할지 정할 수 없어 필요한 것이 빠지기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전처리가 오래 걸리는 것은 사실이지만, 더 근본적인 문제는 앞 단계에 있습니다.')">
+                    ③ 전처리하는 데 시간이 오래 걸려서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터가 많다고 분석이 불가능해지지는 않습니다. 문제는 무엇을 모았느냐입니다.')">
+                    ④ 데이터가 많으면 분석할 수 없어서
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>크롤링</strong>과 <strong>스크래핑</strong>의 차이로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 크롤링은 지도를 그리는 쪽, 스크래핑은 캐내는 쪽입니다.')">
+                    ① 크롤링은 어디에 있는지 훑는 일, 스크래핑은 값을 뽑아 오는 일이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '거꾸로 되었습니다. 훑는 쪽이 크롤링입니다.')">
+                    ② 크롤링은 값을 뽑아 오는 일, 스크래핑은 훑는 일이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '둘 다 이미 있는 것을 받아 오는 쪽입니다. 센서로 재는 것과는 다릅니다.')">
+                    ③ 크롤링은 센서로 재고, 스크래핑은 설문으로 묻는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '둘은 서로 다른 일을 가리키는 말입니다. 같은 말이 아닙니다.')">
+                    ④ 같은 일을 가리키는 다른 이름이다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    잔반량 표에 <strong>0.09 kg</strong>이 들어 있습니다. 어떻게 해야 할까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '멀쩡한 값입니다. 90g에 해당하므로 버릴 이유가 없습니다.')">
+                    ① 잘못된 값이므로 그 줄을 뺀다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 단위만 다를 뿐 멀쩡한 값이므로 90g으로 고쳐 다른 값과 단위를 맞춥니다.')">
+                    ② 90 g으로 고쳐 다른 값과 단위를 맞춘다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '그대로 두면 0.09와 120을 견주게 되어 엉뚱한 결론이 나옵니다.')">
+                    ③ 그대로 둔다. 값 자체는 맞으므로 문제없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '다른 값들을 kg으로 바꿔도 되지만, 어느 쪽이든 하나로 맞추는 것이 핵심입니다. 여기서는 대부분이 g이므로 g으로 맞춥니다.')">
+                    ④ 나머지 값을 모두 비운다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    설문에서 이름 칸을 지웠습니다. 그런데도 누구인지 알아낼 수 있다면,
+                    <strong>익명화가 되었다고 볼 수 있을까요?</strong>
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이름을 지웠는지가 기준이 아닙니다. 남은 값들을 짜 맞춰 알아낼 수 있다면 익명화되지 않은 것입니다.')">
+                    ① 이름을 지웠으므로 익명화된 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 판단 기준은 「짜 맞춰도 알아낼 수 없는가」입니다. 반·성별·특징이 겹치면 한 사람으로 좁혀집니다.')">
+                    ② 짜 맞춰 알아낼 수 있다면 익명화된 것이 아니다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '설문 인원이 적을수록 오히려 좁혀지기 쉬워 더 위험합니다.')">
+                    ③ 설문 인원이 적으면 안전하다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '칸을 더 지우거나 덩어리로 묶는 등 할 수 있는 일이 있습니다.')">
+                    ④ 익명화는 원래 불가능하므로 신경 쓸 필요가 없다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

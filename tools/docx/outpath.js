@@ -18,8 +18,12 @@ const OUT_ROOT = process.env.DOCX_OUT_ROOT
     ? path.resolve(process.env.DOCX_OUT_ROOT)
     : REPO_ROOT;
 
+// 산출물은 그것을 링크하는 강의노트 바로 옆에 둔다. 그러면 링크에 ../가 없어
+// 파일이 옮겨져도 안 깨지고, 과목 폴더가 자기 자산을 갖게 된다.
+// docx/ 라는 이름의 폴더는 전부 생성물이다 — 저장소 .gitignore가 그렇게 잡고 있다.
 const DEST = {
-    ai: 'templates/ai',
+    ai: '인공지능기초/ai-projects/docx',
+    // 프로그래밍은 C·Python 통합 때 함께 옮긴다. 지금 옮기면 링크를 두 번 고치게 된다.
     py: 'templates/py',
     c: 'templates/c',
 };

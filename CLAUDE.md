@@ -15,7 +15,8 @@
 | `프로그래밍(Python)/` | 「프로그래밍」 Python 강의노트 HTML |
 | `프로그래밍(C)/` | 「프로그래밍」 C 강의노트 HTML |
 | `simulator/ai/` | AI 시뮬레이터 18종 (단일 HTML, 자체 완결형) |
-| `templates/` | 배부용 보고서 양식(.docx)이 **빌드 때 생성되는** 자리. 저장소에는 담지 않는다 → [`tools/docx/`](tools/README.md) |
+| `**/docx/` | 배부용 보고서 양식(.docx)이 **빌드 때 생성되는** 자리. 저장소에 담지 않는다. 그것을 링크하는 강의노트 바로 옆에 둔다 → [`tools/docx/`](tools/README.md) |
+| `templates/py`·`c` | 프로그래밍 배부 양식의 옛 자리. C·Python 통합 때 위 규칙으로 옮긴다 |
 | `tools/` | 강의노트 점검 스크립트 → [`tools/README.md`](tools/README.md) |
 | `docs/강의노트-작성-사례집.md` | 이 문서의 규칙에 대한 근거와 예시 |
 | `docs/simulator-review/` | 시뮬레이터 교육적 검증 리포트 |

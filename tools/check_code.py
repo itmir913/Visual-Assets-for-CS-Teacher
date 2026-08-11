@@ -40,7 +40,7 @@ COMMENT_PREFIX = {".py": "#", ".c": "//"}
 def code_files(root: Path) -> list[Path]:
     """`code/` 폴더 안에 있는 소스만 대상으로 한다.
 
-    도구 스크립트(tools/, build/)까지 검사하지 않으려는 것이다.
+    `tools/` 밑의 도구 스크립트까지 검사하지 않으려는 것이다.
     강의노트가 끌어다 쓰는 코드는 관례상 전부 `code/` 밑에 둔다.
     """
     out: list[Path] = []

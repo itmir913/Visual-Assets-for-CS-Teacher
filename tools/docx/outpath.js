@@ -12,7 +12,9 @@ const path = require('path');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 // 기본 출력 루트는 dist/다. 산출물은 저장소에 담지 않으므로 소스 트리로 떨어질
-// 이유가 없다. 환경변수를 쓰던 방식은 Windows의 npm 스크립트에서 먹지 않아 버렸다.
+// 이유가 없다. 그래서 배포 빌드는 아무것도 넘기지 않는다 — 예전에는 npm 스크립트에서
+// DOCX_OUT_ROOT를 넘겼는데 Windows에서 먹지 않아 기본값 쪽으로 옮겼다.
+// 환경변수는 다른 자리에 뽑아 볼 때를 위해 남겨 둔다.
 const OUT_ROOT = process.env.DOCX_OUT_ROOT
     ? path.resolve(process.env.DOCX_OUT_ROOT)
     : path.join(REPO_ROOT, 'dist');

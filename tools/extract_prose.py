@@ -12,8 +12,8 @@
 
 사용법
     npm run prose -- "데이터과학/3-2-*.html"
-    python .git/작업도구/extract_prose.py 인공지능기초/*.html -o out.md
-    python .git/작업도구/extract_prose.py 데이터과학/*.html --stats   # 크기만 보고 싶을 때
+    npm run prose -- "인공지능기초/*.html" -o out.md
+    npm run prose -- "데이터과학/*.html" --stats   # 크기만 보고 싶을 때
 
 주의 — 추출본에는 **표의 열 구조와 그림이 남지 않는다.**
 "두 산점도를 나란히 놓아 비교시킨다" 같은 시각 장치는 감사 범위에서 빠진다.

@@ -1,4 +1,4 @@
-// 페이지 146개를 굽는 다중 진입점(MPA) 설정.
+// 페이지마다 하나씩 굽는 다중 진입점(MPA) 설정. 무엇을 굽는지는 subjects.json이 정한다.
 //
 // **소스 HTML은 CDN을 쓰지 않는다.** 스타일은 `/src/styles/<단위>.css` 하나를 링크하고,
 // 그 CSS가 Tailwind와 글꼴·아이콘을 npm에서 `@import` 한다. Vite가 글꼴 파일까지 함께
@@ -16,7 +16,7 @@
 //
 //   tools/vite/units.js               무엇을 굽는가 (subjects.json을 읽는다)
 //   tools/vite/inject-code.js         data-src 마커 자리에 실파일의 코드를 넣는다
-//   tools/vite/vendor-public.js       npm 패키지의 브라우저 번들 → public/vendor/
+//   tools/vite/vendor-public.js       이름이 그대로여야 하는 파일(MathJax 글꼴)만 public/으로
 //   tools/vite/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
 //   tools/vite/strip-crossorigin.js   원본에 없던 속성 제거
 import { resolve } from 'node:path';

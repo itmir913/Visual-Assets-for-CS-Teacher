@@ -293,35 +293,21 @@ npm run build                         # 전체, 배포와 같은 것
 
 ### 실행 구성은 `.idea/runConfigurations/`에 있다
 
+**`dev` · `build` · `ci` 셋뿐이다.** 나머지는 터미널에서 `npm run …`으로 부른다 —
+버튼을 명령 수만큼 늘리면 어느 것이 지금 쓰는 것인지 되레 흐려진다.
+
+| 구성 | |
+|---|---|
+| `dev` | `npm run dev` — Vite 개발 서버 |
+| `build` | `npm run build` — 배포와 같은 빌드 |
+| `ci` | `npm run ci` — 검사 → 빌드 → 산출물 검사 |
+
 `.gitignore`가 `.idea/*`를 막되 이 폴더만 되살린다. **`.idea/`(폴더째)로 막으면
 git이 그 안으로 내려가지 않아 예외가 먹지 않는다** — 반드시 `.idea/*`여야 한다.
 그래서 새 실행 구성을 넣을 때 `git add -f`가 필요 없다.
 
-| 구성 | 하는 일 |
-|---|---|
-| 미리보기 · 감시 (저장하면 자동) | `--watch`. 켜 두고 작업한다 |
-| 미리보기 · 현재 파일 | 열어 둔 파일 하나만 다시 굽는다 |
-| 미리보기 · 전체 (빠름, CDN 유지) | 146개를 훑어볼 때만. **배포본과 다르다** |
-| 배포와 같은 빌드 (전체) | 최종 확인용 |
-| **개발 서버 · Vite (권장)** | `npm run dev` |
-| 빌드 · Vite → dist-vite | `npm run build:vite` |
-| 검사 · 현재 파일 | `npm run check:html -- <파일>` |
-| 검사 · 런타임 조립 클래스 | `npm run check:classes` |
-| 검사 · 강의노트 코드 | `npm run check:code` |
-| 검사 · 전체 (CI와 같은 것) | `npm run ci` |
-| 최초 설정 · node 의존성 | `npm run setup` |
-| 최초 설정 · venv 만들기 | `npm run setup:venv` |
-
-**실행 구성은 전부 `npm run`을 부른다**(`ShConfigurationType` + powershell). 무엇을 실제로 돌릴지는
-`package.json`에만 적혀 있으므로, 명령을 고치면 **IDE 버튼도 같이 바뀐다.**
-
-전에는 실행 구성이 `.py`를 직접 부르고 인터프리터를 `.venv/Scripts/python.exe`로 못박아
-두었다. 그래서 **인자와 경로가 `package.json`과 실행 구성 두 곳에 적혀 어긋났고**
-(`build:fast`에 `--skip-docx`가 빠져 있었다), Windows 경로가 박혀 macOS·Linux에서는
-파일마다 고쳐야 했다. npm을 거치면 둘 다 사라진다.
-
-「현재 파일」계열은 `$FilePathRelativeToProjectRoot$` 매크로를 쓴다 — 편집기에서 보고 있는
-파일이 그대로 대상이 된다.
+셋 다 powershell로 `npm run`을 부른다. 무엇을 실제로 돌릴지는 `package.json`에만
+적혀 있으므로, 명령을 고치면 **IDE 버튼도 같이 바뀐다.**
 
 ### 새 컴퓨터에서 clone한 뒤 — 최초 1회
 

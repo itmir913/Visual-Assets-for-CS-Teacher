@@ -226,6 +226,18 @@ table.table-prose { min-width: 32rem; }
   `preserveAspectRatio` 기본값이 이미 가운데 놓는다.
 - `npm run audit:svg`가 둘 다 본다.
 
+**바닥선도 함께 준다 — `min-width ≥ viewBox 폭 × 16 ÷ 가장 작은 font-size`.**
+SVG 글자는 그리는 폭에 비례해 줄어든다. `viewBox="0 0 560 200"`인 그림을 520px로 그리면
+`font-size="14"`가 **13px**로 앉는다. `min-width`와 `max-width`를 같은 값으로 묶으면
+**데스크톱·빔프로젝터에서도 같은 크기**이므로, 이건 좁은 화면만의 문제가 아니다.
+
+- **모자라면 `font-size`가 아니라 그리는 폭을 올린다.** SVG 텍스트는 줄바꿈이 없어
+  글자만 키우면 고정 크기 상자를 뚫는데, 재 보기 전에는 알 수 없다.
+  폭을 키우면 도형과 글자가 같은 비율로 커지므로 배치가 깨질 수 없다.
+- 폭을 올리기 전에 **`overflow-x-auto` 안인지 확인한다.** 아니면 375px에서 페이지가 넘친다.
+- `font-size`는 `<text>`뿐 아니라 **`<g>`에도 붙고 상속된다.** 그룹까지 봐야 한다.
+- `npm run check:html`이 12px 미만은 위반, 12~16px는 「확인 필요」로 잡는다.
+
 ### 코드 요소의 한글 글꼴
 
 요소 선택자만 쓰면 Tailwind의 Preflight에 밀린다. `body`를 붙여 특정도를 올린다.

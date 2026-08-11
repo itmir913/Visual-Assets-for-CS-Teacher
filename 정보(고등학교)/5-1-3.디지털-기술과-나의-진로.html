@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>디지털 기술과 나의 진로</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 설명용 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-compass absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-briefcase absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            디지털 기술과 나의 진로
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            무슨 직업이 살아남는지 맞히는 대신<br>
+            <strong>일이 어떻게 바뀌는지</strong>를 봅니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>직업이 통째로 사라지기보다 <strong>직업 안의 일이 갈린다</strong>는 것을 예를 들어 설명할 수 있다.</li>
+                    <li>디지털 기술과 이어지는 진로 분야를 살펴보고, 어느 분야로 가든 디지털 소양이 필요한 까닭을 말할 수 있다.</li>
+                    <li>관심 있는 분야를 골라 <strong>거기서 무엇을 재고 무엇이 새로 필요해질지</strong> 스스로 짚어 볼 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-compass text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">디지털 기술과 나의 진로</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#change" class="hover:text-teal-600 transition">일이 갈린다</a>
+            <a href="#fields" class="hover:text-teal-600 transition">이어지는 분야</a>
+            <a href="#literacy" class="hover:text-teal-600 transition">디지털 소양</a>
+            <a href="#design" class="hover:text-teal-600 transition">내 자리에 붙여 보기</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 일이 갈린다 ══════════ -->
+    <section id="change" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-code-branch text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">일이 갈린다</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                진로 이야기가 나오면 흔히 <strong>「어떤 직업이 사라질까」</strong>부터 묻습니다.
+                그런데 이 물음은 답하기도 어렵고, 답을 얻어도 별로 쓸모가 없습니다. 더 나은 물음이
+                있습니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">직업이 아니라 「일」을 본다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    하나의 직업은 <strong>여러 가지 일이 묶인 꾸러미</strong>입니다. 기술이 들어올 때
+                    꾸러미가 통째로 사라지는 일은 드뭅니다. 대신 <strong>꾸러미 안의 일 몇 개가 기계
+                    쪽으로 넘어가고, 남은 일의 비중이 커집니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                사진관을 떠올려 봅시다. 필름을 약품에 담가 현상하고 인화하던 일은 거의 사라졌습니다.
+                그러나 <strong>사진관이 통째로 사라지지는 않았습니다.</strong> 어떻게 찍을지 정하고,
+                빛을 다루고, 찍은 것을 골라 다듬는 일은 남았고 오히려 더 중요해졌습니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그래서 진로를 생각할 때 물어야 할 것은 이렇게 바뀝니다.
+                <strong>「내가 하고 싶은 일 가운데, 기계 쪽으로 넘어가기 쉬운 것은 무엇이고 남는 것은
+                무엇인가?」</strong>
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">무엇이 넘어가기 쉬운가</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-slate-800">
+                        <i class="fa-solid fa-robot mr-2 text-slate-500"></i>넘어가기 쉬운 쪽
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>같은 절차를 <strong>똑같이 되풀이</strong>하는 일</li>
+                        <li>규칙이 분명해서 <strong>적어 줄 수 있는</strong> 판단</li>
+                        <li>많은 자료에서 정해진 값을 <strong>찾아내는</strong> 일</li>
+                    </ul>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-teal-900">
+                        <i class="fa-solid fa-hand-holding-heart mr-2 text-teal-600"></i>남기 쉬운 쪽
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li><strong>무엇을 할지 정하는</strong> 일. 기계는 정해 준 것을 할 뿐이다.</li>
+                        <li>사람의 사정을 헤아려야 하는 일, <strong>책임을 지는</strong> 일</li>
+                        <li>기계가 내놓은 결과가 <strong>말이 되는지 살피는</strong> 일</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">이 구분은 고정된 것이 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「규칙을 적어 줄 수 있는 일」의 범위는 계속 넓어져 왔습니다. 예전에는 사람만 할 수
+                    있다고 여겼던 것 중에도 넘어간 것이 있습니다. 그러니 위의 두 칸을
+                    <strong>영영 바뀌지 않을 목록으로 외우지 마세요.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    쓸모 있는 것은 목록이 아니라 <strong>가르는 방법</strong>입니다. 새로운 일을 만날
+                    때마다 「이건 규칙으로 적을 수 있나?」를 스스로 물어보면 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>선생님이 하는 일</strong>을 서너 가지로 나누어 적어 보세요. 그중 넘어가기 쉬운
+                쪽에 놓일 일과 남기 쉬운 쪽에 놓일 일은 각각 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 이어지는 분야 ══════════ -->
+    <section id="fields" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-sitemap text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">이어지는 분야</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                디지털 기술과 곧바로 이어지는 진로 분야부터 살펴보겠습니다. 이 과목에서 배운 것들이
+                각각 어느 쪽으로 이어지는지 알아 두면 좋습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">디지털 기술과 이어지는 진로 분야와 하는 일</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">분야</th>
+                        <th>주로 하는 일</th>
+                        <th class="w-32">이 과목에서는</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">사물 인터넷</td>
+                        <td>무엇을 잴지 고르고, 센서와 통신 장치를 붙여 사물끼리 데이터를 주고받게
+                            만든다.
+                        </td>
+                        <td class="text-slate-600">Ⅰ단원</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">데이터 과학</td>
+                        <td>쌓인 데이터를 다듬어 흐름을 읽고, 그것이 무슨 뜻인지 사람이 알아볼 수 있게
+                            내놓는다.
+                        </td>
+                        <td class="text-slate-600">Ⅱ단원</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">보안</td>
+                        <td>중요한 정보가 새거나 함부로 바뀌지 않도록 지키고, 뚫릴 만한 곳을 미리
+                            찾아 막는다.
+                        </td>
+                        <td class="text-slate-600">Ⅱ단원 &middot; 이 단원 뒤</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">인공지능</td>
+                        <td>사람이 규칙을 적어 주기 어려운 일을 데이터로 배우게 하고, 그 결과가 쓸 만한지
+                            살핀다.
+                        </td>
+                        <td class="text-slate-600">뒤에서 다룬다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">디자인</td>
+                        <td>쓰는 사람이 헤매지 않도록 화면과 흐름을 짠다. 무엇을 먼저 보여 줄지 정하는
+                            일이다.
+                        </td>
+                        <td class="text-slate-600">이 단원 앞</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                맨 아래 줄을 눈여겨보세요. <strong>디자인</strong>은 흔히 「기술 쪽이 아니다」라고
+                생각하기 쉽습니다. 그러나 앞 시간에 본 디지털 격차를 떠올려 보면, 화면을 어떻게
+                짜느냐가 <strong>누가 그 서비스를 쓸 수 있는지</strong>를 가릅니다. 기술 못지않게
+                중요한 자리입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">「디지털 관련 직업」만의 이야기가 아니다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                더 중요한 것은 이 표 <strong>바깥</strong>입니다. 앞 시간에 보았듯 디지털 기술은 몇몇
+                분야의 도구가 아니라 여러 분야의 바탕이 되었습니다. 그러니 표에 없는 분야로 가더라도
+                디지털을 만나게 됩니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-800">농사를 짓는다면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        온도와 흙의 물기를 재는 장치를 두고, 쌓인 기록을 보고 물 주는 때를 정하게
+                        됩니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-800">운동을 가르친다면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        기록을 쌓아 견주고, 자세를 찍어 되돌려 보여 주며 무엇을 고칠지 정하게 됩니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-800">가게를 연다면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        무엇이 언제 팔리는지가 저절로 쌓이고, 그것을 읽어 들여놓을 것을 정하게 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                셋 다 <strong>앞 시간에 본 뼈대</strong>가 그대로 들어 있습니다 &mdash; 재어 쌓고,
+                읽고, 다음 할 일을 정합니다. 그래서 「나는 컴퓨터 쪽으로 갈 게 아니니 상관없다」는
+                생각은 잘 맞지 않습니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표에 없는 분야 하나를 골라 <strong>세 예시처럼 한 문장</strong>으로 써 보세요.
+                「무엇을 재고, 그것으로 무엇을 정하는가」로 쓰면 됩니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 디지털 소양 ══════════ -->
+    <section id="literacy" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-glasses text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">디지털 소양</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                어느 분야로 가든 디지털을 만난다면, 무엇을 갖추어야 할까요. 이것을 가리키는 말이
+                있습니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">디지털 소양(디지털 리터러시, digital literacy)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    디지털 도구와 정보를 <strong>다룰 줄 알고, 그 정보가 믿을 만한지 가려낼 줄 알며,
+                    필요한 것을 골라 자기 것으로 엮어 낼 줄 아는</strong> 능력을 말합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 흔한 오해를 하나 풀고 가겠습니다. 디지털 소양을 <strong>「기기를 능숙하게 다루는
+                것」으로만</strong> 여기기 쉽습니다. 그런데 정의를 다시 보면 다루는 것은 셋 중 하나일
+                뿐입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-hand-pointer text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">다루기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        필요한 도구를 찾아 쓸 수 있습니다. 처음 보는 화면도 겁내지 않고 눌러 봅니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-filter text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">가려내기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        이 정보가 어디서 왔는지, 누가 무슨 이유로 올렸는지 따져 봅니다.
+                        <strong>Ⅱ단원에서 「누가 빠져 있는가」를 물었던 것</strong>이 여기에 해당합니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-teal-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-puzzle-piece text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-teal-900">엮어 내기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        여러 군데서 얻은 것을 이어 붙여 <strong>내 물음에 대한 답</strong>으로 만듭니다.
+                        옮겨 붙이는 것과는 다릅니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가운데와 오른쪽은 <strong>기기를 아무리 빨리 다루어도 저절로 생기지 않습니다.</strong>
+                오히려 도구가 편해질수록 가려내는 일이 더 어려워집니다. 그럴듯한 것을 만들어 내기가
+                쉬워졌기 때문입니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 border-l-4 border-l-slate-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">쓸 줄 아는 것과 아는 것은 다르다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    도구가 답을 척척 내주면 <strong>내가 안다는 착각</strong>이 들기 쉽습니다. 그러나
+                    도구가 틀렸을 때 알아채려면, 그 답이 어떻게 나온 것인지 짐작할 수 있어야 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 과목에서 압축이 어떻게 되는지, 암호가 어떻게 걸리는지, 데이터가 어떻게 치우치는지
+                    들여다본 까닭이 여기에 있습니다. <strong>안을 한 번이라도 본 사람</strong>은
+                    「이상한데?」라고 말할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                최근에 인터넷에서 본 정보 하나를 떠올려, <strong>「가려내기」의 물음</strong>을 던져
+                보세요. 어디서 왔고, 누가, 무슨 이유로 올린 것이었나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 내 자리에 붙여 보기 ══════════ -->
+    <section id="design" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-700 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-compass text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">내 자리에 붙여 보기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 여러분 차례입니다. 관심 있는 분야를 하나 골라 <strong>네 걸음</strong>으로 짚어
+                보세요. 아직 하고 싶은 일이 정해지지 않았어도 괜찮습니다. 오늘 재미있어 보이는 것
+                아무거나로 해 보면 됩니다.
+            </p>
+
+            <div class="space-y-4">
+                <div class="flex gap-4 items-start">
+                    <span class="w-9 h-9 bg-teal-600 text-white rounded-full grid place-items-center font-black text-base shrink-0">1</span>
+                    <div class="min-w-0">
+                        <p class="font-black text-base text-slate-800">분야를 하나 적는다</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            직업 이름이 아니어도 됩니다. 「동물」, 「음악」, 「요리」처럼 넓어도 괜찮습니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="w-9 h-9 bg-teal-600 text-white rounded-full grid place-items-center font-black text-base shrink-0">2</span>
+                    <div class="min-w-0">
+                        <p class="font-black text-base text-slate-800">거기서 무엇을 재고 쌓을 수 있을지 적는다</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            지금 재고 있는 것도 좋고, 잴 수 있는데 아직 안 재는 것이면 더 좋습니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="w-9 h-9 bg-teal-600 text-white rounded-full grid place-items-center font-black text-base shrink-0">3</span>
+                    <div class="min-w-0">
+                        <p class="font-black text-base text-slate-800">그것으로 무엇을 정할 수 있을지 적는다</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            여기까지 쓰면 그 분야에 디지털 기술이 들어오는 모양이 보입니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="w-9 h-9 bg-teal-600 text-white rounded-full grid place-items-center font-black text-base shrink-0">4</span>
+                    <div class="min-w-0">
+                        <p class="font-black text-base text-slate-800">그때 새로 필요해지는 일을 적는다</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            재는 장치를 두는 사람, 쌓인 것을 읽는 사람, 결과가 말이 되는지 살피는 사람,
+                            잘못됐을 때 책임지는 사람 &mdash; <strong>이것이 새로 생기는 일자리</strong>입니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">채워 본 보기 &mdash; 동물을 돌보는 일</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>분야 &mdash; 동물을 돌보는 일</li>
+                    <li>잰다면 &mdash; 먹은 양, 움직인 거리, 자는 시간, 몸무게의 변화</li>
+                    <li>정한다면 &mdash; 평소와 다른 날을 짚어 <strong>병원에 갈 때</strong>를 정한다</li>
+                    <li>새로 필요해지는 일 &mdash; 목걸이형 장치를 만드는 사람, 「평소와 다르다」의 기준을
+                        정하는 사람, <strong>잘못된 알림이 왔을 때 어떻게 할지 정하는 사람</strong>
+                    </li>
+                </ol>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                4번을 눈여겨보세요. 새로 생기는 일 가운데 상당수는 <strong>기계를 만드는 일이 아니라
+                기계와 사람 사이를 잇는 일</strong>입니다. 기준을 정하고, 결과를 살피고, 책임을 나누는
+                자리입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">직업 정보는 어디서 찾을까</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                직업마다 실제로 무슨 일을 하고 어떤 준비가 필요한지는 공공 기관이 모아 둔 곳에서
+                찾아볼 수 있습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-base text-slate-800">커리어넷</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    직업 정보와 학과 정보를 찾아볼 수 있습니다. &rarr;
+                    <a class="ext-link" href="https://www.career.go.kr/" target="_blank" rel="noopener noreferrer">career.go.kr</a>
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">앞으로 생길 직업 목록은 참고만 하세요</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「앞으로 이런 직업이 생긴다」는 이야기가 여러 곳에서 나옵니다. 재미있게 볼 만하지만
+                    <strong>그대로 믿을 것은 못 됩니다.</strong> 지난 예측들을 되짚어 보면 맞은 것도
+                    있고 크게 빗나간 것도 있습니다. 사라진다던 일이 남기도 하고, 아무도 말하지 않던
+                    일이 생기기도 했습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 <strong>목록에서 하나를 골라 거기에 맞추는 방식</strong>은 위험합니다.
+                    그보다는 오늘 해 본 <strong>네 걸음처럼 스스로 짚어 보는 방법</strong>을 익혀
+                    두는 편이 낫습니다. 목록은 몇 해 지나면 바뀌지만, 짚는 방법은 그때도 쓸 수 있습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기까지가 이 단원의 첫 중단원입니다. 다음 중단원에서는 방향을 바꾸어,
+                <strong>디지털 공간에서 정보를 나누고 지키는 일</strong>을 봅니다. 오늘 살펴본
+                「가려내기」가 거기서 다시 나옵니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 걸음을 직접 채운 뒤, <strong>4번에 적은 일 가운데 하나</strong>를 골라 보세요.
+                그 일은 첫 절의 두 칸 가운데 어느 쪽에 가까운가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">일이 갈린다</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>직업은 <strong>여러 일이 묶인 꾸러미</strong>다. 통째로 사라지기보다 안의 일이
+                        갈린다.
+                    </li>
+                    <li>규칙으로 적을 수 있고 되풀이되는 일이 넘어가기 쉽고, 무엇을 할지 정하고 책임지는
+                        일이 남기 쉽다.
+                    </li>
+                    <li>이 구분은 <strong>고정된 목록이 아니다.</strong> 외울 것은 목록이 아니라
+                        가르는 방법이다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">이어지는 분야</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>사물 인터넷 &middot; 데이터 과학 &middot; 보안 &middot; 인공지능 &middot;
+                        디자인이 곧바로 이어지는 분야다.
+                    </li>
+                    <li>디자인은 <strong>누가 그 서비스를 쓸 수 있는지</strong>를 가르는 자리다.</li>
+                    <li>표 바깥의 분야로 가도 <strong>재어 쌓고 읽고 정하는 뼈대</strong>는 그대로
+                        들어온다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">디지털 소양</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>다루기 &middot; 가려내기 &middot; 엮어 내기 셋으로 이루어진다.</li>
+                    <li>기기를 빨리 다룬다고 <strong>가려내기와 엮어 내기가 따라오지는 않는다.</strong></li>
+                    <li>도구가 틀렸을 때 알아채려면 <strong>안이 어떻게 돌아가는지</strong> 짐작할 수
+                        있어야 한다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-slate-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">내 자리에 붙여 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>분야 &rarr; 잴 것 &rarr; 정할 것 &rarr; <strong>새로 필요해지는 일</strong>의
+                        네 걸음으로 짚는다.
+                    </li>
+                    <li>새로 생기는 일에는 <strong>기계와 사람 사이를 잇는 자리</strong>가 많다.</li>
+                    <li>미래 직업 목록은 참고만 한다. <strong>목록보다 짚는 방법</strong>이 오래 간다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    기술이 들어올 때 직업에 일어나는 일을 <strong>가장 잘 설명한</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '통째로 사라지는 일은 오히려 드뭅니다. 사진관도 사라지지 않았습니다.')">
+                    ① 직업이 통째로 사라지고 새 직업이 그 자리를 채운다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 꾸러미 안의 일 몇 개가 기계 쪽으로 넘어가고, 남은 일의 비중이 커집니다.')">
+                    ② 직업 안에 묶인 일 가운데 일부가 넘어가고 나머지가 남는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무것도 바뀌지 않는 것은 아닙니다. 하는 일의 무게가 달라집니다.')">
+                    ③ 겉으로는 달라 보여도 실제로 바뀌는 것은 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기술과 가까운 직업만의 이야기가 아닙니다. 여러 분야에서 함께 일어납니다.')">
+                    ④ 기술과 가까운 직업에서만 일어난다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>기계 쪽으로 넘어가기 쉬운 일</strong>에 가장 가까운 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 절차가 정해져 있고 되풀이되며 규칙을 적어 줄 수 있는 일입니다.')">
+                    ① 정해진 서식에 맞추어 같은 자료를 매달 정리하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '무엇을 할지 정하는 일입니다. 기계는 정해 준 것을 할 뿐입니다.')">
+                    ② 올해 무엇을 새로 시도할지 정하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람의 사정을 헤아려야 하는 일이라 남기 쉬운 쪽입니다.')">
+                    ③ 사정이 어려운 사람의 이야기를 듣고 도울 방법 찾기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과가 말이 되는지 살피는 일은 사람이 맡아야 하는 자리입니다.')">
+                    ④ 기계가 내놓은 결과가 이상하지 않은지 살피기
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>디지털 소양</strong>에 대한 설명으로 알맞지 <strong>않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 다루기는 디지털 소양의 한 부분입니다.')">
+                    ① 필요한 도구를 찾아 쓸 수 있는 것도 포함된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 정보가 어디서 왔는지 따지는 가려내기가 들어갑니다.')">
+                    ② 정보가 믿을 만한지 따져 보는 것도 포함된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 알맞지 않습니다! 기기를 빨리 다루어도 가려내기와 엮어 내기는 저절로 생기지 않습니다.')">
+                    ③ 기기를 빠르게 다룰 줄 알면 나머지도 저절로 갖춰진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 여러 군데서 얻은 것을 이어 붙여 내 답으로 만드는 것이 엮어 내기입니다.')">
+                    ④ 여러 곳에서 얻은 정보를 엮어 내는 것도 포함된다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「앞으로 생길 직업」 목록을 <strong>다루는 태도</strong>로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지난 예측들을 되짚어 보면 크게 빗나간 것도 많습니다. 그대로 믿을 것은 못 됩니다.')">
+                    ① 전문가가 만든 것이니 그대로 믿고 하나를 골라 맞춘다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '빗나가기도 한다고 해서 볼 가치가 없는 것은 아닙니다. 어떤 흐름이 있는지는 참고가 됩니다.')">
+                    ② 어차피 틀리니 아예 보지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 목록은 몇 해 지나면 바뀌지만, 스스로 짚어 보는 방법은 그때도 쓸 수 있습니다.')">
+                    ③ 참고로 보되, 스스로 짚어 보는 방법을 익히는 데 무게를 둔다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이름이 낯설다고 더 유망한 것은 아닙니다. 그런 이름일수록 사라지기도 쉽습니다.')">
+                    ④ 목록에서 가장 낯선 이름을 고르는 것이 유리하다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

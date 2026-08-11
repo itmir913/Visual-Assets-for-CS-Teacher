@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>디지털 기술이란 무엇인가</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-microchip absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-layer-group absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            디지털 기술이란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            지금까지 따로따로 배운 것들에게<br>
+            <strong>하나의 이름</strong>을 붙여 봅니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>디지털 기술이 무엇인지 <strong>데이터를 모으고 다루고 나누는 일</strong>로 설명할 수 있다.</li>
+                    <li>사물 인터넷과 클라우드, 빅데이터와 인공지능이 각각 무엇을 맡는지 구별해 말할 수 있다.</li>
+                    <li>하나의 서비스 안에서 여러 디지털 기술이 <strong>어떤 차례로 맞물리는지</strong> 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-microchip text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">디지털 기술이란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-teal-600 transition">디지털 기술</a>
+            <a href="#four" class="hover:text-teal-600 transition">네 가지 기술</a>
+            <a href="#together" class="hover:text-teal-600 transition">맞물려 돌아가기</a>
+            <a href="#around" class="hover:text-teal-600 transition">가려내 보기</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 디지털 기술 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-microchip text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">디지털 기술</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이번 단원은 지금까지 배운 것들을 <strong>한 발 물러서서</strong> 보는 자리입니다. 네트워크를
+                배웠고, 사물 인터넷을 배웠고, 데이터를 압축하고 감추는 법을 배웠고, 빅데이터를 모아 그림으로
+                그려 읽는 법까지 배웠습니다. 이것들을 한데 묶어 부르는 이름이 있습니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">디지털 기술(digital technology)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    데이터를 <strong>모으고, 컴퓨터가 다룰 수 있는 형태로 저장하고 처리하고, 그 결과를
+                    주고받는</strong> 데 쓰이는 장치와 시스템을 통틀어 이르는 말입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 <strong>「디지털」</strong>이라는 말부터 풀고 가겠습니다. 온도계의 수은 기둥은 끊긴 데
+                없이 죽 이어져 올라갑니다. 이렇게 <strong>이어진 값 그대로</strong> 다루는 방식을
+                아날로그(analog)라고 합니다. 반대로 온도를 「23.4도」처럼 <strong>잘게 끊어 숫자로
+                적는</strong> 방식이 디지털(digital)입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                컴퓨터는 숫자만 다룰 수 있으니, 무엇이든 컴퓨터에 맡기려면 먼저 숫자로 끊어 적어야 합니다.
+                소리도, 그림도, 온도도 마찬가지입니다. Ⅱ단원에서 압축과 암호화를 배울 때 다뤘던 것도
+                결국 <strong>그렇게 숫자가 된 데이터</strong>였습니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">디지털 기술이 하는 일 세 가지</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-inbox text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">모으기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        센서가 온도를 재고, 카드 단말기가 탄 시각을 적고, 우리가 검색어를 칩니다.
+                        <strong>바깥 세상의 일을 숫자로 바꿔 들이는</strong> 단계입니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-gears text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">다루기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        저장하고, 자리를 줄이고, 남이 못 읽게 감추고, 세어 보고, 평균을 냅니다.
+                        <strong>모은 것을 쓸 만한 것으로 바꾸는</strong> 단계입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-share-nodes text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-amber-900">나누기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        네트워크를 타고 다른 기기로, 다른 사람에게 갑니다. Ⅰ단원에서 배운
+                        <strong>네트워크가 바로 이 자리</strong>를 맡습니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                셋 중 하나만 해도 디지털 기술이라 부를 수 있습니다. 다만 <strong>쓸모 있는 것은 대개 셋이
+                이어질 때</strong> 나옵니다. 모으기만 하고 다루지 않으면 숫자 더미로 남고, 다루기만 하고
+                나누지 않으면 그 컴퓨터 안에서 끝납니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                오늘 아침 학교에 오기까지 <strong>여러분이 남긴 숫자</strong>를 하나만 떠올려 보세요.
+                그것은 모으기 &middot; 다루기 &middot; 나누기 가운데 어디까지 갔을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 네 가지 기술 ══════════ -->
+    <section id="four" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-layer-group text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">네 가지 기술</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                디지털 기술이라 부를 만한 것은 아주 많습니다. 그중에서도 요즘 여러 분야에 두루 쓰이면서
+                <strong>서로 맞물려 돌아가는</strong> 것 넷을 골라 정리해 두겠습니다. 반가운 소식은,
+                <strong>셋은 이미 배운 것</strong>이라는 점입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">네 가지 디지털 기술이 맡는 일</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">기술</th>
+                        <th>맡는 일</th>
+                        <th class="w-36">어디서 배웠나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">사물 인터넷</td>
+                        <td>사물에 센서와 통신 장치를 붙여, 사람이 손대지 않아도 사물끼리 데이터를
+                            주고받게 한다. <strong>모으는 쪽</strong>을 맡는다.
+                        </td>
+                        <td class="text-slate-600">Ⅰ단원에서 배웠다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">클라우드</td>
+                        <td>다른 곳에 마련된 큰 컴퓨터를 빌려 쓰고 쓴 만큼 값을 낸다. 모인 데이터를
+                            <strong>둘 자리</strong>를 마련해 준다.
+                        </td>
+                        <td class="text-slate-600">Ⅰ단원에서 배웠다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">빅데이터</td>
+                        <td>너무 크고 빠르고 제각각이라 예전 방식으로는 다루기 어려운 데이터를 모아
+                            <strong>읽어 내는</strong> 일을 맡는다.
+                        </td>
+                        <td class="text-slate-600">Ⅱ단원에서 배웠다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">인공지능</td>
+                        <td>사람이 규칙을 하나하나 적어 주기 어려운 일을, 데이터에서 <strong>스스로 규칙을
+                            찾아</strong> 해내게 한다.
+                        </td>
+                        <td class="text-slate-600">이번에 처음 나온다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                표의 「맡는 일」을 세로로 읽어 보면 앞 절의 <strong>모으기 &middot; 다루기 &middot;
+                나누기</strong>가 그대로 보입니다. 사물 인터넷이 모으고, 클라우드가 둘 자리를 주고,
+                빅데이터와 인공지능이 다룹니다. 그리고 이 모두를 잇는 길이 네트워크입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">처음 나오는 것 &mdash; 인공지능</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                넷 중 인공지능(artificial intelligence, AI)만 아직 다루지 않았습니다. 여기서는
+                <strong>「무엇을 맡는가」까지만</strong> 보고, 어떻게 학습하는지는 뒤의 단원에서
+                따로 다룹니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">규칙을 적어 주기 어려운 일</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「잔반이 5kg을 넘으면 알려라」는 규칙을 사람이 적어 줄 수 있습니다. 그런데
+                    <strong>「이 사진에 고양이가 있으면 알려라」</strong>는 어떻게 적을까요? 귀가 뾰족하면?
+                    털이 있으면? 어떻게 적어도 빠져나가는 사진이 생깁니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    인공지능은 이런 일을 <strong>규칙 대신 예시로</strong> 해결합니다. 고양이가 있는 사진과
+                    없는 사진을 잔뜩 보여 주면, 그 안에서 스스로 구별하는 기준을 찾아냅니다.
+                    <strong>사람이 규칙을 못 적는 자리</strong>가 인공지능이 필요한 자리입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 빅데이터와 인공지능의 관계가 보입니다. 예시를 보고 배우려면 <strong>예시가 아주
+                많아야</strong> 합니다. 빅데이터가 쌓인 덕분에 인공지능이 쓸 만해진 것이지, 둘이 따로
+                생긴 것이 아닙니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「출석 번호를 부르면 그 학생의 이름을 알려 준다」와 「사진 속 사람이 우리 반 누구인지
+                알려 준다」 &mdash; 둘 중 <strong>인공지능이 필요한 쪽</strong>은 어디이고, 그 까닭은
+                무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 맞물려 돌아가기 ══════════ -->
+    <section id="together" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-diagram-project text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">맞물려 돌아가기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 가지를 따로 외우면 금세 헷갈립니다. <strong>하나의 서비스가 돌아가는 차례</strong>를
+                따라가 보면 각자가 어디에 서 있는지가 분명해집니다. 정류장에서 볼 수 있는
+                <strong>버스 도착 안내</strong>를 예로 들겠습니다.
+            </p>
+
+            <!-- 네 기술이 차례로 맞물리는 흐름. 글자는 아래 HTML로 뺀다. -->
+            <svg class="chart-svg" viewBox="0 0 800 200" role="img"
+                 aria-label="버스의 센서가 위치를 보내고, 클라우드에 쌓이고, 쌓인 기록이 빅데이터가 되며, 인공지능이 도착 시각을 예측하는 네 단계 흐름 그림">
+                <!-- ① 사물 인터넷: 버스와 신호 -->
+                <rect x="20" y="45" width="150" height="110" rx="18" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="3"/>
+                <rect x="55" y="88" width="66" height="34" rx="7" fill="#0ea5e9"/>
+                <circle cx="70" cy="126" r="8" fill="#0369a1"/>
+                <circle cx="106" cy="126" r="8" fill="#0369a1"/>
+                <path d="M88 78 A22 22 0 0 1 110 78" fill="none" stroke="#0284c7" stroke-width="4" stroke-linecap="round"/>
+                <path d="M88 66 A34 34 0 0 1 122 66" fill="none" stroke="#0284c7" stroke-width="4" stroke-linecap="round"/>
+
+                <!-- 화살표 1 -->
+                <path d="M180 100 L215 100" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <path d="M205 91 L217 100 L205 109 Z" fill="#94a3b8"/>
+
+                <!-- ② 클라우드: 구름 + 저장 원통 -->
+                <rect x="225" y="45" width="150" height="110" rx="18" fill="#ede9fe" stroke="#8b5cf6" stroke-width="3"/>
+                <path d="M268 92 a20 20 0 0 1 38 -10 a16 16 0 0 1 22 18 a14 14 0 0 1 -6 26 h-48 a17 17 0 0 1 -6 -34 z"
+                      fill="#8b5cf6"/>
+                <ellipse cx="300" cy="128" rx="26" ry="7" fill="#6d28d9"/>
+                <rect x="274" y="128" width="52" height="14" fill="#6d28d9"/>
+                <ellipse cx="300" cy="142" rx="26" ry="7" fill="#5b21b6"/>
+
+                <!-- 화살표 2 -->
+                <path d="M385 100 L420 100" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <path d="M410 91 L422 100 L410 109 Z" fill="#94a3b8"/>
+
+                <!-- ③ 빅데이터: 쌓인 막대 -->
+                <rect x="430" y="45" width="150" height="110" rx="18" fill="#fef3c7" stroke="#f59e0b" stroke-width="3"/>
+                <rect x="458" y="112" width="20" height="30" rx="4" fill="#f59e0b"/>
+                <rect x="484" y="94" width="20" height="48" rx="4" fill="#d97706"/>
+                <rect x="510" y="76" width="20" height="66" rx="4" fill="#f59e0b"/>
+                <rect x="536" y="100" width="20" height="42" rx="4" fill="#d97706"/>
+                <path d="M452 66 L568 66" stroke="#b45309" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 6"/>
+
+                <!-- 화살표 3 -->
+                <path d="M590 100 L625 100" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <path d="M615 91 L627 100 L615 109 Z" fill="#94a3b8"/>
+
+                <!-- ④ 인공지능: 연결된 마디 -->
+                <rect x="635" y="45" width="150" height="110" rx="18" fill="#ffe4e6" stroke="#f43f5e" stroke-width="3"/>
+                <path d="M672 78 L710 100 L672 122 M710 100 L748 78 M710 100 L748 122"
+                      fill="none" stroke="#fb7185" stroke-width="3"/>
+                <circle cx="672" cy="78" r="11" fill="#f43f5e"/>
+                <circle cx="672" cy="122" r="11" fill="#f43f5e"/>
+                <circle cx="710" cy="100" r="13" fill="#be123c"/>
+                <circle cx="748" cy="78" r="11" fill="#f43f5e"/>
+                <circle cx="748" cy="122" r="11" fill="#f43f5e"/>
+            </svg>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 bg-sky-500 text-white rounded-full grid place-items-center font-black text-base shrink-0">1</span>
+                        <p class="font-black text-base text-sky-900">사물 인터넷 &mdash; 버스가 알린다</p>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        버스에 달린 장치가 지금 어디쯤인지를 몇 초마다 보냅니다. 기사가 손으로 알리는 것이
+                        아니라 <strong>장치가 스스로</strong> 보냅니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 bg-violet-500 text-white rounded-full grid place-items-center font-black text-base shrink-0">2</span>
+                        <p class="font-black text-base text-violet-900">클라우드 &mdash; 받아서 쌓아 둔다</p>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        버스가 몇 대든, 출퇴근 시간에 요청이 몰리든 감당해야 합니다. 필요한 만큼
+                        <strong>빌리는 크기를 조절</strong>할 수 있어서 이런 일에 맞습니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 bg-amber-500 text-white rounded-full grid place-items-center font-black text-base shrink-0">3</span>
+                        <p class="font-black text-base text-amber-900">빅데이터 &mdash; 지난 기록이 쌓인다</p>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        하루 이틀이 아니라 <strong>여러 해치가 쌓입니다.</strong> 요일마다, 시간대마다,
+                        비 오는 날마다 걸린 시간이 다르다는 것이 이 더미 안에 들어 있습니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 bg-rose-500 text-white rounded-full grid place-items-center font-black text-base shrink-0">4</span>
+                        <p class="font-black text-base text-rose-900">인공지능 &mdash; 몇 분 뒤인지 헤아린다</p>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        「남은 거리 ÷ 속도」로는 맞지 않습니다. 신호도 있고 정류장마다 서기도 합니다.
+                        쌓인 기록에서 <strong>비슷한 상황일 때 걸린 시간</strong>을 찾아 내놓습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 border-l-4 border-l-slate-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">넷 중 하나만 빠져도 안내판은 멈춘다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    버스가 위치를 안 보내면 쌓일 것이 없고, 쌓을 자리가 없으면 지난 기록이 남지 않고,
+                    지난 기록이 없으면 헤아릴 근거가 없습니다. <strong>디지털 기술은 하나씩 쓰이기보다
+                    줄줄이 엮여</strong> 하나의 서비스를 이룹니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 「이 서비스는 무슨 기술로 만들었나」를 물을 때, 하나만 골라 답하기보다
+                    <strong>어느 자리에 무엇이 있는지</strong>로 보는 편이 낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 안내판에서 <strong>인공지능만 빼면</strong> 무엇을 보여 줄 수 있고 무엇을 보여 줄 수
+                없을까요? 안내판이 아예 못 쓰게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 가려내 보기 ══════════ -->
+    <section id="around" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-700 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-magnifying-glass text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">가려내 보기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                「전자 제품이면 다 디지털 기술인가?」 이 물음에 답해 보면 개념이 훨씬 또렷해집니다.
+                앞에서 세운 <strong>모으기 &middot; 다루기 &middot; 나누기</strong>를 잣대로 삼아
+                몇 가지를 가려내 보겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">일상 속 장치가 디지털 기술에 해당하는지 가려낸 표</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">이런 것</th>
+                        <th class="w-28">해당하는가</th>
+                        <th>왜 그런가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">태엽으로 가는 손목시계</td>
+                        <td class="text-slate-600">아니다</td>
+                        <td>바늘이 이어져 돌 뿐, 시각을 숫자로 끊어 다루지 않습니다. 아날로그입니다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">숫자로 뜨는 전자시계</td>
+                        <td class="text-slate-600">걸쳐 있다</td>
+                        <td>시각을 숫자로 다루기는 합니다. 다만 밖에서 무언가를 <strong>모으지도, 어디로
+                            보내지도</strong> 않습니다. 셋 중 「다루기」에만 걸칩니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">교통카드 단말기</td>
+                        <td class="text-slate-600">그렇다</td>
+                        <td>카드를 읽어 모으고, 요금을 계산해 다루고, 그 기록을 회사로 보내 나눕니다.
+                            셋이 다 있습니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">종이 출석부</td>
+                        <td class="text-slate-600">아니다</td>
+                        <td>기록을 남기기는 하지만 컴퓨터가 다룰 수 있는 형태가 아닙니다. 세어 보려면
+                            사람이 손으로 세야 합니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학교 누리집</td>
+                        <td class="text-slate-600">그렇다</td>
+                        <td>글과 사진을 받아 저장하고, 네트워크를 통해 누구에게나 내줍니다.
+                            「나누기」가 이 서비스의 알맹이입니다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가운데 줄에 일부러 <strong>「걸쳐 있다」</strong>를 두었습니다. 세상의 물건이 「디지털
+                기술이다 / 아니다」로 깨끗이 갈리지는 않습니다. 중요한 것은 이름표를 붙이는 일이 아니라,
+                <strong>어디까지 하고 있는지</strong>를 짚어 보는 일입니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">손으로 하면 무엇이 달라질까</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅱ단원에서 급식 잔반량을 다뤄 보았습니다. 그 일을 <strong>손으로 할 때와 장치에 맡길
+                때</strong>가 어떻게 다른지 견주어 보면, 디지털 기술이 무엇을 바꾸는지가 보입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-slate-800">
+                        <i class="fa-solid fa-pen mr-2 text-slate-500"></i>사람이 손으로 적을 때
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>하루 한 번 정도가 한계입니다. 자주 재려면 그만큼 사람이 붙어야 합니다.</li>
+                        <li>적는 사람이 바뀌면 적는 방식도 조금씩 달라집니다.</li>
+                        <li>모아 놓은 종이를 <strong>다시 세는 데 또 시간이 듭니다.</strong></li>
+                    </ul>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-3 min-w-0">
+                    <p class="font-black text-base text-teal-900">
+                        <i class="fa-solid fa-tower-broadcast mr-2 text-teal-600"></i>장치에 맡길 때
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>몇 초마다도 잴 수 있고, 사람이 없는 시간에도 쌓입니다.</li>
+                        <li>같은 방식으로 재니 <strong>서로 견주기가 쉽습니다.</strong></li>
+                        <li>이미 숫자라서 세거나 그림으로 그리는 데 손이 덜 갑니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>양과 속도가 달라집니다.</strong> 그리고 양과 속도가 달라지면, 예전에는 물어볼 엄두도
+                내지 못하던 것을 물어볼 수 있게 됩니다. 빅데이터가 그렇게 생겼습니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">다만, 좋아지기만 하는 것은 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    장치가 알아서 쌓아 준다는 것은 <strong>아무도 들여다보지 않아도 쌓인다</strong>는 뜻이기도
+                    합니다. 무엇이 왜 쌓이는지 모른 채 지나가기 쉽고, 그 안에 사람에 대한 것이 섞여 있을 수도
+                    있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    디지털 기술이 사회를 어떻게 바꾸는지, 그 가운데 무엇을 걱정해야 하는지는
+                    <strong>다음 시간에</strong> 이어서 봅니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                교실에 있는 물건 하나를 골라 위 표의 잣대로 가려내 보세요. <strong>「걸쳐 있다」에 놓고
+                싶은 물건</strong>이 있다면, 셋 중 무엇이 빠져서 그런가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">디지털 기술</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>데이터를 <strong>모으고 &middot; 다루고 &middot; 나누는</strong> 장치와 시스템을
+                        통틀어 이르는 말이다.
+                    </li>
+                    <li>디지털은 값을 <strong>잘게 끊어 숫자로 적는</strong> 방식이다. 이어진 값 그대로
+                        다루는 아날로그와 대비된다.
+                    </li>
+                    <li>셋 중 하나만 해도 해당하지만, 쓸모 있는 것은 대개 셋이 이어질 때 나온다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">네 가지 기술</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>사물 인터넷</strong>이 모으고, <strong>클라우드</strong>가 둘 자리를 준다.</li>
+                    <li><strong>빅데이터</strong>와 <strong>인공지능</strong>이 쌓인 것을 읽어 낸다.</li>
+                    <li>인공지능은 <strong>사람이 규칙을 적어 주기 어려운 일</strong>을 예시로 배워 해낸다.
+                        예시가 많아야 하므로 빅데이터와 붙어 다닌다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">맞물려 돌아가기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>하나의 서비스는 여러 기술이 <strong>줄줄이 엮여</strong> 이루어진다.</li>
+                    <li>버스 도착 안내는 보내기(사물 인터넷) → 쌓기(클라우드) → 지난 기록(빅데이터)
+                        → 헤아리기(인공지능)로 이어진다.
+                    </li>
+                    <li>「무슨 기술로 만들었나」보다 <strong>「어느 자리에 무엇이 있나」</strong>로 보는 편이
+                        낫다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-slate-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">가려내 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>전자 제품이라고 모두 해당하지는 않는다. <strong>걸쳐 있는 것도 있다.</strong></li>
+                    <li>손으로 할 때와 견주면 <strong>양과 속도</strong>가 달라지고, 그래서 물을 수 있는
+                        것이 달라진다.
+                    </li>
+                    <li>알아서 쌓인다는 것은 <strong>아무도 안 봐도 쌓인다</strong>는 뜻이기도 하다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>디지털</strong>이라는 말을 가장 알맞게 설명한 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전기를 쓴다고 디지털은 아닙니다. 태엽 없이 전기로 도는 아날로그 장치도 있습니다.')">
+                    ① 전기를 써서 움직이는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 이어진 값을 잘게 끊어 숫자로 적는 방식이 디지털입니다. 그래야 컴퓨터가 다룰 수 있습니다.')">
+                    ② 값을 잘게 끊어 숫자로 적는 방식
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '인터넷에 연결되지 않아도 숫자로 다루면 디지털입니다. 연결은 「나누기」에 해당할 뿐입니다.')">
+                    ③ 인터넷에 연결되어 있는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '최근에 나왔는지와는 상관이 없습니다. 오래된 장치 중에도 숫자로 다루는 것이 있습니다.')">
+                    ④ 최근에 새로 나온 기술
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    네 가지 기술 가운데 <strong>모으는 쪽</strong>을 맡는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사물에 센서와 통신 장치를 붙여, 사람이 손대지 않아도 데이터가 들어오게 합니다.')">
+                    ① 사물 인터넷
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '클라우드는 모인 것을 둘 자리를 빌려주는 쪽입니다. 모으는 일은 하지 않습니다.')">
+                    ② 클라우드
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '빅데이터는 이미 쌓인 것을 읽어 내는 쪽입니다.')">
+                    ③ 빅데이터
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '인공지능은 쌓인 것에서 규칙을 찾아내는 쪽입니다.')">
+                    ④ 인공지능
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 중 <strong>인공지능이 필요한 일</strong>에 가장 가까운 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규칙이 이미 분명합니다. 「5kg을 넘으면」이라고 적어 주면 됩니다.')">
+                    ① 잔반이 5kg을 넘으면 알림을 보내기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '더하고 나누면 되는 일입니다. 규칙을 적어 줄 수 있습니다.')">
+                    ② 요일별 잔반량의 평균 구하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 어떤 반찬인지 알아보는 규칙은 사람이 적어 주기 어렵습니다. 예시를 잔뜩 보여 주어 스스로 찾게 하는 편이 낫습니다.')">
+                    ③ 식판 사진을 보고 어떤 반찬이 남았는지 알아보기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '큰 값을 고르는 일은 견주기만 하면 됩니다. 규칙이 분명합니다.')">
+                    ④ 가장 많이 남은 날 찾기
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    버스 도착 안내에서 <strong>클라우드가 맡는 자리</strong>는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '위치를 보내는 것은 버스에 달린 장치, 곧 사물 인터넷 쪽 일입니다.')">
+                    ① 버스의 위치를 재어 보낸다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 몰릴 때와 한산할 때에 맞춰 빌리는 크기를 조절하며, 들어오는 데이터를 받아 쌓아 둡니다.')">
+                    ② 들어오는 데이터를 받아 쌓아 둘 자리를 마련한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '몇 분 뒤에 오는지 헤아리는 것은 인공지능 쪽 일입니다.')">
+                    ③ 몇 분 뒤에 도착할지 헤아린다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지난 기록에서 흐름을 읽어 내는 것은 빅데이터 쪽 일입니다.')">
+                    ④ 요일별로 걸린 시간의 흐름을 읽어 낸다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

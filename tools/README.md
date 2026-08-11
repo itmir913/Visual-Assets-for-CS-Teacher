@@ -160,12 +160,22 @@ python .github/scripts/build_site.py --out dist               # 전체, 배포�
 물려받게 두면 IDE의 SDK 등록이 깨졌을 때 실행 구성이 통째로 안 돈다(실제로 겪었다 —
 `CreateProcess error=2`). 상대 경로라 저장소에 넣어도 기기 경로가 박히지 않는다.
 
-검사 스크립트도 빌드 스크립트도 **표준 라이브러리만** 쓰므로 인터프리터에 설치할 것은 없다.
-`.venv`가 없거나 깨졌으면 다시 만들면 된다.
+### 새 컴퓨터에서 clone한 뒤 — 최초 1회
+
+**`.venv`는 git에 없다.** 그래서 clone 직후에는 실행 구성이 위 오류로 죽는다.
+**Run 드롭다운의 「최초 설정 · venv 만들기」를 한 번 돌리면** 끝이다. 같은 일을 손으로 하려면
 
 ```bash
-python -m venv .venv
+python -m venv .venv              # pip 포함, 약 1분
+python -m venv --without-pip .venv  # 약 3초. 이 저장소는 이걸로 충분하다
 ```
+
+**설치할 패키지는 없다.** 검사 스크립트도 빌드 스크립트도 **표준 라이브러리만** 쓴다.
+`.venv`가 필요한 이유는 의존성이 아니라 IntelliJ가 가리킬 인터프리터가 하나 있어야 해서다.
+그래서 `--without-pip`으로 만들어도 전부 동작한다.
+
+> **Windows 기준 경로다.** macOS·Linux에서 쓰려면 `.run/*.run.xml`의 `SDK_HOME`을
+> `$PROJECT_DIR$/.venv/bin/python`으로 바꿔야 한다. 실행 구성 하나에 한 줄씩이다.
 
 ## 배부 문서 생성기 — `docx/`
 

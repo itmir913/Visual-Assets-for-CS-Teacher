@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 암호화란 무엇인가</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-lock absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-key absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            데이터 암호화란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            보내는 길에 누가 있어도<br>
+            <strong>읽지 못하게</strong> 할 수 있을까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>평문 &middot; 암호문 &middot; 암호화 &middot; 복호화를 구분해 설명하고, 각각이 어느 자리에서 일어나는지 그림으로 나타낼 수 있다.</li>
+                    <li>「규칙」과 「키」의 차이를 말하고, 규칙은 알려져도 되지만 키는 알려지면 안 되는 까닭을 설명할 수 있다.</li>
+                    <li>압축과 암호화가 둘 다 표현을 바꾸는 일인데도 목적이 다르다는 것을 구별할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-lock text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 암호화란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#need" class="hover:text-teal-600 transition">왜 감추는가</a>
+            <a href="#terms" class="hover:text-teal-600 transition">평문과 암호문</a>
+            <a href="#key" class="hover:text-teal-600 transition">규칙과 키</a>
+            <a href="#limit" class="hover:text-teal-600 transition">해 주지 못하는 것</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 왜 감추는가 ══════════ -->
+    <section id="need" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-eye-slash text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">왜 감추는가</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 단원에서 데이터가 어떻게 오가는지를 보았습니다. 내 기기에서 나온 데이터는 공유기를 거치고,
+                여러 라우터를 지나고, 통신 회사의 장비를 지나 목적지에 닿습니다. 그 사이에는
+                <strong>내가 알지 못하는 장비와 사람이 여럿 있습니다.</strong>
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                평소에는 아무 일도 일어나지 않습니다. 그러나 중간의 어느 지점에서 지나가는 데이터를 들여다보려
+                마음먹으면, 데이터가 <strong>있는 그대로 적혀 있는 한</strong> 막을 방법이 없습니다.
+                앞 단원에서 「오가는 데이터를 중간에서 엿보거나 바꿔치기할 수 있다」고 했던 것이 이 이야기입니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">데이터 암호화(encryption)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    데이터를 <strong>정해진 사람만 되돌릴 수 있는 형태로 바꿔 두는 것</strong>입니다. 중간에서
+                    누군가 가로채더라도 무슨 내용인지 알 수 없게 만듭니다. 목적은 하나입니다 &mdash;
+                    <strong>가진 사람이 아니면 읽을 수 없게 하는 것.</strong>
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 앞 차시와 헷갈리기 쉬운 지점이 나옵니다. 압축도 데이터를 알아보기 어려운 모양으로 바꿉니다.
+                실제로 압축된 파일을 그냥 열어 보면 뜻 모를 값 덩어리로 보입니다. <strong>그러면 압축도 감추는
+                기술일까요?</strong> 아닙니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-sky-900">압축 &mdash; 자리를 줄이려고 바꾼다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        규칙만 알면 <strong>누구든 되돌릴 수 있어야 합니다.</strong> 오히려 그래야 쓸모가 있습니다.
+                        파일 이름 끝에 어떤 규칙을 썼는지 대놓고 적어 두는 것도 그 때문입니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-rose-900">암호화 &mdash; 못 읽게 하려고 바꾼다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        규칙을 알아도 <strong>정해진 사람이 아니면 되돌릴 수 없어야 합니다.</strong>
+                        되돌릴 수 있는 사람이 많아지면 그만큼 실패한 암호화입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>가르는 물음: 규칙을 아는 사람이 되돌릴 수 있는가
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    둘 다 「표현을 바꾸는 일」이라는 점은 같습니다. 갈리는 지점은 <strong>규칙을 아는 사람이
+                    되돌릴 수 있어야 하는가</strong>입니다. 압축은 <strong>있어야 하고</strong>, 암호화는
+                    <strong>없어야 합니다.</strong> 그래서 암호화에는 규칙 말고 하나가 더 필요합니다.
+                    무엇인지는 세 번째 절에서 봅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>압축된 파일은 감춰진 것이 아닙니다.</strong> 압축했으니 안전하다고 여기면 곤란합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「중요한 파일을 압축해 두었으니 남이 봐도 못 읽을 것」이라고 생각한 친구가 있습니다. 위의 가르는
+                물음으로 무엇이 잘못되었는지 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 평문과 암호문 ══════════ -->
+    <section id="terms" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-arrow-right-arrow-left text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">평문과 암호문</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                암호를 이야기하려면 이름 넷이 필요합니다. 둘은 <strong>데이터의 상태</strong>를 가리키고,
+                둘은 <strong>상태를 바꾸는 일</strong>을 가리킵니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">평문(plaintext)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        아직 감추지 않은, <strong>누구든 읽을 수 있는 원래의 데이터</strong>입니다.
+                        「평(平)」은 평범하다는 뜻입니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">암호문(ciphertext)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        평문을 바꿔 놓아 <strong>그대로는 읽을 수 없게 된 데이터</strong>입니다.
+                        내용이 사라진 것이 아니라 알아볼 수 없게 되었을 뿐입니다.
+                    </p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-teal-900">암호화(encryption)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        평문을 암호문으로 바꾸는 일입니다. 보내는 쪽에서 합니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-amber-900">복호화(decryption)</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        암호문을 평문으로 되돌리는 일입니다. 받는 쪽에서 합니다.
+                        「복(復)」은 되돌린다는 뜻입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <svg class="chart-svg" viewBox="0 0 360 150" role="img"
+                     aria-label="왼쪽 사각형에서 자물쇠를 지나 가운데 사각형으로, 다시 열쇠를 지나 오른쪽 사각형으로 이어지는 그림">
+                    <defs>
+                        <marker id="en-f" markerWidth="9" markerHeight="9" refX="7" refY="3.2"
+                                orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L7,3.2 L0,6.4 z" fill="#64748b"></path>
+                        </marker>
+                    </defs>
+                    <rect x="10" y="46" width="76" height="52" rx="12" fill="#e0f2fe" stroke="#0284c7"
+                          stroke-width="2.5"></rect>
+                    <rect x="142" y="46" width="76" height="52" rx="12" fill="#ffe4e6" stroke="#e11d48"
+                          stroke-width="2.5"></rect>
+                    <rect x="274" y="46" width="76" height="52" rx="12" fill="#e0f2fe" stroke="#0284c7"
+                          stroke-width="2.5"></rect>
+                    <line x1="90" y1="72" x2="136" y2="72" stroke="#64748b" stroke-width="3"
+                          marker-end="url(#en-f)"></line>
+                    <line x1="222" y1="72" x2="268" y2="72" stroke="#64748b" stroke-width="3"
+                          marker-end="url(#en-f)"></line>
+                    <circle cx="112" cy="34" r="15" fill="#ccfbf1" stroke="#0d9488" stroke-width="2.5"></circle>
+                    <circle cx="244" cy="34" r="15" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"></circle>
+                    <line x1="112" y1="49" x2="112" y2="64" stroke="#0d9488" stroke-width="2.5"
+                          stroke-dasharray="4 3"></line>
+                    <line x1="244" y1="49" x2="244" y2="64" stroke="#d97706" stroke-width="2.5"
+                          stroke-dasharray="4 3"></line>
+                    <rect x="96" y="112" width="160" height="26" rx="8" fill="#f8fafc" stroke="#cbd5e1"
+                          stroke-width="2" stroke-dasharray="5 4"></rect>
+                </svg>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-sky-100 border-2 border-sky-600"></span>
+                        <span>양 끝의 파란 상자 &mdash; <strong class="text-slate-800">평문</strong></span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-rose-100 border-2 border-rose-600"></span>
+                        <span>가운데 붉은 상자 &mdash; <strong class="text-slate-800">암호문</strong></span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded-full shrink-0 bg-teal-100 border-2 border-teal-600"></span>
+                        <span>왼쪽 동그라미 &mdash; <strong class="text-slate-800">암호화</strong></span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2">
+                        <span class="mt-1.5 w-4 h-4 rounded-full shrink-0 bg-amber-100 border-2 border-amber-600"></span>
+                        <span>오른쪽 동그라미 &mdash; <strong class="text-slate-800">복호화</strong></span>
+                    </p>
+                    <p class="text-base text-slate-600 flex items-start gap-2 sm:col-span-2">
+                        <span class="mt-1.5 w-4 h-4 rounded shrink-0 bg-slate-50 border-2 border-dashed border-slate-400"></span>
+                        <span>아래 점선 칸 &mdash; <strong class="text-slate-800">남이 볼 수도 있는 구간.</strong>
+                            이 구간에서만 암호문 상태로 있으면 됩니다</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>양 끝은 평문입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그림의 양 끝이 같은 색인 것에 주목하세요. <strong>보내는 사람과 받는 사람의 손에서는
+                    데이터가 평문입니다.</strong> 읽을 수 있어야 쓸모가 있으니 당연합니다. 암호화가 지키는 것은
+                    <strong>가운데 구간</strong>뿐입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 암호화는 <strong>양 끝을 지켜 주지 않습니다.</strong> 내 기기가 이미 뚫려 있다면
+                    아무리 튼튼하게 암호화해도 소용이 없습니다. 보내기 전의 평문을 그대로 읽어 가면 되기 때문입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                누군가 내 어깨너머로 화면을 들여다보고 있다면, 아무리 좋은 암호화를 써도 막지 못합니다.
+                그림의 어느 자리를 보고 있는 셈일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 규칙과 키 ══════════ -->
+    <section id="key" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-key text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">규칙과 키</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                첫 절에서 「암호화에는 규칙 말고 하나가 더 필요하다」고 했습니다. 그것이 <strong>키</strong>입니다.
+                둘의 차이를 자물쇠에 견주면 쉽습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-slate-800">규칙 &mdash; 자물쇠의 구조</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>어떤 방식으로 바꿀 것인가</strong>입니다. 「글자를 몇 칸 밀어 쓴다」, 「자리를
+                        뒤섞는다」 같은 것입니다. 자물쇠가 어떻게 만들어졌는지에 해당합니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-amber-900">키 &mdash; 그 자물쇠에 맞는 열쇠</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>그 규칙을 이번에 어떻게 쓸 것인가</strong>입니다. 「몇 칸을 밀 것인가」,
+                        「어떤 차례로 뒤섞을 것인가」 같은 값입니다. 같은 규칙이라도 키가 다르면 결과가 달라집니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-teal-50 border-2 border-teal-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">암호화 키와 복호화 키</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    암호화할 때 쓰는 값을 <strong>암호화 키</strong>, 되돌릴 때 쓰는 값을
+                    <strong>복호화 키</strong>라고 합니다. 앞으로 볼 방식 가운데는 두 키가 같은 것도 있고
+                    다른 것도 있습니다. <strong>같아야 한다고 미리 정해져 있지 않습니다.</strong>
+                    어느 쪽인지는 다음다음 차시에서 나눠 봅니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>규칙은 알려져도 되지만 키는 알려지면 안 됩니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학생들이 가장 자주 오해하는 지점입니다. 「어떻게 암호화했는지 아무도 모르게 해야 안전하다」고
+                    생각하기 쉽지만, 실제 암호는 <strong>규칙을 아예 공개해 두고</strong> 씁니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    까닭은 둘입니다. 첫째, <strong>규칙은 오래 숨길 수 없습니다.</strong> 프로그램을 뜯어보거나
+                    같은 방식을 쓰는 다른 사람에게 물으면 드러납니다. 숨겨야만 안전한 방식은 드러나는 순간
+                    통째로 무너집니다. 둘째, <strong>공개해야 여럿이 검사할 수 있습니다.</strong> 많은 사람이
+                    오래 두드려 보고도 뚫리지 않은 규칙이라야 믿을 만합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 안전함은 <strong>「규칙을 모른다」가 아니라 「키를 모른다」</strong>에 기대야 합니다.
+                    자물쇠의 구조가 알려져도 열쇠가 없으면 못 여는 것과 같습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그러면 키가 갖추어야 할 조건은 무엇일까요. <strong>가능한 키가 아주 많아야 합니다.</strong>
+                키의 후보가 스물여섯 개뿐이라면, 남이 스물여섯 번만 해 보면 됩니다. 하나씩 다 해 보는 이런 방법을
+                생각해 두어야 합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        키의 후보 수와 다 해 보기 (수업에서 원리를 확인하려고 든 예)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">키가 될 수 있는 값</th>
+                        <th class="w-32">후보의 수</th>
+                        <th>다 해 보면</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1부터 25까지의 수 하나</td>
+                        <td>25가지</td>
+                        <td>사람이 손으로도 금방 끝난다</td>
+                    </tr>
+                    <tr>
+                        <td>네 자리 숫자</td>
+                        <td>10,000가지</td>
+                        <td>컴퓨터에게는 눈 깜짝할 사이다</td>
+                    </tr>
+                    <tr>
+                        <td>0과 1이 128칸</td>
+                        <td>2를 128번 곱한 수</td>
+                        <td>온 세상의 컴퓨터를 모아도 끝낼 수 없다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 단원에서 「몇 비트인가」가 「칸이 몇 개인가」라는 뜻이라고 했습니다. 키에서도 마찬가지입니다.
+                <strong>칸이 하나 늘 때마다 후보의 수는 두 배가 됩니다.</strong> 그래서 키의 길이를 조금만 늘려도
+                다 해 보기는 급격히 어려워집니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「우리 반만 아는 방식으로 암호를 만들었으니 안전하다」는 말에는 무엇이 빠져 있을까요?
+                위의 두 까닭 가운데 하나로 답해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 해 주지 못하는 것 ══════════ -->
+    <section id="limit" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-circle-minus text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">해 주지 못하는 것</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                암호화는 강력한 도구지만 <strong>만능은 아닙니다.</strong> 무엇을 해 주는지만 알고 무엇을 해 주지
+                못하는지 모르면, 「암호화했으니 안전하다」고 믿다가 오히려 크게 당합니다. 지금까지 나온 이야기를
+                뒤집어 정리하면 이렇습니다.
+            </p>
+
+            <div class="space-y-4">
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">양 끝은 지켜 주지 않는다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        보내는 기기와 받는 기기 안에서는 데이터가 평문입니다. 내 기기가 뚫려 있거나 받는 사람이
+                        내용을 남에게 보여 주면, 가운데 구간이 아무리 튼튼해도 소용이 없습니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">키가 새면 전부 무너진다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        암호화의 안전함은 오직 <strong>키를 남이 모른다</strong>는 데 기대고 있습니다. 키를 쪽지에
+                        적어 두거나 쉽게 짐작할 수 있는 값으로 정하면, 규칙이 아무리 튼튼해도 소용이 없습니다.
+                        <strong>암호를 지키는 일은 곧 키를 지키는 일입니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">주고받았다는 사실 자체는 감춰지지 않는다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        내용은 못 읽어도, <strong>누가 누구와 언제 얼마나 주고받았는지</strong>는 중간에서 볼 수
+                        있습니다. 앞 단원에서 배웠듯 데이터를 보내려면 주소가 필요하고, 주소는 감출 수 없습니다.
+                        내용을 몰라도 이런 것만 모으면 알아낼 수 있는 것이 적지 않습니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-rose-900">오늘 안전한 것이 내일도 안전하지는 않다</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        「다 해 보기」에 걸리는 시간은 컴퓨터가 빨라질수록 줄어듭니다. 예전에는 넉넉하다고 여기던
+                        키 길이가 지금은 짧다고 여겨집니다. <strong>한 번 정해 두고 영원히 두는 것이 아니라
+                        때때로 바꿔 나가야 합니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>그래도 쓰지 않을 이유는 되지 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한계가 넷이나 되니 「그럼 소용없는 것 아닌가」 싶을 수 있습니다. 그렇지 않습니다. 암호화는
+                    <strong>가운데 구간에서 지나가는 데이터를 읽지 못하게 하는 일</strong>을 확실하게 해냅니다.
+                    그것만으로도 막을 수 있는 일이 아주 많습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    요점은 <strong>암호화가 지켜 주는 범위를 정확히 아는 것</strong>입니다. 앞 단원에서 보안이
+                    한 자리만 지켜서는 소용이 없다고 했던 것과 같습니다. 암호화는 여러 대비 가운데 하나이지
+                    전부가 아닙니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                내용은 하나도 못 읽었지만 「누가 누구와 새벽 세 시에 오랫동안 주고받았다」는 것만 알아냈다고
+                합시다. 여기서 짐작할 수 있는 것이 있을까요? 넷 가운데 어느 한계에 해당하나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">암호화의 목적</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>데이터를 정해진 사람만 되돌릴 수 있는 형태로 바꿔 두는 것이다.</li>
+                    <li>압축과 갈리는 지점은 「규칙을 아는 사람이 되돌릴 수 있어야 하는가」다.</li>
+                    <li>압축은 있어야 하고 암호화는 없어야 한다. <strong>압축된 파일은 감춰진 것이 아니다.</strong></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">네 가지 이름</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>평문은 읽을 수 있는 원래 데이터, 암호문은 알아볼 수 없게 된 데이터다.</li>
+                    <li>평문을 암호문으로 바꾸는 일이 암호화, 되돌리는 일이 복호화다.</li>
+                    <li>양 끝에서는 평문이다. 암호화가 지키는 것은 가운데 구간뿐이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">규칙과 키</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>규칙은 자물쇠의 구조, 키는 그 자물쇠에 맞는 열쇠다.</li>
+                    <li><strong>규칙은 알려져도 되지만 키는 알려지면 안 된다.</strong> 숨겨야만 안전한 규칙은
+                        드러나는 순간 무너진다.
+                    </li>
+                    <li>키가 될 수 있는 값이 많을수록 다 해 보기가 어려워진다. 칸이 하나 늘면 후보는 두 배가 된다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">해 주지 못하는 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>양 끝을 지켜 주지 않고, 키가 새면 전부 무너진다.</li>
+                    <li>주고받았다는 사실 자체는 감춰지지 않는다.</li>
+                    <li>오늘 안전한 것이 내일도 안전하지는 않다. 때때로 바꿔 나가야 한다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    압축과 암호화를 <strong>가르는 물음</strong>으로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '둘 다 작아질 수도 있고 아닐 수도 있습니다. 크기는 가르는 기준이 아닙니다.')">
+                    ① 결과물이 원본보다 작아지는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 압축은 되돌릴 수 있어야 하고, 암호화는 정해진 사람 말고는 되돌릴 수 없어야 합니다.')">
+                    ② 규칙을 아는 사람이 되돌릴 수 있어야 하는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '둘 다 되돌리는 과정이 있습니다. 압축 해제와 복호화가 그것입니다.')">
+                    ③ 되돌리는 과정이 있는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '알아보기 어려워 보이는 것은 압축된 파일도 마찬가지입니다. 그래서 이것만으로는 가를 수 없습니다.')">
+                    ④ 결과물이 알아보기 어려워 보이는가
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    실제 암호가 <strong>규칙을 공개해 두고</strong> 쓰는 까닭으로 알맞지 <strong>않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 프로그램을 뜯어보면 규칙은 드러납니다.')">
+                    ① 규칙은 오래 숨길 수 없기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 여럿이 오래 두드려 보고도 뚫리지 않아야 믿을 만합니다.')">
+                    ② 공개해야 여러 사람이 검사할 수 있기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 이것이 알맞지 않은 설명입니다. 규칙을 공개해도 되는 것은 안전함이 키에 기대고 있기 때문이지, 키까지 공개해도 되는 것이 아닙니다.')">
+                    ③ 어차피 키도 함께 공개되므로 숨길 이유가 없기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 숨겨야만 안전한 방식은 드러나는 순간 통째로 무너집니다.')">
+                    ④ 숨겨야만 안전한 방식은 드러나면 무너지기 때문에
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「글자를 몇 칸 밀어 쓴다」가 규칙이라면, <strong>키</strong>에 해당하는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 같은 규칙이라도 몇 칸을 미느냐에 따라 결과가 달라집니다. 그 값이 키입니다.')">
+                    ① 몇 칸을 밀 것인가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평문은 감추려는 내용 자체입니다. 키가 아닙니다.')">
+                    ② 감추려는 문장의 내용
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '글자를 민다는 방식 자체가 규칙입니다. 키는 그 규칙을 이번에 어떻게 쓸지 정하는 값입니다.')">
+                    ③ 글자를 민다는 방식 자체
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과로 나온 암호문은 키가 아니라 암호화의 산물입니다.')">
+                    ④ 결과로 나온 암호문
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    메시지를 튼튼하게 암호화해 보냈는데도 내용이 새어 나갔습니다.
+                    <strong>암호화 자체는 뚫리지 않았다면</strong> 어디를 의심해야 할까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '중간 구간은 암호문 상태입니다. 암호화가 뚫리지 않았다면 여기서 읽어 낼 수 없습니다.')">
+                    ① 데이터가 지나간 중간의 라우터
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 양 끝에서는 평문입니다. 보내는 기기나 받는 기기, 또는 키가 새어 나갔을 가능성을 봐야 합니다.')">
+                    ② 보내거나 받은 기기, 또는 키가 보관된 곳
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규칙이 공개되어 있는 것은 정상입니다. 규칙만으로는 복호화할 수 없습니다.')">
+                    ③ 암호화 규칙이 공개되어 있다는 사실
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '암호문이 길고 짧은 것은 안전함과 상관이 없습니다.')">
+                    ④ 암호문의 길이가 너무 길었다는 점
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

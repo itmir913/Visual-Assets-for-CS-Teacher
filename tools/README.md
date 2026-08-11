@@ -10,6 +10,7 @@
 |---|---|---|
 | `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 검사 | **파일을 고칠 때마다** |
 | `check_dynamic_classes.py` | 런타임에 조립되는 Tailwind 클래스 검출 | **JS로 클래스를 붙이는 코드를 쓸 때마다** |
+| `check_code.py` | 강의노트가 끌어다 쓰는 `.py`·`.c`의 구문 오류 + `data-src` 마커 해석 | **코드 파일을 고칠 때마다** |
 | `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
 | `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
 
@@ -118,6 +119,111 @@ HTML의 83%는 Tailwind 클래스와 SVG 좌표다. 서술만 보려면 이걸�
   `<summary>`는 `[접기] …`로 남긴다.
 - 읽을 때는 `limit`을 파일 줄 수보다 크게 줘서 **한 번에** 읽는다. 나눠 읽으면 토큰이 몇 배가 된다.
 
+## 코드는 HTML에 넣지 않는다 — `data-src` 마커와 빌드 주입
+
+강의노트에 보일 `.py`·`.c`는 **실파일로 저장소에 두고**, HTML에는 어느 파일을 넣을지
+가리키는 마커만 둔다. `.github/scripts/build_site.py`가 빌드할 때 그 자리를 채운다.
+
+```html
+<pre><code class="language-python" data-src="code/변수.py"></code></pre>
+<pre><code class="language-c" data-src="code/조건.c#비교"></code></pre>
+```
+
+`#뒤`는 구역 이름이다. 없으면 파일 전체가 들어간다.
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int a = 3;
+    // region: 비교
+    if (a < 5) {
+        printf("작다\n");
+    }
+    // endregion
+    return 0;
+}
+```
+
+구역만 뽑으면 **공통 들여쓰기가 벗겨져** 조각으로 자연스럽게 보인다. 파일 전체를 넣으면
+`region`·`endregion` 표시줄은 빠진다. `<`·`>`·`&`는 주입할 때 자동으로 이스케이프되므로
+**소스 파일에는 코드를 그냥 코드로 쓴다.**
+
+### 왜 이렇게 하나
+
+전에는 코드가 HTML 안에 이스케이프된 채로 들어 있어서 **오타 하나 고치기가 어려웠다.**
+같은 블록 안에서 주석의 `<`는 raw, 코드의 `<`는 `&lt;`인 곳이 다섯 군데 있었는데
+브라우저에서는 똑같이 보여 눈으로 찾을 수가 없었다. 실파일로 두면 편집기가 문법을 알고,
+검사기가 구문 오류를 잡고, 학생이 받아 가는 파일과 화면에 뜨는 코드가 같아진다.
+
+**런타임 `fetch`가 아니라 빌드 주입인 이유** — 오프라인 zip은 `file://`로 열리는데
+거기서는 CORS가 `fetch`를 막는다. 빌드가 넣어 두면 웹이든 zip이든 똑같이 동작한다.
+
+그래서 **`data-src`를 쓰는 강의노트는 소스를 직접 열면 코드 자리가 비어 있다.**
+`--watch`를 켜고 `dist/` 쪽을 본다(바로 아래 절). 원래도 실측은 `dist/`에서 하게 되어 있다.
+
+### 지켜야 할 것
+
+| | |
+|---|---|
+| 코드 파일은 **그 강의노트 옆 `code/`** 에 둔다 | 링크에 `../`가 없다. `check_code.py`도 `code/` 밑만 검사한다 |
+| 마커가 없는 HTML은 **그대로 통과**한다 | 기존 파일을 건드리지 않고 새 파일부터 하나씩 옮겨 갈 수 있다 |
+| 파일·구역이 없으면 **빌드가 선다** | 조용히 빈 블록이 배포되는 것보다 낫다. 있는 구역 목록을 함께 알려 준다 |
+| 홀로 서지 않는 조각 모음은 **구문 검사에서 뺀다** | 아래 프론트매터 |
+
+```python
+# ---
+# check: none
+# ---
+```
+
+`---`를 그냥 첫 줄에 쓰면 `.c`가 컴파일되지 않으므로 **주석 안에** 넣는다.
+프론트매터는 주입할 때 빠지므로 화면에는 안 보인다.
+
+**되도록 `check: none`을 쓰지 않는다.** 파일 전체를 온전한 프로그램으로 두고
+구역으로 일부만 뽑아 쓰면, 구문 검사도 받고 학생에게 통째로 줄 수도 있다.
+
+```bash
+python tools/check_code.py
+```
+
+`.c` 검사에는 `gcc`가 필요하다. 없으면 건너뛰되 CI에서는 검사된다.
+`python .github/scripts/inject_code.py --self-test`로 주입기 자체를 확인할 수 있다.
+
+### 복사 버튼 — 위임 리스너 하나로
+
+블록마다 `id`를 붙이고 `onclick="copyCode('code-98')"`을 쓰던 방식은 쓰지 않는다.
+**id가 파일을 넘어 95개나 중복**돼 있었고, 코드가 실파일로 빠지면 id를 붙일 자리도 없다.
+아래를 파일에 하나만 두면 블록이 몇 개든 동작한다.
+
+```html
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-copy]');
+        if (!btn) return;
+        const code = btn.closest('.code-block')?.querySelector('code');
+        if (!code) return;
+        try {
+            await navigator.clipboard.writeText(code.textContent);
+        } catch {
+            // file://은 보안 컨텍스트가 아니라 navigator.clipboard가 없다.
+            // 오프라인 zip을 그대로 여는 학생이 있으므로 폴백을 지운다.
+            const ta = document.createElement('textarea');
+            ta.value = code.textContent;
+            ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } finally { ta.remove(); }
+        }
+        const before = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> 복사됨';
+        setTimeout(() => { btn.innerHTML = before; }, 1500);
+    });
+</script>
+```
+
+`textContent`를 쓰므로 **주입된 코드가 그대로 복사된다.** 이스케이프를 되돌릴 필요가 없다.
+
 ## 미리보기 — 소스가 아니라 `dist/`를 연다
 
 배포되는 것은 `.github/scripts/build_site.py`가 구운 번들이다. **소스를 열면 CDN 판이라
@@ -139,6 +245,9 @@ python .github/scripts/build_site.py --out dist               # 전체, 배포�
 `--watch`는 표준 라이브러리만 쓴다. 시작할 때 **밀린 파일만** 먼저 굽고, 그 뒤로는 저장된
 파일 하나를 약 3~4초에 다시 굽는다. 프로필도 배포와 같은 것이라 **보이는 것이 곧 배포본**이다.
 
+`data-src`가 가리키는 `.py`·`.c`도 함께 지켜본다. **코드 파일을 저장하면 그것을 쓰는
+강의노트가 다시 구워진다.** 그래서 코드를 HTML 밖으로 빼도 편집 흐름이 끊기지 않는다.
+
 ### 실행 구성은 `.run/`에 있다
 
 `.idea/`는 gitignore라 실행 구성이 공유되지 않는다. IntelliJ는 `.run/`의 XML도
@@ -152,6 +261,7 @@ python .github/scripts/build_site.py --out dist               # 전체, 배포�
 | 배포와 같은 빌드 (전체) | 최종 확인용 |
 | 검사 · 현재 파일 | `check_html.py` |
 | 검사 · 런타임 조립 클래스 | `check_dynamic_classes.py` |
+| 검사 · 강의노트 코드 | `check_code.py` |
 
 「현재 파일」계열은 `$FilePathRelativeToProjectRoot$` 매크로를 쓴다 — 편집기에서 보고 있는
 파일이 그대로 대상이 된다.

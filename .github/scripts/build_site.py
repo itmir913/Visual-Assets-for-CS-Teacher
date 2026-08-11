@@ -39,6 +39,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from inject_code import inject as inject_code, markers as code_markers
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -258,9 +260,12 @@ def build_one(src_html: Path, dist_root: Path, assets_dir: Path, localize: bool 
     html = src_html.read_text(encoding="utf-8")
     unsupported: list[str] = []
 
+    # 0) 코드 주입 — 두 프로필 공통. data-src 마커가 없으면 아무 일도 하지 않으므로
+    #    아직 옮기지 않은 파일은 그대로 지나간다. 마커가 깨져 있으면 예외로 세운다.
+    html, _injected = inject_code(html, src_html)
+
     if not localize:
         # online 프로필 — CDN은 의도된 설계이므로 손대지 않는다.
-        # 나중에 코드 주입이 생기면 이 자리에서 두 프로필 공통으로 처리한다.
         out_path = dist_root / rel
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(html, encoding="utf-8")
@@ -315,6 +320,22 @@ def build_one(src_html: Path, dist_root: Path, assets_dir: Path, localize: bool 
     return unsupported
 
 
+def code_deps_of(src_html: Path) -> set[Path]:
+    """이 HTML이 data-src로 끌어다 쓰는 코드 파일 집합."""
+    try:
+        html = src_html.read_text(encoding="utf-8")
+    except OSError:
+        return set()
+    base = src_html.parent
+    out: set[Path] = set()
+    for spec in code_markers(html):
+        rel = spec.split("#", 1)[0]
+        p = (base / rel).resolve()
+        if p.exists():
+            out.add(p)
+    return out
+
+
 def stale_files(files: list[Path], dist_root: Path) -> list[Path]:
     """dist 쪽 결과가 없거나 소스보다 오래된 파일만 추린다."""
     out = []
@@ -347,7 +368,24 @@ def watch(dist_root: Path, assets_dir: Path, localize: bool, skip_docx: bool) ->
                 log(f"  실패: {e}")
 
     stamps = {f: f.stat().st_mtime_ns for f in files if f.exists()}
-    log(f"감시 시작 — {len(stamps)}개 파일. 멈추려면 Ctrl+C")
+    # 코드 파일을 고쳐도 그걸 끌어다 쓰는 HTML을 다시 구워야 한다.
+    # HTML을 다시 구울 때마다 그 파일의 의존 목록을 갱신한다.
+    deps: dict[Path, set[Path]] = {f: code_deps_of(f) for f in files}
+
+    def rebuild(f: Path) -> None:
+        rel = f.relative_to(REPO_ROOT)
+        started = time.monotonic()
+        try:
+            build_one(f, dist_root, assets_dir, localize=localize)
+            deps[f] = code_deps_of(f)
+            log(f"다시 빌드: {rel}  ({time.monotonic() - started:.1f}초)")
+        except Exception as e:
+            log(f"빌드 실패: {rel} — {e}")
+
+    watched_code = {p for s in deps.values() for p in s}
+    for p in watched_code:
+        stamps[p] = p.stat().st_mtime_ns
+    log(f"감시 시작 — HTML {len(files)}개, 코드 {len(watched_code)}개. 멈추려면 Ctrl+C")
     try:
         while True:
             time.sleep(0.7)
@@ -359,13 +397,19 @@ def watch(dist_root: Path, assets_dir: Path, localize: bool, skip_docx: bool) ->
                 if stamps.get(f) == m:
                     continue
                 stamps[f] = m
-                rel = f.relative_to(REPO_ROOT)
-                started = time.monotonic()
+                rebuild(f)
+            for p in {q for s in deps.values() for q in s}:
                 try:
-                    build_one(f, dist_root, assets_dir, localize=localize)
-                    log(f"다시 빌드: {rel}  ({time.monotonic() - started:.1f}초)")
-                except Exception as e:
-                    log(f"빌드 실패: {rel} — {e}")
+                    m = p.stat().st_mtime_ns
+                except OSError:
+                    continue
+                if stamps.get(p) == m:
+                    continue
+                stamps[p] = m
+                users = [h for h, s in deps.items() if p in s]
+                log(f"코드 바뀜: {p.relative_to(REPO_ROOT)} → HTML {len(users)}개 다시 빌드")
+                for h in users:
+                    rebuild(h)
     except KeyboardInterrupt:
         log("감시를 멈춘다")
     return 0

@@ -1,10 +1,13 @@
 """강의안 HTML 검증: 태그 중첩 + 최소 글자 크기(CSS·SVG) + 테이블 래퍼 + 제목·금지 요소.
 
-검사할 파일은 아래 TARGETS에 직접 적는다. 인자를 주면 인자가 우선한다.
-    python tools/check_html.py                      # TARGETS만 검사
+    python tools/check_html.py                      # 저장소 전체 (CI가 쓰는 방식)
     python tools/check_html.py 인공지능기초/1-1-2.*.html   # 인자만 검사
 
 위반이 하나라도 있으면 종료 코드 1로 끝난다(경고는 0).
+
+**인자가 없으면 저장소 전체를 검사한다.** 예전에는 아래 TARGETS에 손대는 파일만
+적는 방식이었는데, 그러면 손대지 않은 파일의 위반이 조용히 쌓인다. 실제로 그렇게
+377건이 쌓인 채 발견됐다 — 검사가 CI 밖에 있으면 통과했다는 말에 뜻이 없다.
 """
 import re
 import sys
@@ -12,12 +15,23 @@ from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from subjects import STANDALONE, html_files  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 
-# ── 검사 대상 ────────────────────────────────────────────────────────────────
-# 지금 손대고 있는 파일만 남긴다. 글롭 가능. 끝난 파일은 지운다.
-TARGETS = [
-]
+# ── 검사에서 빼는 것 ─────────────────────────────────────────────────────────
+# **경로를 여기 직접 적지 않는다.** subjects.json이 유일한 출처이므로 폴더가
+# 옮겨져도 따라온다. 시뮬레이터를 다른 자리로 옮길 계획이 있어서 특히 중요하다.
+
+# 글자 크기 규칙은 강의노트의 것이다 — CLAUDE.md: 「시뮬레이터의 조작 UI는
+# 이 규칙의 범위 밖이다」. standalone은 강의노트가 아니므로 이 검사를 건너뛴다.
+# (제목·태그 중첩·표 래퍼 같은 나머지 규칙은 그대로 적용한다.)
+FONT_EXEMPT_DIRS = [s["dir"] for s in STANDALONE]
+
+# 「프로그래밍(C)·(Python)」 44개는 전면 재작성 대기 중이라(U5) 지금 고치면
+# 파일명·번호 체계가 바뀌면서 버려진다. 재작성이 끝나면 이 목록을 비운다.
+REWRITE_PENDING = ["프로그래밍(C)", "프로그래밍(Python)"]
 
 # ── 기준값 ───────────────────────────────────────────────────────────────────
 # 375px 화면에서 section-card 안쪽이 실제로 갖는 폭(브라우저 실측 340px).
@@ -310,6 +324,15 @@ def banned_rules(src: str):
     return bad
 
 
+def under(path: Path, dirs) -> bool:
+    """저장소 기준 상대 경로가 dirs 중 하나 아래에 있는가."""
+    try:
+        rel = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return False
+    return any(rel == d or rel.startswith(d.rstrip("/") + "/") for d in dirs)
+
+
 def check(path: Path) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
@@ -343,14 +366,17 @@ def check(path: Path) -> tuple[int, int]:
 
     report("태그 중첩", c.nesting)
 
-    # Tailwind 소형 크기 클래스
-    tw = [f"{i}행: {m.group(0)}"
-          for i, ln in enumerate(lines, 1)
-          for m in re.finditer(r"\btext-(sm|xs)\b|text-\[(0?\.\d+rem|\d{1,2}px)\]", ln)]
-    css_bad, css_warn = style_block_font_sizes(src)
-    report("글자 크기(CSS)", tw + css_bad + c.css_small, css_warn + c.css_warn)
+    if under(path, FONT_EXEMPT_DIRS):
+        print("  [글자 크기] 건너뜀 — 강의노트가 아니다(조작 UI)")
+    else:
+        # Tailwind 소형 크기 클래스
+        tw = [f"{i}행: {m.group(0)}"
+              for i, ln in enumerate(lines, 1)
+              for m in re.finditer(r"\btext-(sm|xs)\b|text-\[(0?\.\d+rem|\d{1,2}px)\]", ln)]
+        css_bad, css_warn = style_block_font_sizes(src)
+        report("글자 크기(CSS)", tw + css_bad + c.css_small, css_warn + c.css_warn)
 
-    report("글자 크기(SVG)", c.svg_small, c.svg_warn)
+        report("글자 크기(SVG)", c.svg_small, c.svg_warn)
 
     if c.unwrapped:
         violations += len(c.unwrapped)
@@ -389,13 +415,17 @@ def resolve(patterns):
 
 
 def main():
-    patterns = sys.argv[1:] or TARGETS
-    if not patterns:
-        print("검사할 파일이 없다. tools/check_html.py의 TARGETS를 채우거나 "
-              "인자로 파일을 넘겨라.", file=sys.stderr)
-        return 2
-
-    files = resolve(patterns)
+    patterns = sys.argv[1:]
+    skipped = 0
+    if patterns:
+        # 인자로 짚었으면 그대로 검사한다 — 재작성 대기 파일도 봐 준다.
+        files = resolve(patterns)
+    else:
+        # 인자가 없으면 subjects.json이 아는 전부. CI가 이 길로 온다.
+        files = html_files()
+        keep = [f for f in files if not under(f, REWRITE_PENDING)]
+        skipped = len(files) - len(keep)
+        files = keep
     if not files:
         return 2
 
@@ -406,6 +436,8 @@ def main():
         total_w += w
 
     print(f"--- {len(files)}개 파일: 위반 {total_v}건, 확인 필요 {total_w}건 ---")
+    if skipped:
+        print(f"--- 재작성 대기로 건너뜀: {skipped}개 ({', '.join(REWRITE_PENDING)}) ---")
     return 1 if total_v else 0
 
 

@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고전 암호화 기법</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-scroll absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-shuffle absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            고전 암호화 기법
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>자리를 바꾸거나 글자를 바꾸거나.</strong><br>
+            컴퓨터가 없던 시절의 암호는 이 둘뿐이었습니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>전치형 암호화와 치환형 암호화의 차이를 「자리를 바꾸는가, 글자를 바꾸는가」로 설명할 수 있다.</li>
+                    <li>단순 전치 &middot; 레일 펜스 &middot; 카이사르 &middot; 단일 치환 암호로 직접 암호화하고 복호화할 수 있다.</li>
+                    <li>고전 암호가 오늘날 안전하지 않은 까닭을 「다 해 보기」와 「빈도 세기」로 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-scroll text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">고전 암호화 기법</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#transpose" class="hover:text-teal-600 transition">자리를 바꾼다</a>
+            <a href="#substitute" class="hover:text-teal-600 transition">글자를 바꾼다</a>
+            <a href="#compare" class="hover:text-teal-600 transition">두 갈래 견주기</a>
+            <a href="#break" class="hover:text-teal-600 transition">왜 지금은 안 쓰는가</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 자리를 바꾼다 ══════════ -->
+    <section id="transpose" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-arrows-left-right text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">자리를 바꾼다</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 차시에서 암호화를 「정해진 사람만 되돌릴 수 있는 형태로 바꾸는 것」이라고 했습니다. 그러면
+                <strong>어떻게 바꿔야 할까요?</strong> 컴퓨터가 없던 시절 사람들이 찾아낸 길은 둘뿐이었습니다.
+                <strong>글자의 자리를 바꾸거나, 글자 자체를 다른 글자로 바꾸거나.</strong> 이번 절에서는 앞쪽을 봅니다.
+            </p>
+
+            <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-sky-900">전치형 암호화 기법</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「전치(轉置)」는 자리를 옮긴다는 뜻입니다. <strong>글자는 그대로 두고 늘어놓는 차례만 뒤섞는</strong>
+                    방식입니다. 그러니 암호문에 나오는 글자의 종류와 개수는 평문과 똑같습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>단순 전치 암호</strong>는 「몇 번째 글자를 어디로 옮길지」를 미리 정해 두고 그대로 옮깁니다.
+                그 차례가 곧 <strong>키</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        단순 전치 암호로 「정보시간」을 암호화하기 (키: 3&mdash;1&mdash;4&mdash;2)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">암호문의 자리</th>
+                        <th class="w-24">1번째</th>
+                        <th class="w-24">2번째</th>
+                        <th class="w-24">3번째</th>
+                        <th class="w-24">4번째</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">평문의 몇 번째를 가져올까 (키)</td>
+                        <td>3</td>
+                        <td>1</td>
+                        <td>4</td>
+                        <td>2</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">가져온 글자</td>
+                        <td>시</td>
+                        <td>정</td>
+                        <td>간</td>
+                        <td>보</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                평문 <strong>정보시간</strong>이 암호문 <strong>시정간보</strong>가 되었습니다. 되돌릴 때는
+                <strong>같은 키를 거꾸로 읽습니다.</strong> 암호문의 1번째가 평문의 3번째 자리로, 2번째가 평문의
+                1번째 자리로 돌아가는 식입니다.
+            </p>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>키가 길수록 후보가 많아집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    네 글자를 뒤섞는 차례는 모두 24가지입니다. 다섯 글자면 120가지, 여섯 글자면 720가지로
+                    <strong>글자 수가 하나 늘 때마다 급격히 늘어납니다.</strong> 앞 차시에서 「키가 될 수 있는 값이
+                    많아야 한다」고 한 이야기가 여기서 그대로 나타납니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>레일 펜스 암호</strong>는 자리를 뒤섞는 또 다른 방법입니다. 글자를 <strong>지그재그로 두 줄에
+                나누어 쓴 다음, 윗줄을 먼저 읽고 아랫줄을 이어 읽습니다.</strong> 지그재그로 엮인 나무 울타리
+                모양을 닮았다고 해서 붙은 이름입니다. 이때 키는 <strong>몇 줄로 나눌 것인가</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        레일 펜스 암호로 「암호는재미있다」를 암호화하기 (키: 두 줄)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">줄</th>
+                        <th class="w-16">1</th>
+                        <th class="w-16">2</th>
+                        <th class="w-16">3</th>
+                        <th class="w-16">4</th>
+                        <th class="w-16">5</th>
+                        <th class="w-16">6</th>
+                        <th class="w-16">7</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">윗줄</td>
+                        <td>암</td>
+                        <td></td>
+                        <td>는</td>
+                        <td></td>
+                        <td>미</td>
+                        <td></td>
+                        <td>다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">아랫줄</td>
+                        <td></td>
+                        <td>호</td>
+                        <td></td>
+                        <td>재</td>
+                        <td></td>
+                        <td>있</td>
+                        <td></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                윗줄을 읽으면 <strong>암는미다</strong>, 아랫줄을 읽으면 <strong>호재있</strong>입니다. 이어 붙이면
+                암호문은 <strong>암는미다호재있</strong>이 됩니다. 되돌릴 때는 글자 수를 세어 윗줄과 아랫줄에 몇
+                글자씩 들어갔는지 알아낸 뒤, 다시 지그재그로 읽습니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>레일 펜스는 키가 아주 적습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    키가 「몇 줄로 나눌 것인가」 하나뿐이라 <strong>고를 수 있는 값이 몇 가지 되지 않습니다.</strong>
+                    열 글자짜리 평문이라면 두 줄부터 아홉 줄까지 여덟 가지밖에 없습니다. 규칙은 간단해서 쓰기 편하지만,
+                    앞 차시의 기준으로 보면 <strong>키의 후보가 너무 적어 안전하다고 할 수 없습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「오늘도좋은하루」를 레일 펜스 두 줄로 암호화해 보세요. 그리고 나온 암호문을 다시 평문으로
+                되돌려 확인해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 글자를 바꾼다 ══════════ -->
+    <section id="substitute" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-right-left text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">글자를 바꾼다</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 번째 길입니다. 이번에는 <strong>자리는 그대로 두고 글자 자체를 다른 글자로 갈아 끼웁니다.</strong>
+                이것을 <strong>치환형 암호화 기법</strong>이라고 합니다. 「치환(置換)」은 바꿔 놓는다는 뜻입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가장 널리 알려진 것이 <strong>카이사르 암호</strong>입니다. 규칙은 아주 단순합니다 &mdash;
+                <strong>모든 글자를 알파벳 차례에서 같은 칸수만큼 뒤로 민다.</strong> 이때
+                <strong>몇 칸을 밀 것인가가 키</strong>입니다. Z를 넘어가면 다시 A로 돌아옵니다.
+            </p>
+
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 sm:p-6 space-y-5">
+                <div class="space-y-2">
+                    <label for="cae-input" class="block font-black text-base text-slate-800">
+                        암호로 만들 글자 (영어 대문자만, 최대 20자)
+                    </label>
+                    <input id="cae-input" type="text" maxlength="20" autocomplete="off" spellcheck="false"
+                           value="HELLO"
+                           class="w-full min-h-[44px] px-4 rounded-xl border-2 border-slate-300 bg-white text-base font-mono tracking-widest focus:outline-none focus:border-teal-500">
+                </div>
+
+                <div class="space-y-2">
+                    <label for="cae-key" class="block font-black text-base text-slate-800">
+                        몇 칸을 밀까요 &mdash; 키 <span id="cae-key-view" class="text-teal-700">3</span>
+                    </label>
+                    <input id="cae-key" type="range" min="1" max="25" step="1" value="3"
+                           class="w-full min-h-[44px] accent-teal-600">
+                </div>
+
+                <div class="bg-white border-2 border-dashed border-slate-300 rounded-xl p-5 space-y-2">
+                    <p class="text-base font-black text-slate-500">암호문</p>
+                    <p id="cae-out" class="text-base font-mono text-slate-800 tracking-widest break-all">&mdash;</p>
+                </div>
+
+                <div class="space-y-3">
+                    <button id="cae-crack" type="button"
+                            class="min-h-[44px] px-5 rounded-xl bg-rose-600 text-white font-bold text-base shadow-md hover:bg-rose-700 transition">
+                        <i class="fa-solid fa-unlock mr-2"></i>키를 모르는 채로 다 해 보기
+                    </button>
+                    <div id="cae-crack-box" class="hidden space-y-2">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            키를 1부터 25까지 넣어 본 결과입니다. 뜻이 통하는 줄을 찾아보세요.
+                        </p>
+                        <div class="overflow-x-auto">
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th class="w-20">키</th>
+                                    <th>되돌려 본 결과</th>
+                                </tr>
+                                </thead>
+                                <tbody id="cae-crack-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>25줄이면 눈으로도 찾아집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「다 해 보기」를 눌러 보세요. 키를 몰라도 <strong>스물다섯 줄만 훑으면</strong> 뜻이 통하는 줄이
+                    보입니다. 손으로 해도 몇 분이면 되고, 컴퓨터라면 눈 깜짝할 사이입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 차시에서 「키가 될 수 있는 값이 아주 많아야 한다」고 했습니다. 카이사르 암호는
+                    <strong>키의 후보가 스물다섯 개뿐</strong>이라 그 조건을 전혀 채우지 못합니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그래서 나온 것이 <strong>단일 치환 암호</strong>입니다. 카이사르처럼 모두 같은 칸수로 미는 대신,
+                <strong>글자마다 바뀔 글자를 제각각 정해 둔 표</strong>를 씁니다. 이 표 전체가 키입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        단일 치환 암호 표의 앞부분 (수업에서 원리를 확인하려고 지어낸 표)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">평문</th>
+                        <th class="w-16">A</th>
+                        <th class="w-16">B</th>
+                        <th class="w-16">C</th>
+                        <th class="w-16">D</th>
+                        <th class="w-16">E</th>
+                        <th class="w-16">F</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">암호문</td>
+                        <td>Q</td>
+                        <td>W</td>
+                        <td>E</td>
+                        <td>R</td>
+                        <td>T</td>
+                        <td>Y</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 표대로라면 <span class="font-mono">FACE</span>는 <span class="font-mono">YQET</span>가 됩니다.
+                <strong>글자마다 미는 칸수가 제각각</strong>이라 카이사르처럼 「몇 칸 밀었나」를 알아내는 것으로는
+                풀 수 없습니다. 알파벳 스물여섯 글자를 짝지어 놓는 방법의 수가 어마어마하게 많아서
+                <strong>다 해 보기로는 감당이 안 됩니다.</strong>
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">그런데도 단일 치환 암호는 안전하지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    키의 후보가 많은데도 그렇습니다. <strong>다 해 보기 말고 다른 길이 있기 때문</strong>입니다.
+                    그 길이 무엇인지는 마지막 절에서 봅니다. 여기서 기억할 것은 하나입니다 &mdash;
+                    <strong>키의 후보가 많다는 것은 안전함의 필요조건이지 충분조건이 아닙니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                시뮬레이터에 <span class="font-mono">AAAA</span>를 넣고 키를 바꿔 보세요. 암호문에서 눈에 띄는
+                것이 있나요? 이것이 뒤에서 볼 약점과 어떻게 이어질지 짐작해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 두 갈래 견주기 ══════════ -->
+    <section id="compare" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-code-compare text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">두 갈래 견주기</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 방식을 나란히 놓고 같은 평문에 적용해 봅시다. 무엇이 달라지는지 눈으로 보면 헷갈리지 않습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">전치형 &mdash; 자리만 바뀐다</p>
+                    <svg class="chart-svg" viewBox="0 0 320 120" role="img"
+                         aria-label="위쪽에 네 가지 색 네모가 나란히 있고, 아래쪽에 같은 색 네모들이 차례만 뒤바뀌어 놓인 그림">
+                        <rect x="24" y="18" width="52" height="30" rx="8" fill="#bae6fd" stroke="#0284c7" stroke-width="2"></rect>
+                        <rect x="86" y="18" width="52" height="30" rx="8" fill="#99f6e4" stroke="#0d9488" stroke-width="2"></rect>
+                        <rect x="148" y="18" width="52" height="30" rx="8" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"></rect>
+                        <rect x="210" y="18" width="52" height="30" rx="8" fill="#fde68a" stroke="#d97706" stroke-width="2"></rect>
+                        <rect x="24" y="72" width="52" height="30" rx="8" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"></rect>
+                        <rect x="86" y="72" width="52" height="30" rx="8" fill="#bae6fd" stroke="#0284c7" stroke-width="2"></rect>
+                        <rect x="148" y="72" width="52" height="30" rx="8" fill="#fde68a" stroke="#d97706" stroke-width="2"></rect>
+                        <rect x="210" y="72" width="52" height="30" rx="8" fill="#99f6e4" stroke="#0d9488" stroke-width="2"></rect>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        아래 줄에 <strong>같은 색이 그대로 넷 다 있습니다.</strong> 놓인 차례만 달라졌습니다.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">치환형 &mdash; 색만 바뀐다</p>
+                    <svg class="chart-svg" viewBox="0 0 320 120" role="img"
+                         aria-label="위쪽에 네 가지 색 네모가 나란히 있고, 아래쪽에는 같은 자리에 다른 색 네모들이 놓인 그림">
+                        <rect x="24" y="18" width="52" height="30" rx="8" fill="#bae6fd" stroke="#0284c7" stroke-width="2"></rect>
+                        <rect x="86" y="18" width="52" height="30" rx="8" fill="#99f6e4" stroke="#0d9488" stroke-width="2"></rect>
+                        <rect x="148" y="18" width="52" height="30" rx="8" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"></rect>
+                        <rect x="210" y="18" width="52" height="30" rx="8" fill="#fde68a" stroke="#d97706" stroke-width="2"></rect>
+                        <rect x="24" y="72" width="52" height="30" rx="8" fill="#fecdd3" stroke="#e11d48" stroke-width="2"></rect>
+                        <rect x="86" y="72" width="52" height="30" rx="8" fill="#e2e8f0" stroke="#475569" stroke-width="2"></rect>
+                        <rect x="148" y="72" width="52" height="30" rx="8" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"></rect>
+                        <rect x="210" y="72" width="52" height="30" rx="8" fill="#fed7aa" stroke="#ea580c" stroke-width="2"></rect>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>자리는 그대로인데 색이 전부 다른 것으로 갈렸습니다.</strong> 위 줄의 색은 하나도
+                        남아 있지 않습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">전치형과 치환형 견주기</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">보는 곳</th>
+                        <th>전치형</th>
+                        <th>치환형</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">무엇을 바꾸나</td>
+                        <td>글자가 놓인 자리</td>
+                        <td>글자 자체</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">키는 무엇인가</td>
+                        <td>어떤 차례로 옮길지, 몇 줄로 나눌지</td>
+                        <td>몇 칸 밀지, 어떤 표로 갈아 끼울지</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">쓰인 글자의 종류</td>
+                        <td>평문과 똑같다</td>
+                        <td>평문과 달라진다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">글자마다 나온 횟수</td>
+                        <td>평문과 똑같다</td>
+                        <td>글자 이름만 바뀌고 횟수는 그대로다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">보기</td>
+                        <td>단순 전치 암호, 레일 펜스 암호</td>
+                        <td>카이사르 암호, 단일 치환 암호</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>가르는 물음: 평문에 없던 글자가 암호문에 있는가
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    암호문만 보고 어느 갈래인지 짐작하는 방법입니다. 전치형은 자리만 바꾸므로
+                    <strong>평문에 없던 글자가 암호문에 나올 수 없습니다.</strong> 반대로 치환형은 글자를 갈아
+                    끼우므로 평문에 없던 글자가 나옵니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표의 맨 아래 두 줄도 눈여겨보세요. <strong>둘 다 「어떤 글자가 몇 번 나왔는가」를 흐트러뜨리지
+                    못합니다.</strong> 전치형은 아예 그대로이고, 치환형은 글자 이름만 바뀔 뿐 횟수의 모양은
+                    그대로 옮겨 갑니다. 다음 절의 약점이 바로 여기서 나옵니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 갈래는 <strong>겹쳐 쓸 수도 있습니다.</strong> 먼저 글자를 갈아 끼운 다음 자리를 뒤섞으면
+                한쪽만 쓸 때보다 풀기 어려워집니다. 앞 차시에서 압축의 두 갈래를 겹쳐 쓴다고 했던 것과 같은
+                생각입니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                평문 <span class="font-mono">BANANA</span>를 암호화한 결과가
+                <span class="font-mono">ANABNA</span>였습니다. 어느 갈래일까요? 가르는 물음으로 답해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 왜 지금은 안 쓰는가 ══════════ -->
+    <section id="break" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-unlock text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">왜 지금은 안 쓰는가</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기까지 본 네 가지 암호는 <strong>지금은 중요한 데이터를 지키는 데 쓰이지 않습니다.</strong>
+                수업에서 다루는 까닭은 <strong>암호화의 원리를 손으로 따라가 볼 수 있기 때문</strong>이지,
+                실제로 쓰라는 뜻이 아닙니다. 뚫리는 길이 둘 있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-rose-900">길 1 &mdash; 다 해 보기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        키가 될 수 있는 값을 <strong>하나씩 전부 넣어 보는</strong> 방법입니다. 카이사르 암호는
+                        스물다섯 번, 레일 펜스는 몇 번이면 끝납니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        막는 길은 <strong>키의 후보를 아주 많게 만드는 것</strong>뿐입니다.
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-rose-900">길 2 &mdash; 빈도 세기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>어떤 글자가 몇 번 나왔는지 세어 보는</strong> 방법입니다. 다 해 보기가 통하지 않는
+                        단일 치환 암호를 무너뜨리는 것이 이쪽입니다.
+                    </p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        키의 후보가 아무리 많아도 소용이 없습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">빈도 세기가 왜 통할까요</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    어떤 언어든 <strong>자주 쓰이는 글자와 드물게 쓰이는 글자가 정해져 있습니다.</strong>
+                    영어 글을 길게 모아 세어 보면 E가 가장 많이 나오고, Q나 Z는 아주 드뭅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    단일 치환 암호는 글자를 갈아 끼우기만 하므로 <strong>「가장 많이 나온 글자」는 여전히 가장 많이
+                    나옵니다.</strong> 이름표만 바뀌었을 뿐입니다. 그러니 암호문에서 가장 많이 나온 글자가 E일
+                    가능성이 높고, 이런 짐작을 몇 개만 맞혀도 나머지가 줄줄이 풀립니다. 앞 절 표의 마지막 두 줄에서
+                    「횟수는 그대로 옮겨 간다」고 한 것이 바로 이 약점입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>다만 조건이 있습니다.</strong> 암호문이 충분히 길어야 합니다. 다섯 글자짜리 암호문에서는
+                    빈도를 셀 것이 없습니다. 그래서 빈도 세기는 <strong>긴 글에서 잘 통하는 방법</strong>입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 길을 정리하면, 고전 암호가 무너지는 까닭은 <strong>「규칙이 단순해서 평문의 모양이 암호문에
+                그대로 비친다」</strong>는 한 가지로 모입니다. 자리만 바꾸거나 이름만 갈아 끼우면, 원래 글의
+                생김새가 어딘가에 남습니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">그러면 오늘날의 암호는 무엇이 다를까요</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    컴퓨터를 쓰면 사람이 손으로 할 수 없던 계산을 할 수 있습니다. 키의 후보를 사람이 셀 수 없을
+                    만큼 늘릴 수 있고, 글자 하나가 아니라 <strong>여러 값을 한꺼번에 뒤섞어</strong> 평문의 모양이
+                    남지 않게 할 수 있습니다. 이렇게 컴퓨터를 써서 만든 암호를 <strong>현대 암호화 기법</strong>이라고
+                    하며, 다음 차시에서 다룹니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                전치형 암호에는 빈도 세기가 그대로 통하지 않습니다. 왜 그럴까요? 그리고 전치형이라는 것을
+                알아챈 뒤에는 무엇을 해 보면 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">전치형 &mdash; 자리를 바꾼다</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>글자는 그대로 두고 늘어놓는 차례만 뒤섞는다.</li>
+                    <li>단순 전치는 옮길 차례가, 레일 펜스는 몇 줄로 나눌지가 키다.</li>
+                    <li>레일 펜스는 키의 후보가 아주 적어 안전하다고 할 수 없다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">치환형 &mdash; 글자를 바꾼다</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>자리는 그대로 두고 글자를 다른 글자로 갈아 끼운다.</li>
+                    <li>카이사르는 몇 칸 밀지가, 단일 치환은 갈아 끼울 표 전체가 키다.</li>
+                    <li>카이사르는 키의 후보가 스물다섯 개뿐이라 다 해 보기로 곧 뚫린다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">두 갈래 가르기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>평문에 없던 글자가 암호문에 있으면 치환형, 없으면 전치형이다.</li>
+                    <li>둘 다 「어떤 글자가 몇 번 나왔는가」의 모양은 흐트러뜨리지 못한다.</li>
+                    <li>두 갈래는 겹쳐 쓸 수 있고, 그러면 풀기가 더 어려워진다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">뚫리는 두 길</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>다 해 보기는 키의 후보가 적을 때 통한다.</li>
+                    <li>빈도 세기는 키의 후보가 많아도 통한다. <strong>다만 암호문이 충분히 길어야 한다.</strong></li>
+                    <li>키의 후보가 많다는 것은 안전함의 필요조건이지 충분조건이 아니다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    카이사르 암호로 <span class="font-mono">CAT</span>을 키 2로 암호화하면?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! C→E, A→C, T→V로 모두 두 칸씩 뒤로 밀렸습니다.')">
+                    ① <span class="font-mono">ECV</span>
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 칸씩 민 결과입니다. 키가 2이므로 두 칸을 밀어야 합니다.')">
+                    ② <span class="font-mono">DBU</span>
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '앞으로 두 칸 민 결과입니다. 카이사르 암호는 뒤로 밉니다.')">
+                    ③ <span class="font-mono">AYR</span>
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '자리를 뒤바꾼 것이라 전치형에 가깝습니다. 카이사르 암호는 글자를 바꿉니다.')">
+                    ④ <span class="font-mono">TAC</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    평문 <span class="font-mono">STOP</span>의 암호문이 <span class="font-mono">POST</span>였습니다.
+                    어느 갈래일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 쓰인 글자가 S·T·O·P 그대로이고 차례만 달라졌으므로 전치형입니다.')">
+                    ① 전치형 &mdash; 쓰인 글자가 그대로이고 차례만 달라졌다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '치환형이라면 평문에 없던 글자가 나와야 합니다. 여기서는 같은 네 글자뿐입니다.')">
+                    ② 치환형 &mdash; 글자가 다른 글자로 갈렸다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '길이가 그대로이므로 압축이 아닙니다. 압축은 자리를 줄이는 일입니다.')">
+                    ③ 압축 &mdash; 길이를 줄였다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가르는 물음으로 판단할 수 있습니다. 평문에 없던 글자가 있는지만 보면 됩니다.')">
+                    ④ 이것만으로는 알 수 없다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>단일 치환 암호</strong>는 키의 후보가 어마어마하게 많은데도 안전하지 않습니다. 왜일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '다 해 보기로는 감당이 안 됩니다. 그래서 다른 길이 쓰입니다.')">
+                    ① 다 해 보기로 금방 뚫리기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 글자를 갈아 끼워도 「어떤 글자가 몇 번 나왔는가」의 모양이 그대로 옮겨 가기 때문입니다.')">
+                    ② 글자마다 나온 횟수의 모양이 그대로 남기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '암호화 규칙이 공개되는 것은 오늘날 암호에서도 정상입니다. 그 자체는 약점이 아닙니다.')">
+                    ③ 암호화 규칙이 공개되어 있기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '표를 만드는 일은 번거로울 뿐 안전함과는 상관이 없습니다.')">
+                    ④ 표를 만들기가 번거롭기 때문에
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>빈도 세기</strong>가 잘 통하지 <strong>않는</strong> 경우는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오히려 길수록 잘 통합니다. 셀 것이 많아지기 때문입니다.')">
+                    ① 암호문이 아주 길 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 다섯 글자짜리 암호문에서는 빈도를 셀 것이 없어 짐작할 근거가 생기지 않습니다.')">
+                    ② 암호문이 몇 글자밖에 안 될 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '단일 치환 암호는 빈도 세기가 가장 잘 통하는 대상입니다.')">
+                    ③ 단일 치환 암호로 만든 암호문일 때
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '키의 후보가 많은 것은 빈도 세기를 막지 못합니다. 그것이 이 방법의 무서운 점입니다.')">
+                    ④ 키가 될 수 있는 값이 아주 많을 때
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<!-- 카이사르 암호 해 보기 -->
+<script>
+    (function () {
+        const 입력 = document.getElementById('cae-input');
+        if (!입력) return;
+
+        const 키 = document.getElementById('cae-key');
+        const 키보기 = document.getElementById('cae-key-view');
+        const 출력 = document.getElementById('cae-out');
+        const 풀기 = document.getElementById('cae-crack');
+        const 풀기상자 = document.getElementById('cae-crack-box');
+        const 풀기줄 = document.getElementById('cae-crack-rows');
+
+        const A = 'A'.charCodeAt(0);
+
+        function 밀기(s, n) {
+            // n칸 뒤로 민다. Z를 넘으면 A로 돌아온다.
+            const d = ((n % 26) + 26) % 26;
+            let out = '';
+            for (const ch of s) out += String.fromCharCode((ch.charCodeAt(0) - A + d) % 26 + A);
+            return out;
+        }
+
+        function 갱신() {
+            const 정리 = 입력.value.toUpperCase().replace(/[^A-Z]/g, '');
+            if (입력.value !== 정리) 입력.value = 정리;
+
+            const n = Number(키.value);
+            키보기.textContent = n;
+            출력.textContent = 정리 ? 밀기(정리, n) : '—';
+
+            // 평문이나 키가 바뀌면 앞서 펼쳐 둔 목록은 맞지 않으므로 닫는다.
+            풀기상자.classList.add('hidden');
+            풀기줄.innerHTML = '';
+        }
+
+        function 다해보기() {
+            const 암호문 = 출력.textContent;
+            if (!암호문 || 암호문 === '—') return;
+
+            풀기줄.innerHTML = '';
+            for (let n = 1; n <= 25; n++) {
+                const tr = document.createElement('tr');
+                const td1 = document.createElement('td');
+                const td2 = document.createElement('td');
+                td1.textContent = n;
+                td2.textContent = 밀기(암호문, -n);   // 되돌리려면 반대 방향으로
+                td2.className = 'font-mono tracking-widest';
+                tr.append(td1, td2);
+                풀기줄.appendChild(tr);
+            }
+            풀기상자.classList.remove('hidden');
+        }
+
+        입력.addEventListener('input', 갱신);
+        키.addEventListener('input', 갱신);
+        풀기.addEventListener('click', 다해보기);
+        갱신();
+    })();
+</script>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

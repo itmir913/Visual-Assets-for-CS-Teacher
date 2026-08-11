@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-export const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+// 저장소 루트 — 이 파일은 `tools/vite/`에 있으므로 세 단 위다.
+export const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
 
 const cfg = JSON.parse(readFileSync(resolve(ROOT, 'subjects.json'), 'utf-8'));
 

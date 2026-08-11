@@ -12,23 +12,23 @@
 // 라이브러리를 바로 부르면 ReferenceError로 죽고 기다려도 낫지 않는다 → load 핸들러로 감싼다.
 //
 // **빌드 설정은 이 파일 하나다.** CSS 파이프라인도 여기 있고 postcss.config.js는 두지 않는다.
-// 이 파일은 **조립만** 한다. 실제로 하는 일은 build/ 밑에 하나씩 나뉘어 있다.
+// 이 파일은 **조립만** 한다. 실제로 하는 일은 tools/vite/ 밑에 하나씩 나뉘어 있다.
 //
-//   build/units.js               무엇을 굽는가 (subjects.json을 읽는다)
-//   build/inject-code.js         data-src 마커 자리에 실파일의 코드를 넣는다
-//   build/vendor-public.js       npm 패키지의 브라우저 번들 → public/vendor/
-//   build/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
-//   build/strip-crossorigin.js   원본에 없던 속성 제거
+//   tools/vite/units.js               무엇을 굽는가 (subjects.json을 읽는다)
+//   tools/vite/inject-code.js         data-src 마커 자리에 실파일의 코드를 넣는다
+//   tools/vite/vendor-public.js       npm 패키지의 브라우저 번들 → public/vendor/
+//   tools/vite/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
+//   tools/vite/strip-crossorigin.js   원본에 없던 속성 제거
 import { resolve } from 'node:path';
 
 import autoprefixer from 'autoprefixer';
 import tailwindcss from 'tailwindcss';
 
-import { ROOT, UNITS } from './build/units.js';
-import injectCode from './build/inject-code.js';
-import vendorPublic from './build/vendor-public.js';
-import copyLectureAssets from './build/copy-lecture-assets.js';
-import stripCrossorigin from './build/strip-crossorigin.js';
+import { ROOT, UNITS } from './tools/vite/units.js';
+import injectCode from './tools/vite/inject-code.js';
+import vendorPublic from './tools/vite/vendor-public.js';
+import copyLectureAssets from './tools/vite/copy-lecture-assets.js';
+import stripCrossorigin from './tools/vite/strip-crossorigin.js';
 
 /**
  * 진입점 — 페이지 전부.

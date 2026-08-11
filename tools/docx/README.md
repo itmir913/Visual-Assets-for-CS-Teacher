@@ -4,9 +4,15 @@
 배포 빌드가 매번 새로 만든다.
 
 ```bash
-npm run setup     # 최초 1회. 생성기의 node 의존성(docx 패키지)
 npm run docx      # 저장소 어디서든
 ```
+
+**의존성은 루트 `package.json`에 있다.** `npm ci` 한 번이면 끝이고 이 폴더에는
+`node_modules`도 락파일도 없다.
+
+이 폴더의 `package.json`은 **의존성이 아니라 모듈 방식을 위해** 있다. 루트가
+`"type": "module"`이라 표식이 없으면 `make/*.js` 41개의 `require()`가 전부 죽는다.
+**지우지 말 것.** 명령과 의존성은 루트에만 둔다.
 
 ## 구조
 

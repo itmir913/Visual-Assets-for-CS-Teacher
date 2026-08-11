@@ -27,7 +27,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 
 ## 명령은 `package.json`에 못박혀 있다
 
-**실행점은 셋뿐이다.** IntelliJ 실행 구성도, GitHub Actions도 이것만 부른다.
+**실행점은 셋뿐이다.** GitHub Actions도, IDE 실행 구성도 이것만 부른다.
 
 | | |
 |---|---|
@@ -39,7 +39,6 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 
 | | |
 |---|---|
-| `setup` | 최초 1회. node 의존성 |
 | `build`가 부르는 것 | `vite build` → 배부 문서 생성 |
 | `check:classes` · `check:code` | `check`가 부른다 |
 | `check:dist` | 산출물 검사 |
@@ -355,11 +354,6 @@ npm run check:code
 **소스 HTML을 파일로 직접 열면 아무것도 안 보인다.** 스타일도 라이브러리도 코드도
 빌드가 넣는다. `npm run dev`로 보거나, 배포본을 확인할 일이면 `npm run build` 뒤 `dist/`를 연다.
 
-```
-IntelliJ 기본 웹서버 그대로 쓴다. 여는 주소만 바뀐다.
-  http://localhost:63342/_Visual_Assets/dist/정보(고등학교)/1-1-1.….html
-```
-
 `dist/`는 gitignore돼 있어 커밋에 섞이지 않는다.
 
 ```bash
@@ -373,47 +367,43 @@ dev도 빌드와 **같은 플러그인 사슬**을 지나므로 보이는 것이
 그대로 뜨지만, 이 파일들은 **Vite의 모듈 그래프 밖이라 저장만으로 다시 뜨지는 않는다** —
 HMR이 걸리지 않으므로 새로고침은 손으로 한다.
 
-### 실행 구성은 `.idea/runConfigurations/`에 있다
+### IDE 실행 구성 — 편집기를 가리지 않는다
 
-**`dev` · `build` · `ci` 셋뿐이다.** 나머지는 터미널에서 `npm run …`으로 부른다 —
-버튼을 명령 수만큼 늘리면 어느 것이 지금 쓰는 것인지 되레 흐려진다.
+**필요한 것은 `npm run dev`·`build`·`ci` 셋뿐이고, 이건 어느 편집기에서든 터미널로 된다.**
+편의를 위해 IntelliJ용 구성 셋이 `.idea/runConfigurations/`에 들어 있을 뿐이다.
+다른 편집기를 쓴다면 그냥 터미널에서 부르면 되고, 없다고 아쉬울 것이 없다.
 
-| 구성 | |
-|---|---|
-| `dev` | `npm run dev` — Vite 개발 서버 |
-| `build` | `npm run build` — 배포와 같은 빌드 |
-| `ci` | `npm run ci` — 검사 → 빌드 → 산출물 검사 |
+넣어 둔 셋은 **npm 실행 구성**(`js.build_tools.npm`)이라 셸을 거치지 않는다.
+powershell 경로를 박으면 macOS·Linux에서 그대로 죽으므로 그렇게 하지 않는다.
+무엇을 돌릴지는 `package.json`에만 적혀 있어 **명령을 고치면 버튼도 같이 바뀐다.**
 
 `.gitignore`가 `.idea/*`를 막되 이 폴더만 되살린다. **`.idea/`(폴더째)로 막으면
 git이 그 안으로 내려가지 않아 예외가 먹지 않는다** — 반드시 `.idea/*`여야 한다.
-그래서 새 실행 구성을 넣을 때 `git add -f`가 필요 없다.
-
-셋 다 **npm 실행 구성**(`js.build_tools.npm`)이라 Run 탭에서 바로 돈다.
-셸을 거치지 않으므로 **Windows 전용 설정이 되지 않는다** — powershell 경로를 박으면
-macOS·Linux에서 그대로 죽는다.
-
-무엇을 실제로 돌릴지는 `package.json`에만 적혀 있으므로, 명령을 고치면
-**IDE 버튼도 같이 바뀐다.**
 
 ### 새 컴퓨터에서 clone한 뒤 — 최초 1회
 
 ```bash
-npm ci            # 루트: Vite · Tailwind · 글꼴 패키지
-npm run setup     # docx 생성기의 node 의존성
+npm ci            # 이것 하나면 된다 — Vite · Tailwind · 글꼴 · docx 생성기까지
 ```
 
 **파이썬 쪽은 설치할 패키지가 없다.** 검사도 빌드도 **표준 라이브러리만** 쓰므로
-시스템 `python`으로 그대로 돌아간다. venv는 IntelliJ의 파이썬 코드 지원이 필요할 때만
+시스템 `python`으로 그대로 돌아간다. venv는 편집기의 파이썬 코드 지원이 필요할 때만
 만들면 되고, 실행에는 쓰이지 않는다.
 
 ## 배부 문서 생성기 — `docx/`
 
-학생에게 나눠 주는 보고서 양식 `.docx`를 만든다. node와 `docx` 패키지가 필요하다.
+학생에게 나눠 주는 보고서 양식 `.docx`를 만든다.
 
 ```bash
-npm run setup                    # 최초 1회. 락파일이 추적되므로 install이 아니라 ci
 npm run docx                     # 저장소 어디서든 실행 가능
 ```
+
+**의존성은 루트 하나뿐이다.** `docx` 패키지는 루트 `package.json`에 있고
+`require('docx')`가 위로 올라가 찾는다. 이 폴더에는 락파일도 `node_modules`도 없다.
+
+**다만 `docx/package.json`은 지우면 안 된다.** 루트가 `"type": "module"`이라
+그 표식이 없으면 `make/*.js` 41개의 `require()`가 전부 죽는다. 의존성이 아니라
+**모듈 방식을 위해** 남긴 파일이다.
 
 **출력 루트는 기본이 `dist/`다.** 그래서 배포 빌드는 아무것도 넘기지 않는다.
 다른 자리로 뽑아 볼 때만 `DOCX_OUT_ROOT`로 바꾼다.

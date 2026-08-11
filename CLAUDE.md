@@ -31,7 +31,7 @@
 | `src/tailwind/<단위>.config.js` | 단위별 Tailwind 설정(`content`를 그 단위로 좁힌다). `base.config.js`는 의존 패키지 CSS가 지나갈 때의 기본값 |
 | `public/` | **이름이 그대로여야 하는 파일**만. 지금은 MathJax 글꼴뿐. 저장소에 담지 않는다 |
 | `.github/workflows/` | 배포 워크플로 |
-| `.idea/runConfigurations/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
+| `.idea/runConfigurations/` | IntelliJ 실행 구성(**편의용**. 없어도 터미널로 다 된다). **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
 | `package.json` | **명령을 정의하는 유일한 곳** |
 | `docs/` | 근거(사례집)·절차(추가하기)·해법(수정 레시피) 셋뿐이다 |
 
@@ -42,7 +42,8 @@
 **스크립트 경로를 직접 치지 않는다.** 새 명령이 필요하면 `package.json`에 이름을 붙인다.
 **CI도 IDE 실행 구성도 같은 이름을 부른다** — 여기만 고치면 셋이 함께 바뀐다.
 
-**실행점은 셋뿐이다.** IntelliJ 실행 구성도 GitHub Actions도 이것만 부른다.
+**실행점은 셋뿐이다.** GitHub Actions도 IDE 실행 구성도 이것만 부른다.
+**터미널에서 `npm run`으로 부르면 어느 편집기에서든 된다** — 특정 IDE에 매이지 않는다.
 
 | | |
 |---|---|

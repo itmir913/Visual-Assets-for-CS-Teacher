@@ -18,7 +18,7 @@
 의존성은 전부 npm이고, 배포본에 CDN이 남지 않는 것은 `npm run ci`의 `check:dist`가 보증합니다.
 
 ```bash
-npm run setup     # 최초 1회
+npm ci            # 최초 1회
 npm run dev       # Vite 개발 서버 — 저장하면 바로 반영된다
 npm run build     # 배포와 같은 빌드 → dist/
 npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 같다

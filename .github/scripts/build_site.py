@@ -132,6 +132,35 @@ def discover_html_files() -> list[Path]:
     return files
 
 
+# dist로 그대로 옮기지 않는 확장자.
+#   .html  — 빌드가 따로 처리한다
+#   .docx  — 저장소 것이 아니라 생성기가 dist 안에 새로 만든다.
+#            로컬에서 생성기를 돌려 소스 트리에 남은 것을 덮어쓰면 안 된다.
+STATIC_SKIP_SUFFIXES = {".html", ".docx"}
+
+
+def copy_static(dist_root: Path) -> int:
+    """강의노트 폴더 안의 비-HTML 파일을 dist로 그대로 옮긴다.
+
+    강의노트가 끌어다 쓰는 `code/`의 .py·.c가 여기 해당한다. 코드는 화면에
+    보이기만 하면 되는 것이 아니라 **학생이 내려받아 실행하는 파일**이므로
+    오프라인 zip에도 들어가야 한다.
+    """
+    n = 0
+    for d in TARGET_DIRS:
+        base = REPO_ROOT / d
+        if not base.exists():
+            continue
+        for src in base.rglob("*"):
+            if not src.is_file() or src.suffix.lower() in STATIC_SKIP_SUFFIXES:
+                continue
+            dest = dist_root / src.relative_to(REPO_ROOT)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+            n += 1
+    return n
+
+
 def build_templates(dist_root: Path) -> int:
     """배부용 .docx를 dist 안에 새로 만든다. 만들어진 개수를 돌려준다.
 
@@ -356,6 +385,8 @@ def watch(dist_root: Path, assets_dir: Path, localize: bool, skip_docx: bool) ->
         log("배부용 .docx가 없어 먼저 만든다")
         build_templates(dist_root)
 
+    log(f"정적 파일 {copy_static(dist_root)}개 복사")
+
     files = discover_html_files()
     todo = stale_files(files, dist_root)
     if todo:
@@ -406,6 +437,10 @@ def watch(dist_root: Path, assets_dir: Path, localize: bool, skip_docx: bool) ->
                 if stamps.get(p) == m:
                     continue
                 stamps[p] = m
+                # 화면에 넣을 뿐 아니라 학생이 내려받는 파일이기도 하다. 사본도 갱신한다.
+                dest = dist_root / p.relative_to(REPO_ROOT)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(p, dest)
                 users = [h for h, s in deps.items() if p in s]
                 log(f"코드 바뀜: {p.relative_to(REPO_ROOT)} → HTML {len(users)}개 다시 빌드")
                 for h in users:
@@ -460,6 +495,10 @@ def main() -> int:
             continue
         if unsupported:
             all_unsupported[rel] = unsupported
+
+    if not args.only:
+        copied = copy_static(dist_root)
+        log(f"정적 파일 {copied}개 복사 완료")
 
     if not args.only and not args.skip_docx:
         made = build_templates(dist_root)

@@ -53,25 +53,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      # 아래 단계들은 전부 package.json의 npm 스크립트를 부른다. 로컬에서 치는
+      # 명령과 CI가 돌리는 명령이 같아야 하기 때문이다. 캐시 단계를 사이에 끼워야
+      # 해서 `npm run ci` 하나로 묶지 않고 조각으로 부른다 — 조각의 정의는
+      # package.json 한 곳에만 있다.
+      - name: Install dependencies (docx generator, tailwindcss)
+        run: npm run setup
+
       # 소스 검사라 빌드보다 먼저 돌린다. 클래스를 코드로 조립하면 Tailwind가
       # 리터럴을 못 찾아 CSS에서 빠지는데, 소스를 그대로 열면(CDN, 런타임 JIT)
-      # 멀쩡히 보여서 눈으로는 안 잡힌다.
-      - name: Verify no runtime-composed Tailwind classes
-        run: python tools/check_dynamic_classes.py
-
-      # 강의노트가 끌어다 쓰는 .py·.c의 구문 오류와, data-src 마커가 가리키는
-      # 파일·구역이 실제로 있는지를 본다. 러너에 gcc가 있어 .c까지 검사된다.
-      - name: Verify lecture-note source code
-        run: python tools/check_code.py
-
-      # 배부용 .docx 생성기. 산출물은 저장소에 없고 매 빌드에서 새로 만든다.
-      - name: Install docx generator deps
-        working-directory: tools/docx
-        run: npm ci
-
-      - name: Install tailwindcss (build script only, unrelated to source)
-        working-directory: .github/scripts
-        run: npm ci
+      # 멀쩡히 보여서 눈으로는 안 잡힌다. 강의노트가 끌어다 쓰는 .py·.c의 구문과
+      # data-src 마커도 함께 본다 — 러너에 gcc가 있어 .c까지 검사된다.
+      - name: Check sources
+        run: npm run check
 
       - name: Cache CDN assets (Font Awesome, Pretendard, MathJax, vendor JS)
         uses: actions/cache@v6
@@ -94,51 +88,18 @@ jobs:
             echo "캐시 없음 — 이번 실행에서 전부 새로 받음"
           fi
 
-      - name: Build site (CDN localized, .docx generated)
-        run: python .github/scripts/build_site.py --out dist
+      - name: Build site (CDN localized, .docx generated, code injected)
+        run: npm run build
 
       - name: Update asset cache for next run
         run: |
           rm -rf dist-assets-cache
           cp -r dist/assets/cdn dist-assets-cache
 
-      - name: Verify docx download links resolve
-        # .docx는 저장소에 없고 빌드가 만든다. 이 검사가 다운로드 링크의 유일한 방어선이다.
-        run: |
-          python - <<'PY'
-          import re, sys
-          from pathlib import Path
-          bad = total = 0
-          for h in Path("dist").rglob("*.html"):
-              for m in re.finditer(r'href="([^"]+\.docx)"', h.read_text(encoding="utf-8")):
-                  total += 1
-                  if not (h.parent / m.group(1)).resolve().exists():
-                      bad += 1
-                      print(f"::error::깨진 다운로드 링크: {h} -> {m.group(1)}")
-          print(f"docx 링크 {total}건 중 깨진 것 {bad}건")
-          sys.exit(1 if bad else 0)
-          PY
-
-      - name: Verify no CDN references remain
-        run: |
-          remaining=$(grep -rloE 'https://(cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*' dist --include='*.html' || true)
-          if [ -n "$remaining" ]; then
-            echo "::error::로컬화되지 않은 CDN 참조가 남아있습니다:"
-            echo "$remaining"
-            exit 1
-          fi
-          echo "CDN 참조 잔존 0건 확인"
-
-      - name: Verify tag nesting
-        run: |
-          fail=0
-          while IFS= read -r -d '' f; do
-            if python tools/check_html.py "$f" 2>&1 | grep -q "태그 중첩\] 위반"; then
-              echo "::error::태그 중첩 위반: $f"
-              fail=1
-            fi
-          done < <(find dist -iname '*.html' -print0)
-          exit $fail
+      # 산출물 검사 — 소스만 봐서는 알 수 없는 셋을 본다.
+      # .docx 다운로드 링크, 로컬화되지 않은 CDN 참조, 태그 중첩.
+      - name: Check build output
+        run: python tools/check_dist.py dist --github
 
       - name: Record build info
         id: meta

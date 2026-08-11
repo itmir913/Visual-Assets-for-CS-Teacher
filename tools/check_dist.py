@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""빌드 **산출물**을 검사한다. 소스가 아니라 `dist/`를 본다.
+
+소스 검사(`check_html.py`·`check_dynamic_classes.py`·`check_code.py`)와 역할이 다르다.
+여기서 보는 셋은 **빌드가 저지를 수 있는 실수**라서 소스만 봐서는 알 수 없다.
+
+1. **`.docx` 다운로드 링크** — `.docx`는 저장소에 없고 빌드가 만든다.
+   생성기 쪽 파일명과 강의노트의 링크가 어긋나면 이 검사가 유일한 방어선이다.
+2. **로컬화되지 않은 CDN 참조** — 하나라도 남으면 CDN을 막는 학교망에서 깨진다.
+3. **태그 중첩** — 주입·치환이 구조를 망가뜨리지 않았는지 마지막으로 확인한다.
+
+사용법:
+    python tools/check_dist.py            # dist/
+    python tools/check_dist.py <경로>      # 다른 산출물 폴더
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+
+from check_html import Checker  # noqa: E402
+
+DOCX_HREF_RE = re.compile(r'href="([^"]+\.docx)"')
+CDN_RE = re.compile(r"https://(?:cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*")
+
+
+def check_docx_links(files: list[Path]) -> tuple[list[str], int]:
+    bad: list[str] = []
+    total = 0
+    for h in files:
+        for m in DOCX_HREF_RE.finditer(h.read_text(encoding="utf-8")):
+            total += 1
+            if not (h.parent / m.group(1)).resolve().exists():
+                bad.append(f"깨진 다운로드 링크: {h} -> {m.group(1)}")
+    return bad, total
+
+
+def check_cdn(files: list[Path]) -> list[str]:
+    bad: list[str] = []
+    for h in files:
+        found = sorted(set(CDN_RE.findall(h.read_text(encoding="utf-8"))))
+        if found:
+            bad.append(f"로컬화되지 않은 CDN 참조: {h} -> {', '.join(found[:3])}")
+    return bad
+
+
+def check_nesting(files: list[Path]) -> list[str]:
+    bad: list[str] = []
+    for h in files:
+        c = Checker()
+        c.feed(h.read_text(encoding="utf-8"))
+        problems = list(c.nesting) + [f"{ln}행: <{t}> 닫히지 않음" for t, ln, _ in c.stack]
+        for p in problems:
+            bad.append(f"태그 중첩 위반: {h} -> {p}")
+    return bad
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dist", nargs="?", default="dist", help="검사할 산출물 폴더 (기본 dist)")
+    parser.add_argument("--github", action="store_true", help="::error:: 형식으로 출력 (Actions용)")
+    args = parser.parse_args()
+
+    root = Path(args.dist)
+    if not root.is_dir():
+        print(f"[check_dist] 산출물 폴더가 없다: {root}", file=sys.stderr)
+        return 2
+
+    files = sorted(root.rglob("*.html"))
+    if not files:
+        print(f"[check_dist] {root}에 HTML이 하나도 없다", file=sys.stderr)
+        return 2
+
+    docx_bad, docx_total = check_docx_links(files)
+    cdn_bad = check_cdn(files)
+    nest_bad = check_nesting(files)
+
+    print(f"[check_dist] HTML {len(files)}개, docx 링크 {docx_total}건")
+    errs = docx_bad + cdn_bad + nest_bad
+    if errs:
+        prefix = "::error::" if args.github else "  "
+        for e in errs:
+            print(f"{prefix}{e}")
+        print(f"[check_dist] 문제 {len(errs)}건")
+        return 1
+
+    print("[check_dist] 통과 — 깨진 다운로드 링크 0, CDN 잔존 0, 태그 중첩 위반 0")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

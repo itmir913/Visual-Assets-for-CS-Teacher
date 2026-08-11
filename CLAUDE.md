@@ -92,6 +92,9 @@
   링크가 아니라서 깨지지 않는다.
 - 파일을 고칠 때마다 `python tools/check_html.py <파일>`.
   **이 검사가 못 잡는 것이 있다** → [`tools/README.md`](tools/README.md).
+- **나머지 명령은 `package.json`에 못박혀 있다.** 스크립트 경로를 직접 치지 않는다 —
+  `npm run check` · `npm run build` · `npm run check:dist`, 셋을 묶은 것이 `npm run ci`다.
+  **CI도 같은 이름을 부른다.**
 
 ### 섹션 하나는 375px에서 6화면을 넘지 않는다 — 권장이지 필수가 아니다
 

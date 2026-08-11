@@ -4,7 +4,7 @@
 배포 빌드가 매번 새로 만든다.
 
 ```bash
-npm run setup     # 최초 1회 (docx 생성기 + tailwindcss)
+npm run setup     # 최초 1회. 생성기의 node 의존성(docx 패키지)
 npm run docx      # 저장소 어디서든
 ```
 
@@ -88,10 +88,12 @@ const DEST = {
 **새 그룹을 추가할 때**는 `DEST`에 한 줄 넣고 `out('새그룹', '…')`으로 쓴다.
 없는 그룹을 쓰면 생성기가 이름을 알려 주며 실패한다.
 
-출력 루트는 `DOCX_OUT_ROOT`로 바꿀 수 있다. 배포 빌드가 이걸로 `dist/` 안에 뽑는다.
+기본이 `dist/`이므로 **배포 빌드는 아무것도 넘기지 않는다.**
+`DOCX_OUT_ROOT`는 다른 자리에 뽑아 볼 때만 쓴다.
 
 ```bash
-DOCX_OUT_ROOT=dist npm run docx   # dist/인공지능기초/ai-projects/docx/…
+npm run docx                        # dist/인공지능기초/ai-projects/docx/…
+DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
 ```
 
 ---

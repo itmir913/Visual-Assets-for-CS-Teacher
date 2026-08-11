@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>빅데이터 시각화</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-chart-line absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chart-pie absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            빅데이터 시각화
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            그래프를 먼저 고르지 않습니다.<br>
+            <strong>물음이 그래프를 정합니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>시간 &middot; 분포 &middot; 관계 시각화를 구분하고, 각각 어떤 물음에 답하는지 설명할 수 있다.</li>
+                    <li>주어진 물음에 알맞은 시각화 방법을 고르고, 왜 그 방법인지 근거를 댈 수 있다.</li>
+                    <li>같은 데이터로도 인상이 달라질 수 있다는 것을 알고, 그래프를 볼 때 축을 먼저 확인할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chart-line text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">빅데이터 시각화</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#eyes" class="hover:text-teal-600 transition">왜 그림으로 보나</a>
+            <a href="#three" class="hover:text-teal-600 transition">세 가지 시각화</a>
+            <a href="#choose" class="hover:text-teal-600 transition">무엇을 보고 고르나</a>
+            <a href="#trap" class="hover:text-teal-600 transition">같은 데이터, 다른 인상</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 왜 그림으로 보나 ══════════ -->
+    <section id="eyes" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-eye text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">왜 그림으로 보나</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 차시에서 데이터를 모으고 다듬는 데까지 왔습니다. 이제 <strong>거기서 무엇을 알아낼 차례</strong>입니다.
+                그런데 다듬어 둔 표를 그냥 들여다보아서는 좀처럼 보이는 것이 없습니다. 숫자가 몇십 개만 되어도
+                사람의 눈은 <strong>전체의 모양을 붙잡지 못합니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">
+                        요일별 급식 잔반량 (수업에서 원리를 확인하려고 지어낸 값, 단위 kg)
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">요일</th>
+                        <th class="w-20">월</th>
+                        <th class="w-20">화</th>
+                        <th class="w-20">수</th>
+                        <th class="w-20">목</th>
+                        <th class="w-20">금</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">잔반량</td>
+                        <td>8</td>
+                        <td>6</td>
+                        <td>9</td>
+                        <td>5</td>
+                        <td>4</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다섯 개뿐이라 이 정도는 읽힙니다. 그런데 <strong>한 학기 백 일치</strong>가 되면 어떨까요.
+                표를 아무리 노려봐도 「점점 줄고 있는지」, 「어느 요일이 유독 많은지」가 보이지 않습니다.
+                이때 필요한 것이 <strong>빅데이터 시각화</strong>입니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">빅데이터 시각화</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    데이터를 <strong>길이 &middot; 높이 &middot; 위치 &middot; 넓이 같은 눈에 보이는 성질로 바꿔</strong>
+                    한눈에 알아볼 수 있게 그리는 일입니다. 사람은 숫자 스무 개를 견주는 것은 잘 못하지만
+                    <strong>막대 스무 개의 높낮이는 순식간에 알아봅니다.</strong> 이 차이를 이용하는 것입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-slate-500 mr-2"></i>보기 좋게 꾸미는 일이 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    시각화를 「발표 자료를 예쁘게 만드는 일」로 여기기 쉽습니다. 그렇지 않습니다. 시각화는
+                    <strong>분석의 한 단계</strong>입니다. 그려 보아야 비로소 보이는 것이 있기 때문에, 무엇을
+                    알아내려고 그리는 것이지 <strong>이미 아는 것을 보여 주려고 그리는 것이 아닙니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 순서가 중요합니다. <strong>먼저 물음이 있고, 그 물음에 답할 수 있는 그림을 고릅니다.</strong>
+                    「어떤 그래프가 멋있을까」로 시작하면 아무것도 알아낼 수 없습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                위 표의 다섯 숫자를 보고 「무슨 요일이 가장 많았나」는 금방 답할 수 있습니다. 그런데 숫자가
+                백 개라면 어떤 물음이 특히 어려워질까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 세 가지 시각화 ══════════ -->
+    <section id="three" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-chart-column text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">세 가지 시각화</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                시각화 방법은 아주 많지만, <strong>무엇을 보려는가</strong>에 따라 크게 셋으로 묶입니다.
+                아래에서 물음을 하나씩 눌러 보세요. <strong>같은 급식 조사에서 나온 데이터인데도 물음이 달라지면
+                그려야 할 그림이 달라집니다.</strong>
+            </p>
+
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 sm:p-6 space-y-5">
+                <p class="font-black text-base text-slate-800">알고 싶은 것을 골라 보세요</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="button" data-vis="time"
+                            class="vis-btn min-h-[44px] px-4 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-bold text-base hover:bg-slate-100 transition text-left">
+                        요일에 따라 어떻게 달라지나?
+                    </button>
+                    <button type="button" data-vis="dist"
+                            class="vis-btn min-h-[44px] px-4 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-bold text-base hover:bg-slate-100 transition text-left">
+                        어떤 반찬이 많이 남나?
+                    </button>
+                    <button type="button" data-vis="rel"
+                            class="vis-btn min-h-[44px] px-4 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-bold text-base hover:bg-slate-100 transition text-left">
+                        만족도와 잔반량은 함께 움직이나?
+                    </button>
+                </div>
+
+                <!-- 시간 시각화 -->
+                <div id="vis-time" class="vis-panel space-y-3">
+                    <p class="font-black text-lg text-sky-900">시간 시각화 &mdash; 꺾은선 그래프</p>
+                    <svg class="chart-svg" viewBox="0 0 360 180" role="img"
+                         aria-label="가로축이 요일, 세로축이 잔반량인 꺾은선 그래프. 수요일이 가장 높고 금요일이 가장 낮다">
+                        <line x1="36" y1="20" x2="36" y2="150" stroke="#94a3b8" stroke-width="2"></line>
+                        <line x1="36" y1="150" x2="348" y2="150" stroke="#94a3b8" stroke-width="2"></line>
+                        <polyline points="50,46 120,72 190,33 260,85 330,98" fill="none" stroke="#0284c7"
+                                  stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+                        <g fill="#ffffff" stroke="#0284c7" stroke-width="3">
+                            <circle cx="50" cy="46" r="5"></circle>
+                            <circle cx="120" cy="72" r="5"></circle>
+                            <circle cx="190" cy="33" r="5"></circle>
+                            <circle cx="260" cy="85" r="5"></circle>
+                            <circle cx="330" cy="98" r="5"></circle>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        가로축은 왼쪽부터 <strong>월 &middot; 화 &middot; 수 &middot; 목 &middot; 금</strong>,
+                        세로축은 <strong>잔반량</strong>입니다. 위로 갈수록 많습니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>알 수 있는 것</strong> &mdash; 수요일에 가장 많이 남았고, 주가 끝나 갈수록 줄어듭니다.
+                        <strong>시간을 따라 변해 가는 모양</strong>이 보이는 것이 이 방법의 힘입니다.
+                    </p>
+                </div>
+
+                <!-- 분포 시각화 -->
+                <div id="vis-dist" class="vis-panel hidden space-y-3">
+                    <p class="font-black text-lg text-violet-900">분포 시각화 &mdash; 막대그래프</p>
+                    <svg class="chart-svg" viewBox="0 0 360 180" role="img"
+                         aria-label="다섯 종류의 반찬별 남은 양을 나타낸 막대그래프. 왼쪽부터 차례로 낮아진다">
+                        <line x1="36" y1="20" x2="36" y2="150" stroke="#94a3b8" stroke-width="2"></line>
+                        <line x1="36" y1="150" x2="348" y2="150" stroke="#94a3b8" stroke-width="2"></line>
+                        <g fill="#ddd6fe" stroke="#7c3aed" stroke-width="2.5">
+                            <rect x="52" y="30" width="44" height="120" rx="4"></rect>
+                            <rect x="112" y="60" width="44" height="90" rx="4"></rect>
+                            <rect x="172" y="80" width="44" height="70" rx="4"></rect>
+                            <rect x="232" y="100" width="44" height="50" rx="4"></rect>
+                            <rect x="292" y="130" width="44" height="20" rx="4"></rect>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        가로축은 왼쪽부터 <strong>나물 &middot; 생선 &middot; 국 &middot; 김치 &middot; 밥</strong>,
+                        세로축은 <strong>남은 양</strong>입니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>알 수 있는 것</strong> &mdash; 나물이 가장 많이 남고 밥이 거의 남지 않습니다.
+                        <strong>어느 쪽에 몰려 있는지</strong>가 보이는 것이 이 방법의 힘입니다.
+                        시간 순서는 여기서 아무 뜻이 없습니다.
+                    </p>
+                </div>
+
+                <!-- 관계 시각화 -->
+                <div id="vis-rel" class="vis-panel hidden space-y-3">
+                    <p class="font-black text-lg text-emerald-900">관계 시각화 &mdash; 산점도</p>
+                    <svg class="chart-svg" viewBox="0 0 360 180" role="img"
+                         aria-label="가로축이 만족도, 세로축이 잔반량인 산점도. 오른쪽으로 갈수록 점이 아래로 내려간다">
+                        <line x1="36" y1="20" x2="36" y2="150" stroke="#94a3b8" stroke-width="2"></line>
+                        <line x1="36" y1="150" x2="348" y2="150" stroke="#94a3b8" stroke-width="2"></line>
+                        <g fill="#059669" opacity="0.75">
+                            <circle cx="54" cy="33" r="6"></circle>
+                            <circle cx="70" cy="46" r="6"></circle>
+                            <circle cx="118" cy="46" r="6"></circle>
+                            <circle cx="134" cy="59" r="6"></circle>
+                            <circle cx="182" cy="72" r="6"></circle>
+                            <circle cx="198" cy="85" r="6"></circle>
+                            <circle cx="248" cy="98" r="6"></circle>
+                            <circle cx="264" cy="85" r="6"></circle>
+                            <circle cx="314" cy="111" r="6"></circle>
+                            <circle cx="330" cy="124" r="6"></circle>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        가로축은 <strong>그날 급식 만족도</strong>(오른쪽으로 갈수록 높음), 세로축은
+                        <strong>그날 잔반량</strong>(위로 갈수록 많음)입니다. 점 하나가 하루입니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>알 수 있는 것</strong> &mdash; 오른쪽으로 갈수록 점이 아래로 내려갑니다.
+                        <strong>만족도가 높은 날에는 잔반량이 적은 편</strong>이라는 뜻입니다.
+                        <strong>두 값이 함께 움직이는지</strong>가 보이는 것이 이 방법의 힘입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>산점도를 읽을 때 가장 조심할 것
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    셋째 그림에서 <strong>「만족도를 높이면 잔반이 줄어든다」</strong>는 결론이 저절로 떠오릅니다.
+                    그런데 그림이 보여 준 것은 그것이 아닙니다. 그림이 말한 것은
+                    <strong>「만족도가 높았던 날은 잔반이 적은 편이었다」</strong>까지입니다. <strong>함께 움직였다</strong>는
+                    것과 <strong>하나가 다른 하나를 일으켰다</strong>는 것은 전혀 다릅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    실제로는 <strong>둘 다를 움직인 세 번째 무엇</strong>이 있을 수 있습니다. 예를 들어
+                    「좋아하는 메뉴가 나온 날」이라면 만족도도 높고 잔반도 적습니다. 이때 만족도가 잔반을 줄인 것이
+                    아니라, <strong>메뉴가 둘 다를 움직인 것</strong>입니다. 또 순서가 반대일 수도 있습니다 &mdash;
+                    많이 먹어서 배가 불러 만족도가 높아졌을 수도 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>산점도만 보고 「무엇이 무엇의 원인이다」라고 말하면 안 됩니다.</strong>
+                    원인을 말하려면 다른 조건을 똑같이 맞춰 두고 하나만 바꿔 보는 확인이 따로 있어야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「아이스크림이 많이 팔린 날에는 물놀이 사고도 많았다」는 산점도가 있습니다. 아이스크림이 사고를
+                일으킨 것일까요? <strong>둘 다를 움직인 세 번째 무엇</strong>을 찾아보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 무엇을 보고 고르나 ══════════ -->
+    <section id="choose" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-hand-pointer text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">무엇을 보고 고르나</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 절의 세 그림을 다시 떠올려 보세요. 셋을 가른 것은 <strong>데이터가 아니라 물음</strong>이었습니다.
+                그러니 고르는 방법도 간단합니다. <strong>물음의 모양을 보면 됩니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="text-base text-slate-500 text-left mb-2">물음의 모양으로 시각화 고르기</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">물음이 이런 모양이면</th>
+                        <th class="w-32">고를 것</th>
+                        <th>흔히 쓰는 그림</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>「시간이 지나면서 어떻게 되었나」</td>
+                        <td class="font-bold">시간 시각화</td>
+                        <td>꺾은선 그래프, 막대그래프</td>
+                    </tr>
+                    <tr>
+                        <td>「어느 쪽이 많고 어느 쪽이 적나」</td>
+                        <td class="font-bold">분포 시각화</td>
+                        <td>막대그래프, 원그래프, 낱말 구름</td>
+                    </tr>
+                    <tr>
+                        <td>「두 값이 함께 움직이나」</td>
+                        <td class="font-bold">관계 시각화</td>
+                        <td>산점도, 거품 그래프</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-violet-900">낱말 구름</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        글에 나온 낱말들을 모아 놓고 <strong>많이 나온 낱말일수록 크게</strong> 그린 그림입니다.
+                        비정형인 글에서 무엇이 자주 이야기되는지를 한눈에 보여 주므로 분포 시각화에 듭니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-emerald-900">거품 그래프</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        산점도의 점에 <strong>크기</strong>를 더해 값 하나를 더 담은 그림입니다. 가로 &middot; 세로에
+                        더해 <strong>세 가지</strong>를 한 그림에 넣을 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-key text-slate-500 mr-2"></i>같은 그림이 두 자리에 나오는 까닭
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    표를 보면 <strong>막대그래프가 두 줄에 걸쳐 있습니다.</strong> 잘못 적은 것이 아닙니다.
+                    가로축에 <strong>요일</strong>을 놓으면 시간 시각화가 되고, <strong>반찬 종류</strong>를 놓으면
+                    분포 시각화가 됩니다. <strong>그림의 이름이 아니라 축에 무엇을 놓았는지가 정합니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 「막대그래프는 분포 시각화」처럼 외우면 곤란합니다. 그림을 볼 때마다
+                    <strong>가로축에 무엇이 놓였는지</strong>를 먼저 보세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「우리 반이 한 달 동안 도서관에서 빌린 책은 어느 갈래가 많았나」에는 어느 시각화가 어울릴까요?
+                물음의 모양을 표에 넣어 골라 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 같은 데이터, 다른 인상 ══════════ -->
+    <section id="trap" class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-masks-theater text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">같은 데이터, 다른 인상</h2>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                시각화는 숫자를 그대로 옮긴 것이니 <strong>거짓말을 할 수 없다</strong>고 여기기 쉽습니다.
+                그렇지 않습니다. <strong>똑같은 숫자로도 전혀 다른 인상을 줄 수 있습니다.</strong> 아래 두 그림은
+                같은 값을 그린 것입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">0부터 그린 그림</p>
+                    <svg class="chart-svg" viewBox="0 0 320 170" role="img"
+                         aria-label="바닥에서부터 그린 막대 세 개. 높이가 거의 비슷하다">
+                        <line x1="36" y1="18" x2="36" y2="140" stroke="#94a3b8" stroke-width="2"></line>
+                        <line x1="36" y1="140" x2="308" y2="140" stroke="#94a3b8" stroke-width="2"></line>
+                        <g fill="#ccfbf1" stroke="#0d9488" stroke-width="2.5">
+                            <rect x="66" y="42" width="54" height="98" rx="4"></rect>
+                            <rect x="146" y="38" width="54" height="102" rx="4"></rect>
+                            <rect x="226" y="34" width="54" height="106" rx="4"></rect>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        세로축이 <strong>0에서 시작</strong>합니다. 세 값이 <strong>거의 비슷하다</strong>는 인상을 줍니다.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <p class="font-black text-lg text-slate-700">중간부터 그린 그림</p>
+                    <svg class="chart-svg" viewBox="0 0 320 170" role="img"
+                         aria-label="바닥을 잘라 내고 그린 막대 세 개. 높이 차이가 매우 크게 보인다">
+                        <line x1="36" y1="18" x2="36" y2="140" stroke="#94a3b8" stroke-width="2"></line>
+                        <line x1="36" y1="140" x2="308" y2="140" stroke="#94a3b8" stroke-width="2"
+                              stroke-dasharray="6 4"></line>
+                        <g fill="#ffe4e6" stroke="#e11d48" stroke-width="2.5">
+                            <rect x="66" y="106" width="54" height="34" rx="4"></rect>
+                            <rect x="146" y="72" width="54" height="68" rx="4"></rect>
+                            <rect x="226" y="28" width="54" height="112" rx="4"></rect>
+                        </g>
+                    </svg>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        세로축의 <strong>아래쪽을 잘라 냈습니다.</strong> 같은 값인데 <strong>차이가 엄청나 보입니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">거짓말은 하지 않았습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    오른쪽 그림도 <strong>숫자를 고치지는 않았습니다.</strong> 축의 시작점을 옮겼을 뿐입니다.
+                    그런데 보는 사람은 <strong>막대의 높이 차이</strong>로 값을 가늠하기 때문에, 세 값의 차이가
+                    실제보다 훨씬 크다고 느끼게 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    축을 자르는 것이 언제나 나쁜 것은 아닙니다. <strong>작은 차이를 자세히 봐야 할 때는 오히려
+                    필요합니다.</strong> 문제가 되는 것은 <strong>자른 사실을 밝히지 않고 큰 차이인 것처럼
+                    보이게 할 때</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-800">
+                    <i class="fa-solid fa-magnifying-glass text-slate-500 mr-2"></i>그래프를 볼 때 먼저 볼 것 셋
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>세로축이 어디에서 시작하는가</strong> &mdash; 0이 아니라면 차이가 부풀려 보일 수 있다.</li>
+                    <li><strong>어느 기간, 어느 범위만 잘라 왔는가</strong> &mdash; 유리한 구간만 골라 보이면 흐름이 뒤집혀 보인다.</li>
+                    <li><strong>누가 무엇을 위해 그린 그림인가</strong> &mdash; 그린 사람의 목적이 축의 선택에 들어간다.</li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 셋은 남의 그래프를 볼 때만이 아니라 <strong>내가 그릴 때에도</strong> 지켜야 합니다.
+                    자기도 모르게 원하는 결론이 잘 보이도록 축을 정하게 되기 때문입니다. 앞 차시에서
+                    「마음에 안 드는 값만 빼면 원하는 결론이 저절로 나온다」고 한 것과 같은 이야기입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「우리 학교 급식 만족도가 크게 올랐습니다」라는 그래프를 보았습니다. 무엇부터 확인해야 할까요?
+                위의 셋을 순서대로 적용해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-6">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i class="fa-solid fa-bookmark text-xl"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">핵심 정리</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">시각화란</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>데이터를 길이 &middot; 높이 &middot; 위치처럼 눈에 보이는 성질로 바꿔 그리는 일이다.</li>
+                    <li><strong>꾸미는 일이 아니라 분석의 한 단계다.</strong> 그려 보아야 보이는 것이 있다.</li>
+                    <li>먼저 물음이 있고, 그 물음에 답할 그림을 고른다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">세 가지 시각화</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>「시간이 지나면서 어떻게 되었나」 &rarr; 시간 시각화.</li>
+                    <li>「어느 쪽이 많고 적나」 &rarr; 분포 시각화.</li>
+                    <li>「두 값이 함께 움직이나」 &rarr; 관계 시각화.</li>
+                    <li>그림의 이름이 아니라 <strong>가로축에 무엇을 놓았는지</strong>가 정한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">산점도를 읽을 때</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>산점도가 보여 주는 것은 <strong>「함께 움직였다」까지</strong>다.</li>
+                    <li>「하나가 다른 하나를 일으켰다」는 다른 이야기다. 둘 다를 움직인 세 번째가 있을 수 있다.</li>
+                    <li>원인을 말하려면 다른 조건을 맞춰 두고 하나만 바꿔 보는 확인이 따로 있어야 한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">그래프를 볼 때</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>세로축이 어디에서 시작하는가, 어느 범위만 잘라 왔는가, 누가 왜 그렸는가.</li>
+                    <li>축을 자르는 것 자체가 나쁜 것은 아니다. 밝히지 않는 것이 문제다.</li>
+                    <li>남의 그래프만이 아니라 <strong>내가 그릴 때에도</strong> 지켜야 한다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「최근 다섯 해 동안 우리 학교 학생 수가 어떻게 달라졌나」에 어울리는 시각화는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 「시간이 지나면서 어떻게 되었나」이므로 시간 시각화입니다.')">
+                    ① 시간 시각화
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분포 시각화는 「어느 쪽이 많고 적나」에 답합니다. 여기서는 해가 흐르는 순서가 중요합니다.')">
+                    ② 분포 시각화
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '관계 시각화는 두 값이 함께 움직이는지를 봅니다. 여기서 값은 학생 수 하나뿐입니다.')">
+                    ③ 관계 시각화
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '그리지 않으면 다섯 해의 흐름을 한눈에 볼 수 없습니다. 물음의 모양이 시각화를 정해 줍니다.')">
+                    ④ 그리지 않고 표로 두는 것이 낫다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    산점도에서 오른쪽으로 갈수록 점이 위로 올라갑니다.
+                    <strong>여기서 말할 수 있는 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '산점도만으로는 원인을 말할 수 없습니다. 둘 다를 움직인 세 번째가 있을 수 있습니다.')">
+                    ① 가로축의 값이 세로축의 값을 늘렸다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 산점도가 보여 주는 것은 「함께 움직였다」까지입니다.')">
+                    ② 두 값이 함께 커지는 편이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '순서를 바꿔도 원인을 말하는 것은 마찬가지입니다. 산점도로는 어느 쪽이 원인인지 알 수 없습니다.')">
+                    ③ 세로축의 값이 가로축의 값을 늘렸다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무것도 말할 수 없는 것은 아닙니다. 함께 움직인다는 사실은 분명히 보입니다.')">
+                    ④ 두 값 사이에는 아무 관련이 없다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    막대그래프가 <strong>시간 시각화가 되기도 하고 분포 시각화가 되기도 하는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '막대의 색이나 굵기는 갈래를 정하지 않습니다.')">
+                    ① 막대의 색을 어떻게 칠하느냐에 따라 달라져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 가로축에 요일을 놓으면 시간, 반찬 종류를 놓으면 분포가 됩니다.')">
+                    ② 가로축에 무엇을 놓느냐에 따라 달라져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '막대의 개수는 갈래와 상관이 없습니다.')">
+                    ③ 막대가 몇 개인지에 따라 달라져서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실제로 두 갈래에 모두 쓰입니다. 잘못 적힌 것이 아닙니다.')">
+                    ④ 원래 분포 시각화인데 잘못 적힌 것이라서
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 4 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    세로축의 아래쪽을 잘라 낸 막대그래프에 대한 설명으로 <strong>알맞은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '숫자를 고친 것은 아닙니다. 축의 시작점을 옮겼을 뿐입니다.')">
+                    ① 숫자를 고쳤으므로 거짓 자료다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 숫자는 그대로지만 높이 차이로 값을 가늠하는 사람에게는 차이가 훨씬 커 보입니다.')">
+                    ② 숫자는 그대로지만 차이가 실제보다 커 보인다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '작은 차이를 자세히 봐야 할 때는 오히려 필요합니다. 밝히지 않는 것이 문제입니다.')">
+                    ③ 어떤 경우에도 써서는 안 되는 방법이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '축을 자르면 보는 사람이 받는 인상이 분명히 달라집니다.')">
+                    ④ 보는 사람이 받는 인상은 달라지지 않는다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<!-- 물음에 따라 시각화 바꿔 보기 -->
+<script>
+    (function () {
+        const 버튼들 = document.querySelectorAll('.vis-btn');
+        if (!버튼들.length) return;
+
+        const 판들 = document.querySelectorAll('.vis-panel');
+        const 켠버튼 = ['border-teal-500', 'bg-teal-50', 'text-teal-900'];
+        const 끈버튼 = ['border-slate-300', 'bg-white', 'text-slate-700'];
+
+        function 보이기(이름) {
+            판들.forEach(p => p.classList.toggle('hidden', p.id !== 'vis-' + 이름));
+            버튼들.forEach(b => {
+                const 켬 = b.dataset.vis === 이름;
+                b.classList.toggle('border-teal-500', 켬);
+                b.classList.toggle('bg-teal-50', 켬);
+                b.classList.toggle('text-teal-900', 켬);
+                b.classList.toggle('border-slate-300', !켬);
+                b.classList.toggle('bg-white', !켬);
+                b.classList.toggle('text-slate-700', !켬);
+            });
+        }
+
+        버튼들.forEach(b => b.addEventListener('click', () => 보이기(b.dataset.vis)));
+        보이기('time');
+    })();
+</script>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

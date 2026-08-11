@@ -156,6 +156,17 @@ python .github/scripts/build_site.py --out dist               # 전체, 배포�
 「현재 파일」계열은 `$FilePathRelativeToProjectRoot$` 매크로를 쓴다 — 편집기에서 보고 있는
 파일이 그대로 대상이 된다.
 
+**인터프리터는 `$PROJECT_DIR$/.venv/Scripts/python.exe`로 못 박았다.** 모듈 SDK를
+물려받게 두면 IDE의 SDK 등록이 깨졌을 때 실행 구성이 통째로 안 돈다(실제로 겪었다 —
+`CreateProcess error=2`). 상대 경로라 저장소에 넣어도 기기 경로가 박히지 않는다.
+
+검사 스크립트도 빌드 스크립트도 **표준 라이브러리만** 쓰므로 인터프리터에 설치할 것은 없다.
+`.venv`가 없거나 깨졌으면 다시 만들면 된다.
+
+```bash
+python -m venv .venv
+```
+
 ## 배부 문서 생성기 — `docx/`
 
 학생에게 나눠 주는 보고서 양식 `.docx`를 만든다. node와 `docx` 패키지가 필요하다.

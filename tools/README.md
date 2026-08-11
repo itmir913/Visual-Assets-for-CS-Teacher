@@ -198,6 +198,9 @@ DOCX_OUT_ROOT=dist node tools/docx/build.js   # dist/templates/py/… 로 나간
 | `outpath.js` | **산출물이 어느 폴더로 나가는지 정하는 유일한 곳** |
 | `make/*.js` | 문서 하나씩의 내용. 39개 |
 
+**새 양식을 추가하는 법은 [`tools/docx/README.md`](docx/README.md)에 있다** —
+틀과 내용을 나눈 구조, 데이터 필드, 파일명 규칙.
+
 **출력 경로를 `make/*.js`에 적지 않는다.** `outpath.js`의 `DEST` 표에서 가져다 쓴다.
 
 ```javascript

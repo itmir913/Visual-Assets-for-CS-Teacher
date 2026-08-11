@@ -27,7 +27,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-TARGET_DIRS = ["인공지능기초", "데이터과학", "프로그래밍(Python)", "프로그래밍(C)", "simulator/ai"]
+TARGET_DIRS = ["인공지능기초", "데이터과학", "정보(고등학교)", "프로그래밍(Python)", "프로그래밍(C)", "simulator/ai"]
 TARGET_FILES = ["index.html"]
 
 # templates/ 전체(node_modules, .claude, docx 생성 스크립트 등)가 아니라 강의노트가

@@ -12,7 +12,6 @@
 | 새 차시·새 과목·새 배부 양식을 **추가하는 순서** | [`docs/강의노트-추가하기.md`](docs/강의노트-추가하기.md) |
 | 도구 사용법, 미리보기, 코드 주입 | [`tools/README.md`](tools/README.md) |
 | 배부 양식 생성기 | [`tools/docx/README.md`](tools/docx/README.md) |
-| 시뮬레이터 검증 절차와 루브릭 | [`docs/시뮬레이터-검증-워크플로.md`](docs/시뮬레이터-검증-워크플로.md) |
 | 한 번 풀어 본 문제의 해법 | [`docs/수정-레시피.md`](docs/수정-레시피.md) |
 
 ## 저장소 구조
@@ -35,7 +34,7 @@
 | `.github/workflows/` | 배포 워크플로 |
 | `.idea/runConfigurations/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
 | `package.json` | **명령을 정의하는 유일한 곳** |
-| `docs/` | 근거·절차·리포트 |
+| `docs/` | 근거(사례집)·절차(추가하기)·해법(수정 레시피) 셋뿐이다 |
 
 ---
 

@@ -32,7 +32,6 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 | 그 규칙이 어떤 실패에서 나왔는지 | [`docs/강의노트-작성-사례집.md`](./docs/강의노트-작성-사례집.md) |
 | 도구·미리보기·코드 주입 | [`tools/README.md`](./tools/README.md) |
 | 배부 양식 생성기 | [`tools/docx/README.md`](./tools/docx/README.md) |
-| 시뮬레이터 검증 절차 | [`docs/시뮬레이터-검증-워크플로.md`](./docs/시뮬레이터-검증-워크플로.md) |
 | 한 번 풀어 본 문제의 해법 | [`docs/수정-레시피.md`](./docs/수정-레시피.md) |
 
 새 과목을 만들 때 **[`subjects.json`](./subjects.json)에 등록**하지 않으면

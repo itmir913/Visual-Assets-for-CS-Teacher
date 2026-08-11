@@ -43,12 +43,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          # 락파일이 셋이다 — 루트(Vite·Tailwind·글꼴), docx 생성기,
-          # 그리고 아직 남아 있는 파이썬 빌더의 tailwind.
           cache-dependency-path: |
             package-lock.json
             tools/docx/package-lock.json
-            .github/scripts/package-lock.json
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -58,34 +55,10 @@ jobs:
       - name: Install dependencies
         run: npm ci && npm run setup
 
-      # 아직 파이썬 빌더가 맡고 있는 과목은 CDN에서 자산을 내려받는다.
-      # Vite로 넘어간 과목은 npm 패키지를 쓰므로 이 캐시와 무관하다.
-      # 과목이 전부 넘어가면 이 두 단계도 사라진다.
-      - name: Cache CDN assets (legacy builder only)
-        uses: actions/cache@v6
-        with:
-          path: dist-assets-cache
-          key: offline-assets-${{ hashFiles('.github/scripts/build_site.py') }}
-
-      - name: Restore cache into dist/assets/cdn
-        run: |
-          mkdir -p dist/assets/cdn
-          if [ -d dist-assets-cache ] && [ -n "$(ls -A dist-assets-cache 2>/dev/null)" ]; then
-            cp -r dist-assets-cache/. dist/assets/cdn/
-            echo "캐시된 자산 재사용"
-          else
-            echo "캐시 없음 — 이번 실행에서 전부 새로 받음"
-          fi
-
       # 검사 → 빌드 → 산출물 검사. 로컬에서 치는 것과 **같은 한 줄**이다.
       # 무엇을 돌릴지는 package.json에만 적혀 있다.
       - name: npm run ci
         run: npm run ci
-
-      - name: Update asset cache for next run
-        run: |
-          rm -rf dist-assets-cache
-          cp -r dist/assets/cdn dist-assets-cache
 
       - name: Record build info
         id: meta

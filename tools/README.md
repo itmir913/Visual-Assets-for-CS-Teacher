@@ -44,17 +44,25 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
 | `audit:pre` · `audit:svg` | 가로 넘침 · SVG 글자 크기 감사 |
 | `prose -- <글롭>` | 서술만 뽑기 |
-| `check:inject` · `docx` | 주입기 자체 검사 · 배부 문서 생성 |
+| `docx` | 배부 문서 생성 |
 
 **인자를 받는 것은 `--` 뒤에 넘긴다.** 앞에 두면 npm이 자기 것으로 가져간다.
 
-### 빌드가 둘로 갈려 있다 — 마이그레이션 중이라서
+### 빌드는 Vite가 한다
 
-`build`는 `build:vite`와 `build:legacy`를 차례로 부른다. 어느 과목을 누가 맡는지는
-[`subjects.json`](../subjects.json)의 `vite` 플래그가 정하고, **파이썬 빌더는 `vite: true`인
-과목을 건너뛴다.** 같은 `dist/`에 둘이 써 넣으면 어느 쪽 결과가 남았는지 알 수 없게 된다.
+`build`는 `vite build`와 배부 문서 생성기를 부른다. Vite 설정은 조립만 하고,
+하는 일은 [`build/`](../build) 밑에 하나씩 나뉘어 있다.
 
-과목이 전부 넘어가면 `build`는 `vite build` 한 줄이 되고 `build_site.py`는 없어진다.
+| 파일 | 하는 일 |
+|---|---|
+| `units.js` | 무엇을 굽는가 — `subjects.json`을 읽는다 |
+| `inject-code.js` | `data-src` 마커 자리에 실파일의 코드를 넣는다 |
+| `tailwind-swap.js` | Tailwind CDN `<script>` → 구워진 스타일시트 |
+| `vendor-assets.js` | CDN 자산 → npm 패키지 |
+| `copy-lecture-assets.js` | 강의노트 딸림 파일(`.py`·`.c`)을 산출물로 |
+| `strip-crossorigin.js` | 원본에 없던 속성 제거 |
+
+**Tailwind는 단위마다 한 번씩** 굽는다. 파일마다 굽던 때는 146번이었고 3분 32초가 걸렸다.
 
 검사 스크립트는 표준 라이브러리만 쓰므로 **파이썬 venv 없이도 돈다.**
 
@@ -168,7 +176,7 @@ HTML의 83%는 Tailwind 클래스와 SVG 좌표다. 서술만 보려면 이걸�
 ## 코드는 HTML에 넣지 않는다 — `data-src` 마커와 빌드 주입
 
 강의노트에 보일 `.py`·`.c`는 **실파일로 저장소에 두고**, HTML에는 어느 파일을 넣을지
-가리키는 마커만 둔다. `.github/scripts/build_site.py`가 빌드할 때 그 자리를 채운다.
+가리키는 마커만 둔다. 빌드의 [`build/inject-code.js`](../build/inject-code.js)가 그 자리를 채운다.
 
 ```html
 <pre><code class="language-python" data-src="code/변수.py"></code></pre>
@@ -235,7 +243,10 @@ npm run check:code
 ```
 
 `.c` 검사에는 `gcc`가 필요하다. 없으면 건너뛰되 CI에서는 검사된다.
-`npm run check:inject`로 주입기 자체를 확인할 수 있다.
+
+**마커가 가리키는 파일과 구역이 실제로 있는지는 빌드가 본다** —
+`build/inject-code.js`가 못 찾으면 있는 구역 목록을 알려 주며 빌드를 세운다.
+같은 검사를 두 곳에 두면 둘이 어긋나므로 검사기 쪽에서는 하지 않는다.
 
 ### 복사 버튼 — 위임 리스너 하나로
 
@@ -273,7 +284,7 @@ npm run check:code
 
 ## 미리보기 — 소스가 아니라 `dist/`를 연다
 
-배포되는 것은 `.github/scripts/build_site.py`가 구운 번들이다. **소스를 열면 CDN 판이라
+배포되는 것은 Vite가 구운 번들이다. **소스를 열면 CDN 판이라
 배포본과 다를 수 있다.** 375px 실측처럼 눈으로 재는 일은 반드시 `dist/` 쪽에서 한다.
 
 ```

@@ -26,8 +26,9 @@
 | `templates/py`·`c` | 프로그래밍 배부 양식의 옛 자리. C·Python 통합 때 위 규칙으로 옮긴다 |
 | `tools/` | 점검 스크립트와 배부 양식 생성기 |
 | `subjects.json` | **어떤 과목이 있는지 정하는 유일한 곳.** 파이썬과 Vite가 함께 읽는다 |
-| `vite.config.js` · `tailwind/` · `src/styles/` | Vite 빌드. 과목마다 Tailwind 설정과 CSS 진입점이 하나씩 |
-| `.github/scripts/` · `.github/workflows/` | 빌드 스크립트와 배포 워크플로 |
+| `vite.config.js` · `tailwind/` · `src/styles/` | 빌드 조립기와 단위별 Tailwind 설정·CSS 진입점 |
+| `build/` | Vite 빌드 플러그인. 하는 일마다 파일 하나 |
+| `.github/workflows/` | 배포 워크플로 |
 | `.idea/runConfigurations/` | IntelliJ 실행 구성. **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
 | `package.json` | **명령을 정의하는 유일한 곳** |
 | `docs/` | 근거·절차·리포트 |

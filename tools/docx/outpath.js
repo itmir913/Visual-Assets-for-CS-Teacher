@@ -11,12 +11,11 @@ const path = require('path');
 // 이 파일 기준으로 저장소 루트를 잡는다. 스크립트를 어느 폴더에서 실행하든 결과가 같다.
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
-// 출력 루트는 기본이 저장소 루트지만, DOCX_OUT_ROOT로 바꿀 수 있다.
-// 배포 빌드가 dist/ 안으로 바로 뽑을 때 쓴다.
-//   DOCX_OUT_ROOT=dist node tools/docx/build.js  ->  dist/templates/py/3-2-1.docx
+// 기본 출력 루트는 dist/다. 산출물은 저장소에 담지 않으므로 소스 트리로 떨어질
+// 이유가 없다. 환경변수를 쓰던 방식은 Windows의 npm 스크립트에서 먹지 않아 버렸다.
 const OUT_ROOT = process.env.DOCX_OUT_ROOT
     ? path.resolve(process.env.DOCX_OUT_ROOT)
-    : REPO_ROOT;
+    : path.join(REPO_ROOT, 'dist');
 
 // 산출물은 그것을 링크하는 강의노트 바로 옆에 둔다. 그러면 링크에 ../가 없어
 // 파일이 옮겨져도 안 깨지고, 과목 폴더가 자기 자산을 갖게 된다.

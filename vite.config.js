@@ -71,6 +71,55 @@ const tailwindSwap = {
 };
 
 /**
+ * CDN에서 받던 글꼴 자산을 npm 패키지에서 가져다 쓴다.
+ *
+ * 빌드에 네트워크가 필요 없어지고 버전이 락파일에 고정된다. CDN을 막는 학교망에서
+ * 사이트가 도는 것이 로컬화의 원래 목적이므로, 이 단계까지 와야 그 목적이 선다.
+ *
+ * 두 패키지 모두 CSS가 **자기 폴더 기준 상대경로**로 글꼴을 참조한다.
+ * 그래서 폴더 구조를 그대로 옮겨야 한다.
+ */
+const VENDOR = [
+    { from: 'node_modules/@fortawesome/fontawesome-free/css/all.min.css', to: 'assets/vendor/fontawesome/css/all.min.css' },
+    { from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/vendor/fontawesome/webfonts' },
+    { from: 'node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css', to: 'assets/vendor/pretendard/pretendardvariable-dynamic-subset.css' },
+    { from: 'node_modules/pretendard/dist/web/variable/woff2-dynamic-subset', to: 'assets/vendor/pretendard/woff2-dynamic-subset' },
+];
+
+// 소스에 적힌 CDN 주소 → 옮겨 놓은 자리. 값은 dist 루트 기준 상대경로다.
+const CDN_MAP = {
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css':
+        'assets/vendor/fontawesome/css/all.min.css',
+    'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css':
+        'assets/vendor/pretendard/pretendardvariable-dynamic-subset.css',
+};
+
+const vendorAssets = {
+    name: 'vendor-assets',
+    apply: 'build',
+    async writeBundle(options) {
+        const { cp, mkdir } = await import('node:fs/promises');
+        for (const { from, to } of VENDOR) {
+            const dest = resolve(options.dir, to);
+            await mkdir(dirname(dest), { recursive: true });
+            await cp(resolve(ROOT, from), dest, { recursive: true });
+        }
+    },
+    transformIndexHtml: {
+        order: 'post',
+        handler(html, ctx) {
+            const rel = decodeURIComponent(ctx.path).replace(/^\//, '');
+            if (!viteSubjects.some((s) => rel.startsWith(s.dir))) return html;
+            const prefix = '../'.repeat(rel.split('/').length - 1);
+            for (const [url, local] of Object.entries(CDN_MAP)) {
+                html = html.split(url).join(prefix + local);
+            }
+            return html;
+        },
+    },
+};
+
+/**
  * Vite는 서브리소스에 crossorigin을 붙인다. 지금은 문제가 없지만 이 산출물은
  * 릴리즈 zip으로도 나가므로, 원본과 다른 속성을 굳이 남기지 않는다.
  */
@@ -104,10 +153,12 @@ export default {
     base: './',
     // 포트를 못 박지 않는다. 다른 것이 쓰고 있으면 환경변수로 넘겨받는다.
     server: { port: Number(process.env.PORT) || 5173 },
-    plugins: [tailwindSwap, stripCrossorigin],
+    plugins: [tailwindSwap, vendorAssets, stripCrossorigin],
     build: {
-        outDir: 'dist-vite',
-        emptyOutDir: true,
+        // 파이썬 빌더가 아직 맡고 있는 과목과 같은 dist를 쓴다. 둘이 겹치지 않도록
+        // 저쪽은 subjects.json에서 vite:true인 과목을 건너뛴다.
+        outDir: 'dist',
+        emptyOutDir: false,
         rollupOptions: {
             input,
             output: { assetFileNames: 'assets/[name]-[hash][extname]' },

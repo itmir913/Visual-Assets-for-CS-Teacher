@@ -25,34 +25,38 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 
 ## 명령은 `package.json`에 못박혀 있다
 
-**스크립트를 직접 부르지 않는다.** 경로와 인자를 외울 일이 없도록 루트
-[`package.json`](../package.json)에 이름을 붙여 두었다. **CI도 같은 이름을 부른다** —
-로컬에서 통과한 것이 CI에서 다르게 도는 일을 없애려는 것이다.
+**실행점은 셋뿐이다.** IntelliJ 실행 구성도, GitHub Actions도 이것만 부른다.
 
-| 명령 | 하는 일 |
+| | |
 |---|---|
-| `npm run setup` | 최초 1회. node 의존성(docx 생성기 · tailwindcss) 설치 |
-| `npm run check` | **소스** 검사 — 런타임 조립 클래스 + 강의노트 코드 |
-| `npm run build` | 배포와 같은 빌드 → `dist/` |
-| `npm run check:dist` | **산출물** 검사 |
-| **`npm run ci`** | **위 셋을 순서대로.** CI가 하는 일과 같다 |
-| `npm run preview` | `--watch`. 켜 두고 작업한다 |
-| `npm run build:fast` | CDN 유지, 훑어보기용. **배포본과 다르다** |
-| `npm run docx` | 배부용 `.docx`만 다시 만든다 |
-| `npm run check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
-| `npm run audit:pre` | `<pre>` 가로 넘침 방어 감사 |
-| `npm run audit:svg` | 데스크톱에서 글자가 한없이 커지는 SVG 감사 |
-| `npm run prose -- <글롭>` | 서술만 뽑기 |
-| `npm run check:inject` | 코드 주입기 자체 검사 |
-| `npm run setup:venv` | `.venv` 만들기. **실행에는 필요 없다** — IntelliJ 파이썬 코드 지원용 |
+| **`npm run dev`** | Vite 개발 서버. 저장하면 바로 반영된다 |
+| **`npm run build`** | 배포와 같은 빌드 → `dist/` |
+| **`npm run ci`** | 검사 → 빌드 → 산출물 검사. **CI가 하는 일과 같은 한 줄** |
+
+나머지는 이 셋이 조립해 쓰는 조각이다. 사람이 따로 부를 일도 있어 이름을 붙여 두었다.
+
+| | |
+|---|---|
+| `setup` | 최초 1회. node 의존성 |
+| `build:vite` · `build:legacy` | `build`가 순서대로 부른다 |
+| `check:classes` · `check:code` | `check`가 부른다 |
+| `check:dist` | 산출물 검사 |
+| `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
+| `audit:pre` · `audit:svg` | 가로 넘침 · SVG 글자 크기 감사 |
+| `prose -- <글롭>` | 서술만 뽑기 |
+| `check:inject` · `docx` | 주입기 자체 검사 · 배부 문서 생성 |
 
 **인자를 받는 것은 `--` 뒤에 넘긴다.** 앞에 두면 npm이 자기 것으로 가져간다.
 
-검사 스크립트는 표준 라이브러리만 쓰므로 **venv 없이도 돈다.** `npm run setup`이 필요한
-것은 node 쪽뿐이다.
+### 빌드가 둘로 갈려 있다 — 마이그레이션 중이라서
 
-`check_dist.py`는 **배포 빌드 결과에만** 쓴다. `build:fast`는 CDN을 일부러 남기므로
-그 결과에 돌리면 CDN 잔존으로 걸린다.
+`build`는 `build:vite`와 `build:legacy`를 차례로 부른다. 어느 과목을 누가 맡는지는
+[`subjects.json`](../subjects.json)의 `vite` 플래그가 정하고, **파이썬 빌더는 `vite: true`인
+과목을 건너뛴다.** 같은 `dist/`에 둘이 써 넣으면 어느 쪽 결과가 남았는지 알 수 없게 된다.
+
+과목이 전부 넘어가면 `build`는 `vite build` 한 줄이 되고 `build_site.py`는 없어진다.
+
+검사 스크립트는 표준 라이브러리만 쓰므로 **파이썬 venv 없이도 돈다.**
 
 ## 사용
 
@@ -280,9 +284,8 @@ IntelliJ 기본 웹서버 그대로 쓴다. 여는 주소만 바뀐다.
 `dist/`는 gitignore돼 있어 커밋에 섞이지 않는다.
 
 ```bash
-npm run preview                       # 저장하면 그 파일만 다시 굽는다
-npm run build:one -- "<상대경로>"       # 파일 하나만
-npm run build                         # 전체, 배포와 같은 것
+npm run dev       # Vite 개발 서버. 저장하면 바로 반영된다
+npm run build     # 전체, 배포와 같은 것
 ```
 
 `--watch`는 표준 라이브러리만 쓴다. 시작할 때 **밀린 파일만** 먼저 굽고, 그 뒤로는 저장된
@@ -311,18 +314,14 @@ git이 그 안으로 내려가지 않아 예외가 먹지 않는다** — 반드
 
 ### 새 컴퓨터에서 clone한 뒤 — 최초 1회
 
-Run 드롭다운의 **「최초 설정 · node 의존성」** 하나면 된다(`npm run setup`).
-실행 구성이 powershell로 npm을 부르므로 **`.venv`가 없어도 전부 돈다.**
-
 ```bash
-npm run setup       # docx 생성기 + tailwindcss
+npm ci            # 루트: Vite · Tailwind · 글꼴 패키지
+npm run setup     # docx 생성기 + 파이썬 빌더가 쓰는 tailwind
 ```
 
-**파이썬 쪽은 설치할 패키지가 없다.** 검사 스크립트도 빌드 스크립트도 **표준 라이브러리만**
-쓰므로 시스템 `python`으로 그대로 돌아간다.
-
-`npm run setup:venv`(`.venv` 만들기)는 **IntelliJ의 파이썬 코드 지원용**으로만 남겨 두었다.
-실행에는 필요 없다. `--without-pip`으로 만들어도 충분하다(약 3초).
+**파이썬 쪽은 설치할 패키지가 없다.** 검사도 빌드도 **표준 라이브러리만** 쓰므로
+시스템 `python`으로 그대로 돌아간다. venv는 IntelliJ의 파이썬 코드 지원이 필요할 때만
+만들면 되고, 실행에는 쓰이지 않는다.
 
 ## 배부 문서 생성기 — `docx/`
 

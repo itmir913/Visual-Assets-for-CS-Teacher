@@ -39,13 +39,16 @@
 **스크립트 경로를 직접 치지 않는다.** 새 명령이 필요하면 `package.json`에 이름을 붙인다.
 **CI도 IDE 실행 구성도 같은 이름을 부른다** — 여기만 고치면 셋이 함께 바뀐다.
 
+**실행점은 셋뿐이다.** IntelliJ 실행 구성도 GitHub Actions도 이것만 부른다.
+
 | | |
 |---|---|
-| `npm run ci` | 검사 → 빌드 → 산출물 검사. **CI가 하는 일과 같다** |
-| `npm run check:html -- <파일>` | 파일 하나 검사 |
-| `npm run preview` | 저장하면 그 파일만 다시 굽는다 |
+| `npm run dev` | Vite 개발 서버 |
+| `npm run build` | 배포와 같은 빌드 |
+| `npm run ci` | 검사 → 빌드 → 산출물 검사 |
 
-인자를 받는 것은 `--` 뒤에 넘긴다. 전체 목록은 [`tools/README.md`](tools/README.md).
+나머지는 이 셋이 조립해 쓰는 조각이다. 인자는 `--` 뒤에 넘긴다
+(`npm run check:html -- <파일>`). 전체 목록은 [`tools/README.md`](tools/README.md).
 
 ---
 

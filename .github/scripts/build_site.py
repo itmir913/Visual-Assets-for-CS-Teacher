@@ -44,10 +44,15 @@ from inject_code import inject as inject_code, markers as code_markers
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-# 어떤 과목이 있는지는 tools/subjects.py가 혼자 정한다. 빌드와 검사가 같은 목록을
+# 어떤 과목이 있는지는 subjects.json이 혼자 정한다. 빌드와 검사가 같은 목록을
 # 봐야 하기 때문이다 — 따로 두었을 때 「정보(고등학교)」가 검사 쪽에만 빠져 있었다.
 sys.path.insert(0, str(REPO_ROOT / "tools"))
-from subjects import DIRS as TARGET_DIRS, FILES as TARGET_FILES  # noqa: E402
+from subjects import DIRS as _ALL_DIRS, FILES as TARGET_FILES, SUBJECTS  # noqa: E402
+
+# Vite로 넘어간 과목은 이 스크립트가 건드리지 않는다. 같은 dist에 둘이 써 넣으면
+# 어느 쪽 결과가 남았는지 알 수 없게 된다. 전부 넘어가면 이 스크립트는 없어진다.
+VITE_DIRS = {s["dir"] for s in SUBJECTS if s.get("vite")}
+TARGET_DIRS = [d for d in _ALL_DIRS if d not in VITE_DIRS]
 
 # 배부용 .docx 생성기. 출력 위치는 생성기 쪽 outpath.js의 DEST 표가 정하고,
 # 출력 루트만 DOCX_OUT_ROOT로 dist 안으로 돌린다.

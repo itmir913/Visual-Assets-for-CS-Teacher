@@ -9,6 +9,7 @@
 | 파일 | 용도 | 언제 쓰나 |
 |---|---|---|
 | `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 검사 | **파일을 고칠 때마다** |
+| `check_dynamic_classes.py` | 런타임에 조립되는 Tailwind 클래스 검출 | **JS로 클래스를 붙이는 코드를 쓸 때마다** |
 | `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
 | `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
 
@@ -68,6 +69,28 @@ python tools/extract_prose.py "인공지능기초/2-1-*.html" -o 본문.md
 > 그 44개가 이 관행을 적용하지 않은 채로 남아 있기 때문이다(전면 재작성 대기 중).
 > 인공지능기초 5개는 `<h1>`을 「부제, 제목」으로 적는 옛 양식이라 함께 걸린다.
 > `TARGETS`나 인자로 대상을 좁혀 돌리므로 평소 작업에는 섞이지 않는다.
+
+## `check_dynamic_classes.py` — 클래스 이름을 코드로 만들지 않는다
+
+배포본의 CSS는 Tailwind CLI가 파일을 텍스트로 훑어 **리터럴로 있는 클래스만** 구워서 만든다.
+그래서 클래스 이름을 조립하면 그 클래스가 CSS에서 빠진다.
+
+```html
+<div class="bg-${lang.color}-50">          <!-- X — bg-yellow-50 이 CSS에 없다 -->
+<div class="${lang.iconClass}">            <!-- O — 완성된 문자열을 데이터에 리터럴로 -->
+```
+
+**소스를 그대로 열면(CDN 판) 런타임 JIT라 멀쩡히 보인다.** 그래서 눈으로는 절대 안 잡힌다.
+실제로 `프로그래밍(Python)/1-1-2`에서 클래스 8개 중 3개(`bg-amber-50`, `bg-yellow-50`,
+`text-yellow-600`)가 빠진 채 오래 남아 있었다. 나머지 5개는 우연히 같은 파일 안에
+리터럴로 또 있어서 살아남은 것뿐이다.
+
+```bash
+python tools/check_dynamic_classes.py                 # 저장소 전체
+python tools/check_dynamic_classes.py "정보*/*.html"   # 글롭도 된다
+```
+
+배포 워크플로가 빌드 전에 이 검사를 돌린다. 위반이 있으면 종료 코드 1.
 
 **못 잡는다 — 브라우저 375px 실측이 필요하다**
 - 섹션이 6화면을 넘는지

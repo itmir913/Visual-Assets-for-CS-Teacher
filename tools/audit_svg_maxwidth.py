@@ -40,19 +40,22 @@ FIXED_LEN_RE = re.compile(r"^\s*[\d.]+\s*(px)?\s*$")
 class SvgScanner(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.stack = []  # [(tag, line, attrs)]
+        self.stack = []  # [(tag, line, attrs, uid)]
+        self._uid = 0  # 요소마다 겹치지 않는 번호. id()를 쓰면 안 된다 —
+        # 스택에서 지운 튜플의 주소를 파이썬이 재활용해 **다른 SVG의 표시가 옮겨붙는다.**
         self.flagged = []  # [(svg_line, viewbox_w, min_width, has_text)]
         self._svg_has_text = {}
 
     def handle_starttag(self, tag, attrs):
         line = self.getpos()[0]
         a = dict(attrs)
-        self.stack.append((tag, line, a))
+        self._uid += 1
+        self.stack.append((tag, line, a, self._uid))
 
         if tag == "text" and "font-size" in a:
             for i in range(len(self.stack) - 1, -1, -1):
                 if self.stack[i][0] == "svg":
-                    self._svg_has_text[id(self.stack[i])] = True
+                    self._svg_has_text[self.stack[i][3]] = True
                     break
 
         if tag in VOID:
@@ -63,12 +66,12 @@ class SvgScanner(HTMLParser):
             if self.stack[i][0] == tag:
                 node = self.stack[i]
                 del self.stack[i:]
-                if tag == "svg" and self._svg_has_text.get(id(node)):
+                if tag == "svg" and self._svg_has_text.get(node[3]):
                     self._check_svg(node, self.stack[:])
                 return
 
     def _check_svg(self, node, ancestors):
-        _, line, a = node
+        _, line, a, _ = node
         vb = a.get("viewBox") or a.get("viewbox")
         if not vb:
             return
@@ -101,7 +104,7 @@ class SvgScanner(HTMLParser):
             why = "style max-height"
         elif "h-full" in cls.split() or re.search(r"\bheight\s*:", style):
             # 높이가 고정된 조상 안에서 h-full이면 배율이 그 높이로 묶인다.
-            for _t, _l, pa in ancestors:
+            for _t, _l, pa, _u in ancestors:
                 if re.search(r"\bheight\s*:\s*[\d.]+(px|rem|vh)", pa.get("style") or ""):
                     why = "높이 고정 조상"
                     break
@@ -118,7 +121,7 @@ class SvgScanner(HTMLParser):
                         or any("items-center" in (pa.get("class") or "")
                                or "justify-center" in (pa.get("class") or "")
                                or "text-center" in (pa.get("class") or "")
-                               for _t, _l, pa in ancestors[-3:]))
+                               for _t, _l, pa, _u in ancestors[-3:]))
             if not centered:
                 self.flagged.append((line, vb_w, min_w, "정렬", why))
             return

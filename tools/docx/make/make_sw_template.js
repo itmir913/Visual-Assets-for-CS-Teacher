@@ -682,7 +682,10 @@ const makeSection5 = (d = {}) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 공통 문서 생성 함수 (외부에서 require해서 사용)
 // ═══════════════════════════════════════════════════════════════════════════
-const makeDocument = (data = {}, outputFile = "sw_project_template.docx") => {
+// 출력 경로는 반드시 out(그룹, 파일명)으로 받는다. 기본값을 두면 빠뜨렸을 때
+// 실행한 폴더에 파일이 조용히 떨어진다 — 그래서 없으면 세운다.
+const makeDocument = (data = {}, outputFile) => {
+    if (!outputFile) throw new Error("출력 경로가 없다. out('그룹', '파일명.docx')를 넘긴다");
     const doc = new Document({
         styles: {
             default: {

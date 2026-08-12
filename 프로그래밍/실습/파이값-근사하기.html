@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>파이값 근사하기</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/파이값-근사하기.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-circle-notch absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-dice absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            파이값 근사하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            점을 마구 찍었을 뿐인데<br>
+            <strong>원주율이 나옵니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>넓이의 비를 점의 비로 바꾸어 어림하는 방법의 원리를 설명할 수 있다.</li>
+                    <li>여러 줄로 들어오는 값을 되풀이로 받아 세는 프로그램을 설계할 수 있다.</li>
+                    <li>제곱근을 구하지 않고 견주는 것이 왜 같은 판정인지 설명할 수 있다.</li>
+                    <li>어림한 값은 넣은 값에 따라 달라진다는 것을 알고, 테스트를 그에 맞게 짤 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-circle-notch text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">파이값 근사하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">재지 않고 세기만 해서 원주율을 구할 수 있을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 변이 1인 정사각형 안에 <strong>점 여러 개의 좌표</strong>가 주어집니다.
+                    그중 <strong>원점에서 거리가 1 이하인 점이 몇 개인지</strong> 세어
+                    <strong>원주율의 어림값</strong>을 구해 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                자를 대고 재는 것이 아니라 <strong>세기만 해서 원주율이 나온다</strong>는 것이 이 문제의 재미입니다.
+                <strong>넓이의 비가 점의 비와 같아진다</strong>는 생각 하나로 됩니다.
+                <strong>정확한 값이 아니라 어림값</strong>이라는 점도 함께 봐 두어야 합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>좌표를 어떻게 받고 어디까지 정확해야 하는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>원 안인지 어떻게 판정하고 왜 4를 곱하는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>여러 줄로 들어오는 값을 어떻게 받아 셀 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>답이 늘 달라지는 프로그램을 어떻게 확인하는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-7.docx"
+                       download="[개발 문서] 파이 값 근사하기 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-7.docx"
+                       download="[개발 문서] 파이 값 근사하기 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">「원주율을 구한다」는 어디까지 구하라는 걸까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>점을 어떻게 받나요?</strong> 개수를 먼저 알려 주나요</li>
+                    <li><strong>좌표의 범위는?</strong> 음수도 들어오나요</li>
+                    <li><strong>딱 경계에 있는 점은?</strong> 거리가 정확히 1이면 안인가요 밖인가요</li>
+                    <li><strong>얼마나 정확해야 하나요?</strong> 3.14가 나와야 통과인가요</li>
+                    <li><strong>점이 하나도 없으면?</strong> 나눌 수가 없습니다</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>첫 줄에 점의 개수</strong>를 받고, 그다음 줄부터 <strong>한 줄에 좌표 하나</strong>씩 받는다.</li>
+                    <li>좌표는 <strong>0 이상 1 이하의 실수 두 개</strong>를 공백으로 띄어 받는다.</li>
+                    <li>원점에서의 <strong>거리가 1 이하</strong>이면 안쪽으로 센다. <strong>정확히 1인 점도 안쪽</strong>이다.</li>
+                    <li>어림값은 <strong>4 &times; (안쪽 점 수 &divide; 전체 점 수)</strong>로 구한다.</li>
+                    <li>구한 값을 <strong>그대로</strong> 내놓는다. 자릿수를 줄이지 않는다.</li>
+                    <li><strong>점의 개수는 1 이상이 들어온다고 본다.</strong></li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>&ldquo;3.14가 나와야 한다&rdquo;는 요구 사항이 될 수 없습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 프로그램의 답은 <strong>넣은 점이 무엇이냐에 따라 달라집니다.</strong>
+                    점이 넷이면 나올 수 있는 값은 0, 1, 2, 3, 4뿐이라 <strong>3.14는 아예 나올 수 없습니다.</strong>
+                    <strong>어림하는 프로그램에 &lsquo;정확히 얼마&rsquo;를 요구할 수는 없습니다.</strong>
+                    요구할 수 있는 것은 <strong>&lsquo;정해진 식대로 계산했는가&rsquo;</strong>뿐입니다.
+                    그래서 4번을 식으로 못박아 적었습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 3번에서 <strong>거리가 정확히 1인 점</strong>을 안쪽으로 넣기로 했습니다. 바깥으로 정했다면 답이 달라질까요? 그런 점이 실제로 몇 개나 나올지 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 왜 4를 곱하나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">넓이의 비를 점의 비로 바꾸는 것이 전부입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>점의 개수 하나, 그다음 개수만큼의 좌표 줄</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>점마다 원 안인지 보고 세어, 비율에 4를 곱한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>어림값 하나</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">넓이의 비에서 시작한다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 변이 1인 정사각형의 넓이는 <strong>1</strong>입니다.
+                    그 안에 든 <strong>반지름 1짜리 사분원</strong>의 넓이는 원 넓이의 4분의 1이니
+                    <strong>원주율 &divide; 4</strong>입니다.
+                    <strong>점을 고르게 흩뿌리면 점이 떨어지는 비율이 넓이의 비율에 가까워집니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 <strong>안쪽 점 &divide; 전체 점 &asymp; 원주율 &divide; 4</strong>이고,
+                    양쪽에 4를 곱하면 <strong>원주율 &asymp; 4 &times; (안쪽 점 &divide; 전체 점)</strong>이 됩니다.
+                    <strong>4를 곱하는 이유는 사분원이 원의 4분의 1이기 때문</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">원 안인지 어떻게 아나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    원점에서 점까지의 거리가 1보다 크지 않으면 안쪽입니다.
+                    그런데 <strong>거리를 실제로 구할 필요는 없습니다.</strong>
+                    거리는 <strong>x&sup2; + y&sup2;의 제곱근</strong>인데,
+                    <strong>제곱근을 구하기 전 값끼리 견주어도 결과가 같기</strong> 때문입니다.
+                    1의 제곱근은 1이니까요.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>x&sup2; + y&sup2;가 1 이하인지만</strong> 보면 됩니다.
+                    <strong>계산이 줄고, 제곱근에서 생기는 어림 오차도 피할 수 있습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>점의 개수를 입력받는다.</li>
+                    <li>안쪽 점의 수를 0으로 놓는다.</li>
+                    <li>개수만큼 되풀이한다.</li>
+                    <li>좌표 두 개를 입력받는다.</li>
+                    <li>x&sup2; + y&sup2;가 1 이하이면 안쪽 점의 수를 1 늘린다.</li>
+                    <li>되풀이가 끝나면 4 &times; (안쪽 점 &divide; 전체 점)을 내놓는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>6번이 되풀이 밖에 있어야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    내놓는 줄이 <strong>되풀이 안에 들어가면 점마다 한 번씩 값이 찍힙니다.</strong>
+                    답이 하나가 아니라 여러 줄이 나오지요.
+                    <strong>세는 일이 다 끝난 뒤에</strong> 나눠야 합니다.
+                    들여쓰기 한 칸이 이것을 가릅니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                점 네 개 <strong>(0.1, 0.2) (0.9, 0.8) (0.3, 0.4) (0.5, 0.5)</strong>를 넣으면 안쪽은 몇 개이고 어림값은 얼마일까요? 손으로 제곱해서 세어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">여러 줄로 들어오는 값은 어떻게 받을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                지금까지의 실습과 다른 점이 하나 있습니다 &mdash; <strong>입력을 되풀이 안에서 받습니다.</strong>
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">파이.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/파이.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>몇 번 돌지를 미리 알아야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    좌표를 받기 전에 <strong>개수를 먼저 받는 이유</strong>가 여기 있습니다.
+                    <strong>몇 번 되풀이할지 알아야 되풀이를 시작할 수 있습니다.</strong>
+                    개수를 안 주고 &ldquo;끝날 때까지&rdquo; 받으려면 <strong>끝을 알리는 다른 약속</strong>이 필요해집니다.
+                    요구 사항 1번이 개수를 먼저 받기로 정한 것은 <strong>프로그램을 단순하게 만들려는 결정</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                되풀이 안에서 <strong>x와 y를 담는 자리는 매번 덮어쓰입니다.</strong> 그런데도 답이 맞는 이유는 무엇일까요? 무엇을 남겨 두고 있는지 짚어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">답이 늘 달라지는 프로그램은 어떻게 확인할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 프로그램은 <strong>&lsquo;정답&rsquo;이 하나로 정해져 있지 않습니다.</strong>
+                그래서 테스트도 달라집니다 &mdash; <strong>내가 넣은 점으로 손으로 계산한 값</strong>과 맞는지를 봅니다.
+                <strong>점을 일부러 고르게 골라</strong> 답을 미리 알 수 있게 만드는 것이 요령입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">넣은 값</th>
+                        <th class="w-28">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1개 / (0.5, 0.5)</td>
+                        <td class="font-bold">4.0</td>
+                        <td>전부 안쪽인 가장 작은 경우</td>
+                    </tr>
+                    <tr>
+                        <td>1개 / (1.0, 1.0)</td>
+                        <td class="font-bold">0.0</td>
+                        <td>전부 바깥인 경우 &mdash; 0이 제대로 나오는지</td>
+                    </tr>
+                    <tr>
+                        <td>1개 / (1.0, 0.0)</td>
+                        <td class="font-bold">4.0</td>
+                        <td><strong>거리가 정확히 1인 경계</strong> &mdash; 요구 사항 3번</td>
+                    </tr>
+                    <tr>
+                        <td>4개 / (0.1,0.2) (0.9,0.8) (0.3,0.4) (0.5,0.5)</td>
+                        <td class="font-bold">3.0</td>
+                        <td>넷 중 셋이 안쪽 &mdash; 4 &times; 3 &divide; 4</td>
+                    </tr>
+                    <tr>
+                        <td>2개 / (0.0,0.0) (1.0,1.0)</td>
+                        <td class="font-bold">2.0</td>
+                        <td>절반이 안쪽인 경우</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>답이 여러 줄 나온다</strong> &mdash; 내놓는 줄이 <strong>되풀이 안에</strong> 있습니다</li>
+                    <li><strong>언제나 4가 나온다</strong> &mdash; 조건을 보지 않고 <strong>모든 점을 세고</strong> 있습니다</li>
+                    <li><strong>(1.0, 0.0)이 0으로 나온다</strong> &mdash; <strong>&lsquo;미만&rsquo;으로 적었습니다.</strong> 이하여야 합니다</li>
+                    <li><strong>정수만 나온다</strong> &mdash; 나눌 때 <strong>몫만 구하고</strong> 있습니다</li>
+                    <li><strong>답이 4보다 크다</strong> &mdash; 안쪽 수와 전체 수를 <strong>뒤바꿔</strong> 나눴습니다</li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>3.14가 안 나온다고 틀린 것이 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    점이 몇 개 안 되면 어림값은 <strong>3.14 근처에도 못 갑니다.</strong>
+                    <strong>이것은 버그가 아니라 이 방법의 성질</strong>입니다.
+                    점을 많이 넣을수록 가까워지고, 그래도 <strong>넣을 때마다 값이 조금씩 다릅니다.</strong>
+                    <strong>&ldquo;틀렸다&rdquo;와 &ldquo;정확하지 않다&rdquo;를 가려서 볼 줄 알아야</strong>
+                    이런 프로그램을 다룰 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표의 <strong>4개짜리 줄</strong>을 손으로 검산해 보세요. (0.9, 0.8)은 왜 바깥일까요? 제곱해서 더해 보면 됩니다.
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">점을 직접 만들어 보면 성질이 눈에 보입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                점을 손으로 넣는 데는 한계가 있습니다.
+                <strong>프로그램이 무작위로 점을 만들게 하면</strong> 개수를 마음껏 늘려 보며
+                <strong>많아질수록 정말 가까워지는지</strong> 확인할 수 있습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-orange-500 mr-1"></i>스스로 해 본 뒤에 펼쳐 보세요
+                </p>
+                <details>
+                    <summary class="font-bold text-base text-orange-700">
+                        <i class="fa-solid fa-chevron-right details-chevron mr-1"></i>더 알아보기: 점을 직접 만들어 쓰는 코드
+                    </summary>
+                    <div class="pt-4 space-y-3">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>좌표를 받는 줄이 만드는 줄로 바뀌었을 뿐</strong> 나머지는 그대로입니다.
+                            개수를 10, 1000, 100000으로 바꿔 가며 돌려 보세요.
+                        </p>
+                        <div class="space-y-2 min-w-0">
+                            <pre class="language-python"><code class="language-python"
+                                                                data-src="code/파이.무작위.py"></code></pre>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">한 걸음 더</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li>같은 개수로 <strong>여러 번 돌려</strong> 값이 얼마나 흔들리는지 보기</li>
+                    <li>개수를 <strong>열 배씩 늘려 가며</strong> 자릿수가 얼마나 맞아 가는지 표로 적어 보기</li>
+                    <li>점의 개수가 0일 때 <strong>나누지 않고 알리도록</strong> 막기 (요구 사항 6번을 푸는 일)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                개수를 열 배 늘리면 정확한 자릿수도 열 배 늘어날까요? 직접 돌려 보고 <strong>생각과 달랐다면 무엇이 달랐는지</strong> 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

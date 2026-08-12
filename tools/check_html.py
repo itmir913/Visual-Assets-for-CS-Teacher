@@ -268,7 +268,8 @@ def title_rules(path: Path, src: str):
     (`회귀 분석으로 행복 요건 찾기` → `회귀로 행복 요건 찾기`). 줄인 것인지
     어긋난 것인지는 기계가 가릴 수 없으므로 아예 보지 않는다.
 
-    파일명이 `번호.제목.html` 꼴이 아니면 파일명 대조를 건너뛴다.
+    파일명은 두 꼴을 받는다 — `번호.제목.html`(중단원이 있는 과목)과
+    `01-제목.html`(중단원이 없는 문법 노트). 둘 다 아니면 대조를 건너뛴다.
     """
     bad = []
 
@@ -290,6 +291,8 @@ def title_rules(path: Path, src: str):
     stem = path.stem                      # "1-2-1.사물-인터넷이란-무엇인가"
     if "." in stem:
         names["파일명"] = stem.split(".", 1)[1]
+    elif re.match(r"^\d+-", stem):        # "01-변수와-자료형"
+        names["파일명"] = stem.split("-", 1)[1]
 
     keys = {k: _text_key(v) for k, v in names.items()}
     ref = keys["h1"]

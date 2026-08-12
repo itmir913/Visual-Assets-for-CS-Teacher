@@ -409,7 +409,7 @@ npm run docx                     # 저장소 어디서든 실행 가능
 다른 자리로 뽑아 볼 때만 `DOCX_OUT_ROOT`로 바꾼다.
 
 ```bash
-npm run docx                        # dist/templates/py/… 로 나간다
+npm run docx                        # dist/ 안, 강의노트 옆 docx/ 로 나간다
 DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
 ```
 
@@ -426,7 +426,7 @@ DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
 
 ```javascript
 const out = require('../outpath');
-makeDocument({ … }, out('py', '3-2-1.docx'));
+makeDocument({ … }, out('실습', '비만도-측정.py.docx'));
 ```
 
 폴더를 옮길 때 `DEST` 한 곳만 고치면 된다. 예전에는 39개 파일에 `"../py/…"`가
@@ -448,7 +448,7 @@ makeDocument({ … }, out('py', '3-2-1.docx'));
 
 ```
 인공지능기초/ai-projects/ai-sample-1-….html  →  docx/ai_sample_1_….docx   (../ 없음)
-templates/py, templates/c                     ← 프로그래밍의 옛 자리. 통합 때 옮긴다
+프로그래밍/실습/비만도-측정.html              →  docx/비만도-측정.py.docx  (·.c.docx)
 ```
 
 `.docx`는 같은 코드로 다시 만들어도 **바이트가 달라진다** — `docProps/core.xml`에

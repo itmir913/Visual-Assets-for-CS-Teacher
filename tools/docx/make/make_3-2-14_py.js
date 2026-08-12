@@ -122,4 +122,4 @@ makeDocument({
             {input: "1 1 2 3 / 2 2 4 (중복 입력)", expected: "2 / 1 2 3 4", actual: "2 / 1 2 3 4", pass: "O"},
         ],
     },
-}, out('py', '3-2-14.docx'));
+}, out('실습', '교집합과-합집합.py.docx'));

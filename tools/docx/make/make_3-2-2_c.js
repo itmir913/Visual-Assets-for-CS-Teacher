@@ -169,4 +169,4 @@ makeDocument({
             {input: "2x + 1 = 2", expected: "0.50", actual: "0.50", pass: "O"},
         ],
     },
-}, out('c', '3-2-2.docx'));
+}, out('실습', '일차방정식-해-구하기.c.docx'));

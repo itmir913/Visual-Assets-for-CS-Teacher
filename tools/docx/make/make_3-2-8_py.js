@@ -122,4 +122,4 @@ makeDocument({
             },
         ],
     },
-}, out('py', '3-2-8.docx'));
+}, out('실습', '종이-자르기.py.docx'));

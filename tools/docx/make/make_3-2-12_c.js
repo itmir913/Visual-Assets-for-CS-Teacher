@@ -135,4 +135,4 @@ makeDocument({
             {input: "정렬 후 students[2].name", expected: "3등 이름", actual: "정상 출력", pass: "O"},
         ],
     },
-}, out('c', '3-2-12.docx'));
+}, out('실습', '3등-찾기.c.docx'));

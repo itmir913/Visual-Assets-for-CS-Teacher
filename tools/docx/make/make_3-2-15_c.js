@@ -141,4 +141,4 @@ makeDocument({
             {input: "scanf %f 오류 시", expected: "올바른 savings 입력", actual: "쓰레기값 입력 오류", pass: "X"},
         ],
     },
-}, out('c', '3-2-15.docx'));
+}, out('실습', '복리-계산기.c.docx'));

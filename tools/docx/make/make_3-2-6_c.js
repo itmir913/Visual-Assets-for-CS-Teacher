@@ -114,4 +114,4 @@ makeDocument({
             {input: "ABCD", expected: ">?@A", actual: ">?@A", pass: "O"},
         ],
     },
-}, out('c', '3-2-6.docx'));
+}, out('실습', '암호-해독하기.c.docx'));

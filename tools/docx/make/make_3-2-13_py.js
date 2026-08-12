@@ -154,4 +154,4 @@ makeDocument({
             {input: "2 파이썬 (반납)", expected: "파이썬 반납 완료", actual: "파이썬 반납 완료", pass: "O"},
         ],
     },
-}, out('py', '3-2-13.docx'));
+}, out('실습', '도서-대출-시스템.py.docx'));

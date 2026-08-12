@@ -124,4 +124,4 @@ makeDocument({
             {input: "1 1", expected: "F-0001", actual: "F-0001", pass: "O"},
         ],
     },
-}, out('c', '3-2-4.docx'));
+}, out('실습', '철근-자르기.c.docx'));

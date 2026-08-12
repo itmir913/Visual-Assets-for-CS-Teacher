@@ -130,4 +130,4 @@ makeDocument({
             },
         ],
     },
-}, out('py', '3-2-7.docx'));
+}, out('실습', '파이값-근사하기.py.docx'));

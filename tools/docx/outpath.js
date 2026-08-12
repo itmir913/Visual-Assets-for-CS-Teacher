@@ -3,7 +3,7 @@
 // 폴더를 옮길 때 아래 DEST 표만 고치면 make/*.js 39개는 건드릴 필요가 없다.
 //
 // 사용: const out = require('../outpath');
-//       makeDocument({...}, out('py', '3-2-1.docx'));
+//       makeDocument({...}, out('실습', '비만도-측정.py.docx'));
 
 const fs = require('fs');
 const path = require('path');
@@ -24,9 +24,9 @@ const OUT_ROOT = process.env.DOCX_OUT_ROOT
 // docx/ 라는 이름의 폴더는 전부 생성물이다 — 저장소 .gitignore가 그렇게 잡고 있다.
 const DEST = {
     ai: '인공지능기초/ai-projects/docx',
-    // 프로그래밍은 C·Python 통합 때 함께 옮긴다. 지금 옮기면 링크를 두 번 고치게 된다.
-    py: 'templates/py',
-    c: 'templates/c',
+    // 실습은 py·c를 한 폴더에 담고 파일 이름의 `.py.`·`.c.`로 가른다.
+    // 강의노트가 언어별로 나뉘지 않으므로 폴더를 나눌 이유가 없다.
+    실습: '프로그래밍/실습/docx',
 };
 
 module.exports = function out(group, filename) {

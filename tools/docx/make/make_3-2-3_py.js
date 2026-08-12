@@ -112,4 +112,4 @@ makeDocument({
             {input: "2100 2", expected: "28", actual: "28", pass: "O"},
         ],
     },
-}, out('py', '3-2-3.docx'));
+}, out('실습', '이달은-며칠까지-있을까.py.docx'));

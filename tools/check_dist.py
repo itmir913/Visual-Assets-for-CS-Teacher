@@ -26,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from check_html import Checker  # noqa: E402
-from logs import get_logger, github_annotation  # noqa: E402
+from logs import get_logger  # noqa: E402
 
 DOCX_HREF_RE = re.compile(r'href="([^"]+\.docx)"')
 
@@ -99,7 +99,6 @@ def check_nesting(files: list[Path]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("dist", nargs="?", default="dist", help="검사할 산출물 폴더 (기본 dist)")
-    parser.add_argument("--github", action="store_true", help="::error:: 형식으로 출력 (Actions용)")
     parser.add_argument("-v", "--verbose", action="store_true", help="세부 수치까지 보인다")
     args = parser.parse_args()
 
@@ -123,10 +122,7 @@ def main() -> int:
     log.debug("HTML %d개, docx 링크 %d건", len(files), docx_total)
     errs = docx_bad + cdn_bad + nest_bad
     for e in errs:
-        if args.github:
-            print(github_annotation("error", e))
-        else:
-            log.error("%s", e)
+        log.error("%s", e)
     log.info("완료 — HTML %d, docx 링크 %d, 문제 %d", len(files), docx_total, len(errs))
     return 1 if errs else 0
 

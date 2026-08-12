@@ -44,11 +44,3 @@ def get_logger(name: str, verbose: bool = False) -> logging.Logger:
         log.addHandler(h)
     log.propagate = False
     return log
-
-
-def github_annotation(level: str, message: str) -> str:
-    """GitHub Actions가 PR 화면에 표시하는 형식.
-
-    `::error::`·`::warning::`을 알아듣는다. 파일과 줄을 함께 주면 그 줄에 붙는다.
-    """
-    return f"::{level}::{message}"

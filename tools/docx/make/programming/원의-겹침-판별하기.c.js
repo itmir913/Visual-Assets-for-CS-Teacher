@@ -149,4 +149,4 @@ makeDocument({
             {input: "0 0 5 / 1 0 2", expected: "만나지 않는다", actual: "만나지 않는다", pass: "O"},
         ],
     },
-}, out('실습', '원의-겹침-판별하기.c.docx'));
+}, out('programming', '원의-겹침-판별하기.c.docx'));

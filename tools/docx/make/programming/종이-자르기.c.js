@@ -144,4 +144,4 @@ makeDocument({
             },
         ],
     },
-}, out('실습', '종이-자르기.c.docx'));
+}, out('programming', '종이-자르기.c.docx'));

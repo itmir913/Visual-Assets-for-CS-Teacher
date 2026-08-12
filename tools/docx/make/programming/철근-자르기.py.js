@@ -114,4 +114,4 @@ makeDocument({
             {input: "1 1", expected: "F-0001", actual: "F-0001", pass: "O"},
         ],
     },
-}, out('실습', '철근-자르기.py.docx'));
+}, out('programming', '철근-자르기.py.docx'));

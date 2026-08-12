@@ -725,7 +725,7 @@ module.exports = {makeDocument};
 // 직접 실행 시 빈 양식 생성
 if (require.main === module) {
     Promise.all([
-        makeDocument({}, out('실습', '수행평가-양식.c.docx')),
-        makeDocument({}, out('실습', '수행평가-양식.py.docx')),
+        makeDocument({}, out('programming', '수행평가-양식.c.docx')),
+        makeDocument({}, out('programming', '수행평가-양식.py.docx')),
     ]);
 }

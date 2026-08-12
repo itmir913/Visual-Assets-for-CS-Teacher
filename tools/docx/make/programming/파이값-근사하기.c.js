@@ -141,4 +141,4 @@ makeDocument({
             },
         ],
     },
-}, out('실습', '파이값-근사하기.c.docx'));
+}, out('programming', '파이값-근사하기.c.docx'));

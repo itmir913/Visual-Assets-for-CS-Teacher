@@ -173,4 +173,4 @@ makeDocument({
             {input: "교집합 break 누락 시", expected: "중복 없는 교집합", actual: "중복 추가 오류", pass: "X"},
         ],
     },
-}, out('실습', '교집합과-합집합.c.docx'));
+}, out('programming', '교집합과-합집합.c.docx'));

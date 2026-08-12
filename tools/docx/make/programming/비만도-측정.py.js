@@ -140,4 +140,4 @@ makeDocument({
             {input: "140 40", expected: "정상", actual: "정상", pass: "O"},
         ],
     },
-}, out('실습', '비만도-측정.py.docx'));
+}, out('programming', '비만도-측정.py.docx'));

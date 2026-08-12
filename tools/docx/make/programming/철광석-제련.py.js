@@ -138,4 +138,4 @@ makeDocument({
             {input: "단일 최대값 위치 (i=1,j=1)", expected: "해당 3×3 합", actual: "정상 출력", pass: "O"},
         ],
     },
-}, out('실습', '철광석-제련.py.docx'));
+}, out('programming', '철광석-제련.py.docx'));

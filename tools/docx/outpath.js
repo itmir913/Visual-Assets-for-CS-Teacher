@@ -3,7 +3,7 @@
 // 폴더를 옮길 때 아래 DEST 표만 고치면 make/ 아래 생성기는 건드릴 필요가 없다.
 //
 // 사용: const out = require('../outpath');
-//       makeDocument({...}, out('실습', '비만도-측정.py.docx'));   ← make/실습/비만도-측정.py.js
+//       makeDocument({...}, out('programming', '비만도-측정.py.docx'));
 
 const fs = require('fs');
 const path = require('path');
@@ -24,9 +24,10 @@ const OUT_ROOT = process.env.DOCX_OUT_ROOT
 // docx/ 라는 이름의 폴더는 전부 생성물이다 — 저장소 .gitignore가 그렇게 잡고 있다.
 const DEST = {
     ai: '인공지능기초/ai-projects/docx',
-    // 실습은 py·c를 한 폴더에 담고 파일 이름의 `.py.`·`.c.`로 가른다.
+    // 그룹 이름은 **과목**이다. 어느 과목의 산출물인지 이름만 보고 알아야 한다.
+    // 프로그래밍은 py·c를 한 폴더에 담고 파일 이름의 `.py.`·`.c.`로 가른다 —
     // 강의노트가 언어별로 나뉘지 않으므로 폴더를 나눌 이유가 없다.
-    실습: '프로그래밍/실습/docx',
+    programming: '프로그래밍/실습/docx',
 };
 
 module.exports = function out(group, filename) {

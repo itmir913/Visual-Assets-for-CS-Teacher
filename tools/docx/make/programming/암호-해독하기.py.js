@@ -107,4 +107,4 @@ makeDocument({
             {input: "ABCD", expected: ">?@A", actual: ">?@A", pass: "O"},
         ],
     },
-}, out('실습', '암호-해독하기.py.docx'));
+}, out('programming', '암호-해독하기.py.docx'));

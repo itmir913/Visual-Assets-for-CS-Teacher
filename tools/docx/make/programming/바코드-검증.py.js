@@ -149,4 +149,4 @@ makeDocument({
             {input: "12345678", expected: "Valid", actual: "Valid", pass: "O"},
         ],
     },
-}, out('실습', '바코드-검증.py.docx'));
+}, out('programming', '바코드-검증.py.docx'));

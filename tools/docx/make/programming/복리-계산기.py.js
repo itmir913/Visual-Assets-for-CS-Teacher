@@ -129,4 +129,4 @@ makeDocument({
             {input: "balance 초기화 루프 안 실수", expected: "복리 누적 잔액", actual: "매월 0원 리셋 오류", pass: "X"},
         ],
     },
-}, out('실습', '복리-계산기.py.docx'));
+}, out('programming', '복리-계산기.py.docx'));

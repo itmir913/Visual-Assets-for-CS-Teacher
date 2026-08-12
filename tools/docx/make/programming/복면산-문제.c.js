@@ -126,4 +126,4 @@ makeDocument({
             {input: "a=1,b=1 (중복)", expected: "continue로 건너뜀", actual: "continue로 건너뜀", pass: "O"},
         ],
     },
-}, out('실습', '복면산-문제.c.docx'));
+}, out('programming', '복면산-문제.c.docx'));

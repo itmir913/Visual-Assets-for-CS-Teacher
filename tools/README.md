@@ -417,7 +417,7 @@ DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
 |---|---|
 | `build.js` | `make/` 아래 `.js`를 **재귀로** 전부 실행한다. 하나라도 실패하면 종료 코드 1 |
 | `outpath.js` | **산출물이 어느 폴더로 나가는지 정하는 유일한 곳** |
-| `make/` | 뿌리에 «틀» 둘, `실습/`·`ai/`에 «내용». **파일 이름이 곧 산출물 이름이다** |
+| `make/` | 뿌리에 «틀» 둘, 과목별 폴더(`programming/`·`ai/`)에 «내용». **파일 이름이 곧 산출물 이름이다** |
 
 **새 양식을 추가하는 법은 [`tools/docx/README.md`](docx/README.md)에 있다** —
 틀과 내용을 나눈 구조, 데이터 필드, 파일명 규칙.
@@ -426,8 +426,8 @@ DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
 
 ```javascript
 const out = require('../outpath');
-// make/실습/비만도-측정.py.js
-makeDocument({ … }, out('실습', '비만도-측정.py.docx'));
+// make/programming/비만도-측정.py.js
+makeDocument({ … }, out('programming', '비만도-측정.py.docx'));
 ```
 
 폴더를 옮길 때 `DEST` 한 곳만 고치면 된다. 예전에는 파일마다 `"../py/…"`가

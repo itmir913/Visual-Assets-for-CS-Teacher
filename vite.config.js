@@ -19,6 +19,7 @@
 //   tools/vite/vendor-public.js       이름이 그대로여야 하는 파일(MathJax 글꼴)만 public/으로
 //   tools/vite/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
 //   tools/vite/strip-crossorigin.js   원본에 없던 속성 제거
+//   tools/vite/copy-code-button.js    코드 블록마다 복사 버튼을 얹는다
 import { resolve } from 'node:path';
 
 import autoprefixer from 'autoprefixer';
@@ -29,6 +30,7 @@ import injectCode from './tools/vite/inject-code.js';
 import vendorPublic from './tools/vite/vendor-public.js';
 import copyLectureAssets from './tools/vite/copy-lecture-assets.js';
 import stripCrossorigin from './tools/vite/strip-crossorigin.js';
+import copyCodeButton from './tools/vite/copy-code-button.js';
 
 /**
  * 진입점 — 페이지 전부.
@@ -61,6 +63,8 @@ export default {
     plugins: [
         // 코드 주입이 먼저다 — 넣은 코드가 나중 단계의 치환에 걸리지 않도록.
         injectCode(),
+        // 주입이 끝난 뒤에 감싼다 — 주입된 코드에도 버튼이 붙어야 한다.
+        copyCodeButton(),
         vendorPublic(),
         copyLectureAssets(),
         stripCrossorigin(),

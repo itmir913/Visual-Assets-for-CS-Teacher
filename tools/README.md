@@ -349,39 +349,31 @@ npm run check:code
 `tools/vite/inject-code.js`가 못 찾으면 있는 구역 목록을 알려 주며 빌드를 세운다.
 같은 검사를 두 곳에 두면 둘이 어긋나므로 검사기 쪽에서는 하지 않는다.
 
-### 복사 버튼 — 위임 리스너 하나로
+### 복사 버튼 — 강의노트는 아무것도 적지 않는다
+
+**빌드가 모든 `<pre>` 오른쪽 위에 붙인다.** 강의노트에 버튼 마크업도 스크립트도 적지 않는다.
+
+| 어디 | 무엇 |
+|---|---|
+| `tools/vite/copy-code-button.js` | `<pre>`를 `div.code-copy-wrap`으로 감싸고 버튼과 위임 리스너를 넣는다 |
+| `src/styles/_code-copy.css` | 버튼 모양. 단위별 진입 CSS가 `@import` 한다 |
 
 블록마다 `id`를 붙이고 `onclick="copyCode('code-98')"`을 쓰던 방식은 쓰지 않는다.
 **id가 파일을 넘어 95개나 중복**돼 있었고, 코드가 실파일로 빠지면 id를 붙일 자리도 없다.
-아래를 파일에 하나만 두면 블록이 몇 개든 동작한다.
 
-```html
-<script>
-    document.addEventListener('click', async (e) => {
-        const btn = e.target.closest('[data-copy]');
-        if (!btn) return;
-        const code = btn.closest('.code-block')?.querySelector('code');
-        if (!code) return;
-        try {
-            await navigator.clipboard.writeText(code.textContent);
-        } catch {
-            // file://은 보안 컨텍스트가 아니라 navigator.clipboard가 없다.
-            // 오프라인 zip을 그대로 여는 학생이 있으므로 폴백을 지운다.
-            const ta = document.createElement('textarea');
-            ta.value = code.textContent;
-            ta.style.cssText = 'position:fixed;opacity:0';
-            document.body.appendChild(ta);
-            ta.select();
-            try { document.execCommand('copy'); } finally { ta.remove(); }
-        }
-        const before = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> 복사됨';
-        setTimeout(() => { btn.innerHTML = before; }, 1500);
-    });
-</script>
-```
+**빌드가 하는 까닭**은 `<pre>`를 가진 강의노트의 3분의 1 남짓이 모듈 진입점을 아예 안 갖기
+때문이다. 진입점에서 `import` 하는 방식이면 그 파일들에는 안 붙는다.
 
-`textContent`를 쓰므로 **주입된 코드가 그대로 복사된다.** 이스케이프를 되돌릴 필요가 없다.
+**`textContent`로 복사하므로 주입된 코드가 화면에 보이는 그대로** 나간다. 이스케이프를
+되돌릴 필요가 없다. `navigator.clipboard`가 없는 자리(`file://`로 연 오프라인 zip)를 위한
+폴백도 함께 들어 있다.
+
+**클래스 이름을 Tailwind 유틸리티로 쓰지 않는다.** 버튼 마크업이 소스 HTML에 없어
+Tailwind가 스캔할 수 없고, 구우려면 safelist에 손으로 적어야 한다 —
+「빌드가 리터럴로 있는 클래스만 굽는다」에 예외를 만들지 않으려고 보통 CSS로 두었다.
+
+**자기 복사 버튼을 이미 가진 페이지는 건드리지 않는다.** 재작성 대기 중인 구 문법 노트가
+그렇다. 그냥 감싸면 한 블록에 버튼이 둘 붙는다. 그 파일들을 다시 쓰면 예외도 저절로 풀린다.
 
 ## 미리보기 — 소스가 아니라 `dist/`를 연다
 

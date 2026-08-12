@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연산자</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/03-연산자.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-calculator absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-code-compare absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            연산자
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+기호 하나가 무슨 일을 하는지는<br>
+            <strong>양쪽에 놓인 값이 정합니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>산술 연산자로 계산할 수 있고, 나머지 연산자가 어디에 쓰이는지 설명할 수 있다.</li>
+                    <li>복합 대입과 증감 연산자를 읽고, 앞에 붙일 때와 뒤에 붙일 때의 차이를 설명할 수 있다.</li>
+                    <li>비교와 논리 연산의 결과가 1과 0으로 나온다는 것을 알고 조건을 세울 수 있다.</li>
+                    <li>우선순위 때문에 뜻이 달라지는 자리를 알아보고 괄호로 뜻을 못박을 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-calculator text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">연산자</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#arith" class="hover:text-orange-600 transition">산술</a>
+            <a href="#assign" class="hover:text-orange-600 transition">대입과 증감</a>
+            <a href="#compare" class="hover:text-orange-600 transition">비교와 논리</a>
+            <a href="#order" class="hover:text-orange-600 transition">우선순위</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 계산하는 기호 ===== -->
+    <section id="arith" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">계산하는 기호</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">나머지 연산자는 계산기에 없는데 프로그램에서는 자주 씁니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/03.산술.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                넷은 계산기와 같습니다. 낯선 것은 <code>%</code> 하나인데,
+                <strong>나누고 남은 것</strong>을 줍니다. 퍼센트가 아닙니다.
+            </p>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-orange-900">나머지는 어디에 쓰는가</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>짝수인지 홀수인지</strong> &mdash; <code>n % 2</code>가 0이면 짝수다.</li>
+                    <li><strong>단위를 나눌 때</strong> &mdash; 135초는 <code>135 / 60</code>분 <code>135 % 60</code>초.</li>
+                    <li><strong>몇 개마다 한 번</strong> &mdash; <code>i % 10</code>이 0인 자리에서만 줄을 바꾼다.</li>
+                </ul>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/03.전체.c"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i><code>%</code>는 정수끼리만 됩니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>7.5 % 2</code>는 <strong>컴파일이 안 됩니다.</strong> 실수에는 쓸 수 없습니다.
+                    <code>/</code>가 정수끼리면 몫만 남긴다는 것도 함께 기억해 두세요 &mdash;
+                    <strong>둘은 한 짝</strong>이라, 몫과 나머지를 같이 구할 때 특히 자주 씁니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">오늘이 무슨 요일인지 세는 프로그램을 만든다면 <code>%</code>를 어디에 쓸 수 있을까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 담으면서 계산하기 ===== -->
+    <section id="assign" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">담으면서 계산하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">짧게 쓰는 방법이지만, 짧아진 만큼 읽을 때 헷갈립니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>total = total + 5</code>처럼 <strong>자기 값을 꺼내 고쳐 담는 일</strong>이 워낙 잦아서
+                줄여 쓰는 방법이 따로 있습니다. <strong>복합 대입 연산자</strong>입니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/03.복합대입.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code>가 모두 같은 방식입니다.
+                <strong>앞 차시의 대입 규칙이 그대로 적용됩니다</strong> &mdash; 오른쪽을 먼저 계산하고 왼쪽에 담습니다.
+            </p>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">1씩 늘리고 줄이는 것은 더 짧게</p>
+                <pre class="language-c"><code class="language-c" data-src="code/03.증감.c"></code></pre>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>변수 값이 1 늘어난다는 결과는 둘 다 같습니다.</strong> 다른 것은
+                    <strong>그 줄에서 쓰이는 값</strong>입니다. 뒤에 붙이면 「쓰고 나서 늘리고」,
+                    앞에 붙이면 「늘리고 나서 쓴다」입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <code>a++;</code>처럼 <strong>한 줄에 혼자 있을 때는 둘이 완전히 같습니다.</strong>
+                    차이가 드러나는 것은 다른 식 속에 끼어 있을 때뿐입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>짧게 쓰는 것이 늘 좋은 것은 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>printf("%d %d", a++, ++a);</code>처럼 한 줄에 몰아 쓰면
+                    <strong>사람마다 다르게 읽고, 컴파일러마다 결과가 다를 수도 있습니다.</strong>
+                    줄여 쓰는 것보다 <strong>한 줄에 한 가지 일만 하는 편</strong>이 낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>int n = 3; int m = n++ + 2;</code> 다음에 <code>n</code>과 <code>m</code>은 각각 얼마일까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 견주고 묶기 ===== -->
+    <section id="compare" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">견주고 묶기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">참과 거짓이 따로 있는 것이 아니라 1과 0으로 나옵니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/03.비교.c"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">참은 1, 거짓은 0</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    C에는 참·거짓을 담는 자료형이 따로 없어서 <strong>비교 결과가 그냥 정수로 나옵니다.</strong>
+                    그래서 <code>printf("%d", 7 &gt; 3)</code>이 1을 찍습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거꾸로 <strong>조건 자리에 아무 수나 놓을 수도 있습니다.</strong>
+                    <strong>0이면 거짓, 0이 아니면 전부 참</strong>으로 봅니다 &mdash; 1만 참인 것이 아닙니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>같은지 묻는 것은 <code>==</code>, 담는 것은 <code>=</code></p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>if (x = 5)</code>라고 쓰면 x에 5를 담고, 그 5가 0이 아니므로 <strong>언제나 참이 됩니다.</strong>
+                    오류로 멈추지 않기 때문에 프로그램이 늘 같은 쪽으로만 갑니다.
+                    <strong>조건 자리에 등호가 하나만 있으면 의심하세요.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                조건 여럿을 묶을 때는 <strong>논리 연산자</strong>를 씁니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/03.논리.c"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">기호</th>
+                        <th class="w-36">읽는 법</th>
+                        <th>참이 되는 때</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>&amp;&amp;</code></td>
+                        <td>그리고</td>
+                        <td>양쪽이 <strong>모두</strong> 참일 때</td>
+                    </tr>
+                    <tr>
+                        <td><code>||</code></td>
+                        <td>또는</td>
+                        <td><strong>하나라도</strong> 참일 때</td>
+                    </tr>
+                    <tr>
+                        <td><code>!</code></td>
+                        <td>아니다</td>
+                        <td>뒤에 오는 것이 <strong>거짓</strong>일 때</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>답이 정해지면 오른쪽은 아예 계산하지 않습니다</p>
+                <pre class="language-c"><code class="language-c" data-src="code/03.단축평가.c"></code></pre>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>&amp;&amp;</code>는 왼쪽이 거짓이면 오른쪽을 볼 것도 없이 거짓입니다.
+                    그래서 <strong>오른쪽을 건너뜁니다.</strong> 위 코드에서 <code>count</code>가 0이므로
+                    <code>sum / count</code>는 <strong>아예 계산되지 않습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것이 <strong>없어서는 안 되는 성질</strong>인 까닭이 여기 있습니다. 만약 오른쪽까지 계산했다면
+                    0으로 나누게 되어 <strong>프로그램이 그 자리에서 죽습니다.</strong>
+                    「먼저 안전한지 확인하고, 안전할 때만 계산한다」를 한 줄에 담을 수 있는 것이 이 성질 덕분입니다.
+                    <strong>확인하는 조건을 반드시 왼쪽에 두어야</strong> 합니다 &mdash; 순서를 바꾸면 막지 못합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>||</code>는 반대로 왼쪽이 참이면 오른쪽을 건너뜁니다.
+                    <strong>건너뛸 수 있다는 것은 실행될지 안 될지 모른다는 뜻</strong>이므로,
+                    조건 안에 <strong>값을 바꾸는 식을 넣지 않는 편</strong>이 안전합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                수학처럼 <code>80 &lt;= score &lt; 90</code>이라고 쓰면 <strong>뜻이 완전히 달라집니다.</strong>
+                왼쪽부터 차례로 계산해 <code>(80 &lt;= score)</code>가 1이나 0이 되고, 그것을 다시 90과 견주기 때문에
+                <strong>거의 언제나 참</strong>이 됩니다. 반드시 <code>score &gt;= 80 &amp;&amp; score &lt; 90</code>으로 나누어 씁니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">점수가 60점 미만이거나 100점을 넘으면 「잘못된 값」이라고 판단하려면 조건을 어떻게 쓸까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 먼저 계산되는 것 ===== -->
+    <section id="order" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">먼저 계산되는 것</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">헷갈리면 외우지 말고 괄호로 못박습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                한 식에 기호가 여럿이면 <strong>먼저 계산되는 순서</strong>가 있습니다. 대체로 수학과 같습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">순서</th>
+                        <th class="w-44">연산자</th>
+                        <th>메모</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><code>()</code></td>
+                        <td>괄호가 가장 먼저다. 헷갈리면 이것을 쓴다</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><code>!</code> <code>++</code> <code>--</code> <code>(자료형)</code></td>
+                        <td>값 하나에 붙는 것들</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td><code>*</code> <code>/</code> <code>%</code></td>
+                        <td>곱하기 무리</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><code>+</code> <code>-</code></td>
+                        <td>더하기 무리</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td>
+                        <td>크기 견주기</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td><code>==</code> <code>!=</code></td>
+                        <td><strong>크기 견주기보다 늦다</strong></td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td><code>&amp;&amp;</code> &rarr; <code>||</code></td>
+                        <td>그리고가 또는보다 먼저다</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td><code>=</code> <code>+=</code> &hellip;</td>
+                        <td>담는 것이 가장 늦다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-sky-900"><i class="fa-solid fa-circle-info mr-2"></i>표를 외우는 것이 목표가 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    현장에서도 이 표를 다 외우고 쓰지는 않습니다. <strong>헷갈리는 자리에 괄호를 치는 것</strong>이
+                    더 빠르고, 나중에 읽는 사람에게도 낫습니다. 표는 <strong>남이 쓴 코드를 읽을 때</strong>
+                    「왜 이렇게 계산됐지?」를 풀어 보는 데 씁니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다만 <code>&amp;&amp;</code>가 <code>||</code>보다 먼저라는 것 하나는 알아 두면 좋습니다.
+                <code>a || b &amp;&amp; c</code>는 <strong><code>a || (b &amp;&amp; c)</code></strong>로 읽힙니다 &mdash;
+                왼쪽부터 차례로 묶이지 않습니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>2 + 3 * 4 % 5</code>는 얼마일까요? 표의 순서대로 짚어 가며 계산해 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">나머지 <code>%</code></h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    나누고 남은 것. <strong>정수끼리만</strong> 된다.
+                    짝수 판별, 단위 나누기, 몇 개마다 한 번에 쓴다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">증감 연산자</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>변수가 1 늘어나는 결과는 같다.</strong> 다른 것은 그 줄에서 쓰이는 값 &mdash;
+                    <code>a++</code>는 쓰고 나서 늘리고, <code>++a</code>는 늘리고 나서 쓴다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">참과 거짓</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    비교 결과는 <strong>1과 0</strong>으로 나온다. 조건 자리에서는
+                    <strong>0이면 거짓, 0이 아니면 전부 참</strong>이다.
+                    같은지 묻는 것은 <code>==</code>, 담는 것은 <code>=</code>.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">우선순위</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    대체로 수학과 같고 <code>&amp;&amp;</code>가 <code>||</code>보다 먼저다.
+                    <strong>외우기보다 괄호를 친다.</strong>
+                    <code>80 &lt;= score &lt; 90</code>은 뜻이 달라지므로 나누어 쓴다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>int a = 5; printf("%d", a++);</code>가 찍는 값과, 찍은 뒤 <code>a</code>의 값은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '뒤에 붙이면 쓰고 나서 늘립니다. 5를 찍고 a는 6이 됩니다.')">
+                    ① 5를 찍고, <code>a</code>는 6
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '그것은 ++a일 때입니다. 뒤에 붙이면 쓰고 나서 늘립니다.')">
+                    ② 6을 찍고, <code>a</code>는 6
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '늘어난 값이 사라지지 않습니다. a는 6이 됩니다.')">
+                    ③ 5를 찍고, <code>a</code>는 5
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '두 번 늘어나지 않습니다. ++는 한 번만 적용됩니다.')">
+                    ④ 5를 찍고, <code>a</code>는 7
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. 점수가 80점 이상 90점 미만인지 보려면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '왼쪽부터 계산되어 (80 <= score)가 1이나 0이 되고, 그것을 90과 견줍니다. 거의 언제나 참이 됩니다.')">
+                    ① <code>80 &lt;= score &lt; 90</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '두 조건으로 나누어 &&로 묶는 것이 맞습니다.')">
+                    ② <code>score &gt;= 80 &amp;&amp; score &lt; 90</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '||는 하나만 참이어도 참이라 80점 미만도 통과합니다.')">
+                    ③ <code>score &gt;= 80 || score &lt; 90</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '=는 담는 것입니다. 견주는 것이 아닙니다.')">
+                    ④ <code>score = 80 &amp;&amp; score &lt; 90</code>
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 다음 중 <strong>틀린</strong> 설명은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '1만 참인 것이 아닙니다. 0이 아니면 전부 참으로 봅니다. -3도 참입니다.')">
+                    ① 조건 자리에서 참으로 보는 값은 1뿐이다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 실수에는 %를 쓸 수 없습니다.')">
+                    ② <code>%</code>는 정수끼리만 쓸 수 있다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 왼쪽에서 답이 정해지면 오른쪽은 건너뜁니다.')">
+                    ③ <code>&amp;&amp;</code>의 왼쪽이 거짓이면 오른쪽은 계산되지 않는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. x에 5를 담고 그 값이 0이 아니라 늘 참이 됩니다.')">
+                    ④ <code>if (x = 5)</code>는 언제나 참이 된다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

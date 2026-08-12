@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>복면산 문제</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/복면산-문제.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-masks-theater absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-magnifying-glass-chart absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            복면산 문제
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            사람은 머리를 써서 줄이고<br>
+            <strong>컴퓨터는 그냥 다 해 봅니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>가능한 경우를 빠짐없이 훑는 완전 탐색을 되풀이 세 겹으로 설계할 수 있다.</li>
+                    <li>조건에 어긋나는 경우를 일찍 걸러 내 헛일을 줄일 수 있다.</li>
+                    <li>글자로 적힌 수를 자릿값을 써서 계산식으로 옮길 수 있다.</li>
+                    <li>같은 문제를 손으로 정리해 훨씬 적게 세는 방법과 견줄 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-masks-theater text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">복면산 문제</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">글자 뒤에 숨은 숫자를 어떻게 찾을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>AB + BA = CC</strong>가 성립하도록 <strong>A, B, C에 들어갈 숫자</strong>를 찾는 프로그램을 만듭니다.
+                    같은 글자는 같은 숫자, <strong>다른 글자는 반드시 다른 숫자</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이렇게 <strong>숫자를 글자로 가려 놓은 퍼즐</strong>을 복면산이라고 합니다.
+                사람은 이런 문제를 <strong>머리를 써서 경우를 줄여</strong> 풉니다.
+                컴퓨터는 다르게 갑니다 &mdash; <strong>가능한 경우를 그냥 전부 넣어 봅니다.</strong>
+                이 방법을 <strong>완전 탐색</strong>이라고 하고, 이번 실습의 몸통입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>몇 개를 찾을 것이고 어떤 제약이 있는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>몇 가지를 넣어 봐야 하고 어떻게 줄일 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>되풀이를 몇 겹으로 쌓고 어디서 건너뛸 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>답이 맞는지 어떻게 확인하는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-9.docx"
+                       download="[개발 문서] 복면산 문제 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-9.docx"
+                       download="[개발 문서] 복면산 문제 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">「답을 찾아라」는 몇 개를 찾으라는 말일까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>답이 하나뿐인가요?</strong> 여럿이면 다 내놓나요, 하나만 내놓나요</li>
+                    <li><strong>0을 쓸 수 있나요?</strong> AB의 A가 0이면 두 자리 수가 아닙니다</li>
+                    <li><strong>정말 다 달라야 하나요?</strong> A와 C가 같아도 되나요</li>
+                    <li><strong>답이 없으면?</strong> 아무것도 못 찾으면 무엇을 내놓나요</li>
+                    <li><strong>어떤 모양으로 내놓나요?</strong> 숫자 셋만인가요, 식까지 보여 주나요</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>입력은 <strong>받지 않는다.</strong> 문제가 정해져 있으므로 돌리면 바로 답이 나온다.</li>
+                    <li>A, B, C는 <strong>1부터 9까지</strong>의 숫자다. <strong>세 자리 모두 맨 앞자리라 0이 될 수 없다.</strong></li>
+                    <li>A, B, C는 <strong>서로 모두 달라야</strong> 한다.</li>
+                    <li><strong>AB + BA = CC</strong>를 만족하는 <strong>모든 조합</strong>을 찾는다.</li>
+                    <li>찾은 조합을 <strong>한 줄에 하나씩</strong> 내놓는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>1번이 이 실습을 지금까지와 다르게 만듭니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>입력을 받지 않는 프로그램</strong>입니다.
+                    기초 2-3에서 <strong>&ldquo;알고리즘의 입력은 0개여도 된다&rdquo;</strong>고 한 것을 기억하시나요?
+                    바로 이런 경우입니다. <strong>출력은 반드시 있어야 하지만 입력은 없어도 됩니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 4번이 <strong>&ldquo;모든 조합&rdquo;</strong>이라고 되어 있습니다. 만약 <strong>&ldquo;하나만 찾으면 된다&rdquo;</strong>로 정했다면 프로그램이 어떻게 달라질까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 몇 가지를 넣어 봐야 하나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">다 해 본다는 것은 정확히 몇 번을 뜻할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>없다 &mdash; 문제가 프로그램 안에 들어 있다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>A, B, C에 넣을 수 있는 모든 조합을 만들어 식을 확인한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>조건을 만족한 조합들 &mdash; 여러 줄일 수 있다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">글자로 적힌 수를 계산식으로 바꾸기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>AB</strong>는 A와 B를 곱하라는 뜻이 아니라 <strong>두 자리 수</strong>입니다.
+                    십의 자리가 A, 일의 자리가 B이므로 <strong>A&times;10 + B</strong>입니다.
+                    마찬가지로 BA는 <strong>B&times;10 + A</strong>, CC는 <strong>C&times;10 + C</strong>입니다.
+                    <strong>이 옮겨 적기를 못 하면 문제를 코드로 옮길 수가 없습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">몇 번을 확인하게 되나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    A가 9가지, B가 9가지, C가 9가지이니 <strong>9 &times; 9 &times; 9 = 729가지</strong>입니다.
+                    사람에게는 많지만 <strong>컴퓨터에게는 눈 깜짝할 사이</strong>입니다.
+                    <strong>&ldquo;다 해 보면 되지 않나?&rdquo;가 실제로 답이 되는 것</strong>이
+                    사람의 문제 풀이와 가장 크게 다른 점입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>A를 1부터 9까지 되풀이한다.</li>
+                    <li>그 안에서 B를 1부터 9까지 되풀이한다.</li>
+                    <li>A와 B가 같으면 <strong>더 볼 것 없이 건너뛴다.</strong></li>
+                    <li>그 안에서 C를 1부터 9까지 되풀이한다.</li>
+                    <li>C가 A나 B와 같으면 건너뛴다.</li>
+                    <li>(A&times;10 + B) + (B&times;10 + A)가 (C&times;10 + C)와 같으면 <strong>세 값을 내놓는다.</strong></li>
+                </ol>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>3번의 자리가 중요합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    A와 B가 같은지 보는 검사가 <strong>C의 되풀이보다 앞에</strong> 있습니다.
+                    여기서 걸러 내면 <strong>C를 아홉 번 도는 일을 통째로 건너뜁니다.</strong>
+                    안쪽에서 검사하면 답은 같지만 <strong>헛일을 아홉 배 더 하게</strong> 됩니다.
+                    <strong>거를 수 있을 때 최대한 빨리 거르는 것</strong>이 완전 탐색의 요령입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                설계 6번의 식을 손으로 정리해 보세요. <strong>(10A + B) + (10B + A)</strong>를 묶으면 무엇이 되고, <strong>10C + C</strong>는 무엇이 되나요? 양쪽을 견주면 놀랍도록 간단한 조건이 나옵니다.
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">되풀이를 세 겹으로 쌓아 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                되풀이 안에 되풀이가, 그 안에 또 되풀이가 들어갑니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">복면산.완전탐색.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/복면산.완전탐색.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>&lsquo;건너뛰기&rsquo;는 그만두는 것이 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>이번 한 바퀴만 그만두고 다음 값으로 넘어가라</strong>는 뜻입니다.
+                    되풀이 전체를 끝내는 것이 아닙니다.
+                    이것을 안 쓰고 <strong>조건이 맞을 때만 안으로 들어가게</strong> 적어도 결과는 같습니다.
+                    다만 조건이 늘어날수록 <strong>안으로 계속 들여쓰게 되어</strong> 읽기 어려워집니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">돌려 보면 답이 32개 나옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>답이 하나일 거라고 짐작했다면 놀랄 일입니다.</strong>
+                    1과 2와 3, 1과 3과 4&hellip; <strong>더해서 9를 넘지 않는 서로 다른 두 수</strong>면 모두 답입니다.
+                    <strong>&ldquo;답을 찾아라&rdquo;라는 문제가 답이 여럿일 수 있다</strong>는 것을
+                    요구 사항 4번에서 미리 정해 두었기에 당황하지 않는 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                A와 B가 같은지 보는 검사를 <strong>가장 안쪽으로 옮기면</strong> 답이 달라질까요? 달라지지 않는다면 <strong>무엇이 달라질까요?</strong>
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">입력이 없는 프로그램은 어떻게 테스트할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                넣을 값이 없으니 <strong>나온 답이 정말 조건을 만족하는지</strong> 되짚어 확인해야 합니다.
+                <strong>답 몇 개를 골라 손으로 검산</strong>하고, <strong>빠진 답이 없는지</strong>도 따져 봅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">확인할 것</th>
+                        <th>어떻게 확인하나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">답이 맞는가</td>
+                        <td>1 2 3이 나왔다면 <strong>12 + 21 = 33</strong>인지 손으로 계산해 본다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">개수가 맞는가</td>
+                        <td>A + B = C이고 셋이 다른 경우를 세어 보면 <strong>32가지</strong>다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">규칙을 어긴 답이 없는가</td>
+                        <td>나온 줄 중에 <strong>같은 숫자가 두 번 나오는 줄</strong>이 있는지 훑는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">0이 안 나오는가</td>
+                        <td>세 자리 중 <strong>어디에도 0이 없어야</strong> 한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>같은 숫자가 겹친 답이 나온다</strong> &mdash; 건너뛰는 조건이 빠졌거나 <strong>비교 대상을 하나 빠뜨렸습니다</strong></li>
+                    <li><strong>0이 들어간 답이 나온다</strong> &mdash; 되풀이 범위를 <strong>0부터</strong> 시작했습니다</li>
+                    <li><strong>답이 하나도 안 나온다</strong> &mdash; 두 자리 수로 옮기는 식에서 <strong>10을 곱하는 자리</strong>를 봅니다</li>
+                    <li><strong>답이 너무 많이 나온다</strong> &mdash; 세 값이 서로 다른지 <strong>세 쌍 모두</strong> 확인하고 있는지 봅니다</li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>&ldquo;답이 나왔다&rdquo;와 &ldquo;답이 다 나왔다&rdquo;는 다릅니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    답이 몇 개 보이면 잘 도는 것처럼 느껴집니다.
+                    그런데 <strong>걸러 내는 조건을 잘못 적으면 맞는 답까지 함께 버려집니다.</strong>
+                    나온 답이 전부 맞더라도 <strong>빠진 답이 있는지는 그것만으로 알 수 없습니다.</strong>
+                    <strong>개수를 세어 보는 확인이 그래서 필요합니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                답 중에 <strong>1 8 9</strong>가 있습니다. 손으로 검산해 보세요. 그리고 <strong>2 8 10</strong>이 답이 될 수 없는 이유는 무엇인가요?
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">손으로 줄이면 얼마나 빨라질까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                설계 절의 &lsquo;스스로 확인&rsquo;에서 식을 정리해 보셨다면 알아차렸을 것입니다 &mdash;
+                <strong>AB + BA는 언제나 11 &times; (A + B)</strong>이고 <strong>CC는 언제나 11 &times; C</strong>입니다.
+                그러니 조건은 <strong>A + B = C</strong> 하나로 줄어듭니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-orange-500 mr-1"></i>스스로 해 본 뒤에 펼쳐 보세요
+                </p>
+                <details>
+                    <summary class="font-bold text-base text-orange-700">
+                        <i class="fa-solid fa-chevron-right details-chevron mr-1"></i>더 알아보기: 되풀이를 두 겹으로 줄인 코드
+                    </summary>
+                    <div class="pt-4 space-y-3">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>C를 찾아 돌 필요가 없습니다.</strong> A와 B가 정해지면 C는 계산으로 나옵니다.
+                            729번이 <strong>81번</strong>으로 줄었습니다.
+                        </p>
+                        <div class="space-y-2 min-w-0">
+                            <pre class="language-python"><code class="language-python"
+                                                                data-src="code/복면산.줄인식.py"></code></pre>
+                        </div>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>두 코드는 같은 32개를 내놓습니다.</strong>
+                            기초 2-3에서 &ldquo;같은 답, 다른 방법&rdquo;이라 한 것이 바로 이런 짝입니다.
+                            <strong>다만 줄인 쪽은 이 문제에만 통합니다</strong> &mdash;
+                            식이 조금만 달라져도 정리를 다시 해야 합니다.
+                            <strong>완전 탐색은 느린 대신 어떤 식에든 통합니다.</strong>
+                        </p>
+                    </div>
+                </details>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">한 걸음 더</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li>식을 <strong>ABC + CBA = DDD</strong>로 바꿔 보기 &mdash; 되풀이가 몇 겹이 되고 몇 번을 돌까요</li>
+                    <li>답의 <strong>개수만 세어</strong> 마지막에 한 번 내놓기</li>
+                    <li>글자가 여덟 개인 복면산은 <strong>완전 탐색으로 몇 번</strong>을 돌아야 할지 계산해 보기.
+                        <strong>컴퓨터에게도 벅찬 크기</strong>가 어디서부터인지 감이 잡힙니다
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                마지막 과제를 계산해 보세요. 서로 다른 글자 여덟 개에 0~9를 넣는 경우의 수는 얼마일까요? <strong>&ldquo;다 해 보면 된다&rdquo;가 언제부터 통하지 않는지</strong> 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

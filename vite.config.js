@@ -20,6 +20,7 @@
 //   tools/vite/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
 //   tools/vite/strip-crossorigin.js   원본에 없던 속성 제거
 //   tools/vite/copy-code-button.js    코드 블록마다 복사 버튼을 얹는다
+//   tools/vite/drop-ttf-fallback.js   아무도 받지 않는 ttf 대체 경로를 지운다 (PostCSS)
 import { resolve } from 'node:path';
 
 import autoprefixer from 'autoprefixer';
@@ -31,6 +32,7 @@ import vendorPublic from './tools/vite/vendor-public.js';
 import copyLectureAssets from './tools/vite/copy-lecture-assets.js';
 import stripCrossorigin from './tools/vite/strip-crossorigin.js';
 import copyCodeButton from './tools/vite/copy-code-button.js';
+import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
 
 /**
  * 진입점 — 페이지 전부.
@@ -57,7 +59,12 @@ export default {
     // 단위별 설정은 각 CSS가 @config 로 자기 것을 가리키므로 여기 base는 기본값일 뿐이다.
     css: {
         postcss: {
-            plugins: [tailwindcss({ config: resolve(ROOT, 'src/tailwind/base.config.js') }), autoprefixer()],
+            plugins: [
+                tailwindcss({ config: resolve(ROOT, 'src/tailwind/base.config.js') }),
+                autoprefixer(),
+                // 자산으로 굽히기 전에 지워야 한다 — 참조가 남으면 파일도 남는다.
+                dropTtfFallback(),
+            ],
         },
     },
     plugins: [

@@ -71,9 +71,11 @@ export default {
     },
     plugins: [
         // 코드 주입이 먼저다 — 넣은 코드가 나중 단계의 치환에 걸리지 않도록.
-        injectCode(),
-        // 주입이 끝난 뒤에 감싼다 — 주입된 코드에도 버튼이 붙어야 한다.
-        copyCodeButton(),
+        // 강의 노트 HTML 파일에 .py, .c 파일을 직접 작성하지 않는다.
+        // 별도의 code/ 폴더로 원본 코드를 작성하고, 빌드할 때 코드 주입 단계에서 치환한다.
+        injectCode(), // pre 코드 주입
+        copyCodeButton(), // 주입이 끝난 뒤에 Copy 버튼을 감싼다 — 주입된 코드에도 버튼이 붙어야 한다.
+        // Vite 빌드
         vendorPublic(),
         copyLectureAssets(),
         stripCrossorigin(),

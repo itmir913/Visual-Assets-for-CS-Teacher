@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>암호 해독하기</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/암호-해독하기.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-lock-open absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-a absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            암호 해독하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            컴퓨터에게 글자는<br>
+            <strong>사실 숫자</strong>입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>글자와 숫자가 서로 바뀔 수 있음을 알고, 두 방향의 변환을 설계에 쓸 수 있다.</li>
+                    <li>문자열의 글자를 하나씩 훑으며 새 문자열을 만들어 가는 반복을 작성할 수 있다.</li>
+                    <li>범위를 벗어나는 값이 생기는 자리를 찾아, 나머지 연산으로 되돌아오게 만들 수 있다.</li>
+                    <li>요구 사항에서 다루기로 한 범위 밖의 입력이 무엇을 낳는지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-lock-open text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">암호 해독하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">글자를 밀어서 감춘 말을 되돌려 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    알파벳을 <strong>일정한 칸수만큼 뒤로 밀어</strong> 감춘 암호문이 있습니다.
+                    <strong>3칸 밀어 감춘 글</strong>을 입력받아 <strong>원래 글로 되돌려</strong> 내놓는 프로그램을 만듭니다.
+                    <strong>D</strong>는 <strong>A</strong>로, <strong>EFG</strong>는 <strong>BCD</strong>로 돌아갑니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                &lsquo;민다&rsquo;는 말이 자연스럽게 들리지만, 잘 생각하면 이상합니다.
+                <strong>글자를 어떻게 더하고 뺀다는 걸까요?</strong>
+                이 실습의 몸통은 <strong>컴퓨터가 글자를 사실 숫자로 다루고 있다</strong>는 것을 확인하는 일입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>어떤 글자까지 받고, 앞을 넘어가면 어떻게 할 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>글자를 어떻게 숫자로 바꿔 밀 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>글자를 하나씩 훑으며 새 글을 어떻게 쌓을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>앞쪽 글자를 넣으면 무슨 일이 벌어지는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-6.docx"
+                       download="[개발 문서] 암호 해독하기 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-6.docx"
+                       download="[개발 문서] 암호 해독하기 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">A를 3칸 앞으로 밀면 어디로 갈까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>대문자만 받나요?</strong> 소문자나 공백, 숫자가 섞이면 어떻게 하나요</li>
+                    <li><strong>A보다 앞으로 가면?</strong> A를 3칸 밀면 알파벳을 벗어납니다</li>
+                    <li><strong>몇 칸을 미나요?</strong> 3으로 고정인가요, 사용자가 정하나요</li>
+                    <li><strong>글자 수에 제한이 있나요?</strong></li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>대문자 알파벳으로만 된 글</strong>을 한 줄로 입력받는다.</li>
+                    <li>미는 칸수는 <strong>3으로 고정</strong>한다.</li>
+                    <li>각 글자를 <strong>알파벳 순서에서 3칸 앞으로</strong> 옮겨 되돌린다.</li>
+                    <li><strong>A보다 앞으로 넘어가면 Z 쪽에서 이어 받는다.</strong> A는 X가 되고 B는 Y가 된다.</li>
+                    <li>되돌린 글을 <strong>한 줄로</strong> 내놓는다.</li>
+                    <li><strong>대문자 아닌 글자는 들어오지 않는다고 본다.</strong> 이번 판에서 걸러 내지 않는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>4번을 정하지 않으면 프로그램이 이상해집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    A를 3칸 앞으로 밀면 <strong>알파벳 바깥으로 나갑니다.</strong>
+                    감추는 쪽에서 X를 3칸 밀어 A로 만들었다면, 되돌릴 때 A는 X로 돌아와야 맞습니다.
+                    <strong>&lsquo;끝에서 이어 받는다&rsquo;는 규칙을 안 적어 두면</strong>
+                    프로그램은 멈추지도 않고 <strong>알파벳이 아닌 기호를 내놓습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 2번에서 <strong>미는 칸수를 3으로 고정</strong>했습니다. 이 암호 방식의 약점이 무엇일지 여기서 짐작할 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 글자를 숫자로 바꿔서 민다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">더할 수 없는 것은 더할 수 있는 것으로 바꿉니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>대문자로만 된 글 한 줄</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>글자마다 번호로 바꿔 3을 빼고, 넘치면 되돌리고, 다시 글자로</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>되돌린 글 한 줄</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">글자마다 번호가 매겨져 있다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    컴퓨터는 글자를 <strong>정해진 번호</strong>로 저장합니다.
+                    대문자는 <strong>A가 65</strong>, B가 66&hellip; <strong>Z가 90</strong>으로 <strong>차례대로 이어져</strong> 있습니다.
+                    <strong>차례대로라는 것이 중요합니다</strong> &mdash; 그래서 번호를 3 빼면 알파벳도 3칸 앞으로 갑니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">글자</th>
+                            <th class="w-28">번호</th>
+                            <th>3을 빼면</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold">D</td>
+                            <td>68</td>
+                            <td>65 &rarr; <strong>A</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">E</td>
+                            <td>69</td>
+                            <td>66 &rarr; <strong>B</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">A</td>
+                            <td>65</td>
+                            <td>62 &rarr; <strong>알파벳이 아니다</strong></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    셋째 줄이 요구 사항 4번이 필요한 이유입니다.
+                    <strong>62번 자리에도 무언가 글자가 있습니다.</strong> 그래서 멈추지 않고 그것을 내놓습니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">끝에서 이어 받게 하려면</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    번호를 그대로 두고 밀면 65 아래로 떨어집니다.
+                    그래서 <strong>A를 0번으로 옮겨 놓고</strong> 생각합니다 &mdash; 번호에서 65를 빼면 A가 0, Z가 25가 됩니다.
+                    이 상태에서 3을 빼면 <strong>0부터 25 사이를 벗어나는 값</strong>이 생기는데,
+                    <strong>26으로 나눈 나머지를 취하면 다시 그 안으로 돌아옵니다.</strong>
+                    마지막에 65를 도로 더하면 글자 번호가 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    A(0번)를 예로 보면 &mdash; 0에서 3을 빼면 &minus;3이고,
+                    이것을 26으로 나눈 나머지는 <strong>23</strong>입니다.
+                    23번은 <strong>X</strong>이니 요구 사항 4번대로입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>암호문을 한 줄 입력받는다.</li>
+                    <li>결과를 담을 <strong>빈 글</strong>을 하나 마련한다.</li>
+                    <li>암호문의 <strong>글자를 하나씩</strong> 꺼내 되풀이한다.</li>
+                    <li>글자를 번호로 바꾸고 65를 빼서 0~25로 옮긴다.</li>
+                    <li>3을 뺀 뒤 26으로 나눈 나머지를 취한다.</li>
+                    <li>65를 도로 더해 글자로 바꾸고 <strong>결과 뒤에 이어 붙인다.</strong></li>
+                    <li>되풀이가 끝나면 결과를 내놓는다.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>B</strong>를 위 순서에 넣어 손으로 따라가 보세요. 4번부터 6번까지 값이 어떻게 바뀌고, 어떤 글자가 나올까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">먼저 되는 것부터, 그다음 넘치는 자리를 막습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                요구 사항 4번(끝에서 이어 받기)을 빼고 <strong>단순히 3만 빼는 코드</strong>부터 만들어 봅니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">암호.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/암호.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>결과를 쌓아 가는 방식
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빈 글에서 시작해 <strong>한 글자씩 뒤에 이어 붙이며</strong> 답을 키워 갑니다.
+                    <strong>되풀이 밖에서 빈 글을 마련하는 것</strong>이 중요합니다 &mdash;
+                    안에서 마련하면 <strong>돌 때마다 비워져</strong> 마지막 글자 하나만 남습니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>이 코드는 요구 사항 4번을 못 지킵니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>DEFG</strong>를 넣으면 <strong>ABCD</strong>가 잘 나옵니다.
+                    그런데 <strong>ABC</strong>를 넣으면 알파벳이 아닌 기호가 나옵니다.
+                    <strong>멈추지 않으므로 실행 오류가 아니라 논리 오류</strong>입니다 &mdash;
+                    <strong>앞쪽 글자를 넣어 보기 전에는 발견되지 않습니다.</strong>
+                </p>
+            </div>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">암호.순환.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/암호.순환.py"></code></pre>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                순환 코드에서 <strong>마지막에 65를 더하는 줄을 빼면</strong> 어떻게 될까요? 0~25번 자리에는 어떤 글자들이 있을지 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">뒤쪽 글자만 넣어 보면 아무 문제가 없어 보입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 프로그램의 함정은 <strong>흔한 값에서는 안 드러난다</strong>는 것입니다.
+                <strong>D 이후의 글자만 넣어 보면</strong> 기본 코드도 완벽해 보입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">넣은 값</th>
+                        <th class="w-32">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>DEFG</td>
+                        <td class="font-bold">ABCD</td>
+                        <td>넘치지 않는 흔한 경우</td>
+                    </tr>
+                    <tr>
+                        <td>PYTHON</td>
+                        <td class="font-bold">MVQELK</td>
+                        <td>여러 글자 &mdash; 하나씩 제대로 도는지</td>
+                    </tr>
+                    <tr>
+                        <td>D</td>
+                        <td class="font-bold">A</td>
+                        <td>넘치기 직전의 경계</td>
+                    </tr>
+                    <tr>
+                        <td>C</td>
+                        <td class="font-bold">Z</td>
+                        <td><strong>넘치는 첫 글자</strong> &mdash; 요구 사항 4번</td>
+                    </tr>
+                    <tr>
+                        <td>A</td>
+                        <td class="font-bold">X</td>
+                        <td>가장 많이 넘치는 경우</td>
+                    </tr>
+                    <tr>
+                        <td>ABC</td>
+                        <td class="font-bold">XYZ</td>
+                        <td>넘치는 글자만 이어진 경우</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>A·B·C만 이상한 기호로 나온다</strong> &mdash; 26으로 나누는 줄이 빠졌습니다</li>
+                    <li><strong>마지막 글자 하나만 나온다</strong> &mdash; 빈 글을 <strong>되풀이 안에서</strong> 마련하고 있습니다</li>
+                    <li><strong>아무것도 안 나온다</strong> &mdash; 내놓는 줄이 되풀이 안에 있거나, 이어 붙이지 않고 <strong>덮어쓰고</strong> 있습니다</li>
+                    <li><strong>전부 알파벳이 아닌 것으로 나온다</strong> &mdash; 65를 도로 더하는 줄이 빠졌습니다</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표의 <strong>C &rarr; Z</strong>를 손으로 검산해 보세요. C는 65를 뺐을 때 몇 번이고, 3을 빼면 얼마이며, 26으로 나눈 나머지는 얼마인가요?
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">고정해 둔 것을 풀어 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">미는 칸수를 입력받는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        3으로 고정한 것을 풀어 봅니다.
+                        <strong>26으로 나눈 나머지를 쓰고 있다면 칸수가 100이어도 그대로 동작합니다.</strong>
+                        왜 그런지 설명할 수 있나요?
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">감추는 쪽도 만든다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        원래 글을 받아 <strong>3칸 뒤로 밀어 감추는</strong> 프로그램입니다.
+                        <strong>빼기를 더하기로 바꾸기만 하면 될까요?</strong> Z 쪽에서 넘치는 경우를 확인해 보세요.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">공백을 그대로 둔다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        요구 사항 6번을 풀어 <strong>공백은 밀지 않고 그대로</strong> 내보내게 합니다.
+                        문장이 훨씬 읽기 쉬워집니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">칸수를 모를 때 풀어 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>25가지를 전부 밀어 보고 모두 보여 주면</strong> 그중 하나가 읽히는 말일 것입니다.
+                        이 암호의 약점이 무엇인지 여기서 드러납니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                마지막 과제처럼 <strong>25가지를 모두 시도해 보면 풀린다</strong>면, 이 암호를 오늘날 비밀을 지키는 데 쓸 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

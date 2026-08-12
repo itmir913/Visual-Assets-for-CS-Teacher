@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>선택 구조</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/py/04-선택-구조.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-code-branch absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-signs-post absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            선택 구조
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+위에서 아래로만 흐르던 프로그램이<br>
+            <strong>여기서 처음으로 갈라집니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>조건에 따라 실행할 줄을 갈라놓을 수 있고, 갈래가 셋 이상일 때 이어 붙일 수 있다.</li>
+                    <li>들여쓰기가 어디까지를 묶는지 설명하고, 들여쓰기를 어겼을 때 무슨 일이 일어나는지 안다.</li>
+                    <li>조건이 여럿일 때 겹쳐 쓰는 것과 논리 연산자로 묶는 것을 견주어 고를 수 있다.</li>
+                    <li>값 하나를 고르는 한 줄 표현을 읽고 쓸 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-code-branch text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">선택 구조</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#branch" class="hover:text-orange-600 transition">갈라지기</a>
+            <a href="#indent" class="hover:text-orange-600 transition">들여쓰기</a>
+            <a href="#nest" class="hover:text-orange-600 transition">조건이 여럿일 때</a>
+            <a href="#truth" class="hover:text-orange-600 transition">참으로 보는 것</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 조건에 따라 갈라지기 ===== -->
+    <section id="branch" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">조건에 따라 갈라지기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">지금까지의 프로그램은 언제 돌려도 같은 줄을 같은 순서로 지났습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기까지 만든 프로그램은 <strong>위에서 아래로 한 번</strong> 흐르고 끝났습니다.
+                입력이 무엇이든 지나가는 줄이 같았습니다. <code>if</code>는 여기에 <strong>갈림길</strong>을 놓습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.기본.py"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-orange-900">읽는 순서</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5">
+                    <li><code>if</code> 뒤의 조건을 계산한다 &mdash; 앞 차시에서 본 대로 <strong>결과는 참 아니면 거짓</strong>이다.</li>
+                    <li>참이면 <strong>들여쓴 줄들</strong>을 실행하고 <code>else</code> 쪽은 건너뛴다.</li>
+                    <li>거짓이면 <code>else</code> 쪽만 실행한다.</li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>둘 중 하나만 실행됩니다.</strong> <code>else</code>는 없어도 됩니다 &mdash;
+                    그러면 조건이 거짓일 때 아무 일도 하지 않고 지나갑니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">콜론을 빠뜨리기 쉽습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    조건 끝의 <code>:</code>는 <strong>「여기부터 딸린 줄들이 시작된다」</strong>는 표시입니다.
+                    빠뜨리면 <code>SyntaxError</code>가 나는데, <strong>오류 메시지가 다음 줄을 가리켜</strong>
+                    엉뚱한 데를 보게 되기 쉽습니다. <code>if</code>를 썼는데 오류가 나면
+                    <strong>줄 끝에 콜론이 있는지부터</strong> 보세요.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                갈래가 셋 이상이면 <code>elif</code>로 이어 붙입니다. <strong>「else if」를 줄인 낱말</strong>입니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.여러갈래.py"></code></pre>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>위에서부터 보다가 «맞는 첫 곳»에서 멈춥니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    85점은 <code>score &gt;= 80</code>도 참이고 <code>score &gt;= 70</code>도 참입니다.
+                    그런데 <strong>B만 찍힙니다.</strong> 한 갈래가 걸리면 나머지는 보지도 않기 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>순서가 뜻을 바꿉니다.</strong> 조건을 뒤집어 <code>score &gt;= 70</code>을
+                    맨 위에 두면 95점도 C가 되어 버립니다. <strong>좁은 조건부터 넓은 조건 순으로</strong> 놓아야 합니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.전체.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                윤년 판별은 갈래가 순서를 타는 좋은 예입니다.
+                <strong>4의 배수이면서 100의 배수가 아니면</strong> 윤년이고,
+                그 조건에서 걸러진 100의 배수 가운데 <strong>400의 배수만</strong> 다시 윤년입니다.
+                2024와 2000은 윤년이고, 1900은 아닙니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">위 등급 코드에 <code>score</code>가 105일 때는 무엇이 찍힐까요? 잘못된 값을 걸러 내려면 어디에 무엇을 더해야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 들여쓰기가 곧 문법입니다 ===== -->
+    <section id="indent" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">들여쓰기가 곧 문법입니다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">파이썬에서는 빈칸이 눈속임이 아니라 뜻입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>if</code>에 딸리는 줄이 어디까지인지는 <strong>들여쓰기가 정합니다.</strong>
+                묶어 주는 괄호 같은 것이 따로 없습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.들여쓰기.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">들여쓴 만큼만 딸립니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>print("수고했습니다")</code>는 들여쓰지 않았으므로 <strong>조건과 상관없이 실행됩니다.</strong>
+                    40점이어도 찍힙니다. <strong>이것은 오류가 아니라 시킨 대로 한 것</strong>입니다 &mdash;
+                    「무엇을 안에 넣고 무엇을 밖에 둘지」를 빈칸으로 말하는 셈입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>반대로 아예 안 들여쓰면 «문법 오류»입니다</p>
+                <pre class="language-python"><code class="language-python" data-src="code/04.들여쓰기오류.py"></code></pre>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>if</code> 뒤에는 <strong>딸린 줄이 적어도 하나 있어야</strong> 합니다.
+                    하나도 없으면 파이썬이 <code>IndentationError</code>로 <strong>그 자리에서 멈춥니다.</strong>
+                    조용히 지나가지 않는다는 점에서 <strong>오히려 다행인 실수</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>빈칸 넷으로 통일합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    몇 칸을 들여쓸지는 정해져 있지 않습니다. <strong>같은 묶음 안에서 같기만</strong> 하면 됩니다.
+                    그래도 <strong>빈칸 넷</strong>이 널리 쓰이는 약속이니 그대로 따르는 편이 좋습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>탭과 빈칸을 섞지 마세요.</strong> 화면에는 똑같이 보이는데 파이썬은 다르게 읽어,
+                    <strong>눈으로는 절대 찾을 수 없는 오류</strong>가 됩니다.
+                    편집기에서 「탭을 빈칸으로 바꾸기」를 켜 두면 이 문제 자체가 생기지 않습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>if</code> 안에서 아무것도 하지 않고 넘어가고 싶을 때는 어떻게 할까요? 빈 줄로 두면 오류가 나는데요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 조건이 여럿일 때 ===== -->
+    <section id="nest" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">조건이 여럿일 때</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">겹쳐 쓸 수도 있고 한 줄로 묶을 수도 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>if</code> 안에 <code>if</code>를 또 둘 수 있습니다. <strong>중첩</strong>이라고 합니다.
+                한 겹 들어갈 때마다 <strong>네 칸씩 더</strong> 들여씁니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.중첩.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                같은 판정을 <strong>겹치지 않고</strong> 쓸 수도 있습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.and로.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">둘은 같지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    합격을 가려내는 것만 보면 결과가 같지만, <strong>안 되는 경우를 갈라 주는 방식이 다릅니다.</strong>
+                    겹쳐 쓰면 「출석이 모자란 것」과 「점수가 모자란 것」을 <strong>따로 안내</strong>할 수 있고,
+                    한 줄로 묶으면 둘이 <strong>한 덩어리</strong>가 되어 이유를 나눌 수 없습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>이유를 나눌 필요가 없으면 묶는 편이</strong> 읽기 쉽습니다.
+                    겹침이 깊어질수록 오른쪽으로 밀려 <strong>두 겹까지가 읽기 좋은 한계</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">출석이 모자랄 때와 점수가 모자랄 때 다른 말을 해 주고 싶다면, 두 방식 가운데 어느 쪽을 골라야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 참으로 보는 것과 거짓으로 보는 것 ===== -->
+    <section id="truth" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">참으로 보는 것과 거짓으로 보는 것</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">조건 자리에 꼭 견주기만 오는 것은 아닙니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>if</code> 뒤에는 <strong>참·거짓이 아닌 값</strong>도 놓을 수 있습니다.
+                그러면 파이썬이 그 값을 <strong>참 쪽인지 거짓 쪽인지</strong> 판정해 줍니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.참거짓.py"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">거짓으로 보는 것</th>
+                        <th>참으로 보는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>0</code>, <code>0.0</code></td>
+                        <td>0이 아닌 모든 수 &mdash; <strong>음수도 참</strong>이다</td>
+                    </tr>
+                    <tr>
+                        <td><code>""</code> 빈 글자</td>
+                        <td>글자가 하나라도 있으면 참 &mdash; <code>"0"</code>도 <strong>참</strong>이다</td>
+                    </tr>
+                    <tr>
+                        <td><code>False</code></td>
+                        <td><code>True</code></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i><code>"0"</code>은 참입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>따옴표가 붙은 순간 「글자 하나가 들어 있는 것」</strong>이 되기 때문입니다.
+                    <code>input</code>으로 받은 값은 언제나 글자이므로,
+                    <strong>「0을 입력했는지」를 보려면 수로 바꿔서 견주어야</strong> 합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                고르는 것이 <strong>실행할 줄이 아니라 값 하나</strong>일 때는 한 줄로 쓸 수 있습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/04.한줄.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>「참일 때 값 &mdash; 조건 &mdash; 거짓일 때 값」</strong> 차례로 읽습니다.
+                짧아서 좋지만 <strong>겹쳐 쓰면 금세 읽기 어려워지므로</strong>, 그럴 때는 <code>if</code>로 풀어 씁니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>if score:</code>라고 쓰면 0점인 학생은 어느 쪽으로 갈까요? 이것이 왜 위험한 조건일까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900"><code>if</code> &middot; <code>elif</code> &middot; <code>else</code></h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    위에서부터 보다가 <strong>맞는 첫 갈래에서 멈춘다.</strong>
+                    그래서 순서가 뜻을 바꾼다 &mdash; 좁은 조건을 위에 놓는다. 줄 끝의 <strong>콜론</strong>을 빠뜨리지 않는다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">들여쓰기가 문법</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>들여쓴 만큼만</strong> 조건에 딸린다. 하나도 안 들여쓰면 <code>IndentationError</code>다.
+                    <strong>빈칸 넷</strong>으로 맞추고 탭과 섞지 않는다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">겹치기와 묶기</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    겹쳐 쓰면 <strong>안 되는 이유를 나눌 수</strong> 있고, <code>and</code>로 묶으면
+                    한 덩어리가 된다. <strong>이유를 나눌 필요가 없으면 묶는 편</strong>이 읽기 쉽다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">참으로 보는 값</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>0</code>과 빈 글자가 거짓, 나머지는 참이다.
+                    <strong><code>"0"</code>은 참</strong>이므로 입력값을 볼 때는 수로 바꿔서 견준다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">
+                1. <code>score</code>가 95일 때, 조건을 <code>score &gt;= 70</code> &rarr; <code>score &gt;= 80</code> &rarr;
+                <code>score &gt;= 90</code> 순으로 <code>elif</code>를 늘어놓으면?
+            </p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞는 첫 갈래에서 멈춥니다. 95는 70 이상이라 첫 갈래에 걸리고 나머지는 보지도 않습니다.')">
+                    ① 맨 위 갈래 하나만 실행된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '조건이 여럿 참이어도 실행되는 것은 하나뿐입니다.')">
+                    ② 조건이 참인 갈래가 모두 실행된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '가장 좁은 조건을 알아서 고르지 않습니다. 순서대로 볼 뿐입니다.')">
+                    ③ 가장 잘 맞는 갈래를 알아서 고른다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '문법에 어긋나지 않습니다. 그래서 더 찾기 어렵습니다.')">
+                    ④ 오류가 난다
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>if</code> 다음 줄을 들여쓰지 않으면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '들여쓰기는 눈속임이 아니라 문법입니다. 파이썬이 그냥 넘어가지 않습니다.')">
+                    ① 조건에 딸린 것으로 보고 실행된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, 'if 뒤에는 딸린 줄이 적어도 하나 있어야 합니다. IndentationError로 멈춥니다.')">
+                    ② 딸린 줄이 하나도 없어 <code>IndentationError</code>가 난다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '경고로 끝나지 않고 실행 자체가 안 됩니다.')">
+                    ③ 경고만 나오고 실행은 된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '들여쓰기 칸 수는 자유지만, 아예 없는 것은 다릅니다.')">
+                    ④ 들여쓰기는 자유라 아무 일도 없다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 다음 중 조건 자리에서 <strong>거짓</strong>으로 보는 것은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '따옴표가 붙으면 글자 하나가 들어 있는 것이라 참입니다.')">
+                    ① <code>"0"</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '0이 아닌 수는 음수여도 참입니다.')">
+                    ② <code>-3</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '빈 글자는 거짓으로 봅니다. 아무것도 입력하지 않았을 때가 이것입니다.')">
+                    ③ <code>""</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '빈칸도 글자 하나입니다. 그래서 참입니다.')">
+                    ④ <code>" "</code>
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

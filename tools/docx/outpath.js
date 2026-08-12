@@ -1,9 +1,9 @@
 // outpath.js
 // 산출물이 어느 폴더로 나가는지는 여기 한 곳에서만 정한다.
-// 폴더를 옮길 때 아래 DEST 표만 고치면 make/*.js 39개는 건드릴 필요가 없다.
+// 폴더를 옮길 때 아래 DEST 표만 고치면 make/ 아래 생성기는 건드릴 필요가 없다.
 //
 // 사용: const out = require('../outpath');
-//       makeDocument({...}, out('실습', '비만도-측정.py.docx'));
+//       makeDocument({...}, out('실습', '비만도-측정.py.docx'));   ← make/실습/비만도-측정.py.js
 
 const fs = require('fs');
 const path = require('path');

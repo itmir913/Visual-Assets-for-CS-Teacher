@@ -15,8 +15,14 @@ if (!fs.existsSync(makeDir)) {
     process.exit(1);
 }
 
-// 2. make 폴더 내의 모든 .js 파일 읽기
-const files = fs.readdirSync(makeDir).filter(file => file.endsWith('.js'));
+// 2. make 폴더 아래의 모든 .js 파일 읽기 — 하위 폴더까지 내려간다.
+//    폴더로 묶은 생성기를 **말없이 건너뛰지 않기 위해** 재귀로 훑는다.
+//    예전에는 readdirSync 한 번이라 make/실습/ 을 만들면 30개가 조용히 빠졌다.
+const walk = (dir, prefix = '') => fs.readdirSync(dir, {withFileTypes: true})
+    .flatMap(e => e.isDirectory()
+        ? walk(path.join(dir, e.name), prefix + e.name + '/')
+        : (e.name.endsWith('.js') ? [prefix + e.name] : []));
+const files = walk(makeDir).sort();
 
 if (files.length === 0) {
     console.log("ℹ️ make/ 폴더에 실행할 JS 파일이 없습니다.");
@@ -32,10 +38,10 @@ files.forEach(file => {
     console.log(`▶️ 실행 중: make/${file}`);
     try {
         // 출력 경로는 outpath.js가 저장소 루트 기준 절대 경로로 만들어 주므로
-        // cwd는 결과에 영향을 주지 않는다. make/ 안의 상대 require를 위해서만 고정한다.
+        // cwd는 결과에 영향을 주지 않는다. 상대 require를 위해 그 파일이 있는 폴더로 잡는다.
         execSync(`node "${filePath}"`, {
             stdio: 'inherit',
-            cwd: makeDir
+            cwd: path.dirname(filePath)
         });
         console.log(`✅ 완료: make/${file}\n`);
     } catch (error) {

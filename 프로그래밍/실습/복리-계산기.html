@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>복리 계산기</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/복리-계산기.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-piggy-bank absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chart-line absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            복리 계산기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            어제의 결과가<br>
+            <strong>오늘의 시작</strong>이 됩니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>앞 단계의 결과가 다음 단계의 입력이 되는 되풀이를 설계할 수 있다.</li>
+                    <li>값을 쌓아 가는 자리를 되풀이 밖에 두어야 하는 이유를 설명할 수 있다.</li>
+                    <li>돈처럼 자릿수가 중요한 값을 정해진 자리까지 내놓을 수 있다.</li>
+                    <li>단리와 복리의 차이가 어디서 생기는지 계산으로 보일 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-piggy-bank text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">복리 계산기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이자에 다시 이자가 붙으면 어떻게 될까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>매달 넣을 돈</strong>과 <strong>월 이자율</strong>을 입력받아,
+                    <strong>1개월부터 24개월까지 달마다 잔액이 얼마가 되는지</strong>
+                    한 줄씩 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이번 실습의 되풀이는 지금까지와 성질이 다릅니다.
+                철근 자르기의 되풀이는 <strong>매번 따로 노는 일</strong>이었습니다 &mdash; 번호를 하나씩 찍을 뿐이었지요.
+                여기서는 <strong>지난달의 잔액이 이번 달 계산의 재료</strong>가 됩니다.
+                <strong>앞의 결과를 물려받으며 도는 되풀이</strong>가 이번의 몸통입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>먼저 밝혀 둘 것 &mdash; 실제 금융 상품과 다릅니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 프로그램은 <strong>&ldquo;잔액 전체에 이자가 붙는다&rdquo;는 계산만</strong> 그대로 따라 합니다.
+                    실제 예금과 적금은 <strong>이자를 매기는 방식이 상품마다 다르고</strong>,
+                    <strong>세금도 붙습니다.</strong>
+                    <strong>여기서 나온 숫자를 실제 저축의 결과로 여기면 안 됩니다.</strong>
+                    배우려는 것은 금융이 아니라 <strong>앞의 결과를 물려받는 되풀이</strong>입니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>몇 달까지 보여 주고 자릿수를 어떻게 할 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>이번 달 잔액이 무엇으로 정해지는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>잔액을 담는 자리를 어디에 둘 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>손으로 계산할 수 있는 값을 어떻게 고를 것인가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-15.docx"
+                       download="[개발 문서] 복리 계산기 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-15.docx"
+                       download="[개발 문서] 복리 계산기 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">「잔액을 알려 준다」에 정할 것이 남아 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>이자를 언제 붙이나요?</strong> 그달 저축을 넣기 전인가요 넣은 뒤인가요</li>
+                    <li><strong>몇 달까지 보여 주나요?</strong> 24개월로 정해져 있나요</li>
+                    <li><strong>소수점을 어떻게 하나요?</strong> 원 단위로 자르나요</li>
+                    <li><strong>이자율은 연 이율인가요 월 이율인가요?</strong></li>
+                    <li><strong>매달만 보여 주나요?</strong> 마지막 값만 보여 주면 안 되나요</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>매달 넣을 돈</strong>과 <strong>월 이자율(퍼센트)</strong>을 한 줄에 하나씩 받는다.</li>
+                    <li><strong>그달 저축을 먼저 넣고, 그 전체에 이자를 붙인다.</strong></li>
+                    <li><strong>1개월부터 24개월까지</strong> 매달의 잔액을 <strong>한 줄에 하나씩</strong> 내놓는다.</li>
+                    <li>각 줄에는 <strong>몇 개월째인지와 잔액</strong>을 함께 적는다.</li>
+                    <li>잔액은 <strong>소수점 둘째 자리까지</strong> 반올림해 내놓는다.</li>
+                    <li>기간 24개월은 <strong>고정</strong>한다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>2번을 안 정하면 답이 달라집니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>저축을 넣고 이자를 붙이는 것</strong>과 <strong>이자를 붙인 뒤 저축을 넣는 것</strong>은
+                    <strong>답이 다릅니다.</strong> 첫째 달만 봐도 그렇습니다 &mdash;
+                    앞쪽이면 <strong>넣은 돈에도 이자가 붙고</strong>, 뒤쪽이면 <strong>0에 이자가 붙어 그대로</strong>입니다.
+                    <strong>둘 다 말이 되는 규칙</strong>이라 무엇이 맞는지 코드로는 알 수 없습니다.
+                    <strong>정해서 적어 두어야만</strong> 테스트할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 2번을 반대로 &mdash; <strong>이자를 먼저 붙이고 저축을 넣는다</strong>고 정하면 첫째 달 잔액은 얼마가 될까요? 매달 10만 원, 월 1%로 계산해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 지난달을 물려받는다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이번 달 잔액은 무엇으로 정해질까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>매달 넣을 돈, 월 이자율 &mdash; 실수 두 개</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>지난달 잔액에 이번 달 저축을 더하고 이자를 붙이기를 24번</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>24줄 &mdash; 달과 잔액</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">한 달치 계산은 한 줄이면 된다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>새 잔액 = (지난 잔액 + 이번 달 저축) &times; (1 + 이자율 &divide; 100)</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이자율을 100으로 나누는 것은 <strong>퍼센트를 배율로 바꾸는 일</strong>입니다.
+                    1퍼센트는 0.01이고, 여기에 1을 더한 <strong>1.01을 곱하면 1퍼센트가 붙은 값</strong>이 됩니다.
+                    <strong>이자만 따로 구해 더하지 않고 한 번에 곱하는 것</strong>이 간단합니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-24">달</th>
+                            <th class="w-40">계산</th>
+                            <th>잔액 (매달 10만 원, 월 1%)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>1개월</td>
+                            <td>(0 + 100000) &times; 1.01</td>
+                            <td class="font-bold">101,000</td>
+                        </tr>
+                        <tr>
+                            <td>2개월</td>
+                            <td>(101000 + 100000) &times; 1.01</td>
+                            <td class="font-bold">203,010</td>
+                        </tr>
+                        <tr>
+                            <td>3개월</td>
+                            <td>(203010 + 100000) &times; 1.01</td>
+                            <td class="font-bold">306,040.1</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>둘째 줄의 101000이 첫째 줄의 결과</strong>라는 점이 핵심입니다.
+                    <strong>계산이 사슬처럼 이어집니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>매달 넣을 돈과 이자율을 입력받는다.</li>
+                    <li>잔액을 <strong>0</strong>으로 놓는다.</li>
+                    <li>1개월부터 24개월까지 되풀이한다.
+                        <ul class="mt-1 space-y-1 text-base font-medium text-slate-800 list-disc list-outside pl-5">
+                            <li>잔액 = (잔액 + 매달 넣을 돈) &times; (1 + 이자율 &divide; 100)</li>
+                            <li>몇 개월째인지와 잔액을 한 줄 내놓는다.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>2번이 되풀이 밖에 있어야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    잔액을 0으로 놓는 줄이 <strong>되풀이 안에 들어가면 달마다 0으로 되돌아갑니다.</strong>
+                    그러면 <strong>매달 똑같은 값</strong>이 24번 찍힙니다.
+                    <strong>철광석 제련에서 &lsquo;가장 큰 값&rsquo;을 밖에 두었던 것과 같은 이야기</strong>입니다.
+                    <strong>물려받아야 하는 값은 되풀이 밖에서 마련합니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표의 3개월째 잔액을 <strong>직접 계산</strong>해 보세요. 그리고 그 값이 <strong>넣은 돈 30만 원보다 얼마나 많은지</strong>도 구해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">설계 그대로 옮기면 여섯 줄입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">복리.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/복리.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>같은 이름이 양쪽에 나오는 줄
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    잔액을 구하는 줄에서 <strong>잔액이라는 이름이 왼쪽에도 오른쪽에도</strong> 나옵니다.
+                    수학의 등호로 읽으면 이상한 식이지만, 여기서는 <strong>&ldquo;오른쪽을 계산해서 왼쪽에 새로 담아라&rdquo;</strong>는 뜻입니다.
+                    <strong>오른쪽의 잔액은 지난달 값, 왼쪽의 잔액은 이번 달 값</strong>입니다.
+                    <strong>물려받는 되풀이는 거의 언제나 이 모양</strong>을 하고 있습니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">되풀이가 도는 값을 이번엔 씁니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    종이 자르기에서는 도는 값을 안 써서 <strong>밑줄 하나</strong>로 두었습니다.
+                    여기서는 <strong>몇 개월째인지 내놓아야</strong> 하므로 이름을 지어 씁니다.
+                    <strong>1부터 24까지 돌아야</strong> 하니 범위의 끝은 <strong>25</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                잔액을 0으로 놓는 줄을 <strong>되풀이 안으로 들여쓰면</strong> 24줄에 무엇이 찍힐까요? 매달 10만 원, 월 1%로 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이자율 0을 넣으면 답을 손으로 알 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                24줄을 다 검산할 수는 없습니다.
+                <strong>손으로 계산할 수 있는 값을 골라</strong> 첫 줄과 마지막 줄만 확인하는 것이 요령입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">넣은 값</th>
+                        <th class="w-44">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>100000 / 0</td>
+                        <td class="font-bold">1개월 100000<br>24개월 2400000</td>
+                        <td><strong>이자율 0</strong> &mdash; 넣은 돈이 그대로 쌓이는지</td>
+                    </tr>
+                    <tr>
+                        <td>0 / 5</td>
+                        <td class="font-bold">24개월 모두 0</td>
+                        <td>넣는 돈이 0 &mdash; 0에 이자를 붙여도 0인지</td>
+                    </tr>
+                    <tr>
+                        <td>100000 / 1</td>
+                        <td class="font-bold">1개월 101000.0<br>2개월 203010.0</td>
+                        <td>설계 표와 맞는지</td>
+                    </tr>
+                    <tr>
+                        <td>100000 / 1</td>
+                        <td class="font-bold">24개월 2724319.95</td>
+                        <td>사슬이 24번 제대로 이어지는지</td>
+                    </tr>
+                    <tr>
+                        <td>100000 / 100</td>
+                        <td class="font-bold">1개월 200000.0</td>
+                        <td>이자율 100퍼센트 &mdash; 배율로 잘 바뀌는지</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>24줄이 모두 같다</strong> &mdash; 잔액을 <strong>되풀이 안에서</strong> 0으로 되돌리고 있습니다</li>
+                    <li><strong>이자율 0인데 값이 커진다</strong> &mdash; 배율을 <strong>1 + 이자율/100</strong>이 아니라
+                        <strong>이자율/100</strong>으로 적었거나 100으로 안 나눴습니다
+                    </li>
+                    <li><strong>이자율 0인데 값이 0이 된다</strong> &mdash; 배율에 <strong>1을 더하지 않았습니다</strong></li>
+                    <li><strong>1개월에 100000이 나온다 (이자율 1인데)</strong> &mdash;
+                        <strong>이자를 붙이고 저축을 넣는</strong> 순서로 적었습니다. 요구 사항 2번과 반대입니다
+                    </li>
+                    <li><strong>23줄만 나온다</strong> &mdash; 범위 끝에 <strong>1을 더하지 않았습니다</strong></li>
+                    <li><strong>소수점이 길게 나온다</strong> &mdash; 반올림하는 부분이 빠졌습니다</li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>이자율 0이 가장 좋은 테스트입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이자율을 0으로 넣으면 <strong>답을 암산으로 알 수 있습니다</strong> &mdash;
+                    10만 원씩 24번이면 240만 원이지요.
+                    <strong>계산이 복잡한 프로그램일수록 &lsquo;계산이 사라지는 값&rsquo;을 찾아 넣어 보면</strong>
+                    사슬이 제대로 이어지는지만 따로 확인할 수 있습니다.
+                    파이값 근사하기에서 <strong>&ldquo;점을 일부러 고르게 골랐다&rdquo;</strong>고 한 것과 같은 요령입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표의 다섯째 줄에서 <strong>이자율 100</strong>을 넣으면 1개월 잔액이 20만 원입니다. 왜 그렇게 되는지 배율로 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">단리와 견주어 보면 복리가 무엇인지 또렷해집니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">단리와 견주려면 먼저 단리를 정의해야 합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>&ldquo;단리는 이자에 이자가 안 붙는 것&rdquo;</strong>이라고만 하면 계산할 수가 없습니다.
+                    매달 돈을 넣는 경우에는 <strong>&ldquo;각 달에 넣은 돈이 남은 개월 수만큼 이자를 받는다&rdquo;</strong>처럼
+                    <strong>정확히 정해 주어야</strong> 숫자가 나옵니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그렇게 정하고 매달 10만 원, 월 1%로 24개월을 계산하면
+                    <strong>단리는 270만 원, 복리는 약 272만 4,320원</strong>입니다.
+                    <strong>차이는 약 2만 4,320원</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    생각보다 작다고 느껴질 수 있습니다. <strong>기간이 짧기 때문</strong>입니다.
+                    <strong>기간을 늘려 보면 차이가 어떻게 벌어지는지</strong> 직접 확인해 보세요 &mdash;
+                    그것이 아래 첫 과제입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">기간을 입력받는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        24개월 고정을 풀어 봅니다.
+                        <strong>60개월, 120개월로 늘려 가며</strong> 단리와의 차이가 어떻게 되는지 적어 보세요.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">단리도 함께 보여 준다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 줄에 <strong>단리 잔액과 복리 잔액을 나란히</strong> 내놓습니다.
+                        위에서 정한 단리 규칙을 그대로 코드로 옮기면 됩니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">목표 금액에 언제 닿나</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        1000만 원을 목표로 두고 <strong>몇 개월이 걸리는지</strong> 구해 봅니다.
+                        <strong>몇 번 돌지 미리 모르는 되풀이</strong>가 필요합니다 &mdash;
+                        도서 대출 시스템에서 쓴 방식입니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">원 단위로 자른다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        실제 돈은 <strong>소수점 아래가 없습니다.</strong>
+                        매달 소수점을 버리고 계산하면 <strong>24개월 뒤 값이 달라집니다.</strong>
+                        얼마나 달라지는지 확인해 보세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                마지막 과제에서 <strong>매달 소수점을 버리면</strong> 최종 잔액이 커질까요 작아질까요? 그리고 그 차이는 <strong>기간이 길어질수록</strong> 어떻게 될까요?
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

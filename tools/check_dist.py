@@ -10,6 +10,9 @@
    아무도 가리키지 않는 파일이 있는지.
 2. **로컬화되지 않은 CDN 참조** — 하나라도 남으면 CDN을 막는 학교망에서 깨진다.
 3. **태그 중첩** — 주입·치환이 구조를 망가뜨리지 않았는지 마지막으로 확인한다.
+4. **CSS가 가리키는 자산이 실제로 있는지** — 빌드가 글꼴을 깎아 이름을 다시 매기므로
+   (`tools/vite/subset-icon-font.js`), 참조 고치기를 한 군데라도 빠뜨리면 404가 난다.
+   아이콘은 안 그려져도 페이지가 멀쩡해 보여서 **눈으로는 못 잡는다.**
 
 사용법:
     python tools/check_dist.py            # dist/
@@ -43,6 +46,7 @@ UNLINKED_OK = {
     "프로그래밍/실습/docx/수행평가-양식.c.docx",
 }
 CDN_RE = re.compile(r"https://(?:cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*")
+URL_RE = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""")
 
 
 def check_docx_links(files: list[Path]) -> tuple[list[str], int]:
@@ -96,6 +100,21 @@ def check_nesting(files: list[Path]) -> list[str]:
     return bad
 
 
+def check_asset_refs(root: Path) -> tuple[list[str], int]:
+    """CSS의 url()이 가리키는 로컬 파일이 실제로 있는지 본다."""
+    bad: list[str] = []
+    total = 0
+    for css in sorted(root.rglob("*.css")):
+        for ref in URL_RE.findall(css.read_text(encoding="utf-8", errors="ignore")):
+            if ref.startswith(("data:", "http:", "https:", "//", "#")):
+                continue
+            total += 1
+            target = (root / ref.lstrip("/")) if ref.startswith("/") else (css.parent / ref)
+            if not target.exists():
+                bad.append(f"CSS가 없는 파일을 가리킨다: {css} -> {ref}")
+    return bad, total
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("dist", nargs="?", default="dist", help="검사할 산출물 폴더 (기본 dist)")
@@ -118,12 +137,14 @@ def main() -> int:
     docx_bad += check_orphan_docx(root, files)
     cdn_bad = check_cdn(files)
     nest_bad = check_nesting(files)
+    ref_bad, ref_total = check_asset_refs(root)
 
-    log.debug("HTML %d개, docx 링크 %d건", len(files), docx_total)
-    errs = docx_bad + cdn_bad + nest_bad
+    log.debug("HTML %d개, docx 링크 %d건, CSS 자산 참조 %d건", len(files), docx_total, ref_total)
+    errs = docx_bad + cdn_bad + nest_bad + ref_bad
     for e in errs:
         log.error("%s", e)
-    log.info("완료 — HTML %d, docx 링크 %d, 문제 %d", len(files), docx_total, len(errs))
+    log.info("완료 — HTML %d, docx 링크 %d, CSS 자산 참조 %d, 문제 %d",
+             len(files), docx_total, ref_total, len(errs))
     return 1 if errs else 0
 
 

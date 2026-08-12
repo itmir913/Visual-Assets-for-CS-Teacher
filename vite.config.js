@@ -21,6 +21,7 @@
 //   tools/vite/strip-crossorigin.js   원본에 없던 속성 제거
 //   tools/vite/copy-code-button.js    코드 블록마다 복사 버튼을 얹는다
 //   tools/vite/drop-ttf-fallback.js   아무도 받지 않는 ttf 대체 경로를 지운다 (PostCSS)
+//   tools/vite/subset-icon-font.js    아이콘 폰트를 실제로 쓰는 글자만 남기고 깎는다
 import { resolve } from 'node:path';
 
 import autoprefixer from 'autoprefixer';
@@ -33,6 +34,7 @@ import copyLectureAssets from './tools/vite/copy-lecture-assets.js';
 import stripCrossorigin from './tools/vite/strip-crossorigin.js';
 import copyCodeButton from './tools/vite/copy-code-button.js';
 import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
+import subsetIconFont from './tools/vite/subset-icon-font.js';
 
 /**
  * 진입점 — 페이지 전부.
@@ -75,6 +77,8 @@ export default {
         vendorPublic(),
         copyLectureAssets(),
         stripCrossorigin(),
+        // 마지막이다 — 최종 HTML을 봐야 어떤 아이콘을 쓰는지 알 수 있다.
+        subsetIconFont(),
     ],
     build: {
         outDir: 'dist',

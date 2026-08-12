@@ -2,7 +2,7 @@
 //
 //   <pre><code …>…</code></pre>
 //        ↓ 빌드가 이렇게 감싼다
-//   <div class="code-copy-wrap">
+//   <div class="code-block">
 //       <button class="code-copy" type="button" data-copy …>…</button>
 //       <pre><code …>…</code></pre>
 //   </div>
@@ -16,10 +16,6 @@
 // `CLAUDE.md`의 「래퍼 div를 끼우지 않는다」는 **넘침을 다루려고 손으로 끼우는 래퍼**를
 // 막는 규칙이다. 여기 래퍼는 배경도 테두리도 없는 자리잡기용이라 둥근 모서리를 건드리지
 // 않는다. flex 자식일 때를 위해 `min-width:0`을 CSS에서 함께 준다.
-//
-// **이름이 `code-block`이 아닌 까닭.** 강의노트 하나가 그 이름을 이미 다른 뜻으로
-// (어두운 JSON 상자) 쓰고 있다. 같은 낱말을 두 뜻으로 두면 한쪽을 고칠 때 다른 쪽이
-// 조용히 딸려 온다. 나중에 온 쪽이 비킨다.
 //
 // 클릭 처리는 **위임 리스너 하나**다. 블록마다 id를 붙이던 방식은 쓰지 않는다 →
 // tools/README.md의 「복사 버튼」.
@@ -35,7 +31,7 @@ const SCRIPT = `<script>
     document.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-copy]');
         if (!btn) return;
-        const code = btn.closest('.code-copy-wrap')?.querySelector('pre');
+        const code = btn.closest('.code-block')?.querySelector('pre');
         if (!code) return;
         const text = code.textContent;
         try {
@@ -74,7 +70,7 @@ export default function copyCodeButton() {
                 let wrapped = 0;
                 const out = html.replace(PRE, (pre) => {
                     wrapped += 1;
-                    return `<div class="code-copy-wrap">${BUTTON}${pre}</div>`;
+                    return `<div class="code-block">${BUTTON}${pre}</div>`;
                 });
                 if (!wrapped) return html;
 

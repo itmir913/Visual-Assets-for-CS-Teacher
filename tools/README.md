@@ -355,7 +355,7 @@ npm run check:code
 
 | 어디 | 무엇 |
 |---|---|
-| `tools/vite/copy-code-button.js` | `<pre>`를 `div.code-copy-wrap`으로 감싸고 버튼과 위임 리스너를 넣는다 |
+| `tools/vite/copy-code-button.js` | `<pre>`를 `div.code-block`으로 감싸고 버튼과 위임 리스너를 넣는다 |
 | `src/styles/_code-copy.css` | 버튼 모양. 단위별 진입 CSS가 `@import` 한다 |
 
 블록마다 `id`를 붙이고 `onclick="copyCode('code-98')"`을 쓰던 방식은 쓰지 않는다.

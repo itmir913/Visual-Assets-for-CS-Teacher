@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>3등 찾기</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/3등-찾기.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-ranking-star absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-arrow-down-wide-short absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            3등 찾기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            가장 높은 것을 찾는 것과<br>
+            <strong>세 번째를 찾는 것</strong>은 다릅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>이름과 값이 한 쌍인 자료를 목록 안의 목록으로 담을 수 있다.</li>
+                    <li>무엇을 기준으로 늘어놓을지 정해 정렬을 설계할 수 있다.</li>
+                    <li>정렬한 뒤 원하는 순위를 자리 번호로 꺼낼 수 있다.</li>
+                    <li>같은 값이 여럿일 때 「몇 등」이 흔들린다는 것을 알고 요구 사항에 정할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-ranking-star text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">3등 찾기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">1등을 찾는 방법으로 3등도 찾을 수 있을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여러 사람의 <strong>이름과 점수</strong>를 입력받아,
+                    <strong>점수가 세 번째로 높은 사람의 이름</strong>을 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가장 높은 점수를 찾는 것은 어렵지 않습니다 &mdash; 하나씩 보며 <strong>가장 큰 것만 들고 다니면</strong> 되니까요.
+                철광석 제련에서 한 일이 그것입니다.
+                그런데 <strong>세 번째</strong>는 그 방법으로 곧장 되지 않습니다.
+                <strong>순서대로 늘어놓고 세 번째를 짚는 편</strong>이 훨씬 간단합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>무엇을 내놓고, 같은 점수가 있으면 어떻게 할 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>무엇을 기준으로 어떤 방향으로 늘어놓을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>이름과 점수를 어떻게 한 덩어리로 담을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>3등을 헷갈리게 만드는 값은 무엇인가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-12.docx"
+                       download="[개발 문서] 3등 찾기 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-12.docx"
+                       download="[개발 문서] 3등 찾기 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">「3등」이라는 말이 생각보다 애매합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>같은 점수가 있으면?</strong> 1등이 둘이면 그다음은 2등인가요 3등인가요</li>
+                    <li><strong>사람이 셋보다 적으면?</strong> 3등이 없습니다</li>
+                    <li><strong>이름만 내놓나요?</strong> 점수도 함께 보여 주나요</li>
+                    <li><strong>이름에 공백이 들어갈 수 있나요?</strong></li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>첫 줄에 사람 수</strong>를 받고, 그다음 줄부터 <strong>이름과 점수</strong>를 공백으로 띄어 받는다.</li>
+                    <li>이름에는 <strong>공백이 들어가지 않는다.</strong></li>
+                    <li>점수가 <strong>높은 순으로 늘어놓았을 때 세 번째에 오는 사람</strong>의 이름을 내놓는다.</li>
+                    <li>같은 점수가 있어도 <strong>사람 수만큼 자리를 차지</strong>하는 것으로 본다.
+                        <strong>&ldquo;공동 1등 다음은 3등&rdquo;처럼 세지 않는다.</strong>
+                    </li>
+                    <li><strong>사람은 세 명 이상 들어온다고 본다.</strong></li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>4번이 없으면 답이 갈립니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    점수가 <strong>100, 100, 95, 90</strong>일 때 3등은 누구일까요?
+                    <strong>줄을 세우면 세 번째는 95점</strong>인 사람이지만,
+                    <strong>운동 경기처럼 세면 95점은 3등이 아니라 &lsquo;공동 1등 둘 다음&rsquo;이라 3등</strong>이 되기도 하고
+                    <strong>등수를 건너뛰어 90점이 4등</strong>이 되기도 합니다.
+                    <strong>어느 쪽도 틀리지 않습니다.</strong> 그래서 <strong>정해서 적어 두어야</strong> 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                점수가 <strong>100, 95, 95, 90</strong>일 때 요구 사항 4번을 따르면 3등은 몇 점인 사람일까요? 그리고 그 답이 <strong>둘 중 누구인지</strong>는 정해져 있나요?
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 늘어놓고 짚는다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">무엇을 기준으로 늘어놓을지 말해 주어야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>사람 수 하나, 그다음 사람 수만큼의 이름과 점수</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>이름과 점수를 짝지어 담고, 점수가 높은 순으로 늘어놓는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>세 번째 자리에 있는 사람의 이름</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">이름과 점수를 짝으로 묶는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이름과 점수를 <strong>따로따로 두 목록</strong>에 담으면 안 됩니다.
+                    <strong>점수만 늘어놓는 순간 이름과의 짝이 끊어지기</strong> 때문입니다.
+                    <strong>둘을 한 덩어리로 묶어</strong> 담고, <strong>덩어리째 늘어놓아야</strong> 짝이 유지됩니다.
+                    철광석 제련의 격자처럼 <strong>목록 안에 목록</strong>을 담는 것입니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-32">담긴 모양</th>
+                            <th>늘어놓기 전</th>
+                            <th>점수가 높은 순으로 늘어놓은 뒤</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>0번</td>
+                            <td>학생-A, 98</td>
+                            <td>학생-E, 100</td>
+                        </tr>
+                        <tr>
+                            <td>1번</td>
+                            <td>학생-B, 95</td>
+                            <td>학생-A, 98</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">2번</td>
+                            <td>학생-C, 92</td>
+                            <td class="font-bold">학생-B, 95 &larr; 3등</td>
+                        </tr>
+                        <tr>
+                            <td>3번</td>
+                            <td>학생-D, 88</td>
+                            <td>학생-C, 92</td>
+                        </tr>
+                        <tr>
+                            <td>4번</td>
+                            <td>학생-E, 100</td>
+                            <td>학생-D, 88</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>0번이 1등이므로 3등은 2번</strong>입니다. 여기서도 <strong>한 칸 어긋남</strong>이 나옵니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">무엇을 기준으로 늘어놓나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    덩어리에는 <strong>이름과 점수 둘</strong>이 들어 있습니다.
+                    그냥 늘어놓으라고 하면 <strong>앞에 있는 이름을 기준으로</strong> 가나다순이 되어 버립니다.
+                    그러니 <strong>&ldquo;점수를 보고 늘어놓아라&rdquo;고 따로 알려 주어야</strong> 합니다.
+                    <strong>방향도 말해 주어야</strong> 합니다 &mdash; 그냥 두면 작은 것부터 갑니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>사람 수를 입력받는다.</li>
+                    <li>빈 목록을 하나 마련한다.</li>
+                    <li>사람 수만큼 되풀이하며 이름과 점수를 받아 <strong>짝으로 묶어 담는다.</strong></li>
+                    <li>목록을 <strong>점수 기준, 큰 것부터</strong> 늘어놓는다.</li>
+                    <li><strong>2번 자리</strong>에 있는 덩어리에서 <strong>이름만</strong> 꺼내 내놓는다.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                설계 4번에서 <strong>「점수 기준」을 빼먹으면</strong> 어떤 순서로 늘어설까요? 그리고 그때 2번 자리에는 누가 오게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">정렬에 기준을 알려 주는 방법이 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                설계 다섯 줄이 코드에서도 다섯 줄쯤입니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">3등.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/3등.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>기준을 알려 주는 자리
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    늘어놓을 때 <strong>&ldquo;덩어리를 받으면 그중 1번 자리를 보라&rdquo;</strong>고 알려 주고 있습니다.
+                    이름 없이 그 자리에서 만들어 쓰는 짧은 규칙이라, <strong>따로 이름을 지어 주지 않았습니다.</strong>
+                    방향은 <strong>&lsquo;거꾸로&rsquo;라고 따로 켜 주어야</strong> 큰 것부터 갑니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">점수를 수로 바꾸는 이유</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    입력받은 점수는 <strong>글자</strong>입니다. 수로 바꾸지 않고 늘어놓으면
+                    <strong>글자 순서로 늘어섭니다</strong> &mdash;
+                    그러면 <strong>&ldquo;9&rdquo;가 &ldquo;100&rdquo;보다 크다</strong>고 판정됩니다.
+                    <strong>번역도 통과하고 답도 나오는데 순서만 틀린</strong> 논리 오류입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                점수를 글자인 채로 늘어놓으면 <strong>100, 98, 95, 92, 88</strong>은 어떤 순서가 될까요? 사전에서 낱말을 찾듯 <strong>앞 글자부터</strong> 견준다고 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">정렬이 맞는지 보려면 순서를 흐트러뜨려 넣어야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>이미 높은 순으로 입력하면 정렬이 빠져 있어도 답이 맞습니다.</strong>
+                그러니 <strong>일부러 뒤섞어</strong> 넣어야 합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">넣은 값 (점수만 적음)</th>
+                        <th class="w-28">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>98, 95, 92, 88, 100</td>
+                        <td class="font-bold">95인 사람</td>
+                        <td>1등이 <strong>맨 끝에</strong> 있는 경우</td>
+                    </tr>
+                    <tr>
+                        <td>100, 98, 95</td>
+                        <td class="font-bold">95인 사람</td>
+                        <td>딱 세 명 &mdash; 마지막이 3등</td>
+                    </tr>
+                    <tr>
+                        <td>88, 92, 95, 98, 100</td>
+                        <td class="font-bold">95인 사람</td>
+                        <td>낮은 순으로 들어온 경우</td>
+                    </tr>
+                    <tr>
+                        <td>100, 100, 95, 90</td>
+                        <td class="font-bold">95인 사람</td>
+                        <td>같은 점수가 있는 경우 &mdash; 요구 사항 4번</td>
+                    </tr>
+                    <tr>
+                        <td>100, 95, 95, 90</td>
+                        <td class="font-bold">95인 사람 중 하나</td>
+                        <td>3등 자리가 <strong>동점</strong>인 경우</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>가장 낮은 점수 쪽이 나온다</strong> &mdash; <strong>방향</strong>을 거꾸로 켜지 않았습니다</li>
+                    <li><strong>이름 가나다순처럼 보인다</strong> &mdash; <strong>기준</strong>을 알려 주지 않았습니다</li>
+                    <li><strong>2등이나 4등이 나온다</strong> &mdash; 자리 번호가 <strong>2가 맞는지</strong> 봅니다</li>
+                    <li><strong>이름 대신 점수가 나온다</strong> &mdash; 덩어리에서 <strong>0번</strong>을 꺼내야 합니다</li>
+                    <li><strong>점수가 클수록 뒤로 간다</strong> &mdash; 점수를 <strong>글자인 채로</strong> 늘어놓고 있습니다</li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>마지막 줄의 답은 하나로 정해지지 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    3등 자리가 동점이면 <strong>둘 중 누가 나올지는 요구 사항이 말해 주지 않습니다.</strong>
+                    <strong>이것은 버그가 아니라 정하지 않은 것</strong>입니다.
+                    <strong>&ldquo;답이 여러 개일 수 있는 테스트&rdquo;를 그렇게 적어 두는 것</strong>도 정직한 방법입니다.
+                    하나로 정하고 싶다면 <strong>1단계로 돌아가</strong> &ldquo;동점이면 이름이 앞서는 쪽&rdquo; 같은 규칙을 더해야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표의 넷째 줄 <strong>100, 100, 95, 90</strong>에서 요구 사항 4번을 <strong>&ldquo;공동 1등 다음은 3등&rdquo;</strong>으로 바꾸면 답이 달라질까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">정하지 않고 남겨 둔 것들입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">동점일 때를 정한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        점수가 같으면 <strong>이름이 앞서는 쪽</strong>이 먼저 오게 해 봅니다.
+                        <strong>기준을 두 개</strong> 알려 주어야 합니다 &mdash;
+                        점수는 큰 것부터, 이름은 가나다순으로요.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">몇 등인지 입력받는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        3등으로 고정한 것을 풀어 봅니다.
+                        <strong>사람 수보다 큰 등수</strong>를 넣으면 어떻게 할지도 정해야 합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">정렬 없이 찾아본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        늘어놓지 않고 <strong>세 번 훑어서</strong> 3등을 찾아 봅니다.
+                        <strong>정렬이 얼마나 편한 도구인지</strong> 직접 겪어 보는 과제입니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">세 명보다 적으면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        요구 사항 5번을 풀어 봅니다.
+                        <strong>지금 코드는 없는 자리를 찾다가 멈춥니다.</strong>
+                        꺼내기 전에 막는 자리를 또 만나게 됩니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;정렬 없이 세 번 훑기&rdquo;와 &ldquo;정렬한 뒤 짚기&rdquo; 중 <strong>사람 수가 아주 많아지면</strong> 어느 쪽이 유리할까요? 기초 2-3의 견주는 기준을 떠올려 보세요.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

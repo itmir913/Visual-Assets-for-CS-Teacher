@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>원의 겹침 판별하기</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/원의-겹침-판별하기.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-circle-nodes absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-compass-drafting absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            원의 겹침 판별하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            두 원이 만나는지는<br>
+            <strong>거리 하나로</strong> 정해집니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>두 도형의 위치 관계를 거리와 반지름의 비교로 바꾸어 설계할 수 있다.</li>
+                    <li>경우가 여럿일 때 서로 겹치지도 빠지지도 않게 조건을 늘어놓을 수 있다.</li>
+                    <li>제곱근을 피해 견주는 것이 왜 같은 판정인지 설명할 수 있다.</li>
+                    <li>서로 다른 경우가 같은 답을 내놓을 수 있음을 알고 그대로 구현할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-circle-nodes text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">원의 겹침 판별하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">두 원을 그려 보지 않고 관계를 알 수 있을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 원의 <strong>중심 좌표와 반지름</strong>을 입력받아,
+                    두 원이 <strong>두 점에서 만나는지 &middot; 한 점에서 만나는지 &middot; 만나지 않는지</strong>를
+                    판정해 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                눈으로 보면 한눈에 아는 것을 <strong>숫자만으로 판정해야</strong> 합니다.
+                다행히 규칙이 단순합니다 &mdash; <strong>두 중심 사이의 거리</strong>를
+                <strong>반지름의 합, 반지름의 차</strong>와 견주기만 하면 됩니다.
+                어려운 곳은 계산이 아니라 <strong>경우를 빠짐없이 갈라 놓는 일</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>몇 가지 경우가 있고 무엇으로 답할 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>거리와 무엇을 견주어 경우를 가를 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>조건을 어떤 순서로 늘어놓을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>다섯 경우를 각각 어떤 값으로 만들 것인가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-10.docx"
+                       download="[개발 문서] 원의 겹침 여부 판별하기 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-10.docx"
+                       download="[개발 문서] 원의 겹침 여부 판별하기 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">경우는 다섯인데 답은 셋뿐입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>몇 가지로 답하나요?</strong> 만나는 점의 개수로만인가요, 관계 이름까지인가요</li>
+                    <li><strong>한쪽이 다른 쪽 안에 들어 있으면?</strong> 만나지 않는 것과 같은 답인가요</li>
+                    <li><strong>두 원이 완전히 같으면?</strong> 중심도 반지름도 같으면 어떻게 하나요</li>
+                    <li><strong>좌표가 소수여도 되나요?</strong></li>
+                    <li><strong>반지름이 0이면?</strong></li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>두 줄</strong>로 입력받는다. 한 줄에 <strong>중심 x, 중심 y, 반지름</strong> 세 정수를 공백으로 띄운다.</li>
+                    <li>답은 <strong>세 가지 중 하나</strong>다 &mdash;
+                        <strong>두 점에서 만난다 &middot; 한 점에서 만난다 &middot; 만나지 않는다</strong>
+                    </li>
+                    <li><strong>떨어져 있는 경우와 한쪽이 다른 쪽 안에 든 경우는 모두 &ldquo;만나지 않는다&rdquo;</strong>로 한다.</li>
+                    <li><strong>바깥에서 스치는 경우와 안쪽에서 스치는 경우는 모두 &ldquo;한 점에서 만난다&rdquo;</strong>로 한다.</li>
+                    <li><strong>정수만 들어온다고 본다.</strong> 두 원이 완전히 같은 경우는 이번 판에서 다루지 않는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>경우 다섯이 답 셋으로 접힙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    실제 위치 관계는 <strong>다섯 가지</strong>인데 요구 사항 2번은 <strong>답을 셋</strong>으로 정했습니다.
+                    3번과 4번이 <strong>어느 경우가 어느 답으로 접히는지</strong>를 못박은 자리입니다.
+                    <strong>이것을 안 적어 두면 코드를 짜다가 &ldquo;안에 들어 있으면 뭐라고 하지?&rdquo;에서 멈춥니다.</strong>
+                    <strong>경우의 수와 답의 수가 다를 수 있다</strong>는 것을 여기서 봐 두세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 5번에서 <strong>두 원이 완전히 같은 경우</strong>를 뺐습니다. 그런 두 원은 만나는 점이 몇 개일까요? 세 가지 답 중 어디에도 넣기 어려운 이유를 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 거리 하나로 다 갈린다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">두 원을 그리지 않고 견주는 방법입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>두 줄, 각 줄에 정수 세 개</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>중심 사이의 거리를 구해 반지름의 합 &middot; 차와 견준다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>세 가지 답 중 하나</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">거리를 두 값과 견준다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    기준이 되는 값은 둘입니다 &mdash;
+                    <strong>반지름의 합</strong>(두 원이 바깥에서 닿는 거리)과
+                    <strong>반지름의 차</strong>(안쪽에서 닿는 거리)입니다.
+                    <strong>거리가 이 둘 사이에 있으면 두 점에서 만나고, 딱 같으면 한 점, 벗어나면 안 만납니다.</strong>
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-40">거리가</th>
+                            <th class="w-32">실제 관계</th>
+                            <th>내놓을 답</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>합보다 크다</td>
+                            <td>떨어져 있다</td>
+                            <td class="font-bold">만나지 않는다</td>
+                        </tr>
+                        <tr>
+                            <td>합과 같다</td>
+                            <td>바깥에서 스친다</td>
+                            <td class="font-bold">한 점에서 만난다</td>
+                        </tr>
+                        <tr>
+                            <td>합과 차 사이</td>
+                            <td>가로지른다</td>
+                            <td class="font-bold">두 점에서 만난다</td>
+                        </tr>
+                        <tr>
+                            <td>차와 같다</td>
+                            <td>안쪽에서 스친다</td>
+                            <td class="font-bold">한 점에서 만난다</td>
+                        </tr>
+                        <tr>
+                            <td>차보다 작다</td>
+                            <td>하나가 다른 하나 안에 있다</td>
+                            <td class="font-bold">만나지 않는다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>거리가 커지는 순서대로</strong> 늘어놓으면 다섯 경우가 <strong>겹치지도 빠지지도 않게</strong> 나뉩니다.
+                    <strong>&lsquo;차&rsquo;는 반드시 뺀 값의 절댓값</strong>이어야 합니다 &mdash;
+                    작은 원에서 큰 원을 빼면 음수가 되어 견줄 수가 없습니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">제곱근을 구하지 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거리를 구하려면 제곱해서 더한 뒤 제곱근을 씌워야 합니다.
+                    그런데 <strong>세 값을 모두 제곱한 채로 견주면 결과가 같습니다.</strong>
+                    <strong>모두 0 이상인 값이라 제곱해도 크기 순서가 바뀌지 않기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이번에는 <strong>파이값 근사하기 때보다 이유가 하나 더</strong> 있습니다.
+                    제곱근은 대개 <strong>딱 떨어지지 않는 소수</strong>가 되는데,
+                    컴퓨터는 그런 값을 <strong>아주 조금 어긋나게</strong> 담습니다.
+                    그러면 <strong>&lsquo;딱 같다&rsquo;를 판정해야 하는 스치는 경우</strong>에서 어긋날 수 있습니다.
+                    <strong>정수인 채로 견주면 그런 걱정이 아예 없습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>두 원의 정보를 두 줄로 입력받는다.</li>
+                    <li>중심 사이 거리의 <strong>제곱</strong>을 구한다.</li>
+                    <li>반지름 합의 제곱, 반지름 차(절댓값)의 제곱을 구한다.</li>
+                    <li>거리의 제곱이 합의 제곱보다 크면 &ldquo;만나지 않는다&rdquo;</li>
+                    <li>아니고 합의 제곱과 같으면 &ldquo;한 점에서 만난다&rdquo;</li>
+                    <li>아니고 차의 제곱보다 크면 &ldquo;두 점에서 만난다&rdquo;</li>
+                    <li>아니고 차의 제곱과 같으면 &ldquo;한 점에서 만난다&rdquo;</li>
+                    <li>둘 다 아니면 &ldquo;만나지 않는다&rdquo;</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                4번부터 8번까지가 <strong>거리가 큰 쪽에서 작은 쪽으로</strong> 내려갑니다. 순서를 뒤집어 <strong>작은 쪽부터</strong> 적으려면 부등호를 어떻게 바꿔야 할까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">조건 다섯 개를 어떻게 이어 붙일까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                설계 여덟 줄이 코드에서도 거의 그대로입니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">원겹침.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/원겹침.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>같은 답이 두 번 나옵니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    &ldquo;만나지 않는다&rdquo;와 &ldquo;한 점에서 만난다&rdquo;가 <strong>각각 두 곳에서</strong> 나옵니다.
+                    <strong>줄이고 싶어지지만 그대로 두는 편이 낫습니다.</strong>
+                    두 자리는 <strong>서로 다른 이유로</strong> 같은 답을 내놓는 것이라,
+                    합쳐 놓으면 <strong>나중에 답을 갈라야 할 때</strong> 다시 풀어야 합니다.
+                    실제로 &lsquo;더 해 보기&rsquo;에서 그 일을 하게 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>&lsquo;아니고&rsquo;로 이어야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    조건들을 <strong>따로따로 떨어진 검사</strong>로 적으면
+                    <strong>여러 줄이 한꺼번에 참이 되어 답이 여러 개 찍힙니다.</strong>
+                    <strong>앞에서 걸러진 것은 뒤에서 다시 보지 않는다</strong>는 것이 &lsquo;아니고&rsquo;의 뜻입니다.
+                    그래서 6번이 <strong>&ldquo;합보다 작으면서 차보다 크다&rdquo;</strong>를 다 적지 않고
+                    <strong>&ldquo;차보다 크다&rdquo;만</strong> 적어도 되는 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                6번 줄에 <strong>&ldquo;합보다 작다&rdquo;</strong>를 굳이 적지 않아도 되는 이유를 4번과 5번 줄을 근거로 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">다섯 경우를 손으로 만들어 넣어야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                답은 셋이지만 <strong>확인해야 할 경우는 다섯</strong>입니다.
+                <strong>같은 답이 나오는 두 경우를 각각 따로</strong> 넣어 봐야
+                조건 한 줄이 빠진 것을 잡을 수 있습니다.
+                아래 값은 모두 <strong>중심을 가로로 나란히 두어</strong> 거리를 눈으로 알 수 있게 골랐습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">넣은 값</th>
+                        <th class="w-24">거리</th>
+                        <th class="w-40">나와야 할 결과</th>
+                        <th>어느 경우인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>0 0 1 / 5 0 1</td>
+                        <td>5</td>
+                        <td class="font-bold">만나지 않는다</td>
+                        <td>떨어져 있다 (합 2보다 큼)</td>
+                    </tr>
+                    <tr>
+                        <td>0 0 1 / 2 0 1</td>
+                        <td>2</td>
+                        <td class="font-bold">한 점에서 만난다</td>
+                        <td>바깥에서 스친다 (합과 같음)</td>
+                    </tr>
+                    <tr>
+                        <td>0 0 3 / 2 0 3</td>
+                        <td>2</td>
+                        <td class="font-bold">두 점에서 만난다</td>
+                        <td>가로지른다 (합 6과 차 0 사이)</td>
+                    </tr>
+                    <tr>
+                        <td>0 0 5 / 2 0 3</td>
+                        <td>2</td>
+                        <td class="font-bold">한 점에서 만난다</td>
+                        <td>안쪽에서 스친다 (차 2와 같음)</td>
+                    </tr>
+                    <tr>
+                        <td>0 0 5 / 1 0 1</td>
+                        <td>1</td>
+                        <td class="font-bold">만나지 않는다</td>
+                        <td>안에 들어 있다 (차 4보다 작음)</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>안에 들어 있는데 &ldquo;두 점&rdquo;이 나온다</strong> &mdash; 차와 견주는 마지막 두 줄이 빠졌습니다</li>
+                    <li><strong>안쪽에서 스치는데 &ldquo;두 점&rdquo;이 나온다</strong> &mdash;
+                        차와 견줄 때 <strong>&lsquo;크다&rsquo;와 &lsquo;크거나 같다&rsquo;</strong>를 헷갈렸습니다
+                    </li>
+                    <li><strong>큰 원과 작은 원의 순서를 바꾸면 답이 달라진다</strong> &mdash;
+                        차를 <strong>절댓값으로 만들지 않았습니다</strong>
+                    </li>
+                    <li><strong>답이 여러 줄 찍힌다</strong> &mdash; 조건을 <strong>&lsquo;아니고&rsquo;로 잇지 않았습니다</strong></li>
+                    <li><strong>스치는 경우만 자꾸 틀린다</strong> &mdash; 제곱근을 구해서 견주고 있는지 봅니다</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표의 셋째 줄과 넷째 줄은 <strong>거리가 똑같이 2</strong>인데 답이 다릅니다. 무엇이 달라서 답이 갈렸을까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">접어 두었던 경우를 펴 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">다섯 경우를 그대로 답한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        &ldquo;떨어져 있다 &middot; 바깥에서 스친다 &middot; 가로지른다 &middot; 안쪽에서 스친다 &middot; 안에 들어 있다&rdquo;
+                        다섯 가지로 답하게 바꿔 봅니다.
+                        <strong>조건은 하나도 안 고쳐도 됩니다</strong> &mdash; 내놓는 말만 바꾸면 됩니다.
+                        구현 절에서 <strong>같은 답을 합치지 않은 이유</strong>가 여기서 드러납니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">완전히 같은 두 원</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        요구 사항 5번을 풀어 봅니다.
+                        중심도 반지름도 같으면 <strong>거리도 0, 차도 0</strong>이라
+                        지금 코드는 <strong>&ldquo;한 점에서 만난다&rdquo;</strong>고 답합니다.
+                        <strong>맞는 답일까요?</strong> 요구 사항부터 다시 정해야 합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">소수 좌표를 받는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        정수 제약을 풀면 <strong>&lsquo;딱 같다&rsquo; 판정이 흔들리기</strong> 시작합니다.
+                        설계 절에서 말한 어긋남이 실제로 어떻게 나타나는지 확인해 보세요.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">만나는 점의 좌표까지</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        만나는지만이 아니라 <strong>어디서 만나는지</strong>를 구해 봅니다.
+                        여기서는 <strong>제곱근을 피할 수 없습니다</strong> &mdash;
+                        어떤 계산에는 근사가 꼭 따라온다는 것을 겪어 보는 과제입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;완전히 같은 두 원&rdquo;은 만나는 점이 무한히 많습니다. 이것을 세 가지 답 중 하나로 억지로 밀어 넣는 것과 <strong>새 답을 하나 더 만드는 것</strong> 중 어느 쪽이 나을까요?
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

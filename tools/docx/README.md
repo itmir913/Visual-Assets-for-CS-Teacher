@@ -55,11 +55,11 @@ const {makeDocument} = require('../make_sw_template');
 const out = require('../../outpath');
 
 makeDocument({
-    s1: { … },
+    s1: { ... },
 }, out('programming', '비만도-측정.py.docx'));
 ```
 
-**세 줄이 규칙의 전부다.**
+**이 표가 규칙의 전부다.**
 
 | 규칙 | 이유 |
 |---|---|
@@ -90,7 +90,7 @@ npm run docx
 
 ```javascript
 const DEST = {
-    ai: '인공지능기초/ai-projects/docx',
+    ai: '인공지능기초/실습/docx',
     실습: '프로그래밍/실습/docx',
 };
 ```
@@ -119,7 +119,7 @@ const DEST = {
 배포는 된다 — **링크가 없을 뿐 주소로는 열린다.** 교사가 주소를 눌러 받는다.
 
 ```
-인공지능기초/ai-projects/docx/수행평가-양식.docx
+인공지능기초/실습/docx/수행평가-양식.docx
 프로그래밍/실습/docx/수행평가-양식.py.docx
 프로그래밍/실습/docx/수행평가-양식.c.docx
 ```
@@ -138,7 +138,7 @@ const DEST = {
 `DOCX_OUT_ROOT`는 다른 자리에 뽑아 볼 때만 쓴다.
 
 ```bash
-npm run docx                        # dist/인공지능기초/ai-projects/docx/…
+npm run docx                        # dist/인공지능기초/실습/docx/…
 DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
 ```
 

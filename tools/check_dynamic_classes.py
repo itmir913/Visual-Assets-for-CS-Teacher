@@ -28,6 +28,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+from logs import get_logger  # noqa: E402
 
 # 값이 있는 Tailwind 유틸리티 접두사. 조립되면 CSS에서 빠지는 것들이다.
 PREFIX = (
@@ -63,9 +65,13 @@ def iter_html(patterns: list[str]):
 
 
 def main() -> int:
-    files = list(iter_html(sys.argv[1:]))
+    argv = [a for a in sys.argv[1:] if a not in ("-v", "--verbose")]
+    verbose = len(argv) != len(sys.argv[1:]) or bool(argv)
+    log = get_logger("check_classes", verbose)
+
+    files = list(iter_html(argv))
     if not files:
-        print("검사할 파일이 없다.")
+        log.error("검사할 파일이 없다")
         return 1
 
     violations = 0
@@ -79,13 +85,13 @@ def main() -> int:
                     shown = path.relative_to(ROOT)
                 except ValueError:
                     shown = path
-                print(f"[런타임 조립] 위반 — {shown}:{line} ({label})")
-                print(f"    …{snippet}…")
+                log.error("%s:%s [런타임 조립] %s — …%s…", shown, line, label, snippet)
                 violations += 1
 
-    print(f"--- {len(files)}개 파일: 위반 {violations}건 ---")
     if violations:
-        print("완성된 클래스 문자열을 리터럴로 넣도록 고칠 것. 자세한 설명은 이 파일 상단 주석에 있다.")
+        log.error("완성된 클래스 문자열을 리터럴로 넣도록 고칠 것 "
+                  "(자세한 설명은 tools/check_dynamic_classes.py 상단 주석)")
+    log.info("완료 — 파일 %d, 위반 %d", len(files), violations)
     return 1 if violations else 0
 
 

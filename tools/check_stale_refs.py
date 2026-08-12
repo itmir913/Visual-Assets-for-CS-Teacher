@@ -33,6 +33,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from logs import get_logger  # noqa: E402
 
 # 산문 — 사람이 읽는 글이 들어 있는 파일. 강의노트 HTML은 보지 않는다
 # (거기 적힌 이름은 학생에게 보여 주는 코드지 이 저장소의 식별자가 아니다).
@@ -151,19 +153,21 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("range", nargs="?", help="git 범위 (기본 HEAD~1..HEAD)")
     ap.add_argument("--since", help="<범위>를 `<since>..HEAD`로 준다")
+    ap.add_argument("-v", "--verbose", action="store_true", help="세부까지 보인다")
     args = ap.parse_args()
 
     rng = args.range or (f"{args.since}..HEAD" if args.since else "HEAD~1..HEAD")
+    log = get_logger("check_stale", args.verbose)
 
     gone = removed_names(rng) | removed_paths(rng)
     if not gone:
-        print(f"[check_stale_refs] {rng}: 사라진 선언·파일이 없다")
+        log.info("완료 — %s: 사라진 선언·파일이 없다", rng)
         return 0
 
     dead = gone - alive_in_code(gone)
     if not dead:
-        print(f"[check_stale_refs] {rng}: 사라진 이름 {len(gone)}개, "
-              f"전부 지금 코드에 아직 있다(옮겨 심었다)")
+        log.info("완료 — %s: 사라진 이름 %d개, 전부 지금 코드에 아직 있다(옮겨 심었다)",
+                 rng, len(gone))
         return 0
 
     hits: list[str] = []
@@ -180,17 +184,14 @@ def main() -> int:
                 if pat.search(line):
                     hits.append(f"  {rel}:{i}  «{n}» — {line.strip()[:90]}")
 
-    print(f"[check_stale_refs] {rng}: 없어진 이름 {len(dead)}개 "
-          f"({', '.join(sorted(dead)[:8])}{' …' if len(dead) > 8 else ''})")
-    if not hits:
-        print("[check_stale_refs] 통과 — 산문이 부르는 곳 없음")
-        return 0
-
-    print(f"[check_stale_refs] 산문이 아직 부른다 — {len(hits)}곳")
+    log.debug("%s: 없어진 이름 %d개 (%s%s)", rng, len(dead),
+              ", ".join(sorted(dead)[:8]), " …" if len(dead) > 8 else "")
     for h in hits:
-        print(h)
-    print("고치거나 지운다. 지난 일을 적은 문장(「예전에는 ~였다」)이면 그대로 두어도 된다.")
-    return 1
+        log.warning("%s", h.strip())
+    if hits:
+        log.warning("고치거나 지운다. 지난 일을 적은 문장(「예전에는 ~였다」)이면 그대로 두어도 된다")
+    log.info("완료 — %s: 없어진 이름 %d, 산문이 아직 부르는 곳 %d", rng, len(dead), len(hits))
+    return 1 if hits else 0
 
 
 if __name__ == "__main__":

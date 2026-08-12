@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from check_html import Checker  # noqa: E402
+from logs import get_logger, github_annotation  # noqa: E402
 
 DOCX_HREF_RE = re.compile(r'href="([^"]+\.docx)"')
 
@@ -99,16 +100,19 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("dist", nargs="?", default="dist", help="검사할 산출물 폴더 (기본 dist)")
     parser.add_argument("--github", action="store_true", help="::error:: 형식으로 출력 (Actions용)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="세부 수치까지 보인다")
     args = parser.parse_args()
+
+    log = get_logger("check_dist", args.verbose)
 
     root = Path(args.dist)
     if not root.is_dir():
-        print(f"[check_dist] 산출물 폴더가 없다: {root}", file=sys.stderr)
+        log.error("산출물 폴더가 없다: %s", root)
         return 2
 
     files = sorted(root.rglob("*.html"))
     if not files:
-        print(f"[check_dist] {root}에 HTML이 하나도 없다", file=sys.stderr)
+        log.error("%s에 HTML이 하나도 없다", root)
         return 2
 
     docx_bad, docx_total = check_docx_links(files)
@@ -116,17 +120,15 @@ def main() -> int:
     cdn_bad = check_cdn(files)
     nest_bad = check_nesting(files)
 
-    print(f"[check_dist] HTML {len(files)}개, docx 링크 {docx_total}건")
+    log.debug("HTML %d개, docx 링크 %d건", len(files), docx_total)
     errs = docx_bad + cdn_bad + nest_bad
-    if errs:
-        prefix = "::error::" if args.github else "  "
-        for e in errs:
-            print(f"{prefix}{e}")
-        print(f"[check_dist] 문제 {len(errs)}건")
-        return 1
-
-    print("[check_dist] 통과 — 깨진 링크 0, 링크 없는 양식 0, CDN 잔존 0, 태그 중첩 위반 0")
-    return 0
+    for e in errs:
+        if args.github:
+            print(github_annotation("error", e))
+        else:
+            log.error("%s", e)
+    log.info("완료 — HTML %d, docx 링크 %d, 문제 %d", len(files), docx_total, len(errs))
+    return 1 if errs else 0
 
 
 if __name__ == "__main__":

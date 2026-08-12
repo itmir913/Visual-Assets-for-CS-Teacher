@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import py_compile
 import re
 import shutil
@@ -34,6 +35,10 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+from logs import get_logger  # noqa: E402
+
+LOG = get_logger("check_code")
 
 SKIP_DIRS = {".git", ".venv", "node_modules", "dist", "__pycache__"}
 CODE_SUFFIXES = {".py", ".c"}
@@ -134,27 +139,27 @@ def check_syntax(files: list[Path], root: Path) -> tuple[list[str], int, int]:
                 checked += 1
 
     if not has_gcc and any(p.suffix.lower() == ".c" for p in files):
-        print("[check_code] 알림: gcc가 없어 .c 구문 검사를 건너뛴다 (CI에서는 검사된다)")
+        LOG.warning("gcc가 없어 .c 구문 검사를 건너뛴다 (CI에서는 검사된다)")
     return errs, checked, skipped
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("paths", nargs="*", help="검사할 파일 (없으면 저장소 전체)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="파일별 결과까지 보인다")
     args = parser.parse_args()
+
+    verbose = args.verbose or bool(args.paths)
+    LOG.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     files = [Path(p).resolve() for p in args.paths] if args.paths else code_files(REPO_ROOT)
     errs, checked, skipped = check_syntax(files, REPO_ROOT)
     errs += check_names(files, REPO_ROOT)
 
-    if errs:
-        print(f"[check_code] 문제 {len(errs)}건")
-        for e in errs:
-            print(f"  {e}")
-        return 1
-
-    print(f"[check_code] 통과 — 구문 검사 {checked}개, 건너뜀 {skipped}개")
-    return 0
+    for e in errs:
+        LOG.error("%s", e.replace("\n", " | "))
+    LOG.info("완료 — 구문 검사 %d, 건너뜀 %d, 문제 %d", checked, skipped, len(errs))
+    return 1 if errs else 0
 
 
 if __name__ == "__main__":

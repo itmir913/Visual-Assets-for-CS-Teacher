@@ -20,6 +20,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from logs import get_logger  # noqa: E402
 from subjects import html_files  # noqa: E402
 
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
@@ -125,21 +126,24 @@ class SvgScanner(HTMLParser):
         self.flagged.append((line, vb_w, min_w, "천장", None))
 
 
-def scan_file(path):
+def scan_file(path, log):
     text = open(path, encoding="utf-8").read()
     p = SvgScanner()
     try:
         p.feed(text)
     except Exception as e:
-        print(f"  [파싱 오류] {e}")
+        log.error("%s [파싱 오류] %s", path, e)
         return []
     return p.flagged
 
 
 def main():
-    if sys.argv[1:]:
+    argv = [a for a in sys.argv[1:] if a not in ("-v", "--verbose")]
+    log = get_logger("audit_svg", len(argv) != len(sys.argv[1:]) or bool(argv))
+
+    if argv:
         files = []
-        for t in sys.argv[1:]:
+        for t in argv:
             files += glob.glob(f"{t}/**/*.html", recursive=True)
         files = sorted(set(files))
     else:
@@ -150,27 +154,24 @@ def main():
     total_files = 0
     counts = {"천장": 0, "정렬": 0}
     for f in files:
-        flagged = scan_file(f)
+        flagged = scan_file(f, log)
         if not flagged:
+            log.debug("%s OK", f)
             continue
         total_files += 1
-        print(f"\n=== {f} ===")
         for line, vb_w, min_w, kind, why in flagged:
             counts[kind] += 1
             minw_s = f"{min_w:g}px" if min_w is not None else "없음"
             if kind == "천장":
-                print(f"  {line}행: [천장 없음] viewBox 폭 {vb_w:g}, min-width={minw_s}"
-                      f" — 화면이 넓어질수록 글자가 계속 커진다")
+                log.warning("%s:%s [천장 없음] viewBox 폭 %g, min-width=%s "
+                            "— 화면이 넓어질수록 글자가 계속 커진다", f, line, vb_w, minw_s)
             else:
-                print(f"  {line}행: [가운데 정렬 없음] viewBox 폭 {vb_w:g}, 천장={why}"
-                      f" — 좁아진 그림이 왼쪽에 붙는다")
+                log.warning("%s:%s [가운데 정렬 없음] viewBox 폭 %g, 천장=%s "
+                            "— 좁아진 그림이 왼쪽에 붙는다", f, line, vb_w, why)
 
-    print(f"\n--- {len(files)}개 파일 검사, {total_files}개 파일에서 "
-          f"천장 없음 {counts['천장']}건, 가운데 정렬 없음 {counts['정렬']}건 ---")
-    print("천장은 width·height 속성, style의 max-width·max-height, Tailwind max-w-*,\n"
-          "높이가 고정된 조상 중 하나만 있으면 선 것으로 본다.\n"
-          "가운데 정렬은 **폭 천장이 있을 때만** 따진다 — 높이로 묶인 그림은\n"
-          "preserveAspectRatio 기본값이 이미 가운데 놓는다.")
+    log.info("완료 — 파일 %d, 걸린 파일 %d, 천장 없음 %d, 가운데 정렬 없음 %d",
+             len(files), total_files, counts["천장"], counts["정렬"])
+    # 판정 기준은 이 파일 맨 위 주석에 적어 두었다. 걸릴 때마다 되풀이해 찍지 않는다.
 
 
 if __name__ == "__main__":

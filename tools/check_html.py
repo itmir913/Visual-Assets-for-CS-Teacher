@@ -16,6 +16,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from logs import get_logger  # noqa: E402
 from subjects import STANDALONE, html_files  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -336,11 +337,26 @@ def under(path: Path, dirs) -> bool:
     return any(rel == d or rel.startswith(d.rstrip("/") + "/") for d in dirs)
 
 
-def check(path: Path) -> tuple[int, int]:
+def _at(shown: str, item: str) -> str:
+    """「232행: …」에서 앞의 줄 번호를 떼어 `파일:232` 꼴로 만든다."""
+    m = re.match(r"(\d+)행", item)
+    return f"{shown}:{m.group(1)}" if m else shown
+
+
+def _msg(item: str) -> str:
+    """줄 번호를 뗀 나머지. 줄 번호는 앞에 이미 붙였다."""
+    return re.sub(r"^\d+행:\s*", "", item)
+
+
+def check(path: Path, log) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
     lines = src.splitlines()
-    print(f"=== {path.name} ({len(lines)}행) ===")
+    try:
+        shown = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        shown = path.name
+    log.debug("%s (%d행)", shown, len(lines))
     violations = warnings = 0
 
     c = Checker()
@@ -356,21 +372,17 @@ def check(path: Path) -> tuple[int, int]:
         bad, warn = by_line(bad), by_line(warn)
         violations += len(bad)
         warnings += len(warn)
-        if bad:
-            print(f"  [{label}] 위반 {len(bad)}건")
-            for b in bad:
-                print("   -", b)
-        elif warn:
-            print(f"  [{label}] OK (확인 필요 {len(warn)}건)")
-        else:
-            print(f"  [{label}] OK")
+        for b in bad:
+            log.error("%s [%s] %s", _at(shown, b), label, _msg(b))
+        if not bad and not warn:
+            log.debug("  [%s] OK", label)
         for w in warn:
-            print("   ? ", w)
+            log.warning("%s [%s] %s", _at(shown, w), label, _msg(w))
 
     report("태그 중첩", c.nesting)
 
     if under(path, FONT_EXEMPT_DIRS):
-        print("  [글자 크기] 건너뜀 — 강의노트가 아니다(조작 UI)")
+        log.debug("  [글자 크기] 건너뜀 — 강의노트가 아니다(조작 UI)")
     else:
         # Tailwind 소형 크기 클래스
         tw = [f"{i}행: {m.group(0)}"
@@ -383,9 +395,9 @@ def check(path: Path) -> tuple[int, int]:
 
     if c.unwrapped:
         violations += len(c.unwrapped)
-        print(f"  [테이블 래퍼] {c.tables}개 중 미포장 {c.unwrapped}")
+        log.error("%s [테이블 래퍼] %d개 중 미포장 %s", shown, c.tables, c.unwrapped)
     else:
-        print(f"  [테이블 래퍼] {c.tables}개 중 전부 OK")
+        log.debug("  [테이블 래퍼] %d개 중 전부 OK", c.tables)
 
     report("고정폭 래퍼", c.wide_unwrapped)
     report("제목 일치", title_rules(path, src))
@@ -405,7 +417,7 @@ def resolve(patterns):
             else:
                 matched = sorted(Path.cwd().glob(p)) or sorted(ROOT.glob(p))
             if not matched:
-                print(f"!! 일치하는 파일 없음: {p}", file=sys.stderr)
+                get_logger("check_html").error("일치하는 파일 없음: %s", p)
             out += matched
         else:
             for cand in ([path] if path.is_absolute() else [Path.cwd() / p, ROOT / p]):
@@ -413,12 +425,16 @@ def resolve(patterns):
                     out.append(cand)
                     break
             else:
-                print(f"!! 파일 없음: {p}", file=sys.stderr)
+                get_logger("check_html").error("파일 없음: %s", p)
     return out
 
 
 def main():
-    patterns = sys.argv[1:]
+    args = [a for a in sys.argv[1:] if a not in ("-v", "--verbose")]
+    # 파일을 짚어 부르면 그 파일의 항목별 결과를 보여 준다 → tools/logs.py
+    verbose = len(args) != len(sys.argv[1:]) or bool(args)
+    log = get_logger("check_html", verbose)
+    patterns = args
     skipped = 0
     if patterns:
         # 인자로 짚었으면 그대로 검사한다 — 재작성 대기 파일도 봐 준다.
@@ -434,13 +450,13 @@ def main():
 
     total_v = total_w = 0
     for f in files:
-        v, w = check(f)
+        v, w = check(f, log)
         total_v += v
         total_w += w
 
-    print(f"--- {len(files)}개 파일: 위반 {total_v}건, 확인 필요 {total_w}건 ---")
-    if skipped:
-        print(f"--- 재작성 대기로 건너뜀: {skipped}개 ({', '.join(REWRITE_PENDING)}) ---")
+    tail = f", 재작성 대기 건너뜀 {skipped}" if skipped else ""
+    log.info("완료 — 파일 %d, 위반 %d, 확인 필요 %d%s",
+             len(files), total_v, total_w, tail)
     return 1 if total_v else 0
 
 

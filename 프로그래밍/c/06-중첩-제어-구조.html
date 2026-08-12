@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중첩 제어 구조</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/06-중첩-제어-구조.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-layer-group absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-clock absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            중첩 제어 구조
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+새로 외울 문법은 하나도 없습니다.<br>
+            <strong>이미 아는 둘을 겹쳐 놓았을 뿐입니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>되풀이 안에 되풀이를 넣었을 때 안쪽이 몇 번 도는지 셀 수 있다.</li>
+                    <li>안쪽 횟수가 바깥 값에 따라 달라지는 모양을 읽고 쓸 수 있다.</li>
+                    <li>되풀이 안에서 조건에 따라 갈라지는 코드를 쓸 수 있다.</li>
+                    <li>겹쳐 놓았을 때 반복을 빠져나가는 것이 어디까지인지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-layer-group text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">중첩 제어 구조</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#nest" class="hover:text-orange-600 transition">겹친다는 것</a>
+            <a href="#depend" class="hover:text-orange-600 transition">바깥에 따라 달라지기</a>
+            <a href="#inside" class="hover:text-orange-600 transition">되풀이 안의 갈림길</a>
+            <a href="#escape" class="hover:text-orange-600 transition">어디까지 빠져나가나</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 겹친다는 것 ===== -->
+    <section id="nest" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">겹친다는 것</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">시계의 분침과 초침을 떠올리면 그림이 그려집니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">새로 배울 문법이 없습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 차시에는 <strong>새 낱말이 하나도 나오지 않습니다.</strong>
+                    지금까지 배운 되풀이와 갈림길을 <strong>그대로 겹쳐 놓기만</strong> 합니다.
+                    어려운 것은 문법이 아니라 <strong>겹쳤을 때 어떤 순서로 도는지를 머릿속에 그리는 일</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">분침과 초침</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    시계에서 <strong>분침이 한 칸 갈 동안 초침은 예순 칸을 돕니다.</strong>
+                    초침이 한 바퀴를 다 돌아야 분침이 비로소 한 칸 움직입니다.
+                    <strong>바깥 되풀이가 분침, 안쪽 되풀이가 초침</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>안쪽이 훨씬 자주 돕니다.</strong> 바깥이 3번, 안쪽이 4번이면
+                    안쪽 중괄호는 <strong>3 &times; 4 = 12번</strong> 지나갑니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/06.시계.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                줄바꿈이 <strong>어느 자리에 있는지</strong> 눈여겨보세요. <code>printf("\n")</code>이
+                안쪽 중괄호 <strong>밖</strong>에 있습니다. 그래서 <strong>안쪽이 네 번을 다 돈 뒤에야</strong>
+                한 번 실행되어 한 줄이 끝납니다. 이것을 안쪽에 넣으면 초마다 줄이 바뀝니다.
+            </p>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>세는 변수의 이름을 다르게 둡니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    바깥과 안쪽이 같은 이름을 쓰면 서로의 값을 흔들어 놓습니다.
+                    습관처럼 <code>i</code>와 <code>j</code>를 쓰기도 하지만,
+                    <strong><code>min</code>과 <code>sec</code>처럼 무엇을 세는지 드러나는 이름</strong>이
+                    겹칠수록 더 도움이 됩니다. 겹치면 헷갈리는 것이 늘어나니까요.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/06.구구단.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                구구단은 겹친 되풀이의 대표입니다. <strong>바깥이 「몇 단」, 안쪽이 「몇 곱하기」</strong>입니다.
+                <code>--- %d단 ---</code>을 찍는 줄이 <strong>바깥 중괄호 안, 안쪽 되풀이 앞</strong>에 있어서
+                단이 바뀔 때마다 한 번씩 나옵니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">위 구구단에서 <code>--- %d단 ---</code>을 안쪽 되풀이 «안»으로 옮기면 화면이 어떻게 달라질까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 안쪽 횟수가 바깥에 따라 달라질 때 ===== -->
+    <section id="depend" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">안쪽 횟수가 바깥에 따라 달라질 때</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">여기서부터 겹치기가 재미있어집니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지는 안쪽이 <strong>늘 같은 횟수</strong>를 돌았습니다.
+                그런데 안쪽 조건에 <strong>바깥 변수를 써 넣으면</strong>, 바퀴마다 안쪽 횟수가 달라집니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/06.별.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">한 줄씩 따라가 봅시다</p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">바깥 <code>line</code></th>
+                            <th class="w-44">안쪽 조건</th>
+                            <th>찍히는 것</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><code>star &lt;= 1</code></td>
+                            <td>별 1개</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><code>star &lt;= 2</code></td>
+                            <td>별 2개</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><code>star &lt;= 3</code></td>
+                            <td>별 3개</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><code>star &lt;= 4</code></td>
+                            <td>별 4개</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    안쪽 조건에 <strong>고정된 수가 아니라 <code>line</code>이 들어가 있어서</strong>
+                    바깥이 한 칸 갈 때마다 안쪽이 한 번씩 더 돕니다. 그래서 삼각형이 됩니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>모양을 바꾸고 싶으면 안쪽 조건을 손봅니다.</strong>
+                <code>star &lt;= 5 - line</code>으로 바꾸면 거꾸로 된 삼각형이 되고,
+                안쪽 되풀이를 하나 더 붙여 앞에 빈칸을 찍으면 가운데로 모입니다.
+                <strong>겹친 되풀이의 힘은 여기에 있습니다</strong> &mdash; 조건 하나로 그림이 달라집니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/06.전체.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>%2d</code>는 <strong>두 칸을 잡고 오른쪽에 붙이라</strong>는 뜻입니다.
+                한 자리 수와 두 자리 수가 섞여도 <strong>열이 맞아</strong> 표처럼 읽힙니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">별을 오른쪽으로 정렬한 삼각형으로 만들려면 무엇을 먼저 찍어야 할까요? 되풀이가 몇 개 필요할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 되풀이 안의 갈림길 ===== -->
+    <section id="inside" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">되풀이 안의 갈림길</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">되풀이끼리만 겹치는 것이 아닙니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                겹칠 수 있는 것은 되풀이끼리만이 아닙니다.
+                <strong>되풀이 안에 갈림길</strong>을 두면 「여럿을 하나씩 보면서 조건에 맞는 것만 고르는」 일이 됩니다.
+                이것이 실제 프로그램에서 가장 자주 나오는 모양입니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/06.반복속선택.c"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">세 가지가 한자리에 모였습니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>되풀이</strong>가 1부터 20까지 하나씩 짚는다.</li>
+                    <li><strong>갈림길</strong>이 3의 배수인지 가른다 &mdash; 나머지 연산자를 쓴다.</li>
+                    <li><strong>쌓아 두는 변수</strong>가 몇 개였는지 세어 둔다 &mdash; 되풀이 밖에서 만든다.</li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞의 세 차시에서 하나씩 배운 것이 <strong>한 덩어리로 붙는 자리</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>count</code>를 되풀이 <strong>밖</strong>에 둔 까닭은 앞 차시와 같습니다.
+                안에 두면 바퀴마다 0으로 되돌아가 <strong>세어 봐야 늘 1</strong>이 됩니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">1부터 100까지 가운데 3의 배수이면서 5의 배수인 수를 세려면 조건을 어떻게 쓸까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 어디까지 빠져나가나 ===== -->
+    <section id="escape" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어디까지 빠져나가나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">겹쳐 놓았을 때만 생기는 오해가 하나 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/06.break범위.c"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i><code>break</code>는 «자기가 든 반복 하나»만 빠져나옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    안쪽에서 <code>break</code>를 만나면 <strong>안쪽 되풀이만</strong> 끝납니다.
+                    바깥은 아무 일 없었다는 듯 다음 바퀴를 시작하고, 안쪽 되풀이도 <strong>처음부터 다시</strong> 돕니다.
+                    그래서 위 코드는 <code>b=1</code>만 세 번 찍고 끝납니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「<code>break</code>를 걸었는데 왜 계속 돌지?」는 여기서 나옵니다.
+                    <strong>둘 다 끝내고 싶다면 <code>break</code> 하나로는 안 됩니다.</strong>
+                    바깥 조건에도 끝낼 신호를 주거나, 바깥에서 한 번 더 <code>break</code>를 걸어야 합니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-slate-400 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">겹칠수록 들여쓰기가 유일한 지도입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    C는 들여쓰기를 보지 않지만 <strong>사람은 들여쓰기로 읽습니다.</strong>
+                    겹쳐 놓으면 중괄호가 여럿 겹쳐 닫히는데, 들여쓰기가 흐트러지면
+                    <strong>어느 닫는 괄호가 어느 것과 짝인지</strong> 알 수 없게 됩니다.
+                    한 겹 들어갈 때마다 <strong>네 칸씩</strong> 밀어 두면 눈으로 짝이 보입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>두 겹까지가 읽기 좋은 한계</strong>입니다. 세 겹, 네 겹으로 들어가면
+                    도는 그림이 머릿속에 안 그려집니다. 그럴 때는 겹치기를 늘리기보다
+                    <strong>일을 나누어 따로 다루는 편</strong>이 낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">바깥과 안쪽을 한꺼번에 끝내려면 어떤 방법이 있을까요? 앞 차시에서 배운 것 가운데 쓸 만한 것을 떠올려 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">분침과 초침</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    안쪽이 한 바퀴를 다 돌아야 바깥이 한 칸 간다.
+                    바깥 <em>m</em>번, 안쪽 <em>n</em>번이면 안쪽 중괄호는 <strong><em>m</em> &times; <em>n</em>번</strong> 지나간다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">줄바꿈의 자리</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    안쪽 중괄호 <strong>밖</strong>에 두면 안쪽이 다 끝난 뒤 한 번,
+                    <strong>안</strong>에 두면 바퀴마다 한 번이다. <strong>자리가 결과를 정한다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">바깥 값을 안쪽 조건에</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    안쪽 조건에 바깥 변수를 쓰면 <strong>바퀴마다 안쪽 횟수가 달라진다.</strong>
+                    삼각형 모양이 여기서 나온다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900"><code>break</code>의 범위</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>자기가 든 반복 하나만</strong> 빠져나온다. 바깥은 계속 돈다.
+                    둘 다 끝내려면 <code>break</code> 하나로는 모자라다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. 바깥이 5번, 안쪽이 3번 도는 겹친 되풀이에서 안쪽 중괄호는 몇 번 지나가는가?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '더하는 것이 아닙니다. 바깥 한 바퀴마다 안쪽이 통째로 한 번씩 돕니다.')">
+                    ① 8번
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '바깥 한 바퀴마다 안쪽이 3번씩 돌아 5 × 3 = 15번입니다.')">
+                    ② 15번
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '안쪽은 바깥 바퀴마다 처음부터 다시 돕니다. 3번으로 끝나지 않습니다.')">
+                    ③ 3번
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '바깥이 5번 도는 동안 안쪽은 매번 새로 돕니다.')">
+                    ④ 5번
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. 안쪽 되풀이 안에서 <code>break</code>를 만나면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '바깥까지 끝나지 않습니다. 이 오해가 가장 흔합니다.')">
+                    ① 바깥까지 한꺼번에 끝난다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '자기가 든 반복 하나만 빠져나옵니다. 바깥은 다음 바퀴를 이어 갑니다.')">
+                    ② 안쪽만 끝나고 바깥은 다음 바퀴를 이어 간다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '그것은 continue가 하는 일입니다.')">
+                    ③ 이번 바퀴만 건너뛴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '겹친 반복 안에서도 break는 쓸 수 있습니다.')">
+                    ④ 겹친 반복 안에서는 쓸 수 없다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 별 삼각형에서 줄마다 별 개수가 늘어나게 만든 것은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '안쪽 조건에 바깥 변수가 들어가 있어 바퀴마다 안쪽 횟수가 달라집니다.')">
+                    ① 안쪽 조건에 바깥 변수를 써 넣은 것
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '줄바꿈 자리는 줄이 언제 끝나는지를 정할 뿐 개수를 바꾸지 않습니다.')">
+                    ② 줄바꿈을 안쪽 밖에 둔 것
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '이름은 사람이 읽기 위한 것이라 동작을 바꾸지 않습니다.')">
+                    ③ 세는 변수의 이름을 다르게 둔 것
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '들여쓰기는 C가 보지 않습니다.')">
+                    ④ 들여쓰기를 네 칸씩 준 것
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

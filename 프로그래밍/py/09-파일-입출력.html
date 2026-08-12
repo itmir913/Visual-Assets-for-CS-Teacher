@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일 입출력</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/py/09-파일-입출력.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-file-lines absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-folder-open absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            파일 입출력
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+프로그램이 끝나면 값은 모두 사라집니다.<br>
+            <strong>남겨 두려면 파일에 적어 두어야 합니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>변수와 파일의 차이를 프로그램이 끝난 뒤로 설명할 수 있다.</li>
+                    <li>파일을 열고 읽고 닫는 세 단계를 <code>with</code>로 안전하게 쓸 수 있다.</li>
+                    <li>읽어 온 줄에서 줄바꿈을 떼고 필요한 자료형으로 바꿀 수 있다.</li>
+                    <li>쓰기 모드와 덧붙이기 모드를 구별해 고를 수 있다.</li>
+                    <li>쉼표로 나뉜 파일을 자르고 이어 표 형태의 자료를 다룰 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-file-lines text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">파일 입출력</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-orange-600 transition">왜 파일인가</a>
+            <a href="#open" class="hover:text-orange-600 transition">열고 닫기</a>
+            <a href="#read" class="hover:text-orange-600 transition">읽어 오기</a>
+            <a href="#write" class="hover:text-orange-600 transition">써 넣기</a>
+            <a href="#csv" class="hover:text-orange-600 transition">표를 담은 파일</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 값은 프로그램과 함께 사라진다 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">값은 프로그램과 함께 사라진다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">지금까지 만든 것은 실행이 끝나는 순간 없어졌습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-python"><code class="language-python" data-src="code/09.사라진다.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                변수는 <strong>실행하는 동안만</strong> 값을 들고 있습니다.
+                프로그램이 끝나면 그 자리를 컴퓨터가 도로 가져가므로,
+                <strong>다시 실행하면 처음부터 다시 입력해야 합니다.</strong>
+                한 학급의 점수를 다룬다면 서른 번을 다시 쳐야 한다는 뜻입니다.
+            </p>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">파일(file)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>저장 장치에 이름을 붙여 남겨 두는 자료 덩어리</strong>입니다.
+                    프로그램이 끝나도, 컴퓨터를 꺼도 남습니다.
+                    <strong>다음 실행이 지난 실행의 결과를 이어받을 수 있게</strong> 해 주는 것이 파일입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900">변수 &mdash; 빠르지만 사라진다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        실행 중에는 <strong>바로 꺼내 쓸 수 있습니다.</strong>
+                        대신 <strong>끝나면 남지 않습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900">파일 &mdash; 남지만 열어야 한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>끝나도 남습니다.</strong> 대신 쓰려면
+                        <strong>열고 읽는 절차</strong>를 거쳐야 합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">입력한 점수를 파일에 적어 두면, 다음에 프로그램을 켰을 때 무엇을 하지 않아도 될까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 열고 쓰고 닫기 ===== -->
+    <section id="open" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">열고 쓰고 닫기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">파일 다루기는 세 단계로 되어 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                공책을 쓸 때와 같습니다. <strong>펼치고 &rarr; 적고 &rarr; 덮습니다.</strong>
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.세단계.py"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th class="w-44">코드</th>
+                        <th>하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>① 열기</td>
+                        <td><code>open(이름, 모드)</code></td>
+                        <td>어떤 파일을 <strong>어떤 목적으로</strong> 쓸지 정한다</td>
+                    </tr>
+                    <tr>
+                        <td>② 읽고 쓰기</td>
+                        <td><code>f.read()</code> <code>f.write()</code></td>
+                        <td>내용을 가져오거나 넣는다</td>
+                    </tr>
+                    <tr>
+                        <td>③ 닫기</td>
+                        <td><code>f.close()</code></td>
+                        <td>다 썼다고 알린다. <strong>이때 실제로 저장된다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-orange-900">모드 &mdash; 무엇을 하러 여는가</p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">모드</th>
+                            <th class="w-32">이름</th>
+                            <th>하는 일</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>"r"</code></td>
+                            <td>read</td>
+                            <td>읽는다. <strong>파일이 없으면 오류</strong>가 난다</td>
+                        </tr>
+                        <tr>
+                            <td><code>"w"</code></td>
+                            <td>write</td>
+                            <td>쓴다. 없으면 만들고, <strong>있으면 내용을 지우고 처음부터</strong> 쓴다</td>
+                        </tr>
+                        <tr>
+                            <td><code>"a"</code></td>
+                            <td>append</td>
+                            <td>쓴다. <strong>있던 내용 뒤에 이어</strong> 붙인다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.읽기.py"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>닫기를 빠뜨리기 쉽습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    쓴 내용이 <strong>아직 파일에 닿지 않은 채</strong> 남아 있을 수 있고,
+                    중간에서 오류가 나면 <code>close</code>까지 가지도 못합니다.
+                    그래서 파이썬에는 <strong>닫는 것을 잊을 수 없게 해 주는 문법</strong>이 있습니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.with.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900"><code>with</code></p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>들여쓰기가 끝나는 자리에서 파일이 저절로 닫힙니다.</strong>
+                    안에서 오류가 나도 닫힙니다. <code>close</code>를 직접 적는 것도 틀리지 않지만,
+                    <strong>빠뜨릴 수 없는 쪽</strong>이 더 안전합니다. 아래로는 이 꼴만 씁니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>"w"</code>로 연 프로그램을 실수로 두 번 실행하면 파일의 내용은 어떻게 될까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 읽어 오기 ===== -->
+    <section id="read" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">읽어 오기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">파일에서 나오는 것은 언제나 글자입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>read</code>는 <strong>파일 전체를 문자열 하나로</strong> 가져옵니다.
+                하지만 자료는 대개 <strong>한 줄에 하나씩</strong> 적혀 있으므로, 줄 단위로 다루는 쪽이 편합니다.
+                파일도 <strong>하나씩 꺼내는 것</strong>이라 <code>for</code>가 그대로 통합니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.한줄씩.py"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>줄바꿈이 딸려 옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    줄을 나누는 <strong>줄바꿈 글자까지 함께</strong> 읽힙니다.
+                    눈에 보이지 않아 알아채기 어렵지만, 대괄호로 감싸 찍어 보면 드러납니다.
+                    <strong>앞뒤 빈칸을 떼는 그 도구</strong>가 줄바꿈도 함께 떼어 줍니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.줄바꿈.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                하나 더 있습니다. <strong>파일에 적힌 90은 수가 아니라 글자 <code>"90"</code>입니다.</strong>
+                더하려면 바꿔 주어야 합니다 &mdash; <code>input</code>에서 겪은 것과 같은 일입니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.숫자로.py"></code></pre>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>떼기가 먼저, 바꾸기가 나중입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int("90")</code>은 되지만 줄바꿈이 붙은 채로도 되는지는 장담할 수 없습니다.
+                    <strong><code>strip</code>을 먼저 걸어 두면 그 걱정을 하지 않아도 됩니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">점수 파일을 읽어 합계를 냈더니 숫자가 이어 붙은 긴 글자가 나왔습니다. 무엇을 빠뜨린 것일까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 써 넣기 ===== -->
+    <section id="write" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">써 넣기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">줄바꿈은 직접 넣어 주어야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-python"><code class="language-python" data-src="code/09.쓰기.py"></code></pre>
+
+            <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                <li><code>write</code>는 <strong>글자만</strong> 받는다. 수는 <code>str</code>로 바꾸어 넣는다.</li>
+                <li><code>print</code>와 달리 <strong>줄을 저절로 바꾸지 않는다.</strong>
+                    넣지 않으면 <strong>한 줄에 다 이어 붙는다.</strong></li>
+            </ul>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>"w"</code>는 <strong>있던 내용을 지우고 처음부터</strong> 씁니다.
+                기록을 쌓아 가려면 <code>"a"</code>로 열어야 합니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.이어쓰기.py"></code></pre>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900"><code>"w"</code>가 맞는 때</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>이번 실행의 결과로 파일을 새로 만들 때.</strong>
+                        계산 결과표처럼 <strong>지난 것이 남으면 곤란한</strong> 경우입니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900"><code>"a"</code>가 맞는 때</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>실행할 때마다 한 줄씩 쌓아 갈 때.</strong>
+                        출석 기록처럼 <strong>지난 것이 남아야 하는</strong> 경우입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>지워진 것은 되돌릴 수 없습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>"w"</code>로 여는 순간 <strong>있던 내용은 그 자리에서 사라집니다.</strong>
+                    휴지통에도 남지 않습니다.
+                    <strong>중요한 파일 이름을 코드에 적을 때는 모드를 한 번 더 봅니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">출석을 실행할 때마다 한 줄씩 남기려는데 <code>"w"</code>로 열었습니다. 파일에는 몇 줄이 남을까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 표를 담은 파일 ===== -->
+    <section id="csv" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">표를 담은 파일</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">쉼표로 나뉜 글자일 뿐입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                자료는 대개 <strong>표</strong>입니다. 이름과 점수처럼 <strong>한 줄에 여러 값</strong>이 들어갑니다.
+                이럴 때 흔히 쓰는 것이 <strong>값 사이를 쉼표로 나눈 파일</strong>입니다.
+            </p>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">CSV(comma-separated values)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>한 줄이 한 행</strong>, <strong>쉼표가 열 구분</strong>인 텍스트 파일입니다.
+                    표 계산 프로그램이 열어 주기는 하지만,
+                    <strong>속을 들여다보면 그냥 글자</strong>입니다 &mdash; 그래서 배운 것만으로 다룰 수 있습니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.csv읽기.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">읽기는 자르기, 쓰기는 잇기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>줄바꿈을 떼고 쉼표에서 자르면 리스트</strong>가 되고,
+                    <strong>쉼표로 이어 붙이고 줄바꿈을 더하면 한 줄</strong>이 됩니다.
+                    새로 배울 것 없이 앞에서 익힌 한 쌍이 그대로 쓰입니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.csv쓰기.py"></code></pre>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i><code>encoding</code>을 적어 두는 이유</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    글자를 어떤 규칙으로 저장할지 정하는 것이 인코딩입니다.
+                    쓸 때와 읽을 때의 규칙이 다르면 <strong>한글이 깨져 보입니다.</strong>
+                    <code>encoding="utf-8"</code>을 <strong>양쪽에 똑같이</strong> 적어 두면 이 문제를 피할 수 있습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                파일에서 읽어 &rarr; 함수로 계산해 &rarr; 파일로 내보내면 하나의 프로그램이 됩니다.
+                <strong>사람이 한 글자도 치지 않아도 도는 프로그램</strong>이 여기서 나옵니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/09.전체.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">한 가지 조심할 것</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>값 안에 쉼표가 들어 있으면</strong> 이 방법으로는 잘못 잘립니다.
+                    실제 자료를 다룰 때는 그런 줄이 있는지 먼저 보아야 합니다.
+                    <strong>여기서는 값에 쉼표가 없다고 보고 다룹니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">첫 줄에 「이름,국어,영어」 같은 제목이 들어 있는 파일이라면, 계산 전에 무엇을 해 주어야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">변수는 사라지고 파일은 남는다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    변수는 실행하는 동안만 값을 든다.
+                    <strong>다음 실행이 이어받게 하려면</strong> 파일에 적어 둔다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">열고 &rarr; 다루고 &rarr; 닫는다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>with open(...) as f:</code>를 쓰면
+                    <strong>들여쓰기가 끝나는 자리에서 저절로 닫힌다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">읽으면 글자다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    줄 끝에 <strong>줄바꿈이 딸려 오므로 <code>strip</code></strong>으로 떼고,
+                    계산하려면 <code>int</code>&middot;<code>float</code>로 바꾼다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900"><code>"w"</code>와 <code>"a"</code></h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>"w"</code>는 <strong>지우고 처음부터</strong>, <code>"a"</code>는 <strong>뒤에 이어</strong>.
+                    <code>write</code>는 줄을 저절로 바꾸지 않는다.
+                </p>
+            </div>
+            <div class="section-card space-y-2 md:col-span-2">
+                <h3 class="text-xl font-black text-slate-900">CSV는 특별한 파일이 아니다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 줄이 한 행, 쉼표가 열 구분인 <strong>그냥 텍스트</strong>다.
+                    <strong>읽기는 자르기, 쓰기는 잇기</strong>로 다룬다.
+                    한글을 주고받을 때는 <code>encoding</code>을 <strong>양쪽에 같게</strong> 적는다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. 내용이 들어 있는 파일을 <code>"w"</code>로 열면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '여는 순간 비워집니다. 뒤에 이어 쓰려면 a를 씁니다.')">
+                    ① 있던 내용이 지워지고 처음부터 쓴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '이어 붙이는 것은 a입니다.')">
+                    ② 있던 내용 뒤에 이어 쓴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '오류는 나지 않습니다. 그래서 더 조심해야 합니다.')">
+                    ③ 파일이 이미 있으므로 오류가 난다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '읽을 수는 없습니다. w는 쓰기 위한 모드입니다.')">
+                    ④ 내용을 읽어 온다
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. 한 줄에 하나씩 점수가 적힌 파일에서 <code>line</code>을 그대로 <code>int</code>에 넣기 전에 할 일은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '줄 끝의 줄바꿈이 딸려 오므로 strip으로 떼어 냅니다.')">
+                    ① <code>strip</code>으로 줄바꿈을 떼어 낸다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '쉼표로 나뉜 파일이 아니라면 자를 일이 없습니다.')">
+                    ② <code>split(",")</code>으로 자른다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '읽어 온 값은 이미 글자입니다. 다시 글자로 바꿀 이유가 없습니다.')">
+                    ③ <code>str</code>로 바꾼다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '닫는 것은 다 읽은 뒤의 일입니다.')">
+                    ④ 파일을 먼저 닫는다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 다음 중 <strong>틀린</strong> 설명은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, 'write는 줄을 바꿔 주지 않습니다. 넣지 않으면 한 줄에 이어 붙습니다.')">
+                    ① <code>write</code>는 <code>print</code>처럼 줄을 저절로 바꿔 준다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 들여쓰기가 끝나는 자리에서 닫힙니다.')">
+                    ② <code>with</code>를 쓰면 <code>close</code>를 적지 않아도 닫힌다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 없는 파일을 읽을 수는 없습니다.')">
+                    ③ <code>"r"</code>로 열 때 파일이 없으면 오류가 난다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 쉼표로 열을 나눈 텍스트일 뿐입니다.')">
+                    ④ CSV 파일은 텍스트 파일이다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

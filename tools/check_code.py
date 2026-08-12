@@ -77,34 +77,13 @@ def directives(path: Path) -> dict[str, str]:
     raise ValueError(f"프론트매터가 `{fence}`로 닫히지 않았다")
 
 
-def owning_notes(path: Path) -> list[str]:
-    """이 코드 파일을 끌어다 쓸 강의노트들의 파일명 줄기.
-
-    코드는 관례상 **강의노트 바로 옆 `code/`** 에 둔다. 그러니 강의노트 자리는
-    경로에서 첫 `code` 바로 위다 — `기초/code/` → `기초/`, `실습/code/py/` → `실습/`.
-    **`.html`을 찾을 때까지 위로 올라가지 않는다.** 그렇게 하면 아직 강의노트가
-    없는 폴더에서 저장소 맨 위의 `index.html`까지 올라가 엉뚱한 것을 요구한다.
-
-    그 폴더에 `.html`이 아직 없으면 빈 목록이다. 코드를 먼저 두고 강의노트를
-    나중에 쓰는 순서를 막지 않으려는 것이다.
-    """
-    parts = path.parts
-    if "code" not in parts:
-        return []
-    note_dir = Path(*parts[:parts.index("code")])
-    return sorted(f.stem for f in note_dir.glob("*.html"))
-
-
 def check_names(files: list[Path], root: Path) -> list[str]:
-    """코드 파일 이름이 규약을 지키는지 본다 → CLAUDE.md 「코드 파일 이름」.
+    """코드 파일 이름에 공백이 없는지 본다 → CLAUDE.md 「코드 파일 이름」.
 
-    한 `code/` 폴더에 여러 차시의 코드가 쌓이므로, 이름만 보고 어느 차시 것인지
-    알 수 있어야 하고 목록이 강의노트 순서대로 정렬되어야 한다. 규칙은 둘이다 —
-    **공백을 쓰지 않는다**, 그리고 **강의노트를 앞에 적는다**(번호가 있으면 번호,
-    번호가 없는 실습은 강의노트 이름).
-
-    강의노트를 아직 못 찾는 자리(`.html`이 없는 폴더)는 앞머리 검사를 건너뛴다.
-    코드를 먼저 두고 강의노트를 나중에 쓰는 순서를 막지 않으려는 것이다.
+    **앞머리가 강의노트와 맞는지는 보지 않는다.** 실습은 차시 번호가 없고 이름도
+    줄여 붙이므로(`비만도-측정.html` → `비만도.표준몸무게.py`) 기계가 「알아볼 수
+    있는 이름인가」를 판정할 수 없다. 억지로 규칙을 세우면 맞는 이름이 걸린다.
+    앞에 강의노트를 적는다는 규칙 자체는 남아 있고, 사람이 지킨다.
     """
     errs: list[str] = []
     for p in files:
@@ -115,19 +94,6 @@ def check_names(files: list[Path], root: Path) -> list[str]:
             errs.append(f"{rel}: 이름에 공백이 있다. 띄어 쓸 자리는 `-`로 잇는다")
             continue
 
-        notes = owning_notes(p)
-        if not notes:
-            continue
-
-        # 번호가 있으면 번호로, 없으면(실습) 강의노트 이름으로 앞머리를 삼는다.
-        heads = set()
-        for stem in notes:
-            head = stem.split(".", 1)[0]
-            heads.add(head if re.fullmatch(r"\d+(-\d+)*", head) else stem)
-
-        if not any(name.startswith(h + ".") for h in heads):
-            hint = ", ".join(sorted(heads)[:4])
-            errs.append(f"{rel}: 앞에 강의노트를 적는다 (`{hint}` 중 하나 + `.`)")
     return errs
 
 

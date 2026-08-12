@@ -590,5 +590,5 @@ module.exports = {makeDocument};
 
 // 직접 실행 시 빈 양식 생성
 if (require.main === module) {
-    makeDocument(out('ai', 'ai_ml_template.docx'));
+    makeDocument(out('ai', '수행평가-양식.docx'));
 }

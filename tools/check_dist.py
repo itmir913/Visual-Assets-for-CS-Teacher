@@ -37,9 +37,9 @@ DOCX_HREF_RE = re.compile(r'href="([^"]+\.docx)"')
 #   · 여기 있는데 안 만들어졌으면      → 이름이나 자리가 바뀐 것이다. **주소가 죽는다**
 # 뒤쪽이 진짜 이유다. 링크가 없으니 이름을 바꿔도 아무 데서도 티가 나지 않는다.
 UNLINKED_OK = {
-    "인공지능기초/ai-projects/docx/ai_ml_template.docx",
-    "프로그래밍/실습/docx/프로젝트-개발-문서.py.docx",
-    "프로그래밍/실습/docx/프로젝트-개발-문서.c.docx",
+    "인공지능기초/ai-projects/docx/수행평가-양식.docx",
+    "프로그래밍/실습/docx/수행평가-양식.py.docx",
+    "프로그래밍/실습/docx/수행평가-양식.c.docx",
 }
 CDN_RE = re.compile(r"https://(?:cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*")
 

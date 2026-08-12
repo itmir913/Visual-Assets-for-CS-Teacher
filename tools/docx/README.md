@@ -117,9 +117,9 @@ const DEST = {
 배포는 된다 — **링크가 없을 뿐 주소로는 열린다.** 교사가 주소를 눌러 받는다.
 
 ```
-인공지능기초/ai-projects/docx/ai_ml_template.docx
-프로그래밍/실습/docx/프로젝트-개발-문서.py.docx
-프로그래밍/실습/docx/프로젝트-개발-문서.c.docx
+인공지능기초/ai-projects/docx/수행평가-양식.docx
+프로그래밍/실습/docx/수행평가-양식.py.docx
+프로그래밍/실습/docx/수행평가-양식.c.docx
 ```
 
 **이 셋은 이름이 곧 주소다. 바꾸면 배부해 둔 주소가 죽는다.**

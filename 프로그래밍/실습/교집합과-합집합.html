@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>교집합과 합집합</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/교집합과-합집합.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-circle-half-stroke absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-layer-group absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            교집합과 합집합
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            수학 시간에 배운 집합을<br>
+            <strong>그대로 담을 수 있습니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>중복이 없고 순서가 없는 자료 담기가 무엇인지 설명할 수 있다.</li>
+                    <li>수학의 교집합·합집합을 그대로 옮기는 연산을 쓸 수 있다.</li>
+                    <li>순서가 없는 자료를 순서대로 내놓으려면 무엇이 더 필요한지 설명할 수 있다.</li>
+                    <li>같은 일을 되풀이로 직접 짜 보고 자료 담기가 무엇을 대신해 주는지 견줄 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-circle-half-stroke text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">교집합과 합집합</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">수학의 집합이 프로그램에도 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    두 줄로 숫자들을 입력받아 <strong>두 집합의 교집합과 합집합</strong>을 구해
+                    각각 <strong>작은 것부터 차례로</strong> 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                수학 시간에 배운 그대로입니다 &mdash; <strong>교집합은 양쪽에 다 있는 것</strong>,
+                <strong>합집합은 어느 한쪽에라도 있는 것</strong>입니다.
+                놀라운 점은 <strong>파이썬에 집합이 그대로 들어 있다</strong>는 것입니다.
+                <strong>수학의 성질을 그대로 가진 담는 방식</strong>이 준비되어 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>무엇을 받고 어떤 순서로 내놓을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>집합으로 담으면 무엇이 저절로 해결되는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>순서가 없는 것을 어떻게 순서대로 내놓는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>겹치는 것이 없거나 전부 겹칠 때는 어떻게 되는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-14.docx"
+                       download="[개발 문서] 교집합과 합집합 계산기 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-14.docx"
+                       download="[개발 문서] 교집합과 합집합 계산기 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">「집합을 입력받는다」는 어떻게 받으라는 걸까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>몇 개인지 먼저 알려 주나요?</strong> 아니면 한 줄에 다 적나요</li>
+                    <li><strong>같은 수가 두 번 들어오면?</strong> 집합에는 같은 것이 두 번 있을 수 없습니다</li>
+                    <li><strong>어떤 순서로 내놓나요?</strong> 들어온 순서인가요, 작은 것부터인가요</li>
+                    <li><strong>교집합이 비면?</strong> 아무것도 안 내놓나요</li>
+                    <li><strong>한 줄에 내놓나요?</strong> 사이를 무엇으로 띄우나요</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>두 줄</strong>로 받는다. 한 줄에 <strong>정수 여러 개</strong>를 공백으로 띄운다. 개수는 알려 주지 않는다.</li>
+                    <li>같은 수가 여러 번 들어와도 <strong>하나로 친다.</strong></li>
+                    <li><strong>첫 줄에 교집합</strong>, <strong>둘째 줄에 합집합</strong>을 내놓는다.</li>
+                    <li>둘 다 <strong>작은 것부터 차례로</strong>, 공백으로 띄워 한 줄에 내놓는다.</li>
+                    <li>교집합이 비면 <strong>빈 줄</strong>을 내놓는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>4번이 없으면 답이 사람마다 다릅니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>집합에는 원래 순서가 없습니다.</strong> {'{'}1, 2, 3{'}'}과 {'{'}3, 1, 2{'}'}는 같은 집합입니다.
+                    그런데 <strong>화면에 내놓으려면 어떻게든 순서를 정해야</strong> 합니다.
+                    <strong>순서를 요구 사항에 적지 않으면</strong> 돌릴 때마다,
+                    또는 사람마다 <strong>다른 순서가 나와도 틀렸다고 할 수가 없습니다.</strong>
+                    <strong>&lsquo;순서가 없는 것&rsquo;을 내놓는 순간 순서를 정해야 한다</strong>는 것이 이 실습의 숨은 요점입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 2번(같은 수는 하나로 친다)을 <strong>따로 적어 둔 이유</strong>가 무엇일까요? 집합으로 담기만 하면 저절로 되는데도 적어 둔 까닭을 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 담는 방식이 일을 대신해 준다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">집합으로 담으면 두 가지가 공짜로 됩니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>두 줄, 각 줄에 정수 여러 개</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>집합으로 담아 교집합과 합집합을 구하고, 순서대로 늘어놓는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>두 줄 &mdash; 교집합, 합집합</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">집합으로 담으면 저절로 되는 것</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                        <p class="font-black text-base text-slate-900">겹친 것이 사라진다</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            같은 값을 여러 번 넣어도 <strong>하나만 남습니다.</strong>
+                            요구 사항 2번을 <strong>따로 코드로 짤 필요가 없습니다.</strong>
+                        </p>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                        <p class="font-black text-base text-slate-900">집합 연산이 준비되어 있다</p>
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            교집합과 합집합을 <strong>기호 하나로</strong> 구할 수 있습니다.
+                            <strong>되풀이를 돌며 하나씩 견줄 필요가 없습니다.</strong>
+                        </p>
+                    </div>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>어떻게 담느냐가 얼마나 짜야 하는지를 정합니다.</strong>
+                    목록으로 담았다면 겹친 것을 걷어내는 되풀이와
+                    양쪽을 견주는 되풀이를 <strong>직접 짜야</strong> 했을 것입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>공짜로 안 되는 것도 있습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>순서는 공짜가 아닙니다.</strong> 집합에는 순서가 없으니까요.
+                    <strong>작은 것부터 내놓으려면 따로 늘어놓아야</strong> 합니다.
+                    <strong>담는 방식이 대신해 주는 것과 아닌 것을 가려 보는 것</strong>이
+                    이 실습에서 가장 배울 만한 대목입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>첫 줄을 받아 <strong>집합으로</strong> 담는다.</li>
+                    <li>둘째 줄도 <strong>집합으로</strong> 담는다.</li>
+                    <li>두 집합의 <strong>교집합</strong>을 구해 <strong>작은 것부터 늘어놓아</strong> 한 줄로 내놓는다.</li>
+                    <li>두 집합의 <strong>합집합</strong>을 구해 <strong>작은 것부터 늘어놓아</strong> 한 줄로 내놓는다.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>1 2 3 4</strong>와 <strong>3 4 5 6</strong>을 넣으면 교집합과 합집합에 각각 무엇이 들어갈까요? 손으로 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">네 줄이면 끝납니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                지금까지 중 <strong>가장 짧은 코드</strong>입니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">집합.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/집합.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>한 줄에 세 가지가 겹쳐 있습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    내놓는 줄 하나가 <strong>집합 연산 &rarr; 늘어놓기 &rarr; 공백으로 띄워 내놓기</strong>를
+                    한꺼번에 하고 있습니다.
+                    <strong>짧아서 좋지만, 한 줄이 여러 일을 하면 어디가 틀렸는지 찾기 어려워집니다.</strong>
+                    처음 만들 때는 <strong>줄을 나누어 중간 값을 찍어 보는 편</strong>이 낫습니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">늘어놓기가 왜 필요한가</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    집합을 그대로 내놓으면 <strong>순서를 보장할 수 없습니다.</strong>
+                    작은 수 몇 개로 시험하면 <strong>우연히 작은 것부터 나오는 것처럼 보이기도</strong> 합니다.
+                    <strong>그래서 우연히 맞는 것을 보고 &ldquo;정렬이 필요 없구나&rdquo; 하고 넘기기 쉽습니다.</strong>
+                    요구 사항 4번을 지키려면 <strong>반드시 늘어놓아야</strong> 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                늘어놓는 부분을 빼고 돌려 보세요. <strong>답이 맞게 나올 수도 있습니다.</strong> 그렇다고 빼도 될까요? 왜 그렇게 생각하나요?
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">겹침이 없을 때와 전부 겹칠 때를 꼭 넣어 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">넣은 값</th>
+                        <th class="w-40">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1 2 3 4 / 3 4 5 6</td>
+                        <td class="font-bold">3 4<br>1 2 3 4 5 6</td>
+                        <td>일부만 겹치는 흔한 경우</td>
+                    </tr>
+                    <tr>
+                        <td>1 2 / 3 4</td>
+                        <td class="font-bold">(빈 줄)<br>1 2 3 4</td>
+                        <td>겹치는 것이 없는 경우 &mdash; 요구 사항 5번</td>
+                    </tr>
+                    <tr>
+                        <td>1 2 3 / 1 2 3</td>
+                        <td class="font-bold">1 2 3<br>1 2 3</td>
+                        <td>완전히 같은 두 집합</td>
+                    </tr>
+                    <tr>
+                        <td>1 1 2 2 / 2 2 3</td>
+                        <td class="font-bold">2<br>1 2 3</td>
+                        <td>같은 수가 여러 번 &mdash; 하나로 쳐지는가</td>
+                    </tr>
+                    <tr>
+                        <td>9 1 5 / 5 9 7</td>
+                        <td class="font-bold">5 9<br>1 5 7 9</td>
+                        <td><strong>뒤섞여 들어온 경우</strong> &mdash; 순서대로 나오는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>순서가 뒤죽박죽이다</strong> &mdash; 늘어놓기가 빠졌습니다</li>
+                    <li><strong>중괄호와 쉼표가 함께 나온다</strong> &mdash; 집합을 <strong>그대로</strong> 내놓고 있습니다.
+                        하나씩 풀어서 내놓아야 합니다
+                    </li>
+                    <li><strong>같은 수가 두 번 나온다</strong> &mdash; 집합이 아니라 <strong>목록으로</strong> 담았습니다</li>
+                    <li><strong>교집합과 합집합이 뒤바뀐다</strong> &mdash; 두 연산 기호를 바꿔 썼습니다</li>
+                    <li><strong>글자순으로 늘어선다</strong> &mdash; 수로 바꾸지 않고 <strong>글자인 채로</strong> 담았습니다.
+                        <strong>10이 9보다 앞에 옵니다</strong>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>다섯째 줄이 없으면 정렬 빠뜨림을 못 잡습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞의 네 줄은 <strong>이미 작은 순으로 들어온 값</strong>들이라
+                    <strong>늘어놓기를 빼먹어도 맞게 나올 수 있습니다.</strong>
+                    <strong>일부러 뒤섞어 넣는 줄이 반드시 하나 있어야</strong> 합니다.
+                    3등 찾기에서 본 것과 <strong>똑같은 종류의 테스트</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표에 <strong>두 자리 수가 섞인 줄</strong>을 하나 더 보태 보세요. <strong>9와 10</strong>을 함께 넣으면 무엇을 확인할 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">공짜로 받은 것을 직접 만들어 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">집합 없이 만들어 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        목록으로 담고 <strong>되풀이로 직접</strong> 교집합과 합집합을 구해 봅니다.
+                        <strong>겹친 것을 걷어내는 일까지 손으로</strong> 해야 합니다.
+                        네 줄짜리가 몇 줄이 되는지 세어 보세요.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">차집합도 구한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>첫 집합에만 있는 것</strong>을 구해 봅니다.
+                        <strong>순서를 바꾸면 답이 달라지는</strong> 연산이라
+                        교집합·합집합과 성질이 다릅니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">개수를 함께 내놓는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        교집합과 합집합의 <strong>원소 개수</strong>도 알려 줍니다.
+                        <strong>합집합의 개수 = 두 집합 개수의 합 &minus; 교집합 개수</strong>가
+                        정말 맞는지 확인해 보세요.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">숫자가 아닌 것도 담는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        낱말을 담아 <strong>두 반이 함께 신청한 과목</strong>을 구해 봅니다.
+                        <strong>&lsquo;작은 것부터&rsquo;가 낱말에서는 무슨 뜻</strong>이 될지도 정해야 합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;집합 없이 만들어 본다&rdquo;를 해 보면 코드가 훨씬 길어집니다. 그렇다면 <strong>집합으로 담는 쪽이 언제나 나은</strong> 걸까요? 기초 2-3의 견주는 기준을 떠올려 보세요.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문자열 다루기</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/py/07-문자열-다루기.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-quote-left absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-font absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            문자열 다루기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+사람이 치는 것은 거의 다 글자입니다.<br>
+            <strong>쓸 수 있는 모양으로 다듬는 일이 먼저입니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>문자열을 자리 번호로 꺼내고 잘라 낼 수 있으며, 그 규칙이 리스트와 같음을 안다.</li>
+                    <li>문자열은 고쳐 쓸 수 없고 새로 만들어 담아야 한다는 것을 설명할 수 있다.</li>
+                    <li>앞뒤 다듬기·대소문자·찾기·바꾸기를 골라 쓸 수 있고, 원본이 그대로 남는다는 것을 안다.</li>
+                    <li>자르기와 잇기로 문자열과 리스트를 오갈 수 있다.</li>
+                    <li>f 문자열로 값을 끼워 넣고 자릿수를 정해 찍을 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-quote-left text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">문자열 다루기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#seq" class="hover:text-orange-600 transition">늘어선 글자</a>
+            <a href="#frozen" class="hover:text-orange-600 transition">고쳐 쓸 수 없다</a>
+            <a href="#method" class="hover:text-orange-600 transition">다듬는 도구</a>
+            <a href="#cut" class="hover:text-orange-600 transition">자르고 잇기</a>
+            <a href="#format" class="hover:text-orange-600 transition">서식 있게 찍기</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 문자열도 늘어선 것이다 ===== -->
+    <section id="seq" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">문자열도 늘어선 것이다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">리스트에서 쓰던 규칙이 그대로 옵니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>input</code>이 돌려주는 것도, 파일에서 읽어 오는 것도 <strong>글자</strong>입니다.
+                그래서 프로그램이 하는 일의 상당 부분은 <strong>들어온 글자를 쓸 수 있는 모양으로 다듬는 것</strong>입니다.
+                다행히 새로 외울 것이 많지 않습니다 &mdash;
+                <strong>문자열은 글자가 순서대로 늘어선 것</strong>이라, 리스트에서 쓰던 방법이 거의 그대로 통합니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.한글자씩.py"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">번호는 0번부터</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>"python"</code>의 <code>p</code>가 <strong>0번</strong>이고 마지막 <code>n</code>이 5번입니다.
+                    <strong>번호를 0부터 세는 것도, 음수가 뒤에서 세는 것도, <code>len</code>이 개수를 주는 것도</strong>
+                    리스트에서 본 그대로입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                잘라 내기도 같습니다. 날짜처럼 <strong>자리가 정해진 글자</strong>에서 특히 잘 듣습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.자르기.py"></code></pre>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>끝이 빠지는 것도 그대로입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>day[0:4]</code>에 <strong>4번은 들어가지 않습니다.</strong>
+                    그래서 <strong>빼기만 하면 길이가 나옵니다</strong> &mdash; 4 &minus; 0으로 네 글자입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                하나씩 꺼내 도는 것도, 들어 있는지 묻는 것도 됩니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.돌기.py"></code></pre>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">시각을 적은 「13:45:20」에서 분에 해당하는 두 글자만 꺼내려면 어디부터 어디까지 잘라야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 고쳐 쓸 수는 없다 ===== -->
+    <section id="frozen" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">고쳐 쓸 수는 없다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">리스트와 닮았지만 여기서 갈라집니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                리스트는 <code>scores[1] = 88</code>처럼 <strong>한 자리만 골라 고쳐 쓸 수 있었습니다.</strong>
+                문자열에 같은 것을 해 보면 어떻게 될까요?
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.못바꾼다.py"></code></pre>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900">리스트 &mdash; 고쳐 쓸 수 있다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        자리를 골라 값을 갈아 끼울 수 있습니다.
+                        <strong>같은 리스트가 그 자리에서 바뀝니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900">문자열 &mdash; 고쳐 쓸 수 없다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 글자만 갈아 끼우려 하면 오류입니다.
+                        <strong>바꾸려면 새 문자열을 만들어야 합니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.새로만든다.py"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">그래서 「다시 담기」가 늘 따라옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    문자열을 다루는 코드에 <code>word = ...word...</code> 꼴이 자주 나오는 이유가 이것입니다.
+                    <strong>고친 것이 아니라 만든 것을 같은 이름에 다시 담은 것</strong>입니다.
+                    이 습관은 바로 다음 절에서 그대로 쓰입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">문자열을 고쳐 쓸 수 없다면, 「이름의 첫 글자만 대문자로 바꾸기」는 어떤 순서로 해야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 다듬는 도구들 ===== -->
+    <section id="method" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다듬는 도구들</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">값에 점을 찍고 부르면 그 값을 손질한 결과가 나옵니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                사람이 친 글자에는 <strong>앞뒤에 빈칸이 붙고 대소문자가 뒤섞입니다.</strong>
+                그대로 비교하면 <code>"  Seoul  "</code>과 <code>"seoul"</code>이 다른 값이 되어 버립니다.
+                이런 손질을 위해 문자열에 <strong>딸려 오는 기능</strong>들이 있습니다.
+            </p>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">메서드(method)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    값 뒤에 <strong>점을 찍고 부르는 기능</strong>을 메서드라고 합니다.
+                    <code>len(word)</code>처럼 괄호 안에 넣는 것과 달리
+                    <code>word.upper()</code>는 <strong>「이 값의」 기능</strong>이라는 뜻이 됩니다.
+                    <code>scores.append(90)</code>도 리스트의 메서드였습니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.다듬기.py"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>결과를 담지 않으면 아무 일도 일어나지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    문자열은 고쳐 쓸 수 없으므로, 이 도구들은 <strong>원본을 두고 손질한 것을 새로 내놓습니다.</strong>
+                    내놓은 것을 받지 않으면 그대로 사라집니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.그대로.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                찾고 바꾸는 것도 자주 씁니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.찾고바꾸기.py"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">쓰는 법</th>
+                        <th>하는 일</th>
+                        <th class="w-32">내놓는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>.strip()</code></td>
+                        <td>앞뒤 빈칸을 떼어 낸다 (가운데 빈칸은 그대로 둔다)</td>
+                        <td>새 문자열</td>
+                    </tr>
+                    <tr>
+                        <td><code>.upper()</code> <code>.lower()</code></td>
+                        <td>모두 대문자로 / 모두 소문자로 (영문에만 해당한다)</td>
+                        <td>새 문자열</td>
+                    </tr>
+                    <tr>
+                        <td><code>.replace(a, b)</code></td>
+                        <td><code>a</code>를 <code>b</code>로 바꾼다. <strong>나오는 것을 전부</strong> 바꾼다</td>
+                        <td>새 문자열</td>
+                    </tr>
+                    <tr>
+                        <td><code>.count(a)</code></td>
+                        <td><code>a</code>가 몇 번 나오는지 센다</td>
+                        <td>정수</td>
+                    </tr>
+                    <tr>
+                        <td><code>.find(a)</code></td>
+                        <td><code>a</code>가 처음 나오는 자리. <strong>없으면 &minus;1</strong></td>
+                        <td>정수</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>맞는지 묻기만 하는</strong> 도구도 있습니다. 결과가 참·거짓이므로 <code>if</code>의 조건에 바로 놓입니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.검사.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900"><code>isdigit</code>은 물어보고 들어가는 문입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int(input())</code>은 사람이 글자를 치면 그대로 멈춰 섭니다.
+                    <strong>바꾸기 전에 물어보면</strong> 멈추는 대신 다시 받을 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>"  Seoul  ".strip().upper()</code>처럼 점을 이어 붙일 수 있는 것은, 앞의 결과가 무엇이기 때문일까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 자르고 잇기 ===== -->
+    <section id="cut" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">자르고 잇기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">문자열과 리스트 사이를 오가는 한 쌍입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                한 줄로 들어온 것을 <strong>여러 개로 나누어</strong> 다루고, 다 다룬 뒤에는
+                <strong>다시 한 줄로 모아</strong> 내보내는 일이 자주 있습니다. 이 둘이 짝입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900"><code>split</code> &mdash; 문자열 → 리스트</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>기준 글자에서 잘라</strong> 조각을 순서대로 늘어놓습니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                    <p class="font-black text-lg text-slate-900"><code>join</code> &mdash; 리스트 → 문자열</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>사이에 끼울 글자를 앞에 두고</strong> 조각을 하나로 잇습니다.
+                    </p>
+                </div>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.split.py"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                입력을 나누어 받을 때 이미 만난 도구입니다. 이제는 그 결과가
+                <strong>리스트</strong>라는 것을 알고 있으니, 자리 번호로 꺼내거나 반복으로 훑을 수 있습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.join.py"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>잇는 재료는 전부 문자열이어야 합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>join</code>은 <strong>글자를 잇는 도구</strong>라 수가 섞여 있으면 오류가 납니다.
+                    <code>str</code>로 바꾸어 넣습니다 &mdash;
+                    <strong>글자와 수를 <code>+</code>로 이을 수 없었던 것과 같은 이유</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">끼울 글자를 앞에 적는 것이 어색합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>", ".join(fruits)</code>는 <strong>「쉼표와 빈칸으로 fruits를 이어라」</strong>로 읽습니다.
+                    잇는 방법이 <strong>사이에 끼우는 글자</strong>에 달려 있어서, 그것을 주인으로 삼은 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">「사과,바나나,포도」를 「사과 / 바나나 / 포도」로 바꾸려면 어떤 도구를 어떤 순서로 쓸까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 서식 있게 찍기 ===== -->
+    <section id="format" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">서식 있게 찍기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">값을 문장 안에 끼워 넣습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지는 <code>+</code>로 이어 붙여 찍었습니다. 값이 하나둘 늘어나면
+                <strong>따옴표와 <code>str</code>이 뒤엉켜</strong> 읽기 어려워집니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.f문자열.py"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">f 문자열</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여는 따옴표 <strong>앞에 <code>f</code>를 붙이면</strong>, 그 안의
+                    <code>{ }</code>가 <strong>값을 끼워 넣을 자리</strong>가 됩니다.
+                    <strong><code>str</code>로 바꿀 필요도 없습니다</strong> &mdash; 알아서 글자로 찍어 줍니다.
+                    문장의 모양이 코드에 그대로 보이는 것이 가장 큰 이점입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>{ }</code> 안에 <strong>콜론을 찍고 모양을 덧붙이면</strong> 찍히는 꼴을 정할 수 있습니다.
+                평균처럼 소수점이 길게 늘어지는 값에 특히 쓸모가 있습니다.
+            </p>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.자릿수.py"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">모양</th>
+                        <th class="w-36">보기</th>
+                        <th>뜻</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>:.1f</code></td>
+                        <td>78.5</td>
+                        <td>소수 <strong>한 자리</strong>까지. 그 아래는 반올림한다</td>
+                    </tr>
+                    <tr>
+                        <td><code>:.2f</code></td>
+                        <td>78.46</td>
+                        <td>소수 두 자리까지</td>
+                    </tr>
+                    <tr>
+                        <td><code>:,</code></td>
+                        <td>1,234,567</td>
+                        <td>천 단위마다 쉼표를 넣는다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i><code>f</code>를 빠뜨리면 조용히 틀립니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    오류가 나지 않고 <strong><code>{name}</code>이라는 글자가 그대로 찍힙니다.</strong>
+                    <strong>중괄호가 그대로 보이면 <code>f</code>부터 확인합니다.</strong>
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.f빠뜨림.py"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">한 줄 정리를 전부 붙여 봅니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 줄로 들어온 도시 이름을 <strong>잘라 → 다듬어 → 담고 → 다시 이어</strong> 내놓습니다.
+                    문자열 다루기는 거의 이 모양입니다.
+                </p>
+            </div>
+
+            <pre class="language-python"><code class="language-python" data-src="code/07.전체.py"></code></pre>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">빈칸을 떼는 <code>strip</code>을 빼면 어떤 값이 리스트에 담길까요? 그 값으로 비교를 하면 무엇이 어긋날까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">규칙은 리스트와 같다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>0번부터</strong> 세고, 음수는 뒤에서 세고, 잘라 낼 때 <strong>끝은 빠진다.</strong>
+                    <code>len</code>&middot;<code>in</code>&middot;<code>for</code>도 그대로 쓴다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">고쳐 쓸 수 없다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 글자만 갈아 끼우면 오류다. 바꾸려면
+                    <strong>새 문자열을 만들어 다시 담는다.</strong> 리스트와 갈리는 지점이다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">도구는 결과를 「내놓는다」</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>strip</code>&middot;<code>upper</code>&middot;<code>replace</code>는 원본을 두고
+                    손질한 것을 내놓는다. <strong>받아 담지 않으면 사라진다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900"><code>split</code>과 <code>join</code></h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    자르면 <strong>리스트</strong>가 되고, 이으면 <strong>문자열</strong>이 된다.
+                    잇는 재료는 <strong>전부 문자열</strong>이어야 한다.
+                </p>
+            </div>
+            <div class="section-card space-y-2 md:col-span-2">
+                <h3 class="text-xl font-black text-slate-900">f 문자열</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    따옴표 앞에 <code>f</code>를 붙이면 <code>{ }</code> 안의 값이 끼워진다.
+                    콜론 뒤에 <code>.1f</code>&middot;<code>,</code>를 덧붙여 <strong>찍히는 꼴을 정한다.</strong>
+                    <strong>중괄호가 그대로 찍히면 <code>f</code>를 빠뜨린 것</strong>이다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>word = "python"</code>일 때 <code>word[1:4]</code>는?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '1번부터 4번 앞까지라 y·t·h입니다.')">
+                    ① <code>yth</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '4번은 들어가지 않습니다. 잘라 내기의 끝은 빠집니다.')">
+                    ② <code>ytho</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '0번부터가 아니라 1번부터입니다.')">
+                    ③ <code>pyth</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '자리 번호를 하나만 줄 때 한 글자가 나옵니다.')">
+                    ④ <code>y</code>
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>answer = " seoul "</code> 다음에 <code>answer.strip()</code>만 적고 <code>answer</code>를 찍으면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '원본은 바뀌지 않습니다. 문자열은 고쳐 쓸 수 없습니다.')">
+                    ① 빈칸이 떨어진 <code>seoul</code>이 찍힌다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '손질한 것을 내놓았을 뿐 받아 담지 않았으므로 원본 그대로입니다.')">
+                    ② 빈칸이 그대로 붙은 <code>&nbsp;seoul&nbsp;</code>이 찍힌다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '오류는 나지 않습니다. 결과가 사라질 뿐입니다.')">
+                    ③ 오류가 난다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '빈 문자열이 되지는 않습니다. strip은 앞뒤 빈칸만 뗍니다.')">
+                    ④ 아무것도 찍히지 않는다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 다음 중 <strong>틀린</strong> 설명은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, 'split의 결과는 리스트입니다. 그래서 자리 번호로 꺼낼 수 있습니다.')">
+                    ① <code>split</code>의 결과는 문자열이다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 글자를 잇는 도구라 수가 섞이면 오류입니다.')">
+                    ② <code>join</code>의 재료는 전부 문자열이어야 한다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 없으면 -1을 돌려줍니다.')">
+                    ③ <code>find</code>는 못 찾으면 &minus;1을 돌려준다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞는 설명입니다. 오류가 아니라 중괄호가 그대로 찍힙니다.')">
+                    ④ <code>f</code>를 빠뜨려도 오류가 나지 않는다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

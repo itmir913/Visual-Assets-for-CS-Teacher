@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>철광석 제련</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/철광석-제련.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-table-cells-large absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-gem absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            철광석 제련
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            상자를 어디에 놓아야<br>
+            <strong>가장 많이 담길까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>표처럼 생긴 값을 목록 안의 목록으로 담고 행과 열로 꺼낼 수 있다.</li>
+                    <li>넓이를 가진 상자를 격자 위에서 옮겨 가며 훑는 되풀이를 설계할 수 있다.</li>
+                    <li>되풀이를 돌며 가장 큰 값을 남겨 가는 방법을 쓸 수 있다.</li>
+                    <li>상자를 놓을 수 있는 자리가 몇 개인지 계산으로 구할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-table-cells-large text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">철광석 제련</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">가장 좋은 자리를 찾으려면 다 놓아 봐야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>5&times;5 격자</strong>에 칸마다 캘 수 있는 광석의 양이 적혀 있습니다.
+                    한 번에 <strong>3&times;3만큼</strong> 캘 수 있는 기계를 <strong>어디에 놓아야 가장 많이 캐는지</strong>
+                    찾아 <strong>그때의 합</strong>을 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">이런 격자가 주어집니다</p>
+                <pre class="rounded-xl text-base leading-relaxed"
+                     style="background:#1e293b;color:#f1f5f9;padding:1.25rem;max-width:26rem">12  34  11  20  15
+22  45  67  12   8
+31  18   9  44  27
+ 5  10  33  21  19
+40   2  14  50   3</pre>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>수업에서 원리를 확인하려고 지어낸 값</strong>입니다. 실제 광산 자료가 아닙니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                눈으로 큰 숫자만 따라가면 답이 나올 것 같지만 <strong>그렇지 않습니다.</strong>
+                <strong>큰 수 하나보다 고만고만한 아홉 개가 더 많을 수 있기</strong> 때문입니다.
+                결국 <strong>놓을 수 있는 모든 자리를 다 더해 보는 수밖에</strong> 없습니다.
+                복면산에서 본 <strong>완전 탐색이 격자 위에서 어떻게 되는지</strong>가 이번 실습입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>격자와 기계의 크기가 정해져 있는가, 무엇을 내놓는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>기계를 놓을 수 있는 자리가 몇 개인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>되풀이를 몇 겹으로 쌓아야 하는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>가장 큰 값이 정말 그것인지 어떻게 확인하는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-11.docx"
+                       download="[개발 문서] 철광석 제련 알고리즘 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-11.docx"
+                       download="[개발 문서] 철광석 제련 알고리즘 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">「가장 많이 캐는 곳」은 무엇을 내놓으라는 말일까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>합을 내놓나요, 자리를 내놓나요?</strong> 둘 다인가요</li>
+                    <li><strong>가장 좋은 자리가 여럿이면?</strong> 합이 같은 자리가 둘일 수 있습니다</li>
+                    <li><strong>기계가 격자 밖으로 나가도 되나요?</strong> 절반만 걸치는 자리는요</li>
+                    <li><strong>격자 크기가 늘 5&times;5인가요?</strong> 기계는 늘 3&times;3인가요</li>
+                    <li><strong>음수가 들어올 수 있나요?</strong></li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>격자는 <strong>5줄</strong>로 입력받는다. 한 줄에 <strong>정수 다섯 개</strong>를 공백으로 띄운다.</li>
+                    <li>기계 크기는 <strong>3&times;3으로 고정</strong>한다.</li>
+                    <li>기계는 <strong>격자 안에 온전히 들어가야</strong> 한다. 밖으로 걸치는 자리는 세지 않는다.</li>
+                    <li>가능한 모든 자리 중 <strong>합이 가장 큰 값 하나</strong>를 내놓는다.</li>
+                    <li><strong>자리는 내놓지 않는다.</strong> 합이 같은 자리가 여럿이어도 값은 하나이므로 문제되지 않는다.</li>
+                    <li><strong>값은 0 이상이 들어온다고 본다.</strong></li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>5번이 문제를 훨씬 쉽게 만듭니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>자리까지 내놓기로 했다면</strong> &ldquo;합이 같은 자리가 둘이면 어느 쪽?&rdquo;을 정해야 합니다.
+                    합만 내놓기로 하면 <strong>그 물음이 아예 사라집니다.</strong>
+                    <strong>요구 사항을 어떻게 정하느냐가 프로그램의 어려움을 정합니다</strong> &mdash;
+                    일차방정식에서 &lsquo;띄어 쓰기&rsquo;를 정할 때 본 것과 같은 이야기입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 6번에서 <strong>값이 0 이상</strong>이라고 정했습니다. 만약 음수가 들어올 수 있다면, <strong>가장 큰 값을 찾는 방법</strong>에서 무엇을 조심해야 할까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 놓을 자리가 몇 개인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">5칸 위에 3칸짜리를 놓으면 몇 자리가 나올까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>5줄 &times; 5개의 정수</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>기계를 놓을 수 있는 모든 자리에서 아홉 칸을 더하고, 가장 큰 값을 남긴다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>가장 큰 합 하나</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">기계의 왼쪽 위 모서리만 정하면 된다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    기계 크기가 정해져 있으니 <strong>왼쪽 위 모서리가 어디인지만 정하면</strong> 나머지 여덟 칸은 따라옵니다.
+                    그러니 <strong>모서리를 놓을 수 있는 자리가 몇 개인지</strong>만 세면 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    가로로 보면, 모서리를 <strong>0번 &middot; 1번 &middot; 2번</strong> 칸에는 놓을 수 있지만
+                    <strong>3번에 놓으면 기계가 격자 밖으로 나갑니다.</strong>
+                    그러니 <strong>5 &minus; 3 + 1 = 3가지</strong>입니다. 세로도 같으므로
+                    <strong>모두 3 &times; 3 = 9자리</strong>를 확인하게 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">가장 큰 값을 남기는 방법</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아홉 개의 합을 모두 어딘가에 담아 두었다가 나중에 고를 필요가 없습니다.
+                    <strong>지금까지 본 것 중 가장 큰 값</strong> 하나만 들고 다니면 됩니다.
+                    새 합이 나올 때마다 <strong>들고 있던 것보다 크면 바꿔 들고</strong>, 아니면 버립니다.
+                    <strong>끝까지 돌고 나면 손에 남은 것이 답</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>다섯 줄을 받아 격자로 담는다.</li>
+                    <li>가장 큰 값을 0으로 놓는다.</li>
+                    <li>모서리의 <strong>행</strong>을 0부터 2까지 되풀이한다.</li>
+                    <li>그 안에서 모서리의 <strong>열</strong>을 0부터 2까지 되풀이한다.</li>
+                    <li>합을 0으로 놓고, <strong>모서리에서 시작해 세 줄 세 칸</strong>을 더한다.</li>
+                    <li>그 합이 들고 있던 값보다 크면 <strong>바꿔 든다.</strong></li>
+                    <li>되풀이가 다 끝나면 들고 있는 값을 내놓는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>합을 0으로 되돌리는 자리가 중요합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    5번에서 <strong>합을 0으로 놓는 일이 자리마다 새로</strong> 일어나야 합니다.
+                    이 줄이 <strong>되풀이 밖으로 나가면</strong> 아홉 자리의 합이 <strong>전부 쌓여</strong>
+                    말도 안 되게 큰 값이 나옵니다.
+                    반대로 2번의 &lsquo;가장 큰 값&rsquo;은 <strong>되풀이 밖에 있어야</strong> 합니다 &mdash;
+                    안에 있으면 <strong>돌 때마다 지워져</strong> 마지막 자리의 합이 답이 되어 버립니다.
+                    <strong>두 줄의 자리가 정반대</strong>라는 것을 눈여겨보세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                격자가 <strong>7&times;7</strong>이고 기계가 <strong>3&times;3</strong>이라면 확인할 자리가 몇 개일까요? 설계에서 쓴 식을 그대로 대 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">되풀이가 네 겹으로 쌓입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                <strong>자리를 고르는 되풀이 둘</strong> 안에 <strong>아홉 칸을 더하는 되풀이 둘</strong>이 들어갑니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">광산.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/광산.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>목록 안에 목록을 담는다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 줄이 <strong>다섯 개짜리 목록</strong>이고, 그런 줄이 다섯 개 모여 <strong>격자</strong>가 됩니다.
+                    그래서 칸 하나를 꺼내려면 <strong>번호를 두 번</strong> 대야 합니다 &mdash;
+                    <strong>먼저 몇째 줄, 그다음 그 줄의 몇째 칸</strong>입니다.
+                    <strong>순서를 바꿔 대면 엉뚱한 칸이 나오거나 없는 자리를 찾다가 멈춥니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">되풀이가 네 겹인데 몇 번 도나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    바깥 둘이 <strong>9자리</strong>, 안쪽 둘이 자리마다 <strong>9칸</strong>이니 모두 <strong>81번</strong> 더합니다.
+                    <strong>네 겹이라고 무섭게 많은 것은 아닙니다.</strong>
+                    다만 <strong>격자가 커지면 빠르게 늘어납니다</strong> &mdash;
+                    &lsquo;더 해 보기&rsquo;에서 이 점을 다시 봅니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                안쪽 되풀이의 범위가 <strong>모서리에서 시작해 세 칸</strong>입니다. 만약 <strong>0부터 세 칸</strong>으로 적으면 어떻게 될까요? 어느 자리를 계속 더하게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">답이 하나뿐인 프로그램은 검산이 어렵습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                나온 숫자 하나가 맞는지 <strong>눈으로는 알 수 없습니다.</strong>
+                <strong>답을 미리 아는 격자를 일부러 만들어</strong> 넣어 보는 것이 요령입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">넣은 격자</th>
+                        <th class="w-28">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>모든 칸이 1</td>
+                        <td class="font-bold">9</td>
+                        <td>아홉 칸을 제대로 더하는지</td>
+                    </tr>
+                    <tr>
+                        <td>모든 칸이 0</td>
+                        <td class="font-bold">0</td>
+                        <td>가장 큰 값의 시작이 0이어도 되는지</td>
+                    </tr>
+                    <tr>
+                        <td>왼쪽 위 3&times;3만 1, 나머지 0</td>
+                        <td class="font-bold">9</td>
+                        <td>첫 자리(0, 0)를 확인하는지</td>
+                    </tr>
+                    <tr>
+                        <td>오른쪽 아래 3&times;3만 1, 나머지 0</td>
+                        <td class="font-bold">9</td>
+                        <td>마지막 자리(2, 2)까지 가는지</td>
+                    </tr>
+                    <tr>
+                        <td>위 문제의 격자</td>
+                        <td class="font-bold">260</td>
+                        <td>실제 값으로 확인</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>말도 안 되게 큰 값이 나온다</strong> &mdash;
+                        합을 0으로 되돌리는 줄이 <strong>되풀이 밖에</strong> 있습니다
+                    </li>
+                    <li><strong>오른쪽 아래만 1인 격자에서 0이 나온다</strong> &mdash;
+                        자리 되풀이 범위가 짧습니다. <strong>2번 자리까지</strong> 가야 합니다
+                    </li>
+                    <li><strong>없는 자리를 찾다가 멈춘다</strong> &mdash;
+                        자리 되풀이가 <strong>3번 이상</strong>까지 가고 있습니다. 기계가 격자 밖으로 나갑니다
+                    </li>
+                    <li><strong>답이 마지막 자리의 합과 같다</strong> &mdash;
+                        가장 큰 값을 <strong>되풀이 안에서</strong> 0으로 되돌리고 있습니다
+                    </li>
+                    <li><strong>가로세로가 뒤집힌 것 같다</strong> &mdash;
+                        칸을 꺼낼 때 <strong>줄 번호와 칸 번호 순서</strong>를 봅니다
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>가장 큰 값이 정말 260인지 어떻게 아나
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    프로그램이 260을 내놓았다고 그것이 최댓값이라는 보장은 없습니다.
+                    <strong>확인하려면 아홉 자리의 합을 모두 내놓게 해서 눈으로 세어 보면</strong> 됩니다.
+                    <strong>답 하나만 내놓는 프로그램을 확인할 때 자주 쓰는 방법</strong>입니다 &mdash;
+                    <strong>중간 값을 잠깐 다 보이게 만들어 보는 것</strong>이지요.
+                    기초 2-2에서 &ldquo;중간에 값을 찍어 본다&rdquo;고 한 것이 이 자리입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;모든 칸이 1&rdquo;인 격자로는 <strong>잡히지 않는 실수</strong>가 있습니다. 어떤 자리에서 더하든 답이 9로 같기 때문입니다. 어떤 실수가 안 잡힐까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">고정해 둔 크기를 풀어 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">격자와 기계 크기를 입력받는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        5와 3을 고정한 것을 풀어 봅니다.
+                        <strong>설계에서 쓴 &lsquo;격자 &minus; 기계 + 1&rsquo; 식이 그대로 쓰입니다.</strong>
+                        기계가 격자보다 크면 어떻게 할지도 정해야 합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">가장 좋은 자리도 함께</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        요구 사항 5번을 풀어 <strong>모서리 자리까지</strong> 내놓게 합니다.
+                        <strong>합이 같은 자리가 둘일 때 어느 쪽을 고를지</strong>를
+                        먼저 요구 사항에 적어야 합니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">음수를 허용한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        요구 사항 6번을 풀면 <strong>가장 큰 값을 0으로 시작하는 것이 틀리게</strong> 됩니다.
+                        모든 합이 음수면 <strong>답이 0으로 나와 버립니다.</strong>
+                        무엇으로 시작해야 할까요?
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">격자가 커지면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        100&times;100 격자에 10&times;10 기계라면 <strong>몇 번을 더하게 될지</strong> 계산해 보세요.
+                        <strong>겹치는 칸을 다시 더하고 있다</strong>는 것을 알아차렸다면,
+                        <strong>더 빠른 방법</strong>이 있다는 뜻입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                마지막 과제의 &ldquo;겹치는 칸을 다시 더한다&rdquo;를 생각해 보세요. 기계를 <strong>오른쪽으로 한 칸</strong> 옮기면 아홉 칸 중 <strong>몇 칸이 그대로</strong>인가요?
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -130,4 +130,4 @@ makeDocument({
         "더 정교한 감염 예방 AI 시스템을 만들어보고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_3_mask_detection.docx'));
+}, out('ai', 'mask-detection.docx'));

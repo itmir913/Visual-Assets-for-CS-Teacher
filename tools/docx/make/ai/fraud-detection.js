@@ -141,4 +141,4 @@ makeDocument({
         "금융보안 분야에 관심이 생겨서 나중에 더 정교한 이상거래 탐지 시스템을 공부해보고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_7_fraud_detection.docx'));
+}, out('ai', 'fraud-detection.docx'));

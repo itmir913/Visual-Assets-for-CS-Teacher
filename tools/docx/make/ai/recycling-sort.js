@@ -139,4 +139,4 @@ makeDocument({
         "실제 스마트 분리수거 앱을 만들어보고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_4_recycling_sort.docx'));
+}, out('ai', 'recycling-sort.docx'));

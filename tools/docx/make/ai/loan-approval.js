@@ -135,4 +135,4 @@ makeDocument({
         "공정하고 정확한 신용 평가 AI를 만들어보고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_5_loan_approval.docx'));
+}, out('ai', 'loan-approval.docx'));

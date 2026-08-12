@@ -448,7 +448,7 @@ makeDocument({ … }, out('실습', '비만도-측정.py.docx'));
 `**/docx/`를 통째로 무시하므로 **「`docx`라는 이름의 폴더는 전부 생성물」**이 이 저장소의 약속이다.
 
 ```
-인공지능기초/ai-projects/ai-sample-1-….html  →  docx/ai_sample_1_….docx   (../ 없음)
+인공지능기초/ai-projects/exercise-calories.html  →  docx/exercise-calories.docx  (../ 없음)
 프로그래밍/실습/비만도-측정.html              →  docx/비만도-측정.py.docx  (·.c.docx)
 ```
 

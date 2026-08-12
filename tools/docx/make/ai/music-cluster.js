@@ -140,4 +140,4 @@ makeDocument({
         "친구들에게 맞춤 플레이리스트를 추천해주고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_6_music_cluster.docx'));
+}, out('ai', 'music-cluster.docx'));

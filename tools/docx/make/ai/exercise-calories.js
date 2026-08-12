@@ -128,4 +128,4 @@ makeDocument({
         "스포츠 과학 분야에서 이런 예측 모델이 실제로 어떻게 활용되는지 더 공부해보고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_1_exercise_calories.docx'));
+}, out('ai', 'exercise-calories.docx'));

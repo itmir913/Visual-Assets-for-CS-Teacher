@@ -134,4 +134,4 @@ makeDocument({
         "더 정교한 에너지 수급 예측 모델을 만들어보고 싶다.",
     ],
 
-}, out('ai', 'ai_sample_2_temp_electricity.docx'));
+}, out('ai', 'temp-electricity.docx'));

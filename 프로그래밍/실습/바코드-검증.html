@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>바코드 검증</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/실습/바코드-검증.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-barcode absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-circle-check absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            바코드 검증
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            바코드의 <strong>마지막 한 자리</strong>는<br>
+            아무렇게나 정해진 숫자가 아닙니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>글자로 들어온 숫자열에서 자리마다 값을 꺼내 다룰 수 있다.</li>
+                    <li>자리 번호가 홀수인지 짝수인지에 따라 다르게 처리하는 반복을 설계할 수 있다.</li>
+                    <li>나머지 연산을 써서 자리올림 없는 검사 숫자를 구할 수 있다.</li>
+                    <li>사람이 세는 순서(1부터)와 컴퓨터의 자리 번호(0부터)를 구별해 옮길 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-barcode text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">바코드 검증</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">잘못 읽힌 숫자를 어떻게 알아챌 수 있을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여덟 자리 숫자를 입력받아, <strong>마지막 한 자리가 앞의 일곱 자리와 아귀가 맞는지</strong>
+                    확인해 <strong>Valid</strong> 또는 <strong>Invalid</strong>를 내놓는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                상품에 붙은 바코드의 <strong>마지막 숫자는 앞자리들로부터 계산해서 붙인 것</strong>입니다.
+                기계가 바코드를 잘못 읽거나 사람이 한 자리를 잘못 눌렀을 때,
+                <strong>계산해 본 값과 적힌 값이 어긋나므로 그 자리에서 알아챌 수 있습니다.</strong>
+                이런 숫자를 <strong>검사 숫자</strong>라고 합니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>여기서 쓰는 계산법에 대하여
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    실제 상품 바코드는 자릿수도 더 많고 규격도 따로 있습니다.
+                    이 실습에서는 <strong>그 방식의 뼈대만 가져와 여덟 자리로 줄인 것</strong>을 씁니다.
+                    <strong>여기서 만든 프로그램으로 실제 상품 바코드를 검사할 수는 없습니다.</strong>
+                    배우려는 것은 규격이 아니라 <strong>&lsquo;계산해서 맞춰 보는&rsquo; 생각의 틀</strong>입니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>몇 자리를 받고 무엇을 내놓을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>자리마다 다르게 세는 규칙을 어떻게 적을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>사람이 세는 순서를 자리 번호로 어떻게 옮길 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>맞는 바코드와 틀린 바코드를 어떻게 만들 것인가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/py/3-2-5.docx"
+                       download="[개발 문서] 바코드 검증 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="../../templates/c/3-2-5.docx"
+                       download="[개발 문서] 바코드 검증 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 · 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">검사 규칙을 못박지 않으면 만들 수가 없습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>몇 자리를 받나요?</strong> 여덟 자리가 아니면 어떻게 하나요</li>
+                    <li><strong>숫자가 아닌 글자가 들어오면?</strong></li>
+                    <li><strong>검사 숫자를 어떻게 구하나요?</strong> 규칙을 한 줄 한 줄 정해야 합니다</li>
+                    <li><strong>자리는 어디부터 세나요?</strong> 왼쪽부터인가요 오른쪽부터인가요</li>
+                    <li><strong>무엇을 내놓나요?</strong> 맞다 틀리다만인가요, 올바른 검사 숫자도 알려 주나요</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><strong>여덟 자리 숫자</strong>를 공백 없이 한 줄로 입력받는다.</li>
+                    <li>자리는 <strong>왼쪽부터 1번, 2번&hellip; 8번</strong>으로 센다. <strong>8번이 검사 숫자</strong>다.</li>
+                    <li><strong>홀수 번째(1&middot;3&middot;5&middot;7번) 자리의 합</strong>을 구한다.</li>
+                    <li><strong>짝수 번째(2&middot;4&middot;6번) 자리의 합에 3을 곱한다.</strong></li>
+                    <li>둘을 더한 값을 10으로 나눈 나머지를 구하고, <strong>10에서 그 나머지를 뺀 값</strong>을 검사 숫자로 삼는다.
+                        <strong>나머지가 0이면 검사 숫자도 0</strong>이다.
+                    </li>
+                    <li>계산한 검사 숫자가 8번 자리와 <strong>같으면 Valid, 다르면 Invalid</strong>를 내놓는다.</li>
+                    <li><strong>여덟 자리 숫자만 들어온다고 본다.</strong> 자릿수나 글자 검사는 이번 판에서 다루지 않는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>5번 끝의 한 줄이 없으면 틀립니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    나머지가 0일 때 <strong>10에서 0을 빼면 10</strong>이 됩니다.
+                    그런데 <strong>검사 숫자는 한 자리라 10이 될 수 없습니다.</strong> 0이어야 합니다.
+                    이 경우를 안 적어 두면 <strong>딱 떨어지는 바코드만 전부 Invalid</strong>가 됩니다.
+                    자주 나오는 경우가 아니라서 <strong>몇 개 넣어 봐서는 안 잡힙니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 4번에서 <strong>왜 하필 3을 곱할까요?</strong> 만약 곱하지 않고 그냥 더하기만 한다면, <strong>두 자리를 바꿔 적는 실수</strong>를 잡아낼 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 · 자리마다 다르게 센다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">사람은 1부터 세고 컴퓨터는 0부터 셉니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>여덟 자리 숫자 &mdash; <strong>수가 아니라 글자로</strong> 받는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>앞 일곱 자리를 홀짝으로 나눠 더하고, 검사 숫자를 계산해 견준다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>Valid 또는 Invalid</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>왜 수가 아니라 글자로 받을까
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>자리마다 따로 꺼내 써야 하기 때문</strong>입니다.
+                    수로 받아 버리면 88012340은 <strong>팔천팔백만&hellip;이라는 하나의 값</strong>이 되어
+                    셋째 자리만 꺼내기가 번거로워집니다.
+                    글자로 두면 <strong>몇 번째 글자</strong>라고 짚어 꺼낼 수 있습니다.
+                    더할 때만 하나씩 수로 바꾸면 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">88012340으로 따라가 보기</p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-28">자리 번호</th>
+                            <th class="w-28">숫자</th>
+                            <th>어디에 더하나</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>1번 (홀수)</td>
+                            <td class="font-bold">8</td>
+                            <td>홀수 합</td>
+                        </tr>
+                        <tr>
+                            <td>2번 (짝수)</td>
+                            <td class="font-bold">8</td>
+                            <td>짝수 합</td>
+                        </tr>
+                        <tr>
+                            <td>3번 (홀수)</td>
+                            <td class="font-bold">0</td>
+                            <td>홀수 합</td>
+                        </tr>
+                        <tr>
+                            <td>4번 (짝수)</td>
+                            <td class="font-bold">1</td>
+                            <td>짝수 합</td>
+                        </tr>
+                        <tr>
+                            <td>5번 (홀수)</td>
+                            <td class="font-bold">2</td>
+                            <td>홀수 합</td>
+                        </tr>
+                        <tr>
+                            <td>6번 (짝수)</td>
+                            <td class="font-bold">3</td>
+                            <td>짝수 합</td>
+                        </tr>
+                        <tr>
+                            <td>7번 (홀수)</td>
+                            <td class="font-bold">4</td>
+                            <td>홀수 합</td>
+                        </tr>
+                        <tr>
+                            <td>8번</td>
+                            <td class="font-bold">0</td>
+                            <td>검사 숫자 &mdash; 더하지 않고 <strong>견주는 데</strong> 쓴다</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    홀수 합은 8+0+2+4 = <strong>14</strong>, 짝수 합은 8+1+3 = <strong>12</strong>입니다.
+                    14 + 12&times;3 = <strong>50</strong>이고, 10으로 나눈 나머지는 <strong>0</strong>입니다.
+                    10에서 0을 빼면 10인데 <strong>다시 10으로 나눈 나머지를 취해 0</strong>으로 만듭니다.
+                    8번 자리가 0이니 <strong>Valid</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>1번 자리는 0번째 글자입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>사람은 1번 자리라고 하고 컴퓨터는 0번째 글자</strong>라고 합니다. 언제나 한 칸 어긋나 있습니다.
+                    그래서 <strong>홀수 번째인지 보려면 자리 번호가 아니라 &lsquo;글자 번호 + 1&rsquo;이 홀수인지</strong> 봐야 합니다.
+                    그냥 글자 번호로 홀짝을 따지면 <strong>홀수와 짝수가 통째로 뒤바뀝니다.</strong>
+                    답이 나오긴 나오므로 <strong>손으로 계산해 본 값과 맞춰 보기 전에는 모릅니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>여덟 자리를 글자로 입력받는다.</li>
+                    <li>앞 일곱 자리와 마지막 검사 숫자를 나눈다.</li>
+                    <li>홀수 합과 짝수 합을 0으로 놓는다.</li>
+                    <li>앞 일곱 자리를 하나씩 돌며, <strong>자리 번호가 홀수면 홀수 합에, 짝수면 짝수 합에</strong> 더한다.</li>
+                    <li>합계 = 홀수 합 + 짝수 합 &times; 3</li>
+                    <li>나머지 = 합계를 10으로 나눈 나머지</li>
+                    <li>검사 숫자 = (10 &minus; 나머지)를 <strong>다시 10으로 나눈 나머지</strong></li>
+                    <li>계산한 값이 8번 자리와 같으면 Valid, 아니면 Invalid</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                7번 줄에서 <strong>&lsquo;다시 10으로 나눈 나머지&rsquo;를 빼면</strong> 88012340은 무엇이 나올까요? Valid일까요 Invalid일까요?
+            </p>
+        </div>
+    </section>
+
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 · 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">여덟 줄짜리 순서가 코드에서는 어떻게 될까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                되풀이 안에서 <strong>홀짝을 가르는 줄</strong>이 이 코드의 심장입니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">바코드.기본.py</p>
+                <pre class="language-python"><code class="language-python" data-src="code/바코드.기본.py"></code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>왜 1을 더해서 홀짝을 보나
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    되풀이가 도는 값은 <strong>0, 1, 2&hellip;</strong>인데 우리가 세는 자리는 <strong>1, 2, 3&hellip;</strong>입니다.
+                    그래서 <strong>1을 더한 값</strong>으로 홀짝을 따집니다.
+                    이 <strong>+1을 빼먹으면 홀수 자리와 짝수 자리가 통째로 뒤바뀌고</strong>,
+                    그러면 <strong>3을 엉뚱한 쪽에 곱하게</strong> 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                검사 숫자를 <strong>더하는 데도 쓰면</strong> 어떻게 될까요? 코드에서 앞 일곱 자리만 도는 이유를 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 · 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">맞는 바코드는 직접 만들어서 넣어야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 프로그램은 <strong>테스트할 값을 만드는 일부터가 문제</strong>입니다.
+                아무 숫자나 넣으면 거의 다 Invalid가 나오기 때문입니다.
+                <strong>앞 일곱 자리를 정하고 검사 숫자를 손으로 계산해</strong> 맞는 바코드를 만들어야 합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">넣은 값</th>
+                        <th class="w-28">나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>88012340</td>
+                        <td class="font-bold">Valid</td>
+                        <td>나머지가 0인 경우 &mdash; 요구 사항 5번의 끝 한 줄</td>
+                    </tr>
+                    <tr>
+                        <td>88012345</td>
+                        <td class="font-bold">Invalid</td>
+                        <td>앞자리는 같고 검사 숫자만 틀린 경우</td>
+                    </tr>
+                    <tr>
+                        <td>12345678</td>
+                        <td class="font-bold">Valid</td>
+                        <td>나머지가 0이 아닌 일반적인 경우</td>
+                    </tr>
+                    <tr>
+                        <td>12345670</td>
+                        <td class="font-bold">Invalid</td>
+                        <td>같은 앞자리에 검사 숫자만 바꾼 짝</td>
+                    </tr>
+                    <tr>
+                        <td>00000019</td>
+                        <td class="font-bold">Valid</td>
+                        <td>나머지가 1일 때 검사 숫자가 9로 나오는지</td>
+                    </tr>
+                    <tr>
+                        <td>00000000</td>
+                        <td class="font-bold">Valid</td>
+                        <td>전부 0 &mdash; 합계가 0인 끝값</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>88012340만 Invalid로 나온다</strong> &mdash;
+                        <strong>다시 10으로 나누는 줄</strong>이 빠졌습니다. 10과 0을 견주고 있습니다
+                    </li>
+                    <li><strong>거의 전부 Invalid로 나온다</strong> &mdash;
+                        홀짝이 뒤바뀌었을 수 있습니다. <strong>1을 더해서 따지고 있는지</strong> 봅니다
+                    </li>
+                    <li><strong>맨 마지막 자리에서 멈춘다</strong> &mdash;
+                        되풀이가 <strong>여덟 자리를 다 돌고</strong> 있는지 봅니다. 앞 일곱 자리만 돌아야 합니다
+                    </li>
+                    <li><strong>글자끼리 이어 붙는다</strong> &mdash;
+                        꺼낸 글자를 <strong>수로 바꾸지 않고</strong> 더하고 있습니다
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>Valid가 나왔다고 검사가 통과한 것은 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>거꾸로 틀린 프로그램도 Valid를 내놓을 수 있습니다.</strong>
+                    이를테면 홀짝을 통째로 뒤바꿔도 <strong>00000000은 여전히 Valid</strong>입니다 &mdash; 전부 0이니까요.
+                    그래서 <strong>Valid만 여러 개 넣어 보는 것으로는 부족합니다.</strong>
+                    <strong>Invalid가 나와야 하는 값</strong>도 반드시 함께 넣어야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>13245678</strong>은 12345678에서 <strong>2번과 3번 자리를 서로 바꾼</strong> 것입니다. 손으로 계산해 보면 Valid일까요 Invalid일까요? 짝수 자리에 3을 곱하는 이유와 이어서 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">1단계에서 미뤄 둔 것을 데려와 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                요구 사항 7번에서 <strong>자릿수와 글자 검사를 다루지 않기로</strong> 했습니다.
+                일곱 자리를 넣으면 <strong>없는 자리를 찾다가 멈추고</strong>,
+                숫자가 아닌 글자를 넣으면 <strong>수로 바꾸다가 멈춥니다.</strong>
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-orange-500 mr-1"></i>스스로 해 본 뒤에 펼쳐 보세요
+                </p>
+                <details>
+                    <summary class="font-bold text-base text-orange-700">
+                        <i class="fa-solid fa-chevron-right details-chevron mr-1"></i>더 알아보기: 자릿수를 검사하는 코드
+                    </summary>
+                    <div class="pt-4 space-y-3">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>꺼내기 전에 막는 것</strong>이 요점입니다. 앞의 두 실습과 같은 자리입니다.
+                        </p>
+                        <div class="space-y-2 min-w-0">
+                            <pre class="language-python"><code class="language-python"
+                                                                data-src="code/바코드.자릿수-검사.py"></code></pre>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">한 걸음 더</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li>Invalid일 때 <strong>올바른 검사 숫자가 무엇이었는지</strong> 함께 알려 주기</li>
+                    <li>앞 일곱 자리만 받아 <strong>검사 숫자를 만들어 주는</strong> 프로그램으로 바꾸기</li>
+                    <li>한 자리를 잘못 눌렀을 때 <strong>정말 다 잡히는지</strong> 0~9를 차례로 넣어 확인해 보기</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;검사 숫자를 만들어 주는 프로그램&rdquo;은 지금 코드에서 <strong>무엇을 빼면</strong> 될까요? 여덟 줄 중 어느 줄이 필요 없어지는지 짚어 보세요.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-brands fa-github text-base"></i></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

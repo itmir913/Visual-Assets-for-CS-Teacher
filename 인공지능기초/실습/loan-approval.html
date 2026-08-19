@@ -4,121 +4,21 @@
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>신용점수와 소득으로 대출 승인 여부 분류</title>
-    <link rel="stylesheet" href="/src/styles/ai-basics.css">
-    <style>
-        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
-           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
-        code, kbd, samp, pre,
-        body .font-mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
-            "Malgun Gothic", monospace;
-        }
-
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: "Pretendard Variable", Pretendard, sans-serif;
-            background-color: #f8fafc;
-        }
-
-        .hero-gradient {
-            background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%);
-        }
-
-        .sticky-nav {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.9);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-
-        .section-card {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 2rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
-            border: 1px solid #e2e8f0;
-        }
-
-        .q-header {
-            background: #eff6ff;
-            border-left: 4px solid #1d4ed8;
-            padding: 1rem 1.25rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .answer-block {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.75rem;
-            padding: 1.25rem 1.5rem;
-            line-height: 1.8;
-        }
-
-        .checklist-box {
-            background: #eff6ff;
-            border: 2px solid #3b82f6;
-            border-radius: 0.75rem;
-            padding: 1rem 1.25rem;
-        }
-
-        .two-col-answer {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        @media (max-width: 640px) {
-            .two-col-answer {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-    
-        /* 코드 블록이 좁은 화면에서 화면 밖으로 넘치는 것을 막는다.
-           white-space:pre 를 유지해 들여쓰기 원형을 보존하고, 넘치는 줄은
-           코드 블록 안에서만 가로로 스크롤된다. flex 자식일 때 정상적으로
-           줄어들도록 min-width:0 을 함께 준다. */
-        body pre {
-            overflow-x: auto;
-            max-width: 100%;
-            min-width: 0;
-        }
-    </style>
+    <link rel="stylesheet" href="/src/styles/ai-project.css">
 </head>
-<body class="text-slate-900">
+<body class="type-classification text-slate-900">
 
-<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+<header class="hero-gradient text-white py-24 px-6 relative overflow-hidden" id="intro">
     <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
         <i class="fa-solid fa-building-columns absolute top-10 left-10 text-8xl -rotate-12"></i>
-        <i class="fa-solid fa-credit-card absolute bottom-10 right-10 text-9xl"></i>
+        <i class="fa-solid fa-scale-balanced absolute bottom-10 right-10 text-9xl"></i>
     </div>
     <div class="max-w-4xl mx-auto text-center relative z-10">
         <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서</span>
-        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight break-keep">신용점수와 소득으로 대출 승인 여부 분류</h1>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">신용점수와 소득으로 대출 승인 여부 분류</h1>
         <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            지도학습 · 분류 (로지스틱 회귀) · Orange<br>
-            <span class="text-base opacity-75">진로 연관: 금융 · 은행 · 핀테크</span>
+            모델이 그은 선 하나가 누구는 승인, 누구는 거절로 가른다면<br>
+            그 선은 어디에 있어야 옳을까?
         </p>
     </div>
 </header>
@@ -126,306 +26,735 @@
 <div class="bg-white border-b border-slate-200 px-6 py-6">
     <div class="max-w-4xl mx-auto">
         <div class="flex flex-wrap justify-center gap-3">
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full text-base font-bold text-blue-700"><i
-                    class="fa-solid fa-brain"></i> 지도학습 · 로지스틱 회귀</span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full text-base font-bold text-sky-700"><i
-                    class="fa-solid fa-toolbox"></i> 도구: Orange</span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-full text-base font-bold text-indigo-700"><i
-                    class="fa-solid fa-briefcase"></i> 금융 · 은행 · 핀테크</span>
+            <span class="chip"><i class="fa-solid fa-brain"></i> 지도학습 · 분류 (로지스틱 회귀)</span>
+            <span class="chip chip-neutral"><i class="fa-solid fa-toolbox"></i> 도구: 오렌지</span>
+            <span class="chip chip-neutral"><i class="fa-solid fa-briefcase"></i> 금융 · 은행 · 핀테크</span>
         </div>
-        <p class="text-slate-500 text-base text-center mt-3">💡 본 자료는 기계학습 모델 구현의 이해를 돕기 위해 제작된 예시 프로젝트입니다.
-            <br class="hidden lg:block">실습 및 모델 구현 시 전체적인 흐름을 파악하는 참고용으로 활용하시기 바랍니다.
+        <p class="text-slate-500 text-base text-center mt-4 leading-relaxed">
+            기계학습 모델 구현 보고서를 어떻게 쓰는지 보여 주는 <strong>예시 프로젝트</strong>입니다.
+            문항을 푸는 순서와 근거를 대는 방식을 참고하되, 내용은 자신의 프로젝트로 채웁니다.<br class="hidden lg:block">
+            <strong>표와 그래프의 숫자는 수업에서 원리를 확인하려고 지어낸 값</strong>이며 실제 심사 자료가 아닙니다.
         </p>
     </div>
 </div>
 
 <nav class="sticky-nav px-6 py-3">
-    <div class="max-w-6xl mx-auto flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 bg-blue-700 rounded-xl flex items-center justify-center text-white shadow"><i
-                    class="fa-solid fa-building-columns text-base"></i></div>
-            <span class="font-black text-lg tracking-tight text-slate-800">대출 승인 분류 모델</span>
+    <div class="max-w-6xl mx-auto flex justify-between items-center gap-4">
+        <div class="flex items-center space-x-3 shrink-0">
+            <div class="w-9 h-9 brand-mark rounded-xl flex items-center justify-center text-white shadow">
+                <i class="fa-solid fa-scale-balanced text-base"></i>
+            </div>
+            <span class="font-black text-lg tracking-tight text-slate-800">대출 심사 분류 모델</span>
         </div>
-        <div class="hidden md:flex space-x-4 text-base font-bold text-slate-500">
-            <a class="hover:text-blue-700 transition" href="#story">아이디어</a>
-            <a class="hover:text-blue-700 transition" href="#q1">문제정의</a>
-            <a class="hover:text-blue-700 transition" href="#q2">모델설명</a>
-            <a class="hover:text-blue-700 transition" href="#q3">유형·도구</a>
-            <a class="hover:text-blue-700 transition" href="#q4">데이터</a>
-            <a class="hover:text-blue-700 transition" href="#q5">학습결과</a>
-            <a class="hover:text-blue-700 transition" href="#q6">테스트</a>
-            <a class="hover:text-blue-700 transition" href="#q7">기대·개선</a>
-            <a class="hover:text-blue-700 transition" href="#q8">소감</a>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-base font-bold">
+            <a class="nav-link" href="#story">아이디어</a>
+            <a class="nav-link" href="#q1">문제정의</a>
+            <a class="nav-link" href="#q2">모델설명</a>
+            <a class="nav-link" href="#q3">유형·도구</a>
+            <a class="nav-link" href="#q4">데이터</a>
+            <a class="nav-link" href="#q5">학습결과</a>
+            <a class="nav-link" href="#q6">테스트</a>
+            <a class="nav-link" href="#q7">기대·개선</a>
+            <a class="nav-link" href="#q8">소감</a>
         </div>
     </div>
 </nav>
 
-<main class="max-w-6xl mx-auto px-6 py-16 space-y-10">
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
 
-    <!-- 기계학습 구현 보고서 -->
-    <section class="concept-card bg-indigo-50 p-6 md:p-8 shadow-sm border border-indigo-200 rounded-2xl">
+    <!-- 배부 양식 내려받기 -->
+    <section class="bg-indigo-50 p-6 md:p-8 shadow-sm border border-indigo-200 rounded-2xl">
         <div class="flex flex-col lg:flex-row items-center justify-between text-center lg:text-left gap-6 lg:gap-8">
             <div class="w-full lg:flex-1">
-                <h3 class="text-xl md:text-2xl font-bold text-indigo-900 mb-3 flex items-center justify-center lg:justify-start gap-2">
+                <h2 class="text-xl md:text-2xl font-bold text-indigo-900 mb-3 flex items-center justify-center lg:justify-start gap-2">
                     <i class="fa-solid fa-file-word text-indigo-600"></i>
-                    기계학습 모델 구현 보고서 예시 다운로드
-                </h3>
-                <p class="text-indigo-700 text-base md:text-lg leading-relaxed break-keep">
-                    기계학습 모델 구현 과정을 담은 보고서 예시 파일입니다. 다운로드하여 전반적인 작성 방법을 확인하고 본인의 프로젝트에 활용해 보세요.
+                    기계학습 모델 구현 보고서 예시 내려받기
+                </h2>
+                <p class="text-indigo-700 text-base md:text-lg leading-relaxed">
+                    이 페이지의 문항 1~8을 그대로 담은 보고서 파일입니다. 내려받아 작성 방법을 확인하고
+                    자신의 프로젝트로 바꾸어 채웁니다.
                 </p>
             </div>
             <div class="flex flex-wrap justify-center lg:justify-end gap-3 w-full lg:w-auto shrink-0">
                 <a href="docx/loan-approval.docx"
                    download="[기계학습 모델 구현 보고서] 신용점수와 소득으로 대출 승인 여부 분류.docx"
                    class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3.5 rounded-xl font-bold transition-all sm:hover:scale-105 shadow-md whitespace-nowrap text-base">
-                    <i class="fa-solid fa-download"></i> 예시 보고서 다운로드 (.docx)
+                    <i class="fa-solid fa-download"></i> 예시 보고서 내려받기 (.docx)
                 </a>
             </div>
         </div>
     </section>
 
-    <!-- 아이디어 스토리 -->
-    <section class="section-card scroll-mt-24" id="story">
-        <div class="mb-5">
-            <h2 class="text-xl font-black text-slate-800 mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-route text-blue-700"></i>
-                아이디어 발견부터 설계까지
-            </h2>
-            <p class="text-slate-500 text-base">이 모델은 어떤 계기로 만들게 됐을까? 왜 기계학습이 필요한지, 왜 하필 이 방법인지 사고의 흐름을 따라가 보자.</p>
+    <!-- ── 아이디어 ─────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="story">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">아이디어에서 설계까지</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">심사 기준은 누가 정하는 걸까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">사람이 판단하던 일을 모델에 맡길 때 무엇이 달라지는지 따라가 봅시다.</p>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="flex gap-4 items-start p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-black text-base">
-                    1
+
+        <div class="section-card">
+            <figure class="mb-6">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 190" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="기계학습 프로젝트의 다섯 단계: 문제 정의, 데이터 모으기, 유형·도구 고르기, 학습 시키기, 테스트·개선">
+                        <text x="320" y="26" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            보고서 여덟 문항은 이 다섯 단계를 따라간다
+                        </text>
+
+                        <g>
+                            <rect x="10" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="60" cy="76" r="15" class="svg-accent"/>
+                            <text x="60" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">1</text>
+                            <text x="60" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">문제</text>
+                            <text x="60" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">정의</text>
+                        </g>
+                        <polygon points="118,88 132,96 118,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="140" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="190" cy="76" r="15" class="svg-accent"/>
+                            <text x="190" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">2</text>
+                            <text x="190" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">데이터</text>
+                            <text x="190" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">모으기</text>
+                        </g>
+                        <polygon points="248,88 262,96 248,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="270" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="320" cy="76" r="15" class="svg-accent"/>
+                            <text x="320" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">3</text>
+                            <text x="320" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">유형·도구</text>
+                            <text x="320" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">고르기</text>
+                        </g>
+                        <polygon points="378,88 392,96 378,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="400" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="450" cy="76" r="15" class="svg-accent"/>
+                            <text x="450" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">4</text>
+                            <text x="450" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">학습</text>
+                            <text x="450" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">시키기</text>
+                        </g>
+                        <polygon points="508,88 522,96 508,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="530" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="580" cy="76" r="15" class="svg-accent"/>
+                            <text x="580" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">5</text>
+                            <text x="580" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">테스트</text>
+                            <text x="580" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">개선</text>
+                        </g>
+
+                        <text x="60" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 1 · 2</text>
+                        <text x="190" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 4</text>
+                        <text x="320" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 3</text>
+                        <text x="450" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 5</text>
+                        <text x="580" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 6 · 7</text>
+                    </svg>
                 </div>
-                <div>
-                    <p class="font-bold text-blue-800 text-lg mb-2 break-keep"><i
-                            class="fa-solid fa-lightbulb mr-1"></i> 어디서
-                        아이디어를 얻었나? — 실생활의 불편함</p>
-                    <p class="text-slate-700 text-base leading-relaxed">경제 뉴스에서 "AI가 대출 심사를 보조한다"는 기사를 읽고 관심이 생겼다. 같은
-                        신청자인데 담당자마다 다른 결정을 내릴 수 있고, 사람의 주관적 판단이 개입된다는 문제를 알게 됐다. 데이터 기반으로 일관된 기준을 적용하면 더 공정한 심사가 가능하지
-                        않을까 생각했다.</p>
+                <figcaption class="figure-cap">
+                    문항 번호와 단계 번호가 나란히 가지 않는다. <strong>유형과 도구는 데이터를 본 다음에 고르는 것</strong>이라
+                    보고서에서는 3번이지만 실제 작업은 데이터를 모은 뒤에 한다.
+                </figcaption>
+            </figure>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="flex gap-4 items-start p-4 rounded-xl border border-indigo-200 bg-indigo-50">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-black text-base">1</div>
+                    <div>
+                        <p class="font-bold text-indigo-800 text-lg mb-2"><i class="fa-solid fa-lightbulb mr-1"></i> 어디서 아이디어를 얻었나 — 실생활의 불편함</p>
+                        <p class="text-slate-700 text-base leading-relaxed">
+                            대출 심사가 며칠씩 걸린다는 이야기를 들었다. 급한 사람에게는 그 며칠이 크다.
+                            그런데 심사가 <strong>무엇을 보고 정해지는지</strong>는 신청자가 알 수 없다는 점이 더 마음에 걸렸다.
+                            기준을 눈에 보이게 만들 수 있을지 궁금했다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500 text-white flex items-center justify-center font-black text-base">2</div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-lg mb-2"><i class="fa-solid fa-code mr-1"></i> 왜 기계학습인가 — 기준선을 내가 정할 수 없다</p>
+                        <p class="text-slate-700 text-base leading-relaxed">
+                            <code class="bg-white px-1.5 py-0.5 rounded border border-slate-300">신용점수 700점 이상이면 승인</code>처럼
+                            내가 정해 버릴 수도 있다. 그런데 <strong>왜 700인가?</strong> 690인 사람과 710인 사람이
+                            그렇게 다른가? 기계학습은 그 선을 <strong>과거 기록에서 찾아 준다.</strong>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500 text-white flex items-center justify-center font-black text-base">3</div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-lg mb-2"><i class="fa-solid fa-brain mr-1"></i> 왜 분류인가 — 답의 생김새가 정한다</p>
+                        <p class="text-slate-700 text-base leading-relaxed">
+                            얻고 싶은 답은 <strong>&lsquo;승인&rsquo;과 &lsquo;거절&rsquo; 둘 중 하나</strong>다.
+                            숫자를 맞히는 것이 아니고, 비슷한 신청자끼리 묶는 것도 아니다.
+                            <strong>얻고 싶은 답의 생김새</strong>가 방법을 정한다.
+                        </p>
+                    </div>
                 </div>
             </div>
-            <div class="flex gap-4 items-start p-4 bg-amber-50 rounded-xl border border-amber-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-base">
-                    2
-                </div>
-                <div>
-                    <p class="font-bold text-amber-700 text-lg mb-2 break-keep"><i class="fa-solid fa-code mr-1"></i> 왜
-                        기계학습이
-                        필요한가? — 전통적 코딩의 한계</p>
-                    <p class="text-slate-700 text-base leading-relaxed">"신용점수 700 이상 + 월소득 300만원 이상이면 승인"처럼 기준표를 만들면 안
-                        될까? 실제 대출 결과는 신용점수, 소득, 부채비율 등이 복잡하게 얽혀 있어 단순 기준표로는 정확도가 낮다. 예를 들어 신용점수가 낮아도 소득이 충분히 높으면 승인되는
-                        경우도 있다. 수천 건의 실제 심사 기록에서 이런 복합 패턴을 학습하는 기계학습이 필요하다.</p>
-                </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 1 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q1">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 풀 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">빠른 심사와 공정한 심사는 같은 말일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">인공지능이 손댈 수 있는 모양으로 문제를 다시 써 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 1. 문제 정의</p>
+                <p class="text-slate-600 text-base">실생활이나 학문 분야에서 인공지능으로 해결하고자 하는 문제를 구체적으로 정의하시오.
+                    어떤 상황에서 어떤 불편함 또는 필요가 발생하는지를 포함하여 서술하시오.</p>
             </div>
-            <div class="flex gap-4 items-start p-4 bg-teal-50 rounded-xl border border-teal-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-black text-base">
-                    3
-                </div>
-                <div>
-                    <p class="font-bold text-teal-700 text-lg mb-2 break-keep"><i class="fa-solid fa-brain mr-1"></i> 왜
-                        분류(로지스틱
-                        회귀)인가? — 기계학습 방법 선택의 논리</p>
-                    <p class="text-slate-700 text-base leading-relaxed">대출 결과는 '승인' 또는 '거절', 딱 두 가지 중 하나다. '얼마를 빌려줄 수
-                        있나' 같은 수치를 추정하는 예측도 아니고, 비슷한 신청자를 묶는 군집도 아니다. 과거 심사 기록(정답 레이블: 승인/거절)이 있으므로 지도학습이고, 두 범주를 판별하므로
-                        분류가 적합하다. 특히 승인 확률을 퍼센트로 출력할 수 있는 로지스틱 회귀가 이 문제에 잘 맞는다.</p>
-                </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p>대출 심사는 사람이 서류를 하나씩 보며 판단한다. 시간이 오래 걸리고, <strong>같은 서류를 보고도
+                    심사자에 따라 결과가 달라질 수 있다.</strong> 신청자는 왜 그런 결과가 나왔는지 알기 어렵다.</p>
+                <p class="mt-2">그래서 <strong>신용점수와 월소득을 넣으면 승인 가능성이 높은 신청인지 낮은 신청인지를
+                    같은 기준으로 가려 주는 모델</strong>을 만들고자 한다. 사람의 최종 판단을 대신하려는 것이 아니라,
+                    <strong>먼저 훑어보는 데 쓰는 것</strong>이 목적이다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 해결하고자 하는 문제가 실생활 또는 학문 분야와 연관되어 구체적으로 제시되어 있다.</li>
+                    <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
+                </ul>
             </div>
         </div>
     </section>
 
-    <section class="section-card scroll-mt-24" id="q1">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 1. 문제 정의</p>
-            <p class="text-slate-600 text-base">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="mb-2">은행에서 대출 신청자가 많을 때 담당자가 모든 신청서를 일일이 검토하면 시간이 오래 걸리고 판단 기준도 담당자마다 달라질 수 있다.</p>
-            <p>신용점수와 월 소득 등의 데이터를 입력하면 '대출 승인' 또는 '대출 거절'을 자동으로 판단하는 인공지능 모델을 만들어, 은행의 대출 심사 과정을 보조하고 일관성 있는 기준을 적용하는 데
-                활용하고자 한다.</p>
+    <!-- ── 문항 2 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q2">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇이 들어가고 무엇이 나오는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">모델이 내놓는 것은 &lsquo;승인&rsquo;일까, 숫자일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">입력과 출력을 못 박으면 만들 것의 윤곽이 잡힙니다.</p>
         </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 해결하고자 하는 문제가 실생활과 연관되어 구체적으로 제시되어 있다.</li>
-                <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
-            </ul>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 2. 모델 설명 (입력 → 출력)</p>
+                <p class="text-slate-600 text-base">구현하려는 인공지능 모델을 설명하시오. 이 모델은 어떤 데이터를 <strong>입력</strong>받아,
+                    어떤 결과를 <strong>출력</strong>하는가? 입력과 출력을 중심으로 모델의 역할을 구체적으로 서술하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <ul class="space-y-1 mb-3 list-none pl-0">
+                    <li><strong>■ 입력:</strong> 신용점수(점) · 월소득(만원) &mdash; 숫자 두 개</li>
+                    <li><strong>■ 출력:</strong> <strong>승인 확률</strong>(0~100%)과, 그 확률을 기준선과 견주어 정한 <strong>승인 / 거절</strong></li>
+                </ul>
+                <p><strong>모델이 직접 내놓는 것은 &lsquo;승인&rsquo;이라는 말이 아니라 확률이라는 숫자다.</strong>
+                    확률 몇 %부터 승인으로 볼지는 <strong>사람이 정하는 기준선</strong>이고, 여기서는 흔히 쓰는 50%를 썼다.
+                    이 구별이 뒤에서 중요해진다 &mdash; 기준선을 옮기면 같은 모델이 다른 결정을 내놓는다.</p>
+            </div>
+
+            <figure class="mb-4">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 210" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="신용점수와 월소득이 모델을 지나 승인 확률로 나오고, 사람이 정한 기준선이 승인과 거절을 가른다">
+                        <text x="320" y="26" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            모델이 내놓는 것은 확률이고, 가르는 것은 사람이 정한 선이다
+                        </text>
+
+                        <rect x="8" y="52" width="168" height="112" rx="14" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                        <text x="92" y="80" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">입력</text>
+                        <text x="92" y="112" text-anchor="middle" font-size="17" fill="#334155">신용점수 640점</text>
+                        <text x="92" y="140" text-anchor="middle" font-size="17" fill="#334155">월소득 295만원</text>
+
+                        <line x1="182" y1="108" x2="198" y2="108" stroke="#94a3b8" stroke-width="2"/>
+                        <polygon points="198,102 208,108 198,114" fill="#94a3b8"/>
+
+                        <rect x="214" y="44" width="196" height="128" rx="14" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                        <text x="312" y="72" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">학습된 모델</text>
+                        <line x1="234" y1="86" x2="390" y2="86" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="312" y="114" text-anchor="middle" font-size="17" fill="#334155">승인 확률</text>
+                        <text x="312" y="148" text-anchor="middle" font-size="24" font-weight="700" class="svg-accent-deep">49%</text>
+
+                        <line x1="416" y1="108" x2="432" y2="108" stroke="#94a3b8" stroke-width="2"/>
+                        <polygon points="432,102 442,108 432,114" fill="#94a3b8"/>
+
+                        <rect x="448" y="52" width="184" height="112" rx="14" fill="#f8fafc" stroke="#f97316" stroke-width="2" stroke-dasharray="6 4"/>
+                        <text x="540" y="80" text-anchor="middle" font-size="17" font-weight="700" fill="#c2410c">사람이 정한 기준선</text>
+                        <text x="540" y="108" text-anchor="middle" font-size="17" fill="#334155">50% 이상이면 승인</text>
+                        <text x="540" y="140" text-anchor="middle" font-size="20" font-weight="700" fill="#b91c1c">→ 거절</text>
+
+                        <text x="320" y="198" text-anchor="middle" font-size="17" fill="#64748b">
+                            49%를 거절로 만든 것은 모델이 아니라 50%라는 선이다
+                        </text>
+                    </svg>
+                </div>
+            </figure>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 만들고자 하는 모델의 입력 데이터(종류·형태)가 명확히 제시되어 있다.</li>
+                    <li>☑ 모델이 출력하는 결과(레이블·수치·군집 등)가 구체적으로 서술되어 있다.</li>
+                    <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
+                </ul>
+            </div>
         </div>
     </section>
 
-    <section class="section-card scroll-mt-24" id="q2">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
-            <p class="text-slate-600 text-base">어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지 서술하시오.</p>
+    <!-- ── 문항 3 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q3">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 방법으로 풀 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">예측·분류·군집 중 무엇을 고를지는 취향일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">두 번의 질문으로 유형이 정해지고, 정해진 유형이 도구를 정합니다.</p>
         </div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-1 mb-3">
-                <li><strong>■ 입력:</strong> 대출 신청자의 신용점수(점), 월 소득(만원), 부채 비율(%)</li>
-                <li><strong>■ 출력:</strong> '승인' 또는 '거절' 레이블 + 승인 확률(%)</li>
-            </ul>
-            <p>과거 대출 승인·거절 기록 데이터를 학습하여, 새로운 신청자의 정보가 입력되면 대출 승인 가능성을 확률로 계산하고 결과를 출력한다. 예) 신용 720점 / 월소득 350만원 / 부채비율
-                20% → 승인 확률 87%</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 입력 데이터가 명확히 제시되어 있다.</li>
-                <li>☑ 모델이 출력하는 결과가 구체적으로 서술되어 있다.</li>
-                <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
-            </ul>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+                <p class="text-slate-600 text-base">위에서 구상한 모델을 구현하기 위해 아래 ①, ② 순서대로 선택하고 그 이유를 서술하시오.
+                    <strong>① 기계학습 유형</strong> &mdash; 지도학습과 비지도학습 중 이 모델에 적합한 유형을 선택하고, 분류·군집·예측 등의 개념을 활용하여 그 이유를 설명하시오.
+                    <strong>② 구현 도구</strong> &mdash; ①에서 선택한 유형을 구현하기 위해 티처블머신·코랩·오렌지 중 어떤 도구를 선택했는지 밝히고, 그 이유를 서술하시오.</p>
+            </div>
+
+            <figure class="mb-5">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 374" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="기계학습 유형을 고르는 판단 나무. 정답 유무로 지도·비지도를 가르고, 출력이 숫자인지 범주인지로 예측과 분류를 가른다">
+                        <text x="320" y="24" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            유형은 취향이 아니라 두 번의 질문으로 정해진다
+                        </text>
+
+                        <rect x="180" y="38" width="280" height="62" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                        <text x="320" y="64" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">데이터에 정답(레이블)이</text>
+                        <text x="320" y="88" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">함께 들어 있는가?</text>
+
+                        <path d="M 250 100 L 150 130" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <path d="M 390 100 L 490 130" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <text x="248" y="112" text-anchor="end" font-size="17" font-weight="700" fill="#64748b">아니오</text>
+                        <text x="396" y="112" text-anchor="start" font-size="17" font-weight="700" fill="#64748b">예</text>
+
+                        <rect x="70" y="130" width="160" height="50" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="150" y="161" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">비지도학습</text>
+                        <line x1="150" y1="180" x2="150" y2="212" stroke="#94a3b8" stroke-width="2"/>
+                        <rect x="70" y="212" width="160" height="50" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="150" y="243" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">군집</text>
+
+                        <rect x="410" y="130" width="160" height="50" rx="12" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                        <text x="490" y="161" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">지도학습</text>
+                        <line x1="490" y1="180" x2="490" y2="202" stroke="#94a3b8" stroke-width="2"/>
+
+                        <rect x="362" y="202" width="256" height="56" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                        <text x="490" y="236" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">출력이 숫자인가, 범주인가?</text>
+
+                        <path d="M 450 258 L 420 290" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <path d="M 530 258 L 580 290" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <text x="406" y="282" text-anchor="end" font-size="17" font-weight="700" fill="#64748b">숫자</text>
+                        <text x="594" y="282" text-anchor="start" font-size="17" font-weight="700" fill="#64748b">범주</text>
+
+                        <rect x="330" y="290" width="140" height="70" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="400" y="331" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">예측 (회귀)</text>
+
+                        <rect x="494" y="290" width="142" height="70" rx="12" class="svg-accent" stroke="none"/>
+                        <text x="565" y="318" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">분류</text>
+                        <text x="565" y="344" text-anchor="middle" font-size="17" fill="#ffffff">↑ 이 프로젝트</text>
+                    </svg>
+                </div>
+                <figcaption class="figure-cap">
+                    이 나무의 잎 세 개가 실습 보고서 일곱 편이 앉는 자리다. 같은 나무에서 갈라져 나왔다는 것이 보이면
+                    <strong>&lsquo;왜 이 방법인가&rsquo;에 답할 수 있다.</strong>
+                </figcaption>
+            </figure>
+
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p class="font-semibold text-slate-800 mb-1">① 기계학습 유형: 지도학습 &mdash; 분류 (로지스틱 회귀)</p>
+                <p class="mb-2">과거 심사 기록에는 <strong>건마다 승인이었는지 거절이었는지가 함께 적혀 있다.</strong>
+                    정답이 붙어 있으므로 지도학습이다. 그리고 내놓아야 할 답이 <strong>&lsquo;승인&rsquo;과 &lsquo;거절&rsquo;이라는
+                    두 개의 범주</strong>이므로, 수치를 맞히는 예측이 아니라 범주 하나를 집는 분류를 쓴다.</p>
+                <p class="mb-3 text-slate-600"><strong>다른 방법이 아닌 이유</strong> &mdash;
+                    <span class="font-semibold">예측(회귀)</span>로 하면 &lsquo;승인 점수 73.2점&rsquo; 같은 숫자가 나오는데,
+                    결국 <strong>몇 점부터 승인인지를 다시 정해야</strong> 하므로 문제를 미룰 뿐이다.
+                    <span class="font-semibold">군집</span>은 정답을 쓰지 않고 비슷한 신청자끼리 묶는 방법이라,
+                    이미 갖고 있는 승인·거절 정답을 버리게 된다.</p>
+                <p class="font-semibold text-slate-800 mb-1">② 구현 도구: 오렌지(Orange)</p>
+                <p>표 형태의 CSV를 그대로 읽어 들이고, 로지스틱 회귀와 산점도를 <strong>블록을 잇는 것만으로</strong> 만들 수 있다.
+                    특히 <strong>혼동 행렬(Confusion Matrix) 블록</strong>이 따로 있어, 정확도 하나가 아니라
+                    <strong>어떤 종류의 오류가 몇 건인지</strong>를 바로 볼 수 있다는 점이 이 문제에서 결정적이었다.
+                    티처블머신은 사진·소리를 다루는 도구라 표 데이터에는 맞지 않고, 코랩은 같은 일을 할 수 있지만
+                    코드를 직접 써야 해서 이번 목적에는 과하다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 지도학습 또는 비지도학습 중 하나를 명확히 선택하였다.</li>
+                    <li>☑ 분류·군집·예측 등의 개념을 활용하여 유형 선택 이유가 논리적으로 서술되어 있다.</li>
+                    <li>☑ 구현 도구를 선택하고 그 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
+                </ul>
+            </div>
         </div>
     </section>
 
-    <section class="section-card scroll-mt-24" id="q3">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
-            <p class="text-slate-600 text-base">① 기계학습 유형, ② 구현 도구를 선택하고 각각 이유를 서술하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="font-semibold text-slate-800 mb-1">① 기계학습 유형: 지도학습 — 분류 (로지스틱 회귀)</p>
-            <p class="mb-3">대출 결과는 '승인' 또는 '거절', 두 가지 중 하나를 판별하는 분류이므로 분류 모델이 적합하다. 과거 데이터에 '승인/거절' 레이블이 포함되어 있어 지도학습이다.
-                '승인' 또는 '거절'을 확률로 판별할 수 있는 로지스틱 회귀를 선택했다.</p>
-            <p class="font-semibold text-slate-800 mb-1">② 구현 도구: Orange</p>
-            <p>Orange의 Logistic Regression 노드를 이용하면 코딩 없이 모델을 구성하고 결과를 표와 그래프로 직관적으로 확인할 수 있다.</p>
+    <!-- ── 문항 4 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q4">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇으로 배우게 할 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">과거의 심사 기록을 그대로 배워도 될까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">모아 둔 데이터가 곧 모델이 물려받는 기준이 됩니다.</p>
         </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 지도/비지도학습 중 하나를 명확히 선택하였다.</li>
-                <li>☑ 유형 선택 이유가 논리적으로 서술되어 있다.</li>
-                <li>☑ 구현 도구 선택 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
-            </ul>
-        </div>
-    </section>
 
-    <section class="section-card scroll-mt-24" id="q4">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 4. 데이터 설명</p>
-            <p class="text-slate-600 text-base">데이터의 출처·유형·수량·특성을 작성하고, 스크린샷을 첨부하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-1 mb-3">
-                <li>• <strong>출처:</strong> Kaggle 'Credit Risk Dataset' (공개 데이터셋, CC0 라이선스)</li>
-                <li>• <strong>유형:</strong> 수치형 정형 데이터 (CSV, 4개 열 사용)</li>
-                <li>• <strong>수량:</strong> 1,000행 (대출 승인 700건 / 거절 300건)</li>
-            </ul>
-            <pre class="bg-slate-100 rounded-lg p-3 text-base overflow-x-auto leading-relaxed">신용점수(점) | 월소득(만원) | 부채비율(%) | 결과
-────────────┼──────────────┼─────────────┼────────
-720         | 350          | 18          | 승인
-540         | 200          | 55          | 거절
-810         | 480          | 10          | 승인
-430         | 150          | 72          | 거절
-660         | 290          | 31          | 승인
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 4. 데이터 설명</p>
+                <p class="text-slate-600 text-base">모델 학습에 사용한 데이터를 설명하시오. 데이터의 출처·유형·수량·특성 등을 작성하고,
+                    필요한 경우 스크린샷을 첨부하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <ul class="space-y-1 mb-3 list-none pl-0">
+                    <li>• <strong>출처:</strong> 공개 데이터 플랫폼에 올라온 대출 심사 데이터셋 (이용 조건을 확인하고 내려받음)</li>
+                    <li>• <strong>유형:</strong> 수치형 정형 데이터 (CSV, 특성 2개 + 결과 1개)</li>
+                    <li>• <strong>수량:</strong> 1,000행 &mdash; 승인 700건 / 거절 300건</li>
+                    <li>• <strong>범위:</strong> 신용점수 300~900점, 월소득 50~600만원</li>
+                </ul>
+                <pre class="bg-slate-100 rounded-lg p-3 text-base leading-relaxed">신용점수 | 월소득(만원) | 결과
+─────────┼──────────────┼──────
+   760   |     320      | 승인
+   480   |     200      | 거절
+   830   |     250      | 승인
+   400   |     150      | 거절
+   620   |     480      | 승인
 (이하 995행 생략 / 전체 1,000행)</pre>
-            <p class="mt-3 text-slate-500 text-base">※ 스크린샷: Kaggle 데이터셋 다운로드 화면 및 Orange CSV 로드 화면 [실제 수행평가 시 첨부]</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 데이터의 출처가 명시되어 있다.</li>
-                <li>☑ 데이터의 유형과 수량이 구체적으로 서술되어 있다.</li>
-                <li>☑ 학습에 사용된 데이터 화면 스크린샷이 첨부되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q5">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 5. 학습 결과</p>
-            <p class="text-slate-600 text-base">학습 완료 화면을 스크린샷으로 첨부하고, 결과의 의미를 설명하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-2 mb-3">
-                <li>• Orange 교차 검증(Cross Validation) 결과: 전체 정확도 <strong>88.2%</strong></li>
-            </ul>
-            <p class="font-semibold text-slate-800 mb-1">테스트 200건 결과</p>
-            <ul class="space-y-1 mb-3">
-                <li>• 실제 승인 고객 140명 중 132명을 올바르게 승인 예측 → 대부분 놓치지 않음</li>
-                <li>• 실제로는 거절이어야 하는 고객 60명 중 16명이 승인으로 잘못 예측됨 → 추가 검토 필요</li>
-            </ul>
-            <p class="text-slate-500 text-base">※ 스크린샷: Orange 학습 결과 화면 [실제 수행평가 시 첨부]</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 학습 완료 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
-                <li>☑ 모델의 학습 결과를 확인할 수 있는 수치나 지표가 언급되어 있다.</li>
-                <li>☑ 학습 결과의 의미가 서술되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q6">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 6. 테스트 및 결과 분석</p>
-            <p class="text-slate-600 text-base">새로운 데이터로 테스트하고, 예상 결과와 실제 결과를 비교·분석하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 1 — 우량 신청자</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 신용점수 780점 / 월소득 420만원 / 부채비율 12%</li>
-                <li>예상: 승인</li>
-                <li>실제 출력: 승인 확률 96.4% → 예상과 일치</li>
-            </ul>
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 2 — 고위험 신청자</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 신용점수 490점 / 월소득 170만원 / 부채비율 68%</li>
-                <li>예상: 거절</li>
-                <li>실제 출력: 거절 확률 91.8% → 예상과 일치</li>
-            </ul>
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 3 — 경계 사례</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 신용점수 620점 / 월소득 260만원 / 부채비율 38%</li>
-                <li>예상: 판단하기 어려움</li>
-                <li>실제 출력: 승인 확률 54.2% → 경계 수준, 추가 심사 권고</li>
-            </ul>
-            <p class="font-semibold text-slate-800 mb-1">■ 분석</p>
-            <p>신용점수가 높고 부채비율이 낮을수록 승인 확률이 명확히 높아지는 패턴이 모델에 잘 반영됐다. 경계 사례(확률 50%대)는 사람이 추가로 검토하는 하이브리드 방식이 적절하다.</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
-                <li>☑ 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
-                <li>☑ 차이가 있다면 그 원인이 분석되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q7">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 7. 기대 효과 및 개선 사항</p>
-            <p class="text-slate-600 text-base">모델 적용 시 기대 효과와 현재 모델의 한계 및 개선 방향을 서술하시오.</p></div>
-        <div class="two-col-answer mb-4">
-            <div class="answer-block text-slate-700 text-base">
-                <p class="font-bold text-blue-800 mb-2">기대 효과</p>
-                <p class="mb-2"><strong>관심 분야:</strong> 금융 · 핀테크</p>
-                <p class="mb-2">은행 대출 심사에서 1차 자동 심사로 활용하면 처리 속도를 높이고 심사 기준의 일관성을 유지할 수 있다.</p>
-                <p>인터넷 은행·핀테크 앱에서 신청자가 입력값을 넣으면 즉시 예비 결과를 확인하는 신속 심사 서비스로도 활용 가능하다.</p>
+                <p class="mt-3 text-slate-500 text-base">※ 스크린샷: 데이터셋 내려받기 화면 및 오렌지 CSV 불러오기 화면 [실제 수행평가 시 첨부]</p>
             </div>
-            <div class="answer-block text-slate-700 text-base">
-                <p class="font-bold text-blue-800 mb-2">개선 사항</p>
-                <p class="mb-2"><strong>현재 모델의 한계:</strong> 신용점수·소득·부채비율 3개 특성만 사용하여 직업 안정성, 연체 이력, 담보 여부 등 실제 심사 기준의
-                    다양한 요소를 반영하지 못한다.</p>
-                <p><strong>개선 방향:</strong> 더 많은 특성을 추가하거나, 의사결정나무·랜덤포레스트로 모델을 교체하여 비선형 패턴도 학습할 수 있게 한다.</p>
+
+            <div class="warn-box text-base text-slate-700 mb-4">
+                <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 사람에 관한 데이터라서 더 조심해야 하는 것</p>
+                <ul class="space-y-1.5 list-disc list-outside pl-5">
+                    <li><strong>정답이 &lsquo;옳은 판단&rsquo;이 아니라 &lsquo;과거의 판단&rsquo;이다.</strong> 이 데이터의 승인·거절은
+                        과거에 사람이 내린 결정이다. 그 결정에 치우침이 있었다면 <strong>모델은 그 치우침을 그대로 배운다.</strong>
+                        정확도가 높다는 것은 <strong>과거를 잘 흉내 냈다는 뜻</strong>이지 옳다는 뜻이 아니다.</li>
+                    <li><strong>승인 700 대 거절 300으로 한쪽이 많다.</strong> 이러면 아무것도 안 하고 전부 승인이라고만
+                        해도 정확도 70%가 나온다. <strong>정확도만 보면 안 되는 이유가 여기 있다.</strong></li>
+                    <li><strong>넣지 않기로 한 열도 결정이다.</strong> 성별·나이·사는 곳처럼 사람을 가르는 정보는
+                        일부러 넣지 않았다. 다만 <strong>넣지 않아도 다른 열을 통해 간접적으로 드러날 수 있다.</strong></li>
+                    <li><strong>사람에 관한 자료는 누구의 것인지 알 수 없게 되어 있어야 한다.</strong> 이름·주민번호·계좌번호가
+                        섞여 있으면 그 열은 지우고 시작한다.</li>
+                </ul>
+            </div>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 데이터의 출처(직접 촬영·공개 데이터셋·직접 수집 등)가 명시되어 있다.</li>
+                    <li>☑ 데이터의 유형(이미지·텍스트·수치 등)과 수량이 구체적으로 서술되어 있다.</li>
+                    <li>☑ 학습에 사용된 데이터 화면 또는 데이터 목록 스크린샷이 첨부되어 있다.</li>
+                </ul>
             </div>
         </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 관심 분야가 명시되고, 기대 효과가 구체적으로 서술되어 있다.</li>
-                <li>☑ 현재 모델의 한계가 언급되어 있다.</li>
-                <li>☑ 성능 향상을 위한 개선사항이 제시되어 있다.</li>
-            </ul>
+    </section>
+
+    <!-- ── 문항 5 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q5">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">모델은 무엇을 배웠는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">정확도 88%면 잘 만든 걸까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">모델이 그은 선 하나와, 그 선이 만들어 내는 네 가지 결과를 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 5. 학습 결과</p>
+                <p class="text-slate-600 text-base">수집한 데이터로 모델을 학습시킨 결과를 서술하시오. 학습이 완료된 화면 또는 학습 결과를
+                    스크린샷으로 첨부하고, 수치나 지표를 포함하여 결과의 의미를 간략히 설명하시오.</p>
+            </div>
+
+            <div class="note-box text-base text-slate-700 mb-4">
+                <p class="font-bold accent-ink mb-2"><i class="fa-solid fa-diagram-project mr-1"></i> 이 결과를 직접 만들어 보려면 &mdash; 오렌지에서 잇는 순서</p>
+                <ol class="step-list text-base">
+                    <li><strong>File</strong> 블록을 놓고 심사 기록 CSV를 불러온다.</li>
+                    <li>열 설정에서 <strong>결과(승인/거절)를 target</strong>으로 지정한다. 이때 자료형이
+                        <strong>수치가 아니라 범주로 잡혀 있어야</strong> 분류 모델이 붙는다.</li>
+                    <li><strong>Scatter Plot</strong>을 이어 두 특성으로 점을 찍고 색을 결과로 칠한다.
+                        <strong>색이 뒤섞여 있으면 이 두 특성만으로는 가를 수 없다는 뜻</strong>이다.</li>
+                    <li><strong>Logistic Regression</strong>과 <strong>Test and Score</strong>를 잇고 교차 검증을 켠다.</li>
+                    <li><strong>Confusion Matrix</strong>를 이어 <strong>어떤 종류의 오류가 몇 건인지</strong>를 본다.
+                        정확도 하나만 보고 끝내지 않는다.</li>
+                    <li><strong>Predictions</strong>에 새 신청자를 넣어 확률이 얼마로 나오는지 확인한다.</li>
+                </ol>
+                <p class="mt-2 text-slate-600">이 상자는 보고서에 쓰는 답이 아니라 <strong>따라 해 보라는 안내</strong>다.</p>
+            </div>
+
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <ul class="space-y-2 mb-3 list-disc list-outside pl-5">
+                    <li>산점도에서 승인과 거절이 <strong>대각선을 사이에 두고 갈라져</strong> 있어, 두 특성만으로도 어느 정도 가를 수 있음을 확인했다.</li>
+                    <li>모델이 찾은 경계: <strong class="accent-ink">신용점수 + 1.2 × 월소득 = 1,000</strong>
+                        &mdash; 이 값보다 크면 승인 쪽, 작으면 거절 쪽이다.</li>
+                    <li>교차 검증 정확도 <strong>88.0%</strong> (테스트 200건 중 176건을 맞힘)</li>
+                    <li>계수 1.2는 <strong>월소득 1만원이 신용점수 1.2점만큼의 무게로 쓰였다</strong>는 뜻이다.
+                        모델이 그렇게 정한 것이지, 소득이 실제로 그만큼 중요하다는 뜻은 아니다.</li>
+                    <li><strong>같은 88%라도 틀린 176건의 속을 봐야 한다</strong> &mdash; 아래 표가 그것이다.</li>
+                </ul>
+
+                <p class="font-semibold text-slate-800 mb-2">■ 혼동 행렬 (테스트 200건)</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-base border-collapse">
+                        <thead>
+                        <tr class="bg-slate-200">
+                            <th class="border border-slate-300 p-2 text-left">&nbsp;</th>
+                            <th class="border border-slate-300 p-2">모델: 승인</th>
+                            <th class="border border-slate-300 p-2">모델: 거절</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th class="border border-slate-300 p-2 bg-slate-100 text-left">실제 승인 (140명)</th>
+                            <td class="border border-slate-300 p-2 text-center bg-emerald-50"><strong>132</strong><br>맞게 승인</td>
+                            <td class="border border-slate-300 p-2 text-center bg-rose-50"><strong>8</strong><br>잘못 거절</td>
+                        </tr>
+                        <tr>
+                            <th class="border border-slate-300 p-2 bg-slate-100 text-left">실제 거절 (60명)</th>
+                            <td class="border border-slate-300 p-2 text-center bg-rose-50"><strong>16</strong><br>잘못 승인</td>
+                            <td class="border border-slate-300 p-2 text-center bg-emerald-50"><strong>44</strong><br>맞게 거절</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-3 text-slate-500 text-base">※ 스크린샷: 오렌지 Test and Score 및 Confusion Matrix 화면 [실제 수행평가 시 첨부]</p>
+            </div>
+
+            <div class="note-box text-base text-slate-700 mb-4">
+                <p class="font-bold accent-ink mb-2"><i class="fa-solid fa-circle-question mr-1"></i> 정확도 하나로는 알 수 없는 것</p>
+                <p class="mb-2"><strong>정확도 88%</strong>는 200건 중 176건을 맞혔다는 뜻이다. 그런데 이 데이터는
+                    승인이 70%라서, <strong>아무 생각 없이 전부 승인이라고만 해도 70%가 나온다.</strong>
+                    88%는 그 70%보다 얼마나 나은지를 봐야 의미가 있다.</p>
+                <p class="mb-2"><strong>틀린 24건은 성격이 전혀 다른 둘로 나뉜다.</strong>
+                    <strong class="text-rose-700">잘못 승인 16건</strong>은 갚기 어려운 사람에게 빌려준 것이고,
+                    <strong class="text-rose-700">잘못 거절 8건</strong>은 갚을 수 있었던 사람을 돌려보낸 것이다.
+                    수는 16 대 8이지만, <strong>둘의 무게는 수로 비교할 수 없다.</strong></p>
+                <p class="text-slate-600">이 둘을 갈라 보여 주는 표가 <strong>혼동 행렬</strong>이다.
+                    분류 모델에서는 정확도보다 이 표를 먼저 본다.</p>
+            </div>
+
+            <figure class="mb-4">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 366" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="신용점수와 월소득 평면에서 모델이 그은 결정 경계. 경계 근처에는 확률이 50%에 가까운 띠가 있다">
+                        <text x="110" y="24" font-size="17" font-weight="700" fill="#334155">월소득(만원)</text>
+                        <text x="350" y="46" text-anchor="middle" font-size="17" font-weight="700" fill="#c2410c">가운데 띠 = 승인 확률 45~55% 구간</text>
+
+                        <polygon points="110,50 590,250 590,283.4 110,83.4" fill="#fff7ed"/>
+                        <line x1="110" y1="66.7" x2="590" y2="266.7" stroke="#f97316" stroke-width="3"/>
+
+                        <line x1="110" y1="60" x2="110" y2="300" stroke="#94a3b8" stroke-width="2"/>
+                        <line x1="110" y1="300" x2="600" y2="300" stroke="#94a3b8" stroke-width="2"/>
+                        <line x1="110" y1="220" x2="600" y2="220" stroke="#e2e8f0" stroke-width="1"/>
+                        <line x1="110" y1="140" x2="600" y2="140" stroke="#e2e8f0" stroke-width="1"/>
+                        <line x1="110" y1="60" x2="600" y2="60" stroke="#e2e8f0" stroke-width="1"/>
+
+                        <text x="102" y="306" text-anchor="end" font-size="17" fill="#64748b">0</text>
+                        <text x="102" y="226" text-anchor="end" font-size="17" fill="#64748b">200</text>
+                        <text x="102" y="146" text-anchor="end" font-size="17" fill="#64748b">400</text>
+                        <text x="102" y="66" text-anchor="end" font-size="17" fill="#64748b">600</text>
+
+                        <text x="110" y="324" text-anchor="middle" font-size="17" fill="#64748b">300</text>
+                        <text x="230" y="324" text-anchor="middle" font-size="17" fill="#64748b">450</text>
+                        <text x="350" y="324" text-anchor="middle" font-size="17" fill="#64748b">600</text>
+                        <text x="470" y="324" text-anchor="middle" font-size="17" fill="#64748b">750</text>
+                        <text x="590" y="324" text-anchor="middle" font-size="17" fill="#64748b">900</text>
+                        <text x="350" y="352" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">신용점수(점)</text>
+
+                        <text x="520" y="92" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">승인 쪽</text>
+                        <text x="185" y="282" text-anchor="middle" font-size="17" font-weight="700" fill="#64748b">거절 쪽</text>
+
+                        <circle cx="478" cy="172" r="7" class="svg-accent"/>
+                        <circle cx="534" cy="200" r="7" class="svg-accent"/>
+                        <circle cx="414" cy="132" r="7" class="svg-accent"/>
+                        <circle cx="366" cy="108" r="7" class="svg-accent"/>
+                        <circle cx="574" cy="228" r="7" class="svg-accent"/>
+
+                        <circle cx="254" cy="220" r="7" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+                        <circle cx="190" cy="240" r="7" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+                        <circle cx="318" cy="196" r="7" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+                        <circle cx="150" cy="172" r="7" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+                        <circle cx="366" cy="228" r="7" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+
+                        <circle cx="382" cy="182" r="9" fill="#dc2626"/>
+                        <text x="398" y="176" text-anchor="start" font-size="17" font-weight="700" fill="#b91c1c">테스트 3 &mdash; 49%</text>
+                    </svg>
+                </div>
+                <figcaption class="figure-cap">
+                    채운 점이 승인, 빈 점이 거절이다. 주황 선이 모델이 찾은 경계이고, 옅은 띠 안은
+                    <strong>확률이 50% 근처라 조금만 달라도 결과가 뒤집히는 자리</strong>다. 빨간 점이 문항 6의 테스트 3이다.
+                </figcaption>
+            </figure>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 학습이 완료된 모델 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
+                    <li>☑ 모델의 학습 결과를 확인할 수 있는 수치나 지표가 언급되어 있다.</li>
+                    <li>☑ 학습 결과의 의미(모델이 잘 학습되었는지 여부 등)가 서술되어 있다.</li>
+                </ul>
+            </div>
         </div>
     </section>
 
-    <section class="section-card scroll-mt-24" id="q8">
-        <div class="q-header"><p class="font-black text-blue-800 text-lg mb-1">문항 8. 소감</p>
-            <p class="text-slate-600 text-base">달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="mb-2">은행 대출 심사를 AI가 한다는 게 처음엔 윤리적으로 괜찮은지 의문이었는데, 직접 만들어보니 '보조 도구'로 활용하고 최종 결정은 사람이 하는 방식임을
-                이해했다.</p>
-            <p class="mb-2">잘못 승인된 경우와 잘못 거절된 경우의 의미를 살펴보면서, AI 모델의 오류가 실제 사람에게 미치는 영향을 고려해야 한다는 걸 느꼈다.</p>
-            <p class="mb-2">특히 부채비율이 높아도 소득이 충분하면 승인 확률이 올라가는 패턴을 보며, AI가 단순 규칙이 아닌 복합적인 패턴을 학습한다는 것이 인상 깊었다.</p>
-            <p>금융 분야에 관심이 있어서, 나중에 더 많은 특성과 데이터로 공정하고 정확한 신용 평가 AI를 만들어보고 싶다.</p>
+    <!-- ── 문항 6 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q6">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">새로운 값을 넣으면 맞히는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">51%와 49%는 얼마나 다른 걸까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">확실한 사례와 경계 사례에 각각 물어보고 결과를 비교해 봅시다.</p>
         </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것이 포함되어 있다.</li>
-                <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
-            </ul>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 6. 테스트 및 결과 분석</p>
+                <p class="text-slate-600 text-base">학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오.
+                    테스트 전 예상했던 결과와 실제 결과를 비교하고, 차이가 발생했다면 그 원인을 분석하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p class="font-semibold text-slate-800 mb-1">■ 테스트 1 &mdash; 경계에서 멀리 떨어진 신청 (신용점수 810 / 월소득 420만원)</p>
+                <ul class="space-y-0.5 mb-3 list-none pl-2">
+                    <li>경계식 값: 810 + 1.2 × 420 = <strong>1,314</strong> (기준 1,000보다 훨씬 큼)</li>
+                    <li>예상: 승인 &mdash; 실제 출력: <strong>승인 확률 96%</strong></li>
+                    <li><strong>예상대로 맞았다.</strong></li>
+                </ul>
+                <p class="font-semibold text-slate-800 mb-1">■ 테스트 2 &mdash; 반대쪽으로 멀리 떨어진 신청 (신용점수 430 / 월소득 160만원)</p>
+                <ul class="space-y-0.5 mb-3 list-none pl-2">
+                    <li>경계식 값: 430 + 1.2 × 160 = <strong>622</strong> (기준보다 훨씬 작음)</li>
+                    <li>예상: 거절 &mdash; 실제 출력: <strong>거절 확률 93%</strong></li>
+                    <li><strong>예상대로 맞았다.</strong></li>
+                </ul>
+                <p class="font-semibold text-slate-800 mb-1">■ 테스트 3 &mdash; 경계 바로 옆의 신청 (신용점수 640 / 월소득 295만원)</p>
+                <ul class="space-y-0.5 mb-3 list-none pl-2">
+                    <li>경계식 값: 640 + 1.2 × 295 = <strong>994</strong> (기준 1,000보다 6 작음)</li>
+                    <li>예상: 판단하기 어려움 &mdash; 실제 출력: <strong>승인 확률 49% → 거절</strong></li>
+                    <li><strong>여기서 문제가 드러났다.</strong> 월소득이 5만원만 더 많았다면 1,000이 되어 승인으로 뒤집힌다.</li>
+                </ul>
+                <p class="font-semibold text-slate-800 mb-1">■ 분석</p>
+                <p class="mb-2"><strong>모델은 세 번 다 제대로 계산했다. 문제는 계산이 아니라 결정이다.</strong>
+                    테스트 1·2는 경계에서 멀어 확률이 90%대로 나왔지만, 테스트 3은 49%였다.
+                    <strong>49%와 51%는 모델이 보기에 거의 같은 값인데, 결과는 거절과 승인으로 완전히 갈린다.</strong></p>
+                <p class="mb-2">이렇게 갈라 놓은 것은 모델이 아니라 <strong>&lsquo;50% 이상이면 승인&rsquo;이라는 기준선</strong>이다.
+                    그 선은 학습으로 정해진 것이 아니라 <strong>사람이 골라 넣은 값</strong>이다.
+                    선을 45%로 내리면 테스트 3은 승인이 되고, 55%로 올리면 지금 승인되던 사람들 일부가 거절된다.</p>
+                <p>그래서 이런 모델은 <strong>확률이 경계 근처인 사람을 자동으로 처리하지 않는 것</strong>이 맞다.
+                    확률과 함께 <strong>&lsquo;이 판단은 확실하지 않다&rsquo;는 표시를 같이 내보내고</strong>, 그런 건은 사람이 다시 본다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
+                    <li>☑ 테스트 전 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
+                    <li>☑ 예상과 실제 사이에 차이가 있다면 그 원인이 분석되어 있다. (차이가 없으면 이유 서술)</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 7 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q7">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어디에 쓰고 무엇을 고칠 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">틀렸을 때 손해를 보는 사람은 누구일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">쓸모와 한계를 나란히 놓고, 개선해도 남는 어려움까지 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 7. 기대 효과 및 개선 사항</p>
+                <p class="text-slate-600 text-base"><strong>기대 효과</strong> &mdash; 이 모델을 자신의 관심 분야(예: 의료·환경·스포츠 등)에
+                    적용한다면 어떤 효과를 기대할 수 있는지 서술하시오.
+                    <strong>개선 사항</strong> &mdash; 현재 모델의 한계를 바탕으로, 성능을 향상시키기 위해 필요한 개선사항을 구체적으로 서술하시오.</p>
+            </div>
+            <div class="two-col-answer mb-4">
+                <div class="answer-block text-slate-700 text-base">
+                    <p class="font-bold accent-ink mb-2">기대 효과</p>
+                    <p class="mb-2"><strong>관심 분야:</strong> 금융 · 핀테크</p>
+                    <p class="mb-2">확률이 90%를 넘거나 10% 아래인 <strong>명백한 건을 먼저 걸러 내면</strong>,
+                        사람은 <strong>애매한 건에 시간을 더 쓸 수 있다.</strong> 전체 심사를 대신하는 것이 아니라
+                        <strong>사람이 볼 순서를 정해 주는 쓰임</strong>이다.</p>
+                    <p>기준을 식 하나로 적어 둘 수 있다는 점도 쓸모다. 심사자에 따라 결과가 달라지는 문제를
+                        적어도 <strong>드러내 놓고 이야기할 수 있게</strong> 된다.</p>
+                </div>
+                <div class="answer-block text-slate-700 text-base">
+                    <p class="font-bold accent-ink mb-2">개선 사항</p>
+                    <p class="mb-2"><strong>한계:</strong> 특성이 두 개뿐이라 <strong>부채·고용 형태·거래 기간처럼 중요한 것이 빠져 있다.</strong>
+                        그리고 학습한 정답이 과거의 결정이므로 <strong>과거의 치우침을 그대로 물려받았을 수 있다.</strong></p>
+                    <p><strong>개선 방향:</strong> ① 특성을 늘리되 <strong>사람을 가르는 정보는 넣지 않는다.</strong>
+                        ② 경계 근처 건을 <strong>&lsquo;판단 보류&rsquo;로 따로 빼는 세 번째 출력</strong>을 만든다.
+                        ③ 승인·거절 비율이 한쪽으로 쏠린 것을 맞추고, 정확도 대신
+                        <strong>두 오류를 나눠 보는 지표</strong>로 평가한다.</p>
+                </div>
+            </div>
+
+            <div class="warn-box text-base text-slate-700 mb-4">
+                <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-scale-unbalanced mr-1"></i> 개선해도 남는 어려움</p>
+                <p class="mb-2"><strong>두 오류의 무게가 다르고, 손해를 보는 사람도 다르다.</strong>
+                    <strong>잘못 승인</strong>하면 빌려준 쪽이 돈을 잃는다. <strong>잘못 거절</strong>하면
+                    갚을 수 있었던 사람이 돈을 못 빌린다 &mdash; 등록금이나 치료비가 걸려 있었을 수도 있다.
+                    기준선을 올리면 잘못 승인이 줄고 잘못 거절이 늘며, 내리면 그 반대다.
+                    <strong>어디에 둘지는 정확도가 정해 주지 않는다.</strong> 누구의 손해를 더 무겁게 볼 것인지를 정하는 일이기 때문이다.</p>
+                <p class="mb-2"><strong>거절당한 사람에게 이유를 말할 수 있어야 한다.</strong>
+                    &lsquo;식의 값이 994라서&rsquo;는 계산 과정이지 이유가 아니다. 특성을 늘려 정확도를 올릴수록
+                    <strong>설명은 더 어려워진다</strong> &mdash; 정확한 모델과 설명할 수 있는 모델이 늘 같지는 않다.</p>
+                <p><strong>그리고 과거를 잘 맞히는 것과 옳게 판단하는 것은 다르다.</strong>
+                    과거 심사에 치우침이 있었다면, 그 치우침을 잘 재현할수록 정확도는 올라간다.
+                    <strong>정확도를 올리는 노력이 문제를 키우는 방향일 수 있다는 것</strong>이 이 문제의 가장 어려운 점이다.
+                    이것은 데이터를 더 모아서 풀리는 문제가 아니다.</p>
+            </div>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 자신의 관심 분야가 명시되고, 모델 적용 시 기대되는 효과가 구체적으로 서술되어 있다.</li>
+                    <li>☑ 현재 모델의 한계 또는 부족한 점이 언급되어 있다.</li>
+                    <li>☑ 성능 향상을 위한 개선사항(데이터 확충·모델 변경·파라미터 조정 등)이 제시되어 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 8 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇이 남았는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">만들기 전과 후, 무엇이 달라졌을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">점수가 아니라 생각의 변화를 적는 자리입니다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 8. 소감</p>
+                <p class="text-slate-600 text-base">기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것,
+                    또는 느낀 점을 자유롭게 서술하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p class="mb-2">처음에는 정확도 88%가 나왔을 때 꽤 잘 만든 줄 알았다. 그런데 혼동 행렬을 보고 나서
+                    생각이 바뀌었다. 승인이 원래 70%인 데이터라 <strong>전부 승인이라고만 해도 70%가 나온다</strong>는 걸
+                    알고 나니, 88%라는 숫자가 처음처럼 커 보이지 않았다.</p>
+                <p class="mb-2">가장 오래 생각한 건 <strong>기준선을 50%로 둔 것</strong>이었다. 그냥 절반이니까 골랐는데,
+                    테스트 3에서 49%가 나와 거절되는 걸 보고 <strong>그 선이 사람의 결정이었다</strong>는 게 실감났다.
+                    선을 조금만 옮겨도 어떤 사람은 대출을 받고 어떤 사람은 못 받는다.</p>
+                <p>학습 데이터의 정답이 <strong>&lsquo;옳은 판단&rsquo;이 아니라 &lsquo;과거의 판단&rsquo;</strong>이라는 것도
+                    이번에 처음 생각해 봤다. 과거가 치우쳐 있으면 잘 맞힐수록 그걸 따라 하게 된다는 게 이상하게 느껴졌다.
+                    사람에 관한 결정을 다루는 모델은 정확도만 올려서는 안 되겠다고 생각했다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것 또는 달라진 생각이 포함되어 있다.</li>
+                    <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
+                </ul>
+            </div>
         </div>
     </section>
 

@@ -4,111 +4,21 @@
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>쓰레기 사진으로 분리수거 자동 분류</title>
-    <link rel="stylesheet" href="/src/styles/ai-basics.css">
-    <style>
-        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
-           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
-        code, kbd, samp, pre,
-        body .font-mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
-            "Malgun Gothic", monospace;
-        }
-
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: "Pretendard Variable", Pretendard, sans-serif;
-            background-color: #f8fafc;
-        }
-
-        .hero-gradient {
-            background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
-        }
-
-        .sticky-nav {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.9);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-
-        .section-card {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 2rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
-            border: 1px solid #e2e8f0;
-        }
-
-        .q-header {
-            background: #ecfdf5;
-            border-left: 4px solid #10b981;
-            padding: 1rem 1.25rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .answer-block {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.75rem;
-            padding: 1.25rem 1.5rem;
-            line-height: 1.8;
-        }
-
-        .checklist-box {
-            background: #eff6ff;
-            border: 2px solid #3b82f6;
-            border-radius: 0.75rem;
-            padding: 1rem 1.25rem;
-        }
-
-        .two-col-answer {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        @media (max-width: 640px) {
-            .two-col-answer {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="/src/styles/ai-project.css">
 </head>
-<body class="text-slate-900">
+<body class="type-classification text-slate-900">
 
-<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+<header class="hero-gradient text-white py-24 px-6 relative overflow-hidden" id="intro">
     <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
         <i class="fa-solid fa-recycle absolute top-10 left-10 text-8xl -rotate-12"></i>
         <i class="fa-solid fa-trash-can absolute bottom-10 right-10 text-9xl"></i>
     </div>
     <div class="max-w-4xl mx-auto text-center relative z-10">
         <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서</span>
-        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight break-keep">쓰레기 사진으로 분리수거 자동 분류</h1>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">쓰레기 사진으로 분리수거 자동 분류</h1>
         <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            지도학습 · 분류 (이미지) · 티처블머신<br>
-            <span class="text-base opacity-75">진로 연관: 환경 · 스마트시티 · 공공행정</span>
+            헷갈리는 쓰레기를 가려 주는 모델을 만들었는데,<br>
+            정작 처음에 헷갈렸던 그 물건은 어떻게 될까?
         </p>
     </div>
 </header>
@@ -116,301 +26,723 @@
 <div class="bg-white border-b border-slate-200 px-6 py-6">
     <div class="max-w-4xl mx-auto">
         <div class="flex flex-wrap justify-center gap-3">
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full text-base font-bold text-emerald-700"><i
-                    class="fa-solid fa-brain"></i> 지도학습 · 이미지 분류</span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-teal-50 border border-teal-200 rounded-full text-base font-bold text-teal-700"><i
-                    class="fa-solid fa-toolbox"></i> 도구: 티처블머신</span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full text-base font-bold text-sky-700"><i
-                    class="fa-solid fa-briefcase"></i> 환경 · 스마트시티 · 공공행정</span>
+            <span class="chip"><i class="fa-solid fa-brain"></i> 지도학습 · 분류 (이미지)</span>
+            <span class="chip chip-neutral"><i class="fa-solid fa-toolbox"></i> 도구: 티처블머신</span>
+            <span class="chip chip-neutral"><i class="fa-solid fa-briefcase"></i> 환경 · 스마트시티 · 공공행정</span>
         </div>
-        <p class="text-slate-500 text-base text-center mt-3">💡 본 자료는 기계학습 모델 구현의 이해를 돕기 위해 제작된 예시 프로젝트입니다.
-            <br class="hidden lg:block">실습 및 모델 구현 시 전체적인 흐름을 파악하는 참고용으로 활용하시기 바랍니다.
+        <p class="text-slate-500 text-base text-center mt-4 leading-relaxed">
+            기계학습 모델 구현 보고서를 어떻게 쓰는지 보여 주는 <strong>예시 프로젝트</strong>입니다.
+            문항을 푸는 순서와 근거를 대는 방식을 참고하되, 내용은 자신의 프로젝트로 채웁니다.<br class="hidden lg:block">
+            <strong>정확도와 확률 값은 수업에서 원리를 확인하려고 지어낸 값</strong>이며 실제 측정 결과가 아닙니다.
         </p>
     </div>
 </div>
 
 <nav class="sticky-nav px-6 py-3">
-    <div class="max-w-6xl mx-auto flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow"><i
-                    class="fa-solid fa-recycle text-base"></i></div>
+    <div class="max-w-6xl mx-auto flex justify-between items-center gap-4">
+        <div class="flex items-center space-x-3 shrink-0">
+            <div class="w-9 h-9 brand-mark rounded-xl flex items-center justify-center text-white shadow">
+                <i class="fa-solid fa-recycle text-base"></i>
+            </div>
             <span class="font-black text-lg tracking-tight text-slate-800">분리수거 분류 모델</span>
         </div>
-        <div class="hidden md:flex space-x-4 text-base font-bold text-slate-500">
-            <a class="hover:text-emerald-600 transition" href="#story">아이디어</a>
-            <a class="hover:text-emerald-600 transition" href="#q1">문제정의</a>
-            <a class="hover:text-emerald-600 transition" href="#q2">모델설명</a>
-            <a class="hover:text-emerald-600 transition" href="#q3">유형·도구</a>
-            <a class="hover:text-emerald-600 transition" href="#q4">데이터</a>
-            <a class="hover:text-emerald-600 transition" href="#q5">학습결과</a>
-            <a class="hover:text-emerald-600 transition" href="#q6">테스트</a>
-            <a class="hover:text-emerald-600 transition" href="#q7">기대·개선</a>
-            <a class="hover:text-emerald-600 transition" href="#q8">소감</a>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-base font-bold">
+            <a class="nav-link" href="#story">아이디어</a>
+            <a class="nav-link" href="#q1">문제정의</a>
+            <a class="nav-link" href="#q2">모델설명</a>
+            <a class="nav-link" href="#q3">유형·도구</a>
+            <a class="nav-link" href="#q4">데이터</a>
+            <a class="nav-link" href="#q5">학습결과</a>
+            <a class="nav-link" href="#q6">테스트</a>
+            <a class="nav-link" href="#q7">기대·개선</a>
+            <a class="nav-link" href="#q8">소감</a>
         </div>
     </div>
 </nav>
 
-<main class="max-w-6xl mx-auto px-6 py-16 space-y-10">
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
 
-    <!-- 기계학습 구현 보고서 -->
-    <section class="concept-card bg-indigo-50 p-6 md:p-8 shadow-sm border border-indigo-200 rounded-2xl">
+    <!-- 배부 양식 내려받기 -->
+    <section class="bg-indigo-50 p-6 md:p-8 shadow-sm border border-indigo-200 rounded-2xl">
         <div class="flex flex-col lg:flex-row items-center justify-between text-center lg:text-left gap-6 lg:gap-8">
             <div class="w-full lg:flex-1">
-                <h3 class="text-xl md:text-2xl font-bold text-indigo-900 mb-3 flex items-center justify-center lg:justify-start gap-2">
+                <h2 class="text-xl md:text-2xl font-bold text-indigo-900 mb-3 flex items-center justify-center lg:justify-start gap-2">
                     <i class="fa-solid fa-file-word text-indigo-600"></i>
-                    기계학습 모델 구현 보고서 예시 다운로드
-                </h3>
-                <p class="text-indigo-700 text-base md:text-lg leading-relaxed break-keep">
-                    기계학습 모델 구현 과정을 담은 보고서 예시 파일입니다. 다운로드하여 전반적인 작성 방법을 확인하고 본인의 프로젝트에 활용해 보세요.
+                    기계학습 모델 구현 보고서 예시 내려받기
+                </h2>
+                <p class="text-indigo-700 text-base md:text-lg leading-relaxed">
+                    이 페이지의 문항 1~8을 그대로 담은 보고서 파일입니다. 내려받아 작성 방법을 확인하고
+                    자신의 프로젝트로 바꾸어 채웁니다.
                 </p>
             </div>
             <div class="flex flex-wrap justify-center lg:justify-end gap-3 w-full lg:w-auto shrink-0">
                 <a href="docx/recycling-sort.docx"
                    download="[기계학습 모델 구현 보고서] 쓰레기 사진으로 분리수거 자동 분류.docx"
                    class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3.5 rounded-xl font-bold transition-all sm:hover:scale-105 shadow-md whitespace-nowrap text-base">
-                    <i class="fa-solid fa-download"></i> 예시 보고서 다운로드 (.docx)
+                    <i class="fa-solid fa-download"></i> 예시 보고서 내려받기 (.docx)
                 </a>
             </div>
         </div>
     </section>
 
-    <!-- 아이디어 스토리 -->
-    <section class="section-card scroll-mt-24" id="story">
-        <div class="mb-5">
-            <h2 class="text-xl font-black text-slate-800 mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-route text-emerald-500"></i>
-                아이디어 발견부터 설계까지
-            </h2>
-            <p class="text-slate-500 text-base">이 모델은 어떤 계기로 만들게 됐을까? 왜 기계학습이 필요한지, 왜 하필 이 방법인지 사고의 흐름을 따라가 보자.</p>
+    <!-- ── 아이디어 ─────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="story">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">아이디어에서 설계까지</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">헷갈리는 쓰레기, 카메라가 대신 봐 줄 수 있을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">규칙을 쓰는 대신 사진을 보여 주기로 한 이유를 따라가 봅시다.</p>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="flex gap-4 items-start p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-base">
-                    1
+
+        <div class="section-card">
+            <figure class="mb-6">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 190" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="기계학습 프로젝트의 다섯 단계: 문제 정의, 데이터 모으기, 유형·도구 고르기, 학습 시키기, 테스트·개선">
+                        <text x="320" y="26" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            보고서 여덟 문항은 이 다섯 단계를 따라간다
+                        </text>
+
+                        <g>
+                            <rect x="10" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="60" cy="76" r="15" class="svg-accent"/>
+                            <text x="60" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">1</text>
+                            <text x="60" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">문제</text>
+                            <text x="60" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">정의</text>
+                        </g>
+                        <polygon points="118,88 132,96 118,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="140" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="190" cy="76" r="15" class="svg-accent"/>
+                            <text x="190" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">2</text>
+                            <text x="190" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">데이터</text>
+                            <text x="190" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">모으기</text>
+                        </g>
+                        <polygon points="248,88 262,96 248,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="270" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="320" cy="76" r="15" class="svg-accent"/>
+                            <text x="320" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">3</text>
+                            <text x="320" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">유형·도구</text>
+                            <text x="320" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">고르기</text>
+                        </g>
+                        <polygon points="378,88 392,96 378,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="400" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="450" cy="76" r="15" class="svg-accent"/>
+                            <text x="450" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">4</text>
+                            <text x="450" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">학습</text>
+                            <text x="450" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">시키기</text>
+                        </g>
+                        <polygon points="508,88 522,96 508,104" fill="#94a3b8"/>
+
+                        <g>
+                            <rect x="530" y="48" width="100" height="96" rx="16" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                            <circle cx="580" cy="76" r="15" class="svg-accent"/>
+                            <text x="580" y="82" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">5</text>
+                            <text x="580" y="112" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">테스트</text>
+                            <text x="580" y="134" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">개선</text>
+                        </g>
+
+                        <text x="60" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 1 · 2</text>
+                        <text x="190" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 4</text>
+                        <text x="320" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 3</text>
+                        <text x="450" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 5</text>
+                        <text x="580" y="172" text-anchor="middle" font-size="17" fill="#475569">문항 6 · 7</text>
+                    </svg>
                 </div>
-                <div>
-                    <p class="font-bold text-emerald-700 text-lg mb-2 break-keep"><i
-                            class="fa-solid fa-lightbulb mr-1"></i> 어디서
-                        아이디어를 얻었나? — 실생활의 불편함</p>
-                    <p class="text-slate-700 text-base leading-relaxed">집에서 분리수거를 하다가 음료 팩이 '종이'인지 '일반쓰레기'인지 헷갈려서 결국 아무
-                        통에나 버린 적이 있었다. 환경 문제에 관심이 많았고, 카메라로 찍으면 어느 통에 버려야 하는지 바로 알려주는 AI 모델이 있으면 편리하겠다는 아이디어가 떠올랐다.</p>
+                <figcaption class="figure-cap">
+                    문항 번호와 단계 번호가 나란히 가지 않는다. <strong>유형과 도구는 데이터를 본 다음에 고르는 것</strong>이라
+                    보고서에서는 3번이지만 실제 작업은 데이터를 모은 뒤에 한다.
+                </figcaption>
+            </figure>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="flex gap-4 items-start p-4 rounded-xl border border-indigo-200 bg-indigo-50">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-black text-base">1</div>
+                    <div>
+                        <p class="font-bold text-indigo-800 text-lg mb-2"><i class="fa-solid fa-lightbulb mr-1"></i> 어디서 아이디어를 얻었나 — 실생활의 불편함</p>
+                        <p class="text-slate-700 text-base leading-relaxed">
+                            분리수거를 하다가 <strong>다 마신 음료 팩</strong> 앞에서 멈췄다. 겉은 종이 같은데 안쪽은 은박이고
+                            뚜껑은 플라스틱이다. 어느 통에 넣어야 할지 몰라 결국 아무 데나 버렸다.
+                            <strong>사진만 찍으면 알려 주는 것이 있으면 좋겠다</strong>고 생각했다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500 text-white flex items-center justify-center font-black text-base">2</div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-lg mb-2"><i class="fa-solid fa-code mr-1"></i> 왜 기계학습인가 — 규칙으로 적을 수가 없다</p>
+                        <p class="text-slate-700 text-base leading-relaxed">
+                            <code class="bg-white px-1.5 py-0.5 rounded border border-slate-300">투명하면 플라스틱</code>이라고
+                            적어 보면 곧 막힌다. 유리병도 투명하고, 플라스틱은 색이 수십 가지다.
+                            <strong>찌그러지거나 내용물이 묻으면 완전히 다르게 보인다.</strong>
+                            사람은 보면 아는데 그 기준을 글로 옮길 수가 없다.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500 text-white flex items-center justify-center font-black text-base">3</div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-lg mb-2"><i class="fa-solid fa-brain mr-1"></i> 왜 분류인가 — 답의 생김새가 정한다</p>
+                        <p class="text-slate-700 text-base leading-relaxed">
+                            얻고 싶은 답은 <strong>정해진 통 가운데 하나</strong>다. 숫자를 맞히는 것이 아니고,
+                            비슷한 사진끼리 묶는 것도 아니다. <strong>얻고 싶은 답의 생김새</strong>가 방법을 정한다.
+                            다만 이때 <strong>통을 몇 개로 잡을지</strong>가 나중에 발목을 잡는다.
+                        </p>
+                    </div>
                 </div>
             </div>
-            <div class="flex gap-4 items-start p-4 bg-amber-50 rounded-xl border border-amber-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-base">
-                    2
-                </div>
-                <div>
-                    <p class="font-bold text-amber-700 text-lg mb-2 break-keep"><i class="fa-solid fa-code mr-1"></i> 왜
-                        기계학습이
-                        필요한가? — 전통적 코딩의 한계</p>
-                    <p class="text-slate-700 text-base leading-relaxed">"투명하면 플라스틱, 하얗고 얇으면 종이"처럼 색상·형태 기준으로 코딩하면 될까? 같은
-                        플라스틱이라도 색깔이 다양하고, 찌그러지거나 내용물이 묻어 있으면 완전히 다르게 보인다. 무한히 다양한 쓰레기의 외관을 if-else 규칙으로 처리하기는 어렵고, 실제
-                        이미지 수백 장에서 재질별 패턴을 학습하는 기계학습이 필요하다.</p>
-                </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 1 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q1">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 풀 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">분리수거는 왜 매번 헷갈릴까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">인공지능이 손댈 수 있는 모양으로 문제를 다시 써 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 1. 문제 정의</p>
+                <p class="text-slate-600 text-base">실생활이나 학문 분야에서 인공지능으로 해결하고자 하는 문제를 구체적으로 정의하시오.
+                    어떤 상황에서 어떤 불편함 또는 필요가 발생하는지를 포함하여 서술하시오.</p>
             </div>
-            <div class="flex gap-4 items-start p-4 bg-teal-50 rounded-xl border border-teal-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-black text-base">
-                    3
-                </div>
-                <div>
-                    <p class="font-bold text-teal-700 text-lg mb-2 break-keep"><i class="fa-solid fa-brain mr-1"></i> 왜
-                        분류(이미지
-                        분류)인가? — 기계학습 방법 선택의 논리</p>
-                    <p class="text-slate-700 text-base leading-relaxed">쓰레기를 보고 '종이/플라스틱/유리/금속/일반'이라는 5개의 정해진 범주 중 하나로
-                        판별해야 한다. '재활용 가능 비율'처럼 수치를 추정하는 게 아니고, 레이블 없이 묶는 군집도 아니다. 각 이미지에 정답 레이블(어느 통인지)이 있으므로 지도학습이고,
-                        범주를 나누는 것이므로 분류가 적합하다.</p>
-                </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p>분리수거를 제대로 하고 싶어도 <strong>무엇을 어느 통에 넣어야 하는지 헷갈리는 물건이 많다.</strong>
+                    페트병 뚜껑, 음식이 묻은 용기, 여러 재질이 붙어 있는 포장지가 특히 그렇다.
+                    잘못 넣으면 그 통 전체가 재활용되지 못하는데, <strong>버리는 사람은 잘못했는지조차 알 수 없다.</strong></p>
+                <p class="mt-2">그래서 <strong>쓰레기 사진을 넣으면 종이 · 플라스틱 · 유리 · 금속 · 일반쓰레기 가운데
+                    어디에 해당하는지 알려 주는 모델</strong>을 만들고자 한다. 분리수거를 돕는 앱에 넣어
+                    <strong>버리기 전에 한 번 확인하는 용도</strong>로 쓰는 것이 목적이다.</p>
             </div>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q1">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 1. 문제 정의</p>
-            <p class="text-slate-600 text-base">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="mb-2">분리수거를 하고 싶어도 어떤 쓰레기가 어느 통에 들어가는지 헷갈리는 경우가 많다. 특히 페트병 뚜껑, 음식이 묻은 플라스틱 용기, 복합 재질 포장지 등은 정확한
-                분류가 어려워 잘못 버려지는 일이 자주 발생한다.</p>
-            <p>쓰레기 사진을 찍으면 종이 / 플라스틱 / 유리 / 금속 / 일반 쓰레기 중 어디에 버려야 하는지 자동으로 알려주는 인공지능 모델을 만들어, 올바른 분리수거를 돕는 스마트 앱에 활용하고자
-                한다.</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 해결하고자 하는 문제가 실생활과 연관되어 구체적으로 제시되어 있다.</li>
-                <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q2">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
-            <p class="text-slate-600 text-base">어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지 서술하시오.</p>
-        </div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-1 mb-3">
-                <li><strong>■ 입력:</strong> 쓰레기 사진 (스마트폰 카메라 또는 웹캠으로 촬영한 이미지)</li>
-                <li><strong>■ 출력:</strong> 분류 레이블 + 신뢰도(%) — 종이 / 플라스틱 / 유리 / 금속 / 일반 쓰레기</li>
-            </ul>
-            <p>카메라로 쓰레기를 비추면 모델이 재질을 분석하여 해당 물체를 어느 분리수거 통에 버려야 하는지를 레이블과 신뢰도로 즉시 출력한다. 예) 플라스틱 병: 플라스틱 93.2% / 유리 4.1%
-                / 기타</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 입력 데이터가 명확히 제시되어 있다.</li>
-                <li>☑ 모델이 출력하는 결과가 구체적으로 서술되어 있다.</li>
-                <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q3">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
-            <p class="text-slate-600 text-base">① 기계학습 유형, ② 구현 도구를 선택하고 각각 이유를 서술하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="font-semibold text-slate-800 mb-1">① 기계학습 유형: 지도학습 — 분류</p>
-            <p class="mb-3">이미지를 입력받아 5개의 정해진 분리수거 범주(클래스) 중 하나로 판별하는 것이므로 분류 모델이 적합하다. 각 이미지에 '종이/플라스틱/유리/금속/일반쓰레기'
-                레이블을 붙인 데이터로 학습하므로 지도학습이다.</p>
-            <p class="font-semibold text-slate-800 mb-1">② 구현 도구: 티처블머신 (Teachable Machine)</p>
-            <p>구글 이미지 검색으로 내려받은 사진과 직접 촬영한 사진을 티처블머신에 업로드하기만 하면 코딩 없이 모델을 만들 수 있다. 학습 완료 후 스마트폰 카메라와 연동하여 즉시 테스트
-                가능하다.</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 지도/비지도학습 중 하나를 명확히 선택하였다.</li>
-                <li>☑ 유형 선택 이유가 논리적으로 서술되어 있다.</li>
-                <li>☑ 구현 도구 선택 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q4">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 4. 데이터 설명</p>
-            <p class="text-slate-600 text-base">데이터의 출처·유형·수량·특성을 작성하고, 스크린샷을 첨부하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-1 mb-3">
-                <li>• <strong>출처:</strong> 구글 이미지 검색(각 재질 검색) + 직접 촬영 혼합</li>
-                <li>• <strong>유형:</strong> 이미지 데이터 (224×224px, JPG)</li>
-                <li>• <strong>수량:</strong> 클래스별 각 60장 / 총 300장 (5클래스)</li>
-            </ul>
-            <ul class="space-y-1 mb-3">
-                <li>• 클래스 1 — <strong>종이(60장):</strong> 신문지, 박스, 종이컵, 전단지</li>
-                <li>• 클래스 2 — <strong>플라스틱(60장):</strong> 페트병, 플라스틱 용기, 비닐봉투</li>
-                <li>• 클래스 3 — <strong>유리(60장):</strong> 유리병, 깨진 유리조각</li>
-                <li>• 클래스 4 — <strong>금속(60장):</strong> 캔, 알루미늄 포일, 철사</li>
-                <li>• 클래스 5 — <strong>일반쓰레기(60장):</strong> 음식물 묻은 포장지, 이쑤시개, 담배꽁초</li>
-            </ul>
-            <p class="mb-2">다양성 확보: 조명 조건, 배경색, 쓰레기 형태(접힌/펼쳐진) 다양화</p>
-            <p class="text-slate-500 text-base">※ 스크린샷: 티처블머신 5개 클래스 이미지 업로드 화면 [실제 수행평가 시 첨부]</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 데이터의 출처가 명시되어 있다.</li>
-                <li>☑ 데이터의 유형과 수량이 구체적으로 서술되어 있다.</li>
-                <li>☑ 학습에 사용된 데이터 화면 스크린샷이 첨부되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q5">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 5. 학습 결과</p>
-            <p class="text-slate-600 text-base">학습 완료 화면을 스크린샷으로 첨부하고, 결과의 의미를 설명하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="mb-2"><strong>학습 설정:</strong> Epochs 50 / 배치 크기 16 / 학습률 0.001 (기본값)</p>
-            <p class="font-semibold text-slate-800 mb-1">학습 완료 후 성능 (테스트셋 20% 기준)</p>
-            <ul class="space-y-1 mb-3">
-                <li>• 전체 정확도: <strong>89.3%</strong></li>
-                <li>• 종이 94.2% / 플라스틱 88.7% / 유리 91.3% / 금속 90.5% / 일반쓰레기 82.1% (가장 낮음 — 종류 다양)</li>
-                <li>• 손실(Loss)이 낮아지며 안정적으로 학습 완료</li>
-            </ul>
-            <p class="mb-2">실시간 미리보기에서 플라스틱 페트병을 카메라에 비추자 '플라스틱: 93%'로 즉시 반응 → 실시간 분류 확인</p>
-            <p class="text-slate-500 text-base">※ 스크린샷: 학습 완료 화면(정확도·Loss 그래프) [실제 수행평가 시 첨부]</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 학습 완료 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
-                <li>☑ 모델의 학습 결과를 확인할 수 있는 수치나 지표가 언급되어 있다.</li>
-                <li>☑ 학습 결과의 의미가 서술되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q6">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 6. 테스트 및 결과 분석</p>
-            <p class="text-slate-600 text-base">새로운 데이터로 테스트하고, 예상 결과와 실제 결과를 비교·분석하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 1 — 투명 페트병</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 내용물이 비어있는 투명 페트병 사진</li>
-                <li>예상: 플라스틱으로 분류</li>
-                <li>실제 출력: 플라스틱 95.1% → 예상과 일치</li>
-            </ul>
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 2 — 음료가 든 캔</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 내용물이 반쯤 남은 알루미늄 음료 캔</li>
-                <li>예상: 금속으로 분류</li>
-                <li>실제 출력: 금속 71% / 플라스틱 21% → 신뢰도 낮음</li>
-            </ul>
-            <p class="font-semibold text-slate-800 mb-1">■ 분석</p>
-            <p>캔의 색상과 형태가 플라스틱 통과 비슷하게 학습된 것으로 보인다. 내용물이 들어 있는 상태의 이미지를 학습 데이터에 포함하지 않았던 점이 원인이다. 다양한 상태(비어있는/가득
-                찬/찌그러진)의 이미지를 추가 학습하면 개선 가능하다.</p>
-        </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
-                <li>☑ 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
-                <li>☑ 차이가 있다면 그 원인이 분석되어 있다.</li>
-            </ul>
-        </div>
-    </section>
-
-    <section class="section-card scroll-mt-24" id="q7">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 7. 기대 효과 및 개선 사항</p>
-            <p class="text-slate-600 text-base">모델 적용 시 기대 효과와 현재 모델의 한계 및 개선 방향을 서술하시오.</p></div>
-        <div class="two-col-answer mb-4">
-            <div class="answer-block text-slate-700 text-base">
-                <p class="font-bold text-emerald-700 mb-2">기대 효과</p>
-                <p class="mb-2"><strong>관심 분야:</strong> 환경 · 스마트시티</p>
-                <p class="mb-2">스마트폰 앱에 탑재하면 시민이 쓰레기를 카메라로 찍기만 해도 올바른 분리수거 방법을 즉시 안내받을 수 있다.</p>
-                <p>공공장소 쓰레기통에 카메라를 설치하여 자동 분리수거 시스템으로 발전시키면 재활용률 향상과 환경 오염 감소에 기여한다.</p>
-            </div>
-            <div class="answer-block text-slate-700 text-base">
-                <p class="font-bold text-emerald-700 mb-2">개선 사항</p>
-                <p class="mb-2"><strong>현재 모델의 한계:</strong> 5개 클래스만 있어 복합 재질 포장지, 음식물 쓰레기 등 세부 분류가 어렵다. 일반쓰레기 정확도가 가장
-                    낮다.</p>
-                <p><strong>개선 방향:</strong> 클래스를 세분화(비닐 / 스티로폼 등)하고, 다양한 상태(내용물 있음·찌그러짐 등)의 이미지를 충분히 추가 수집하여 재학습한다.</p>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 해결하고자 하는 문제가 실생활 또는 학문 분야와 연관되어 구체적으로 제시되어 있다.</li>
+                    <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
+                </ul>
             </div>
         </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 관심 분야가 명시되고, 기대 효과가 구체적으로 서술되어 있다.</li>
-                <li>☑ 현재 모델의 한계가 언급되어 있다.</li>
-                <li>☑ 성능 향상을 위한 개선사항이 제시되어 있다.</li>
-            </ul>
+    </section>
+
+    <!-- ── 문항 2 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q2">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇이 들어가고 무엇이 나오는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">다섯 칸 중 하나를 고른다는 것은 무슨 뜻일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">입력과 출력을 못 박으면 만들 것의 윤곽이 잡힙니다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 2. 모델 설명 (입력 → 출력)</p>
+                <p class="text-slate-600 text-base">구현하려는 인공지능 모델을 설명하시오. 이 모델은 어떤 데이터를 <strong>입력</strong>받아,
+                    어떤 결과를 <strong>출력</strong>하는가? 입력과 출력을 중심으로 모델의 역할을 구체적으로 서술하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <ul class="space-y-1 mb-3 list-none pl-0">
+                    <li><strong>■ 입력:</strong> 쓰레기가 담긴 사진 한 장 (스마트폰이나 웹캠으로 촬영, 224&times;224 픽셀)</li>
+                    <li><strong>■ 출력:</strong> <strong>다섯 클래스의 확률</strong> &mdash; 종이 · 플라스틱 · 유리 · 금속 · 일반쓰레기 (합이 100%)</li>
+                </ul>
+                <p><strong>모델은 언제나 이 다섯 가지 안에서만 답한다.</strong> 다섯 확률을 더하면 반드시 100%가 되므로,
+                    <strong>다섯 어디에도 해당하지 않는 물건을 넣어도 모델은 &lsquo;해당 없음&rsquo;이라고 말하지 못한다.</strong>
+                    가장 덜 어색한 칸에 확률을 몰아줄 뿐이다. 이 점이 문항 6에서 그대로 드러난다.</p>
+            </div>
+
+            <figure class="mb-4">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 210" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="사진 한 장이 모델을 지나 다섯 클래스의 확률로 나오고, 가장 큰 칸을 고르는 것은 사람이 정한 규칙이다">
+                        <text x="320" y="26" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            다섯 확률의 합은 언제나 100%다
+                        </text>
+
+                        <rect x="8" y="52" width="168" height="112" rx="14" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                        <text x="92" y="80" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">입력</text>
+                        <text x="92" y="112" text-anchor="middle" font-size="17" fill="#334155">쓰레기 사진</text>
+                        <text x="92" y="140" text-anchor="middle" font-size="17" fill="#334155">224 × 224 픽셀</text>
+
+                        <line x1="182" y1="108" x2="198" y2="108" stroke="#94a3b8" stroke-width="2"/>
+                        <polygon points="198,102 208,108 198,114" fill="#94a3b8"/>
+
+                        <rect x="214" y="44" width="196" height="128" rx="14" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                        <text x="312" y="70" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">학습된 모델</text>
+                        <line x1="234" y1="82" x2="390" y2="82" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="312" y="104" text-anchor="middle" font-size="17" fill="#334155">종이 · 플라스틱</text>
+                        <text x="312" y="128" text-anchor="middle" font-size="17" fill="#334155">유리 · 금속</text>
+                        <text x="312" y="152" text-anchor="middle" font-size="17" fill="#334155">일반쓰레기</text>
+
+                        <line x1="416" y1="108" x2="432" y2="108" stroke="#94a3b8" stroke-width="2"/>
+                        <polygon points="432,102 442,108 432,114" fill="#94a3b8"/>
+
+                        <rect x="448" y="52" width="184" height="112" rx="14" fill="#f8fafc" stroke="#f97316" stroke-width="2" stroke-dasharray="6 4"/>
+                        <text x="540" y="80" text-anchor="middle" font-size="17" font-weight="700" fill="#c2410c">사람이 정한 규칙</text>
+                        <text x="540" y="108" text-anchor="middle" font-size="17" fill="#334155">가장 큰 칸을 고른다</text>
+                        <text x="540" y="140" text-anchor="middle" font-size="20" font-weight="700" class="svg-accent-deep">→ 플라스틱</text>
+
+                        <text x="320" y="198" text-anchor="middle" font-size="17" fill="#64748b">
+                            다섯 밖의 물건이 들어와도 다섯 중 하나로 답이 나온다
+                        </text>
+                    </svg>
+                </div>
+            </figure>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 만들고자 하는 모델의 입력 데이터(종류·형태)가 명확히 제시되어 있다.</li>
+                    <li>☑ 모델이 출력하는 결과(레이블·수치·군집 등)가 구체적으로 서술되어 있다.</li>
+                    <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
+                </ul>
+            </div>
         </div>
     </section>
 
-    <section class="section-card scroll-mt-24" id="q8">
-        <div class="q-header"><p class="font-black text-emerald-700 text-lg mb-1">문항 8. 소감</p>
-            <p class="text-slate-600 text-base">달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게 서술하시오.</p></div>
-        <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="mb-2">평소 분리수거를 할 때 '이게 플라스틱인지 일반쓰레기인지' 헷갈렸는데, 직접 AI 모델을 만들어보니 그 판단을 AI가 학습할 수 있다는 게 신기했다.</p>
-            <p class="mb-2">300장의 사진을 모으고 분류하는 과정이 생각보다 손이 많이 갔는데, 데이터 수집과 전처리가 AI 성능에 얼마나 중요한지를 직접 느꼈다.</p>
-            <p class="mb-2">캔을 플라스틱으로 잘못 분류한 결과를 보며, AI도 학습하지 않은 상황에는 틀릴 수 있다는 것을 깨달았다.</p>
-            <p>환경 문제에 관심이 있어서, 언젠가 이 모델을 발전시켜 실제 스마트 분리수거 앱을 만들어보고 싶다.</p>
+    <!-- ── 문항 3 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q3">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 방법으로 풀 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">칸이 둘이 아니라 다섯이어도 같은 방법일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">두 번의 질문으로 유형이 정해지고, 정해진 유형이 도구를 정합니다.</p>
         </div>
-        <div class="checklist-box"><p class="font-bold text-blue-700 text-base mb-2"><i
-                class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
-                <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것이 포함되어 있다.</li>
-                <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
-            </ul>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+                <p class="text-slate-600 text-base">위에서 구상한 모델을 구현하기 위해 아래 ①, ② 순서대로 선택하고 그 이유를 서술하시오.
+                    <strong>① 기계학습 유형</strong> &mdash; 지도학습과 비지도학습 중 이 모델에 적합한 유형을 선택하고, 분류·군집·예측 등의 개념을 활용하여 그 이유를 설명하시오.
+                    <strong>② 구현 도구</strong> &mdash; ①에서 선택한 유형을 구현하기 위해 티처블머신·코랩·오렌지 중 어떤 도구를 선택했는지 밝히고, 그 이유를 서술하시오.</p>
+            </div>
+
+            <figure class="mb-5">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 374" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="기계학습 유형을 고르는 판단 나무. 정답 유무로 지도·비지도를 가르고, 출력이 숫자인지 범주인지로 예측과 분류를 가른다">
+                        <text x="320" y="24" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            유형은 취향이 아니라 두 번의 질문으로 정해진다
+                        </text>
+
+                        <rect x="180" y="38" width="280" height="62" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                        <text x="320" y="64" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">데이터에 정답(레이블)이</text>
+                        <text x="320" y="88" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">함께 들어 있는가?</text>
+
+                        <path d="M 250 100 L 150 130" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <path d="M 390 100 L 490 130" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <text x="248" y="112" text-anchor="end" font-size="17" font-weight="700" fill="#64748b">아니오</text>
+                        <text x="396" y="112" text-anchor="start" font-size="17" font-weight="700" fill="#64748b">예</text>
+
+                        <rect x="70" y="130" width="160" height="50" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="150" y="161" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">비지도학습</text>
+                        <line x1="150" y1="180" x2="150" y2="212" stroke="#94a3b8" stroke-width="2"/>
+                        <rect x="70" y="212" width="160" height="50" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="150" y="243" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">군집</text>
+
+                        <rect x="410" y="130" width="160" height="50" rx="12" class="svg-accent-soft" stroke="#c7d2fe" stroke-width="2"/>
+                        <text x="490" y="161" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">지도학습</text>
+                        <line x1="490" y1="180" x2="490" y2="202" stroke="#94a3b8" stroke-width="2"/>
+
+                        <rect x="362" y="202" width="256" height="56" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                        <text x="490" y="236" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">출력이 숫자인가, 범주인가?</text>
+
+                        <path d="M 450 258 L 420 290" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <path d="M 530 258 L 580 290" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                        <text x="406" y="282" text-anchor="end" font-size="17" font-weight="700" fill="#64748b">숫자</text>
+                        <text x="594" y="282" text-anchor="start" font-size="17" font-weight="700" fill="#64748b">범주</text>
+
+                        <rect x="330" y="290" width="140" height="70" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="400" y="331" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">예측 (회귀)</text>
+
+                        <rect x="494" y="290" width="142" height="70" rx="12" class="svg-accent" stroke="none"/>
+                        <text x="565" y="318" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">분류</text>
+                        <text x="565" y="344" text-anchor="middle" font-size="17" fill="#ffffff">↑ 이 프로젝트</text>
+                    </svg>
+                </div>
+                <figcaption class="figure-cap">
+                    <strong>칸이 둘이든 다섯이든 자리는 같다.</strong> 나무가 정해 주는 것은 &lsquo;분류&rsquo;까지이고,
+                    <strong>칸을 몇 개로 나눌지는 나무가 알려 주지 않는다</strong> &mdash; 그것은 내가 정하는 일이다.
+                </figcaption>
+            </figure>
+
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p class="font-semibold text-slate-800 mb-1">① 기계학습 유형: 지도학습 &mdash; 분류 (이미지 분류)</p>
+                <p class="mb-2">사진마다 <strong>다섯 재질 중 하나를 이름으로 붙여서</strong> 학습시킨다.
+                    정답이 붙어 있으므로 지도학습이다. 그리고 내놓아야 할 답이 <strong>정해진 다섯 개의 범주</strong>이므로,
+                    수치를 맞히는 예측이 아니라 범주 하나를 집는 분류를 쓴다.
+                    칸이 둘에서 다섯으로 늘어도 <strong>유형은 바뀌지 않는다.</strong></p>
+                <p class="mb-3 text-slate-600"><strong>다른 방법이 아닌 이유</strong> &mdash;
+                    <span class="font-semibold">예측(회귀)</span>로 하면 &lsquo;재활용 가능도 0.6&rsquo; 같은 숫자가 나오는데,
+                    필요한 답은 <strong>어느 통에 넣느냐</strong>이지 정도가 아니다.
+                    <span class="font-semibold">군집</span>은 사진을 비슷한 것끼리 묶어 주기는 하지만
+                    <strong>어느 묶음이 &lsquo;플라스틱&rsquo;인지를 알려 주지 못한다</strong> &mdash; 이름은 결국 사람이 붙여야 한다.</p>
+                <p class="font-semibold text-slate-800 mb-1">② 구현 도구: 티처블머신</p>
+                <p>사진을 다루는 도구가 필요한데, 티처블머신은 <strong>클래스를 몇 개든 늘려 가며</strong> 사진을 넣을 수 있고
+                    학습이 끝나면 그 자리에서 스마트폰 카메라로 확인할 수 있다.
+                    <strong>다섯 개의 확률 막대가 함께 보이므로</strong> 모델이 무엇과 무엇 사이에서 헷갈리는지가 드러난다.
+                    오렌지는 표 데이터를 다루는 도구라 사진에는 맞지 않고, 코랩은 같은 일을 할 수 있지만
+                    코드를 직접 써야 해서 이번 목적에는 과하다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 지도학습 또는 비지도학습 중 하나를 명확히 선택하였다.</li>
+                    <li>☑ 분류·군집·예측 등의 개념을 활용하여 유형 선택 이유가 논리적으로 서술되어 있다.</li>
+                    <li>☑ 구현 도구를 선택하고 그 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 4 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q4">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇으로 배우게 할 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">검색해서 나온 사진을 써도 될까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">사진을 어디서 구하느냐가 곧 저작권 문제가 되는 자리입니다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 4. 데이터 설명</p>
+                <p class="text-slate-600 text-base">모델 학습에 사용한 데이터를 설명하시오. 데이터의 출처·유형·수량·특성 등을 작성하고,
+                    필요한 경우 스크린샷을 첨부하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <ul class="space-y-1 mb-3 list-none pl-0">
+                    <li>• <strong>출처:</strong> 집과 학교에서 <strong>직접 촬영한 사진 240장</strong> +
+                        <strong>자유 이용이 허락된 공개 이미지 60장</strong> (이용 조건을 하나씩 확인하고 내려받음)</li>
+                    <li>• <strong>유형:</strong> 이미지 데이터 (224&times;224 픽셀)</li>
+                    <li>• <strong>수량:</strong> 클래스별 60장 / 총 300장 (5클래스)</li>
+                    <li>• <strong>클래스 1 &mdash; 종이(60장):</strong> 신문지, 상자, 종이컵, 전단지</li>
+                    <li>• <strong>클래스 2 &mdash; 플라스틱(60장):</strong> 페트병, 용기, 비닐봉투</li>
+                    <li>• <strong>클래스 3 &mdash; 유리(60장):</strong> 유리병, 유리 조각</li>
+                    <li>• <strong>클래스 4 &mdash; 금속(60장):</strong> 캔, 알루미늄 포일, 철사</li>
+                    <li>• <strong>클래스 5 &mdash; 일반쓰레기(60장):</strong> 음식이 묻은 포장지, 이쑤시개, 담배꽁초</li>
+                    <li>• <strong>다양하게 만든 것:</strong> 조명(실내등·햇빛·그늘), 배경색, 상태(펼친 것·접힌 것·찌그러진 것)</li>
+                </ul>
+                <p class="text-slate-500 text-base">※ 스크린샷: 티처블머신 5개 클래스 이미지 업로드 화면 [실제 수행평가 시 첨부]</p>
+            </div>
+
+            <div class="warn-box text-base text-slate-700 mb-4">
+                <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 검색해서 나온 사진을 그냥 쓰면 안 된다</p>
+                <p class="mb-2">사진이 300장쯤 필요하다 보면 <strong>검색으로 한꺼번에 내려받고 싶어진다.</strong>
+                    그런데 <strong>검색 결과에 뜨는 사진은 거의 다 남이 찍은 것이고 저작권이 있다.</strong>
+                    &lsquo;화면에 보이니까&rsquo;나 &lsquo;수업용이니까&rsquo;는 이용해도 된다는 근거가 되지 못한다.</p>
+                <ul class="space-y-1.5 list-disc list-outside pl-5">
+                    <li><strong>직접 찍는 것이 가장 확실하다.</strong> 쓰레기는 집에 얼마든지 있고, 직접 찍으면
+                        조명과 각도를 원하는 대로 바꿀 수 있다는 이점까지 따라온다.</li>
+                    <li><strong>모자라면 자유 이용이 허락된 이미지를 쓴다.</strong> 다만 &lsquo;무료&rsquo;와
+                        &lsquo;마음대로 써도 됨&rsquo;은 다르다. <strong>출처 표시를 요구하는지, 학습에 써도 되는지</strong>를
+                        한 장씩 확인하고 어디서 받았는지 적어 둔다.</li>
+                    <li><strong>클래스마다 장수를 맞춘다.</strong> 한쪽이 많으면 모델이 많은 쪽으로 기운다. 여기서는 60장씩 같게 했다.</li>
+                    <li><strong>배경이 정답을 대신 알려 주지 않게 한다.</strong> 플라스틱만 부엌에서, 종이만 책상에서 찍으면
+                        모델이 <strong>물건이 아니라 배경을 보고 맞히게</strong> 된다. 그래서 배경을 섞어 찍었다.</li>
+                </ul>
+            </div>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 데이터의 출처(직접 촬영·공개 데이터셋·직접 수집 등)가 명시되어 있다.</li>
+                    <li>☑ 데이터의 유형(이미지·텍스트·수치 등)과 수량이 구체적으로 서술되어 있다.</li>
+                    <li>☑ 학습에 사용된 데이터 화면 또는 데이터 목록 스크린샷이 첨부되어 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 5 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q5">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">모델은 무엇을 배웠는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">정확도 90%면 열에 아홉은 맞다는 뜻일까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">클래스마다 성적이 다르다는 것을 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 5. 학습 결과</p>
+                <p class="text-slate-600 text-base">수집한 데이터로 모델을 학습시킨 결과를 서술하시오. 학습이 완료된 화면 또는 학습 결과를
+                    스크린샷으로 첨부하고, 수치나 지표를 포함하여 결과의 의미를 간략히 설명하시오.</p>
+            </div>
+
+            <div class="note-box text-base text-slate-700 mb-4">
+                <p class="font-bold accent-ink mb-2"><i class="fa-solid fa-diagram-project mr-1"></i> 이 결과를 직접 만들어 보려면 &mdash; 티처블머신에서 누르는 순서</p>
+                <ol class="step-list text-base">
+                    <li><strong>이미지 프로젝트</strong>를 고르고 <strong>표준 이미지 모델</strong>을 연다.</li>
+                    <li><strong>Add a class</strong>를 눌러 클래스를 다섯 개로 늘리고, 이름을
+                        <strong>종이 · 플라스틱 · 유리 · 금속 · 일반쓰레기</strong>로 바꾼다.</li>
+                    <li>클래스마다 <strong>60장씩</strong> 사진을 올린다. 여기서 <strong>장수를 맞추는 것이 중요하다</strong> &mdash;
+                        한 클래스만 많으면 모델이 그쪽으로 기운다.</li>
+                    <li><strong>Advanced</strong>를 열어 설정을 확인하고 <strong>Train Model</strong>을 누른다.</li>
+                    <li>학습이 끝나면 <strong>클래스별로 몇 장씩 맞혔는지</strong>를 본다.
+                        전체 정확도 하나만 보면 <strong>특정 클래스만 유난히 못 맞히는 것을 놓친다.</strong></li>
+                    <li>미리보기에서 <strong>다섯 칸 어디에도 딱 맞지 않는 물건</strong>을 일부러 비춰 본다.
+                        여기서 나오는 것이 문항 6에 쓸 결과다.</li>
+                </ol>
+                <p class="mt-2 text-slate-600">이 상자는 보고서에 쓰는 답이 아니라 <strong>따라 해 보라는 안내</strong>다.</p>
+            </div>
+
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <ul class="space-y-2 mb-3 list-disc list-outside pl-5">
+                    <li>학습 설정: Epochs 50 / 배치 크기 16 / 학습률 0.001 (티처블머신 기본값 그대로)</li>
+                    <li>300장 중 20%인 <strong>60장을 시험용으로 떼어 놓고</strong> 나머지로 학습했다.</li>
+                    <li>시험 결과: <strong class="accent-ink">60장 중 54장 정답 &mdash; 정확도 90.0%</strong></li>
+                    <li><strong>클래스별로 나눠 보면 성적이 고르지 않다</strong> &mdash;
+                        종이 12/12, 플라스틱 11/12, 유리 11/12, 금속 11/12, <strong>일반쓰레기 9/12</strong></li>
+                    <li>일반쓰레기가 가장 낮은 것은 예상할 수 있는 결과다. <strong>다른 넷은 재질이라는 공통점이 있지만,
+                        일반쓰레기는 &lsquo;나머지 전부&rsquo;라는 뜻</strong>이라 생김새에 공통점이 없다.</li>
+                </ul>
+                <p class="text-slate-500 text-base">※ 스크린샷: 티처블머신 학습 완료 화면(정확도·손실 그래프) [실제 수행평가 시 첨부]</p>
+            </div>
+
+            <div class="note-box text-base text-slate-700 mb-4">
+                <p class="font-bold accent-ink mb-2"><i class="fa-solid fa-circle-question mr-1"></i> 전체 정확도 하나로는 알 수 없는 것</p>
+                <p class="mb-2"><strong>90%는 다섯 클래스의 성적을 뭉뚱그린 평균</strong>이다.
+                    나눠 보니 잘 맞히는 클래스는 100%였고 일반쓰레기는 <strong>75%</strong>였다.
+                    <strong>평균 하나만 보면 이 차이가 통째로 가려진다.</strong></p>
+                <p class="mb-2">클래스를 나눠 보는 것이 왜 중요한가 &mdash; <strong>고칠 곳이 어디인지 알려 주기 때문</strong>이다.
+                    전체 정확도만 보면 &lsquo;사진을 더 모으자&rsquo;는 막연한 결론밖에 나오지 않지만,
+                    나눠 보면 <strong>일반쓰레기 클래스를 어떻게 할지</strong>가 다음 할 일로 잡힌다.</p>
+                <p class="text-slate-600">클래스가 여러 개인 분류에서는 <strong>전체 정확도보다 클래스별 성적을 먼저 본다.</strong></p>
+            </div>
+
+            <figure class="mb-4">
+                <div class="overflow-x-auto pb-1">
+                    <svg class="w-full h-auto mx-auto" viewBox="0 0 640 340" style="min-width:640px;max-width:640px"
+                         role="img" aria-label="투명 페트병과 음료 팩을 넣었을 때 다섯 클래스의 확률 막대 비교. 학습한 물건은 한 칸에 몰리고, 다섯 칸에 없는 물건은 확률이 흩어진다">
+                        <text x="320" y="24" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                            다섯 칸 안에 있는 물건과 없는 물건
+                        </text>
+
+                        <rect x="10" y="40" width="300" height="280" rx="16" fill="#f8fafc" stroke="#c7d2fe" stroke-width="2"/>
+                        <text x="160" y="66" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">투명 페트병 — 학습한 그대로</text>
+                        <text x="26" y="108" font-size="17" fill="#334155">종이</text>
+                        <text x="300" y="108" text-anchor="end" font-size="17" fill="#64748b">0%</text>
+                        <rect x="118" y="92" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <text x="26" y="148" font-size="17" font-weight="700" fill="#334155">플라스틱</text>
+                        <text x="300" y="148" text-anchor="end" font-size="17" font-weight="700" class="svg-accent-deep">95%</text>
+                        <rect x="118" y="132" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="118" y="132" width="133" height="22" rx="6" class="svg-accent"/>
+                        <text x="26" y="188" font-size="17" fill="#334155">유리</text>
+                        <text x="300" y="188" text-anchor="end" font-size="17" fill="#64748b">3%</text>
+                        <rect x="118" y="172" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="118" y="172" width="4.2" height="22" rx="2" fill="#94a3b8"/>
+                        <text x="26" y="228" font-size="17" fill="#334155">금속</text>
+                        <text x="300" y="228" text-anchor="end" font-size="17" fill="#64748b">1%</text>
+                        <rect x="118" y="212" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="118" y="212" width="1.4" height="22" rx="1" fill="#94a3b8"/>
+                        <text x="26" y="268" font-size="17" fill="#334155">일반쓰레기</text>
+                        <text x="300" y="268" text-anchor="end" font-size="17" fill="#64748b">1%</text>
+                        <rect x="118" y="252" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="118" y="252" width="1.4" height="22" rx="1" fill="#94a3b8"/>
+                        <text x="160" y="302" text-anchor="middle" font-size="17" fill="#475569">한 칸으로 크게 기운다</text>
+
+                        <rect x="330" y="40" width="300" height="280" rx="16" fill="#fffbeb" stroke="#fdba74" stroke-width="2"/>
+                        <text x="480" y="66" text-anchor="middle" font-size="17" font-weight="700" fill="#c2410c">음료 팩 — 다섯 칸 어디에도 없다</text>
+                        <text x="346" y="108" font-size="17" font-weight="700" fill="#334155">종이</text>
+                        <text x="620" y="108" text-anchor="end" font-size="17" font-weight="700" fill="#c2410c">52%</text>
+                        <rect x="438" y="92" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="438" y="92" width="72.8" height="22" rx="6" fill="#f97316"/>
+                        <text x="346" y="148" font-size="17" fill="#334155">플라스틱</text>
+                        <text x="620" y="148" text-anchor="end" font-size="17" fill="#9a3412">17%</text>
+                        <rect x="438" y="132" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="438" y="132" width="23.8" height="22" rx="6" fill="#fdba74"/>
+                        <text x="346" y="188" font-size="17" fill="#334155">유리</text>
+                        <text x="620" y="188" text-anchor="end" font-size="17" fill="#64748b">0%</text>
+                        <rect x="438" y="172" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <text x="346" y="228" font-size="17" fill="#334155">금속</text>
+                        <text x="620" y="228" text-anchor="end" font-size="17" fill="#64748b">0%</text>
+                        <rect x="438" y="212" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <text x="346" y="268" font-size="17" fill="#334155">일반쓰레기</text>
+                        <text x="620" y="268" text-anchor="end" font-size="17" fill="#9a3412">31%</text>
+                        <rect x="438" y="252" width="140" height="22" rx="6" fill="#e2e8f0"/>
+                        <rect x="438" y="252" width="43.4" height="22" rx="6" fill="#fdba74"/>
+                        <text x="480" y="302" text-anchor="middle" font-size="17" fill="#9a3412">가장 큰 값이 52%뿐이다</text>
+                    </svg>
+                </div>
+                <figcaption class="figure-cap">
+                    오른쪽이 <strong>이 프로젝트를 시작하게 만든 바로 그 물건</strong>이다.
+                    확률이 세 칸에 흩어지는 것은 모델이 헷갈린다는 신호인데,
+                    <strong>화면에는 그래도 &lsquo;종이&rsquo;라고만 뜬다.</strong>
+                </figcaption>
+            </figure>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 학습이 완료된 모델 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
+                    <li>☑ 모델의 학습 결과를 확인할 수 있는 수치나 지표가 언급되어 있다.</li>
+                    <li>☑ 학습 결과의 의미(모델이 잘 학습되었는지 여부 등)가 서술되어 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 6 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q6">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">새로운 값을 넣으면 맞히는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">처음에 헷갈렸던 그 음료 팩은 어떻게 될까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">모델을 만든 계기가 된 물건을 직접 넣어 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 6. 테스트 및 결과 분석</p>
+                <p class="text-slate-600 text-base">학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오.
+                    테스트 전 예상했던 결과와 실제 결과를 비교하고, 차이가 발생했다면 그 원인을 분석하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p class="font-semibold text-slate-800 mb-1">■ 테스트 1 &mdash; 학습한 것과 비슷한 물건 (빈 투명 페트병)</p>
+                <ul class="space-y-0.5 mb-3 list-none pl-2">
+                    <li>예상: 플라스틱으로 분류</li>
+                    <li>실제 출력: <strong>플라스틱 95% / 유리 3% / 금속 1% / 일반쓰레기 1% / 종이 0%</strong></li>
+                    <li><strong>예상대로 맞았고, 확신도 컸다.</strong></li>
+                </ul>
+                <p class="font-semibold text-slate-800 mb-1">■ 테스트 2 &mdash; 학습에 없던 상태 (내용물이 남은 알루미늄 캔)</p>
+                <ul class="space-y-0.5 mb-3 list-none pl-2">
+                    <li>예상: 금속으로 분류</li>
+                    <li>실제 출력: <strong>금속 44% / 플라스틱 33% / 일반쓰레기 23%</strong></li>
+                    <li><strong>맞히기는 했지만 확신이 크게 떨어졌다.</strong> 학습 사진은 전부 비어 있고 깨끗한 캔이었다.</li>
+                </ul>
+                <p class="font-semibold text-slate-800 mb-1">■ 테스트 3 &mdash; 다섯 칸에 아예 없는 물건 (음료 팩)</p>
+                <ul class="space-y-0.5 mb-3 list-none pl-2">
+                    <li>예상: 판단하기 어려움 &mdash; 애초에 이것 때문에 모델을 만들기 시작했다.</li>
+                    <li>실제 출력: <strong>종이 52% / 일반쓰레기 31% / 플라스틱 17%</strong> &rarr; 화면에는 &lsquo;종이&rsquo;</li>
+                    <li><strong>모델이 대신 답해 주기를 바랐던 바로 그 물건에서 가장 확신이 낮았다.</strong></li>
+                </ul>
+                <p class="font-semibold text-slate-800 mb-1">■ 분석</p>
+                <p class="mb-2"><strong>테스트 2</strong>는 <strong>학습 사진의 폭이 좁았던 것</strong>이 원인이다.
+                    비어 있고 깨끗한 캔만 60장을 넣었으니, 내용물이 남아 색과 형태가 달라진 캔은 모델에게 낯설다.
+                    이것은 <strong>사진을 더 다양하게 모으면 나아지는 문제</strong>다.</p>
+                <p class="mb-2"><strong>테스트 3은 성격이 다르다.</strong> 음료 팩은 종이와 은박과 플라스틱이 붙어 있어
+                    <strong>실제로도 별도로 모아 배출하는 대상</strong>이다. 그런데 내 모델에는 그 칸이 없다.
+                    <strong>없는 답은 아무리 사진을 더 넣어도 나오지 않는다.</strong> 다섯 확률의 합이 100%로 정해져 있으니
+                    모델은 반드시 다섯 중 하나에 답을 몰아야 한다.</p>
+                <p class="mb-2">그래서 <strong>52%라는 낮은 확률이 곧 신호</strong>다. 테스트 1의 95%와 견주면 차이가 뚜렷하다.
+                    <strong>확률이 낮다는 것은 &lsquo;이 물건은 내가 아는 다섯 가지와 잘 맞지 않는다&rsquo;는 뜻</strong>인데,
+                    화면에 답만 띄우면 그 신호가 통째로 사라진다.</p>
+                <p><strong>정확도 90%는 이 실패를 예고하지 못했다.</strong> 시험용 60장이 전부 다섯 클래스 안의 물건이었기 때문이다.
+                    <strong>모델은 자기가 모르는 것을 시험해 볼 수 없다</strong> &mdash; 그것은 사람이 골라 넣어야 한다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
+                    <li>☑ 테스트 전 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
+                    <li>☑ 예상과 실제 사이에 차이가 있다면 그 원인이 분석되어 있다. (차이가 없으면 이유 서술)</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 7 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q7">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어디에 쓰고 무엇을 고칠 것인가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">칸을 늘리면 다 풀릴까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">쓸모와 한계를 나란히 놓고, 개선해도 남는 어려움까지 봅시다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 7. 기대 효과 및 개선 사항</p>
+                <p class="text-slate-600 text-base"><strong>기대 효과</strong> &mdash; 이 모델을 자신의 관심 분야(예: 의료·환경·스포츠 등)에
+                    적용한다면 어떤 효과를 기대할 수 있는지 서술하시오.
+                    <strong>개선 사항</strong> &mdash; 현재 모델의 한계를 바탕으로, 성능을 향상시키기 위해 필요한 개선사항을 구체적으로 서술하시오.</p>
+            </div>
+            <div class="two-col-answer mb-4">
+                <div class="answer-block text-slate-700 text-base">
+                    <p class="font-bold accent-ink mb-2">기대 효과</p>
+                    <p class="mb-2"><strong>관심 분야:</strong> 환경 · 스마트시티</p>
+                    <p class="mb-2">앱에 넣으면 <strong>버리기 전에 사진 한 장으로 확인</strong>할 수 있다.
+                        잘못 넣어 통째로 못 쓰게 되는 일을 줄이면 실제로 재활용되는 양이 늘어난다.</p>
+                    <p>확률까지 함께 보여 주면 <strong>&lsquo;이건 확실하고 저건 애매하다&rsquo;는 것까지 전해진다.</strong>
+                        애매한 물건은 지자체 안내를 찾아보라고 이어 주면 된다.</p>
+                </div>
+                <div class="answer-block text-slate-700 text-base">
+                    <p class="font-bold accent-ink mb-2">개선 사항</p>
+                    <p class="mb-2"><strong>한계:</strong> 클래스가 다섯뿐이라 <strong>음료 팩처럼 그 안에 없는 물건</strong>에 답할 수 없다.
+                        일반쓰레기 정확도가 가장 낮고, 내용물이 남은 상태의 사진이 부족하다.</p>
+                    <p><strong>개선 방향:</strong> ① <strong>종이팩·비닐·스티로폼</strong>을 클래스로 추가한다.
+                        ② 내용물이 남거나 찌그러진 상태의 사진을 더 찍는다.
+                        ③ <strong>가장 큰 확률이 60% 아래면 &lsquo;확인 필요&rsquo;로 표시</strong>하고 답을 단정하지 않는다.</p>
+                </div>
+            </div>
+
+            <div class="warn-box text-base text-slate-700 mb-4">
+                <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-scale-unbalanced mr-1"></i> 개선해도 남는 어려움</p>
+                <p class="mb-2"><strong>칸을 늘려도 &lsquo;칸 밖&rsquo;은 늘 남는다.</strong> 종이팩을 넣으면 다음에는
+                    아이스팩이, 그다음에는 새로 나온 포장재가 걸린다. <strong>세상의 물건은 계속 새로 생기는데
+                    클래스는 만든 시점에 고정된다.</strong> 칸을 아무리 늘려도 이 구조는 바뀌지 않으므로,
+                    <strong>모르는 것을 모른다고 말하게 만드는 쪽</strong>이 칸을 늘리는 것보다 중요할 수 있다.</p>
+                <p class="mb-2"><strong>정답이 하나가 아닌 물건이 있다.</strong> 음료 팩은 종이인가 복합재인가?
+                    뚜껑은 떼면 플라스틱이고 붙어 있으면 다른 답이 된다. <strong>분리배출 기준은 지역마다 다르고 해마다 바뀌기도 한다.</strong>
+                    모델은 만들 때의 기준을 굳혀 놓으므로, <strong>기준이 바뀌면 조용히 틀린 답을 계속 내놓는다.</strong></p>
+                <p><strong>편해질수록 사람이 판단을 멈춘다는 점도 있다.</strong> &lsquo;앱이 종이라고 했으니까&rsquo;로 끝내면,
+                    앱이 틀렸을 때 <strong>아무도 알아채지 못한다.</strong> 도움을 주는 도구가 오히려
+                    <strong>스스로 확인하는 습관을 없앨 수 있다</strong>는 것은 정확도를 올려서 해결되는 문제가 아니다.</p>
+            </div>
+
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 자신의 관심 분야가 명시되고, 모델 적용 시 기대되는 효과가 구체적으로 서술되어 있다.</li>
+                    <li>☑ 현재 모델의 한계 또는 부족한 점이 언급되어 있다.</li>
+                    <li>☑ 성능 향상을 위한 개선사항(데이터 확충·모델 변경·파라미터 조정 등)이 제시되어 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 문항 8 ───────────────────────────────────────────────────────── -->
+    <section class="scroll-mt-24 space-y-8" id="q8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇이 남았는가</h2>
+            <div class="w-20 h-1.5 section-rule mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">만들기 전과 후, 무엇이 달라졌을까?</p>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">점수가 아니라 생각의 변화를 적는 자리입니다.</p>
+        </div>
+
+        <div class="section-card">
+            <div class="q-header">
+                <p class="q-number">문항 8. 소감</p>
+                <p class="text-slate-600 text-base">기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것,
+                    또는 느낀 점을 자유롭게 서술하시오.</p>
+            </div>
+            <div class="answer-block text-slate-700 text-base mb-4">
+                <p class="mb-2">사진 300장을 모으는 데 시간이 가장 많이 들었다. 처음에는 검색해서 내려받으려 했는데,
+                    <strong>남이 찍은 사진에는 저작권이 있다</strong>는 걸 알고 직접 찍기로 했다.
+                    쓰레기를 찍으려고 집 안을 돌아다닌 것이 이번 실습에서 제일 오래 걸린 일이었다.</p>
+                <p class="mb-2">가장 크게 남은 것은 <strong>음료 팩을 넣어 봤을 때</strong>다.
+                    애초에 그것 때문에 모델을 만들기 시작했는데, 정작 그 물건에서 확률이 52%밖에 나오지 않았다.
+                    <strong>내가 칸을 다섯 개로 정한 순간, 그 밖의 답은 아예 나올 수 없게 된 것</strong>이었다.
+                    문제를 어떻게 나눌지 정하는 일이 사진을 모으는 일만큼 중요하다는 걸 알았다.</p>
+                <p>90%라는 정확도도 다시 보게 됐다. 클래스별로 나눠 보니 일반쓰레기만 75%였고,
+                    <strong>평균 하나로는 어디를 고쳐야 하는지 알 수 없었다.</strong>
+                    그리고 확률이 낮다는 것 자체가 &lsquo;나는 잘 모르겠다&rsquo;는 신호인데,
+                    화면에 답만 띄우면 그 말이 사라진다는 것도 이번에 처음 생각해 봤다.</p>
+            </div>
+            <div class="checklist-box">
+                <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
+                <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
+                    <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것 또는 달라진 생각이 포함되어 있다.</li>
+                    <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
+                </ul>
+            </div>
         </div>
     </section>
 

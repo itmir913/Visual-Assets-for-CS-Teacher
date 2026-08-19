@@ -205,7 +205,8 @@
                 <div class="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
                     <i class="fa-solid fa-layer-group text-2xl"></i></div>
                 <h3 class="text-xl font-bold mb-3">이미지 분할 (Segmentation)</h3>
-                <p class="text-slate-600 text-base leading-relaxed break-keep">화면의 모든 픽셀을 분석하여, 인물과 배경을 아주 정밀하게 픽셀 단위로 잘라냅니다.</p>
+                <p class="text-slate-600 text-base leading-relaxed break-keep">화면의 모든 픽셀을 하나씩 살펴, 그 픽셀이 인물에 속하는지 배경에 속하는지 가릅니다.
+                    네모 상자보다 훨씬 촘촘하지만, 머리카락처럼 경계가 가는 곳에서는 어긋나기도 합니다.</p>
             </div>
         </div>
     </section>
@@ -294,7 +295,7 @@
                                 </label>
                                 <label class="flex flex-col items-center justify-center p-3 border-2 border-transparent bg-white hover:bg-slate-100 rounded-xl cursor-pointer transition-all model-label text-center">
                                     <input class="hidden" name="model" type="radio" value="facemesh">
-                                    <span class="block text-sm font-bold text-slate-900 mb-0.5">안면 인식</span>
+                                    <span class="block text-sm font-bold text-slate-900 mb-0.5">얼굴 특징점</span>
                                     <span class="block text-[11px] text-slate-500">FaceMesh</span>
                                 </label>
                             </div>
@@ -340,6 +341,25 @@
                     </div>
                     <div class="hidden mt-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm max-w-2xl mx-auto w-full"
                          id="classificationResult"></div>
+
+                    <div class="mt-4 bg-slate-50 p-5 rounded-xl border border-slate-200 max-w-2xl mx-auto w-full">
+                        <p class="font-bold text-base text-slate-800 mb-3"><i
+                                class="fa-solid fa-circle-info mr-1 text-blue-500"></i> 이 데모가 쓰는 모델과, 모델이 못 하는 일
+                        </p>
+                        <ul class="space-y-2 text-base text-slate-600 leading-relaxed break-keep list-disc list-outside pl-5">
+                            <li><strong>이미지 분류</strong>는 MobileNet을 씁니다. 미리 정해 둔 1,000개 범주 안에서만 답을 고르므로, 그 목록에 없는 물건을 비추면
+                                가장 비슷해 보이는 이름을 골라 냅니다. 결과가 영어로 나오는 것도 그 목록이 영어이기 때문입니다.
+                            </li>
+                            <li><strong>객체 탐지</strong>는 COCO-SSD를 씁니다. 사람·의자·휴대전화처럼 80종을 찾도록 학습되어 있어, 그 밖의 물체에는 상자가
+                                그려지지 않습니다.
+                            </li>
+                            <li><strong>이미지 분할</strong>은 사람과 배경만 가르는 모델입니다. 사람 아닌 물체는 배경으로 밀려납니다.</li>
+                            <li><strong>얼굴 특징점</strong>은 눈·코·입이 어디에 있는지를 점으로 찍습니다. 그 얼굴이 누구인지 알아내는 것과는 다른 일입니다.</li>
+                            <li>넷 다 ml5.js가 제공하는 <strong>사전 학습 모델</strong>이고, 실행할 때 인터넷에서 내려받습니다. 학습에 쓴 사진이 어느 쪽으로 치우쳐
+                                있었다면 그 치우침은 여기서도 그대로 나타납니다.
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -514,6 +534,12 @@
     let modelFailed = false;     // 콜백과 프로미스가 함께 알려 오므로 한 번만 안내한다
     const MODEL_SLOW_MS = 30000;
 
+    // 모델을 고를 때마다 올라가는 번호. 받는 데 몇 초씩 걸리므로 그 사이에
+    // 다른 모델을 고를 수 있고, 그러면 먼저 시작한 로드가 뒤늦게 끝나
+    // 「지금 고른 모델」의 분석을 한 번 더 켜거나 엉뚱한 안내를 띄운다.
+    // 콜백이 자기 번호를 들고 오게 해서 지난 것을 걸러 낸다.
+    let loadSeq = 0;
+
     // DOM 요소 캐싱
     let cameraSelect, startBtn, stopBtn;
     let statusMessage, statusText, loadingOverlay;
@@ -632,12 +658,15 @@
             noStroke();
             fill(59, 130, 246);
             let labelHeight = 26;
-            rect(x, y - labelHeight, w, labelHeight, 6, 6, 0, 0);
+            // 상자가 화면 위쪽에 붙으면 라벨을 얹을 자리가 없어 이름과 확률이 잘려 나간다.
+            // 그럴 때는 상자 안쪽 위에 넣는다.
+            let labelTop = (y - labelHeight < 0) ? y : y - labelHeight;
+            rect(x, labelTop, w, labelHeight, 6, 6, 0, 0);
 
             fill(255);
             textSize(14);
             textAlign(LEFT, CENTER);
-            text(`${d.label} (${(d.confidence * 100).toFixed(1)}%)`, x + 5, y - (labelHeight / 2));
+            text(`${d.label} (${(d.confidence * 100).toFixed(1)}%)`, x + 5, labelTop + labelHeight / 2);
         }
     }
 
@@ -661,10 +690,22 @@
         }
     }
 
+    // 브라우저는 https 주소나 localhost 에서만 카메라를 내준다.
+    // 압축 파일을 풀어 HTML을 직접 열거나(file://) 교실 PC의 http 주소로 열면 여기 걸리는데,
+    // 그때 브라우저는 navigator.mediaDevices 자체를 주지 않는다 —
+    // 「카메라가 없다」·「브라우저가 지원하지 않는다」로 안내하면 학생이 엉뚱한 곳을 뒤진다.
+    function insecurePage() {
+        return window.isSecureContext === false || !navigator.mediaDevices;
+    }
+
     async function updateCameraList() {
         try {
             if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-                if (cameraSelect) cameraSelect.innerHTML = '<option value="">브라우저가 카메라를 지원하지 않습니다</option>';
+                if (cameraSelect) {
+                    cameraSelect.innerHTML = insecurePage()
+                        ? '<option value="">이 주소에서는 카메라를 쓸 수 없습니다</option>'
+                        : '<option value="">브라우저가 카메라를 지원하지 않습니다</option>';
+                }
                 return;
             }
             const devices = await navigator.mediaDevices.enumerateDevices();
@@ -827,6 +868,9 @@
 
         let msg;
         switch (err && err.name) {
+            case 'InsecureContext':
+                msg = '이 페이지를 https 주소나 localhost 로 열어야 카메라를 쓸 수 있습니다. 내려받은 파일을 직접 열었다면 웹 서버로 열어 주세요.';
+                break;
             case 'NotAllowedError':
             case 'SecurityError':
                 msg = '카메라 사용이 거부되었습니다. 주소창의 카메라 아이콘에서 권한을 허용한 뒤 다시 시도하세요.';
@@ -843,7 +887,7 @@
         }
 
         console.error('카메라 오류:', err);
-        setStatus(msg, false);
+        setStatus(msg, false, true);   // 읽고 조치해야 하는 안내이므로 3초 뒤에 지우지 않는다
         showToast(msg, 'error');
     }
 
@@ -862,9 +906,14 @@
     // ml5는 실패를 **콜백의 두 번째 인자**로 알리고 `ready` 프로미스도 함께 거절한다.
     // 둘 다 잡는다 — 콜백만 보면 콘솔에 처리되지 않은 거절이 남고,
     // 프로미스만 보면 ml5가 콜백만 부르는 자리를 놓친다.
-    function watchModel(instance) {
+    function watchModel(instance, seq) {
         if (instance && instance.ready && typeof instance.ready.catch === 'function') {
-            instance.ready.catch(handleModelError);
+            // 학생이 이미 다른 모델로 넘어갔다면(seq가 낡았다면) 거절만 받아 삼킨다.
+            // 그러지 않으면 지금 잘 돌고 있는 모델까지 버리고 오류 안내를 띄운다.
+            instance.ready.catch(err => {
+                if (seq === loadSeq) handleModelError(err);
+                else console.warn('지난 모델 로딩 실패(무시):', err);
+            });
         }
         return instance;
     }
@@ -913,6 +962,13 @@
             audio: false
         };
 
+        // https 도 localhost 도 아니면 getUserMedia 를 부르는 순간 TypeError 가 나고,
+        // 그러면 아래 catch 가 「새로고침하세요」라는 도움 안 되는 말을 하게 된다. 먼저 걸러 낸다.
+        if (insecurePage()) {
+            handleCameraError({name: 'InsecureContext'});
+            return;
+        }
+
         // createCapture 에 앞서 권한·장치 상태를 먼저 확인한다.
         // 여기서 걸러야 거부/장치없음/사용중 상황을 학생에게 설명할 수 있다.
         try {
@@ -939,19 +995,24 @@
     function loadCurrentModel() {
         if (!isRunning) return;
 
+        // 이번 로드의 번호. 모델을 다시 고르면 loadSeq가 올라가 이 번호는 낡은 것이 된다.
+        const seq = ++loadSeq;
+        const done = (model, error) => modelReady(model, error, seq);
+
         // 1) 브라우저 멈춤 대비: 미리 로딩 화면 띄우고 비디오 일시 정지
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
         if (video && video.elt) video.elt.pause();
 
         // 2) 브라우저가 방금 명령한 '로딩 화면'을 화면에 그릴 수 있도록 0.1초(100ms) 시간을 줍니다.
         setTimeout(() => {
+            if (seq !== loadSeq || !isRunning) return;
             if (currentMode === 'classification') {
                 if (!classifier) {
                     setStatus('MobileNet 모델 로딩 중 (최초 1회)...', true);
                     beginModelLoad();
-                    classifier = watchModel(ml5.imageClassifier('MobileNet', modelReady));
+                    classifier = watchModel(ml5.imageClassifier('MobileNet', done), seq);
                 } else {
-                    modelReady(); // 이미 모델이 있으면 바로 실행
+                    done(); // 이미 모델이 있으면 바로 실행
                 }
             } else if (currentMode === 'detection') {
                 if (classificationResult) classificationResult.classList.add('hidden');
@@ -959,9 +1020,9 @@
                 if (!detector) {
                     setStatus('COCO-SSD 모델 로딩 중 (최초 1회)...', true);
                     beginModelLoad();
-                    detector = watchModel(ml5.objectDetection('cocossd', modelReady));
+                    detector = watchModel(ml5.objectDetection('cocossd', done), seq);
                 } else {
-                    modelReady();
+                    done();
                 }
             } else if (currentMode === 'facemesh') {   // 👇 여기서부터 FaceMesh 👇
                 if (classificationResult) classificationResult.classList.add('hidden');
@@ -970,9 +1031,9 @@
                     setStatus('FaceMesh 모델 로딩 중 (최초 1회)...', true);
                     let options = {maxFaces: 1, refineLandmarks: false, flipHorizontal: false};
                     beginModelLoad();
-                    faceMesh = watchModel(ml5.faceMesh(options, modelReady));
+                    faceMesh = watchModel(ml5.faceMesh(options, done), seq);
                 } else {
-                    modelReady();
+                    done();
                 }
             } else if (currentMode === 'segmentation') {
                 if (classificationResult) classificationResult.classList.add('hidden');
@@ -981,9 +1042,9 @@
                     setStatus('Segmentation 모델 로딩 중 (최초 1회)...', true);
                     beginModelLoad();
                     // 옵션을 주지 않으면 기본값으로 SelfieSegmentation이 로드됩니다.
-                    bodySegmentation = watchModel(ml5.bodySegmentation("SelfieSegmentation", modelReady));
+                    bodySegmentation = watchModel(ml5.bodySegmentation("SelfieSegmentation", done), seq);
                 } else {
-                    modelReady();
+                    done();
                 }
             } else {
                 setStatus(`${currentMode} 모델은 현재 구현중입니다.`);
@@ -998,7 +1059,10 @@
 
     // ml5는 **실패했을 때도 이 콜백을 부른다** — 두 번째 인자가 오류다.
     // 받아 보지 않으면 모델이 없는 채로 분석을 시작해 엉뚱한 곳에서 터진다.
-    function modelReady(model, error) {
+    function modelReady(model, error, seq) {
+        // 지난번에 고른 모델이 뒤늦게 도착한 것이면 아무것도 하지 않는다.
+        // (그대로 두면 지금 돌고 있는 분석을 한 번 더 켜고 「초기 설정 중」을 다시 띄운다.)
+        if (seq !== loadSeq) return;
         clearTimeout(modelSlowTimer);
         if (error) {
             handleModelError(error);
@@ -1014,7 +1078,7 @@
 
         // 3) 100ms 후 분석 시작
         setTimeout(() => {
-            if (!isRunning) return;
+            if (!isRunning || seq !== loadSeq) return;
 
             if (currentMode === 'classification') {
                 if (classificationResult) classificationResult.classList.remove('hidden');

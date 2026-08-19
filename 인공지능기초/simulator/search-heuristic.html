@@ -243,10 +243,11 @@
                     </div>
                     <button class="w-full bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-xl font-bold transition shadow-sm flex justify-center items-center gap-2"
                             id="btn-tree-gen">
-                        <i class="fa-solid fa-sitemap"></i> 트리 생성 및 랜덤 h(n)
+                        <i class="fa-solid fa-sitemap"></i> 트리 생성 및 h(n) 계산
                     </button>
                     <p class="text-teal-700 font-bold text-center mt-3 text-xs bg-teal-50 py-2 rounded-lg border border-teal-100">
-                        노드를 클릭하여 목표 노드(Goal)를 변경할 수 있습니다.
+                        h(n)은 그 노드에서 목표까지 남은 거리의 추정값입니다.<br>
+                        노드를 클릭하면 목표 노드(Goal)가 바뀌고 h(n)도 다시 계산됩니다.
                     </p>
                 </div>
 
@@ -409,6 +410,12 @@
             <!-- 바깥 div만 flex(수직 중앙 정렬)로 두고, 메시지는 안쪽 span에 넣는다.
                  status 요소 자체를 flex 컨테이너로 두면 innerHTML 안의 <b> 등이
                  각각 별도 flex 아이템이 되어 문장이 토막나며 줄바꿈된다. -->
+            <p class="w-full max-w-2xl mx-auto mb-4 text-slate-700 leading-relaxed break-keep bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                칸 안의 숫자는 <b>g</b>(시작점에서 그 칸까지 실제로 온 걸음 수),
+                <b>h</b>(그 칸에서 목표까지 남은 거리의 추정값), <b>f</b>(둘을 합쳐 판단에 쓰는 값)입니다.
+                여기서 h는 가로 걸음 수와 세로 걸음 수를 더한 <b>맨해튼 거리</b>로, 장애물을 무시하고 셉니다.
+                A*는 f = g + h로, 그리디는 f = h로 다음 칸을 고릅니다.
+            </p>
             <div class="w-full max-w-2xl mx-auto mb-4 bg-slate-800 text-white font-bold px-4 py-3 rounded-xl text-base text-center shadow-inner min-h-14 flex items-center justify-center transition-colors">
                 <span class="break-keep leading-relaxed" id="grid-status">대기 중</span>
             </div>
@@ -487,13 +494,13 @@
                     this.isFinished = true;
                     this.buildPath();
                     // 최적성 보장은 A*에만 해당한다. 그리디는 h(n)만 보므로
-                    // 찾은 경로가 최단이라는 보장이 없다 (실제로 무작위 미로의 약 16%에서 더 길다).
+                    // 찾은 경로가 최단이라는 보장이 없다 — 무작위 장애물 배치에서 실제로 더 길게 나온다.
                     return {
                         type: 'success',
                         node: this.currentNode,
                         path: this.path,
                         msg: this.type === 'astar'
-                            ? '🎉 목표 도달! A*는 g(n)+h(n)을 함께 보므로 이 경로가 <b>최단 경로임이 보장</b>됩니다.'
+                            ? '🎉 목표 도달! A*는 g(n)+h(n)을 함께 봅니다. h(n)이 실제 남은 거리를 넘지 않는 한 이 경로가 <b>최단 경로임이 보장</b>됩니다.'
                             : '🎉 목표 도달! 다만 그리디는 h(n)만 보고 달려왔기 때문에 이 경로가 <b>최단이라는 보장은 없습니다.</b>'
                     };
                 }
@@ -606,13 +613,12 @@
                         return;
                     }
 
-                    let oldGoal = this.goalNode;
                     this.goalNode = clickedNodeId;
 
-                    this.nodeDataMap.get(this.goalNode).h = 0;
-                    if (oldGoal && oldGoal !== clickedNodeId) {
-                        this.nodeDataMap.get(oldGoal).h = Math.floor(Math.random() * 20) + 1;
-                    }
+                    // h(n)은 '목표까지 남은 거리의 추정값'이므로 목표가 바뀌면 전부 다시 매긴다.
+                    // 예전에는 새 목표만 0으로 두고 이전 목표에 무작위 값을 넣었는데,
+                    // 그러면 나머지 노드의 h가 옛 목표 기준으로 남아 h > 실제 남은 거리가 되었다.
+                    this.assignHeuristics();
 
                     this.resetSearch();
                     this.setStatus(`노드 ${this.goalNode}이(가) 새로운 목표(Goal)로 설정되었습니다.`);
@@ -629,8 +635,17 @@
             this.edges.clear();
             this.nodeDataMap.clear();
 
-            let depth = parseInt(document.getElementById('tree-max-depth').value);
-            let maxChild = parseInt(document.getElementById('tree-max-children').value);
+            // number 입력은 직접 타이핑한 값에 min/max가 적용되지 않는다.
+            // 깊이를 크게 적으면 노드 수가 지수로 늘어 화면이 멈추므로 코드에서 다시 가둔다.
+            const clamp = (el, lo, hi, fallback) => {
+                let v = parseInt(el.value, 10);
+                if (!Number.isFinite(v)) v = fallback;
+                v = Math.min(hi, Math.max(lo, v));
+                el.value = v;
+                return v;
+            };
+            let depth = clamp(document.getElementById('tree-max-depth'), 2, 6, 4);
+            let maxChild = clamp(document.getElementById('tree-max-children'), 1, 4, 3);
 
             let idCounter = 1;
             let currentLevel = [1];
@@ -653,19 +668,33 @@
                 }
             }
 
-            // --- 휴리스틱 h(n) 부여 ---
-            // h(n)은 '목표까지 남은 거리의 추정값'이어야 한다. 무작위 값을 쓰면
-            //  (1) 목표에 가까울수록 h가 작다는 핵심 직관이 사라지고
-            //  (2) h > 실제 거리가 되어 A*의 최적성 전제(admissible)가 깨진다.
-            //
-            // 그래서 트리상의 실제 거리를 먼저 구한 뒤,
-            //  - 목표로 가는 길목(조상 사슬)에 있는 노드: 실제 남은 거리를 그대로 부여.
-            //    h <= 실제 비용이므로 admissible 이 보장된다.
-            //  - 그 밖의 노드: 실제 거리의 40~100%로 과소평가.
-            //    이 가지들은 목표에 닿을 수 없어(자식 방향 간선만 존재) 실제 비용이 무한대이므로
-            //    어떤 값을 줘도 admissible 하다. 일부러 작게 잡아 '가까워 보이는 함정 가지'를 만들어,
-            //    h만 보는 그리디가 헛걸음하는 장면이 실제로 나오도록 한다.
-            //    A*는 g(n)을 함께 보므로 깊이 들어간 함정일수록 덜 속는다.
+            this.assignHeuristics();
+
+            this.updateNodeStyle(this.startNode, 'start');
+            this.updateNodeStyle(this.goalNode, 'goal');
+            this.setStatus('새로운 트리가 생성되었습니다. 탐색을 시작하세요.');
+
+            // [수정 핵심] 트리 생성 후 네트워크 뷰를 화면 중앙에 자동으로 맞춰줌
+            setTimeout(() => this.network.fit(), 100);
+        }
+
+        // --- 휴리스틱 h(n) 부여 ---
+        // h(n)은 '지금 목표까지 남은 거리의 추정값'이어야 한다. 무작위 값을 쓰면
+        //  (1) 목표에 가까울수록 h가 작다는 핵심 직관이 사라지고
+        //  (2) h > 실제 거리가 되어 A*의 최적성 전제(admissible)가 깨진다.
+        //
+        // 그래서 트리상의 실제 거리를 먼저 구한 뒤,
+        //  - 목표로 가는 길목(조상 사슬)에 있는 노드: 실제 남은 거리를 그대로 부여.
+        //    h <= 실제 비용이므로 admissible 이 보장된다.
+        //  - 그 밖의 노드: 실제 거리의 20~70%로 과소평가.
+        //    이 가지들은 목표에 닿을 수 없어(자식 방향 간선만 존재) 실제 비용이 무한대이므로
+        //    어떤 값을 줘도 admissible 하다. 일부러 작게 잡아 '가까워 보이는 함정 가지'를 만들어,
+        //    h만 보는 그리디가 헛걸음하는 장면이 실제로 나오도록 한다.
+        //    A*는 g(n)을 함께 보므로 깊이 들어간 함정일수록 덜 속는다.
+        //
+        // 목표가 바뀌면 h는 전부 새 목표 기준으로 다시 매겨야 한다.
+        // 그래서 트리 생성과 목표 변경이 같은 함수를 부른다.
+        assignHeuristics() {
             let parentOf = new Map();
             this.edges.get().forEach(e => parentOf.set(e.to, e.from));
 
@@ -697,13 +726,6 @@
                 this.nodeDataMap.set(id, {h: h});
                 this.updateNodeStyle(id, 'default');
             });
-
-            this.updateNodeStyle(this.startNode, 'start');
-            this.updateNodeStyle(this.goalNode, 'goal');
-            this.setStatus('새로운 트리가 생성되었습니다. 탐색을 시작하세요.');
-
-            // [수정 핵심] 트리 생성 후 네트워크 뷰를 화면 중앙에 자동으로 맞춰줌
-            setTimeout(() => this.network.fit(), 100);
         }
 
         addVisNode(id, type) {
@@ -953,11 +975,15 @@
             if (this.searchEngine) this.resetSearch();
 
             // [수정 핵심] 시작점과 목표점이 겹치는 DOM 렌더링 덮어쓰기 오류 방어
+            // 장애물 위에 시작점·목표점을 찍으면 겉보기에는 놓인 것 같지만 그 칸은 벽으로 남는다.
+            // 목표점이 벽이면 이웃으로 절대 뽑히지 않아 늘 '경로 없음'이 되므로, 놓을 때 벽을 지운다.
             if (this.currentTool === 'start') {
                 if (x === this.goalNode.x && y === this.goalNode.y) return; // 겹침 방지
+                this.walls.delete(this.getIndex(x, y));
                 this.startNode = {x, y};
             } else if (this.currentTool === 'end') {
                 if (x === this.startNode.x && y === this.startNode.y) return; // 겹침 방지
+                this.walls.delete(this.getIndex(x, y));
                 this.goalNode = {x, y};
             } else if (this.currentTool === 'wall') {
                 if ((x !== this.startNode.x || y !== this.startNode.y) && (x !== this.goalNode.x || y !== this.goalNode.y)) {

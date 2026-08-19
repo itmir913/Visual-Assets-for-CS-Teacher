@@ -654,25 +654,30 @@
                     <div class="grid md:grid-cols-2 gap-4">
                         <div class="bg-white rounded-xl p-4 border border-rose-200 space-y-2">
                             <p class="text-rose-600 font-bold text-base flex items-center gap-2">
-                                <i class="fa-solid fa-xmark"></i> 무식한 방법 (단순 대입)
+                                <i class="fa-solid fa-hourglass-half"></i> 완전탐색 (다 놓고 나서 확인)
                             </p>
                             <p class="text-base text-slate-600">
-                                "아무 데나 놓고 안 되면 다른 데 아무 데나 놔보지 뭐."<br>
-                                이렇게 하면 경우의 수가 너무 많아져서 시간이 엄청나게 오래 걸립니다.
+                                "각 줄에 하나씩 일단 다 놓아 본 다음, 완성된 배치를 하나하나 규칙에 맞는지 확인하자."<br>
+                                8×8이라면 8을 여덟 번 곱한 <strong>16,777,216가지</strong>를 전부 만들어 봐야 합니다.
                             </p>
                         </div>
                         <div class="bg-white rounded-xl p-4 border border-blue-200 space-y-2">
                             <p class="text-blue-600 font-bold text-base flex items-center gap-2">
-                                <i class="fa-solid fa-check"></i> 인공지능의 탐색 트리 (백트래킹)
+                                <i class="fa-solid fa-check"></i> 백트래킹 (한 칸 놓을 때마다 확인)
                             </p>
                             <p class="text-base text-slate-700">
-                                "첫 번째 줄에 놨더니 이 칸은 무조건 죽네? 그럼 이쪽 가지는 아예 탐색하지 말고
-                                <strong>잘라버려야겠다(가지치기).</strong>"<br>
-                                인공지능은 <strong>안 되는 길은 일찍 포기하고 되돌아가기 때문에</strong>
-                                훨씬 빠르고 똑똑하게 정답을 찾습니다.
+                                "이 칸은 벌써 공격받네? 그럼 여기서 뻗어 나가는 배치는 아예 만들지 말고
+                                <strong>통째로 잘라버리자(가지치기).</strong>"<br>
+                                백트래킹도 <strong>가능성을 빠짐없이 훑기 때문에 답이 있으면 반드시 찾아냅니다.</strong>
+                                아래 실습에서 8×8을 돌려 보면 첫 답을 찾을 때까지 검사한 칸이
+                                <strong>[방문] 876칸</strong>에서 멈춥니다.
                             </p>
                         </div>
                     </div>
+                    <p class="text-base text-amber-900 bg-white border border-amber-300 rounded-xl px-4 py-3">
+                        둘 다 <strong>빠짐없이 본다</strong>는 점은 같습니다. 다른 것은 <strong>언제 확인하느냐</strong>입니다 —
+                        다 놓은 뒤에 확인하면 완전탐색, 한 칸 놓을 때마다 확인해서 가망 없는 가지를 그 자리에서 잘라 내면 백트래킹입니다.
+                    </p>
                 </div>
             </div>
         </div>
@@ -987,9 +992,13 @@
                 <i class="fa-solid fa-code text-indigo-600 mr-2"></i> 코드로 보는 DFS와 백트래킹 원리
             </h2>
             <p class="text-slate-700 text-base leading-relaxed">
-                오른쪽 화면에 그려진 트리 구조는 아래 파이썬 코드의 <strong>재귀 호출(Recursive Call)</strong> 흐름과 완전히 일치합니다.<br>
-                함수가 자기 자신을 호출하면 <strong>트리가 아래로(자식 노드) 깊어지고</strong>, 가지치기되어 `return`을 만나면 <strong>위로(부모 노드)
-                되돌아옵니다.</strong>
+                앞 실습에서 그려진 트리의 <strong>노드 하나</strong>는 아래 파이썬 코드의 <strong>for 반복 한 번</strong>,
+                곧 「이 칸에 놓아도 될까?」 하고 검사한 칸 하나에 해당합니다.<br>
+                <code>is_safe</code>를 통과해 퀸을 놓으면 <strong>재귀 호출(Recursive Call)</strong>이 일어나
+                <strong>트리가 아래로(자식 노드) 깊어지고</strong>, 통과하지 못하면 그 칸은 가지치기되어
+                <strong>옆 칸(형제 노드)</strong>으로 넘어갑니다.
+                한 줄의 열을 끝까지 다 써 보고도 답이 없어 <code>return False</code>를 만났을 때 비로소
+                <strong>위로(부모 노드) 되돌아옵니다</strong> — 이것이 백트래킹입니다.
             </p>
 
             <div class="relative">
@@ -1801,8 +1810,8 @@ def solve_n_queens(row, n, state):
 
             const sol = iqSolutions[iqN];
             if (sol) {
-                const colLetters = Array.from({length: iqN}, (_, i) => String.fromCharCode(65 + i));
-                const desc = sol[0].map((c, r) => `${r + 1}행→${colLetters[c]}열`).join(', ');
+                // 판에 A·B·C 열 머리글이 없으므로 열도 숫자로 부른다 (충돌 목록·aria-label과 같은 표기)
+                const desc = sol[0].map((c, r) => `${r + 1}행→${c + 1}열`).join(', ');
                 hintText.textContent = `정답 예시: ${desc}`;
             } else {
                 hintText.textContent = '이 크기에 대한 힌트는 준비 중입니다.';

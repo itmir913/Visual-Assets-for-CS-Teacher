@@ -243,7 +243,9 @@
     <div class="section-card space-y-8">
         <p class="text-lg text-slate-700 leading-relaxed">
             하노이의 탑은 단순해 보이지만, 원판 수가 늘어날수록 가능한 상태 수가 <strong>폭발적으로</strong> 증가합니다.
-            인공지능은 이 광대한 상태 공간을 <strong>체계적으로 탐색</strong>해서 최적 해를 찾습니다.
+            인공지능은 이 광대한 상태 공간을 <strong>체계적으로 탐색</strong>해 해를 찾습니다.
+            다만 하노이의 탑처럼 <strong>규칙에서 최적 해를 곧바로 만들어 내는 방법</strong>이 알려진 문제라면,
+            상태 공간을 뒤지지 않고 그 방법을 쓰는 편이 훨씬 빠릅니다. 아래 'AI 자동 풀이'가 그 방법입니다.
         </p>
         <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-xl">
             <h3 class="font-bold text-amber-800 text-lg mb-2">💡 상태 공간이란?</h3>
@@ -503,7 +505,7 @@
                 </div>
 
                 <h3 class="font-bold text-slate-800 text-base border-b-2 border-slate-100 pb-2 pt-2">
-                    <i class="fa-solid fa-code-branch text-amber-500 mr-2"></i>재귀 탐색 원리
+                    <i class="fa-solid fa-code-branch text-amber-500 mr-2"></i>재귀 분할 원리
                 </h3>
                 <ul class="space-y-3 text-slate-600 text-base">
                     <li class="flex items-start gap-2">
@@ -590,7 +592,7 @@ print(f"총 이동 횟수: {len(solution)}")  # → 7
                 <ul class="space-y-2 text-slate-600 text-base">
                     <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>문제를 <strong>같은 형태의 더 작은 문제</strong>로 분해</li>
                     <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>기저 사례(n=0)에서 재귀가 멈춤</li>
-                    <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>호출 횟수 = 이동 횟수 = 2ⁿ − 1</li>
+                    <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>이동을 만드는 호출(n ≥ 1) 횟수 = 이동 횟수 = 2ⁿ − 1</li>
                 </ul>
             </div>
             <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
@@ -682,7 +684,7 @@ print(f"총 이동 횟수: {len(solution)}")  # → 7
                 </table>
             </div>
             <p class="text-slate-500 text-base mt-3">
-                n=64(하노이 전설의 원판 수)에서 최소 이동 횟수는 약 1.8 × 10¹⁹번 — 1초에 10억 번 옮겨도 약 <strong>585억 년</strong>이 걸립니다.
+                n=64(하노이 전설의 원판 수)에서 최소 이동 횟수는 약 1.8 × 10¹⁹번 — 1초에 10억 번 옮겨도 약 <strong>585년</strong>이 걸립니다.
             </p>
         </div>
     </div>
@@ -846,7 +848,8 @@ function switchTab(name) {
     document.getElementById('tab-' + name).classList.add('active');
     // 탭이 보인 뒤 실제 clientWidth로 다시 렌더
     requestAnimationFrame(() => {
-        if (name === 'manual') renderTower('manualScene', manualPegs, manualN, manualSelected);
+        // renderTower가 기둥 DOM을 새로 만들므로 클릭 핸들러를 다시 붙여야 한다
+        if (name === 'manual') { renderTower('manualScene', manualPegs, manualN, manualSelected); bindManualClicks(); }
         if (name === 'auto')   renderTower('aiScene', aiPegs, aiN, -1);
         if (name === 'graph')  buildGraphPanel();
     });
@@ -1178,28 +1181,41 @@ function buildGraphPanel() {
     const W = 700, H = 580;
     const coords = {}; // key → {x, y}
 
-    function triCoord(states, x0, y0, size, level) {
-        if (states.length === 1) {
-            coords[states[0]] = { x: x0, y: y0 };
+    // 가장 큰 원판이 어느 기둥에 있는지로 먼저 세 덩어리를 나누고, 그 안에서 다음 원판으로 또 나눈다.
+    // 재귀 분할과 같은 순서이므로 삼각형이 삼각형을 품는 모양이 된다.
+    // order[0]=왼쪽 아래, order[1]=오른쪽 아래, order[2]=위 에 놓을 기둥.
+    // 하위 삼각형에서는 자기 기둥은 제자리에 두고 나머지 두 기둥의 자리를 맞바꾼다
+    // (그래야 이웃한 삼각형끼리 마주 보는 꼭짓점에서 이어진다).
+    function triCoord(diskIdx, fixed, x0, y0, size, order) {
+        if (diskIdx < 0) {
+            coords[fixed.join('')] = { x: x0, y: y0 };
             return;
         }
-        // 9개 or 3개 묶음
-        const sub = states.length / 3;
         const hs = size / 2;
-        // 왼쪽 하단(A기둥 우세), 오른쪽 하단(C기둥 우세), 상단(B기둥 우세)
-        triCoord(states.slice(0, sub),     x0 - hs * 0.6, y0 + size * 0.35, hs, level - 1);
-        triCoord(states.slice(sub, 2*sub), x0 + hs * 0.6, y0 + size * 0.35, hs, level - 1);
-        triCoord(states.slice(2*sub),      x0,             y0 - size * 0.35, hs, level - 1);
+        const spot = [
+            [x0 - hs * 0.6, y0 + size * 0.35],
+            [x0 + hs * 0.6, y0 + size * 0.35],
+            [x0,            y0 - size * 0.35],
+        ];
+        for (let s = 0; s < 3; s++) {
+            const nextFixed = fixed.slice();
+            nextFixed[diskIdx] = order[s];
+            const nextOrder = order.slice();
+            const other = [0, 1, 2].filter(i => i !== s);
+            [nextOrder[other[0]], nextOrder[other[1]]] = [nextOrder[other[1]], nextOrder[other[0]]];
+            triCoord(diskIdx - 1, nextFixed, spot[s][0], spot[s][1], hs, nextOrder);
+        }
     }
 
-    // 27개를 A,B,C 순서로 정렬
+    // 27개 상태 (키는 작은 원판부터: d1d2d3)
     const allStates = [];
     for (let a = 0; a <= 2; a++)
         for (let b = 0; b <= 2; b++)
             for (let c = 0; c <= 2; c++)
                 allStates.push(`${a}${b}${c}`);
 
-    triCoord(allStates, W / 2, H / 2, H * 0.8, 3);
+    // 노드 반지름(14)·범례·하단 안내 글자가 잘리지 않도록 뷰박스 안에 여백을 두고 앉힌다
+    triCoord(2, [0, 0, 0], W / 2, 286, 424, [0, 1, 2]);
 
     // 엣지 생성: 인접한 상태(원판 하나 이동)
     const edges = [];

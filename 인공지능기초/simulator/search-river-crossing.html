@@ -596,7 +596,7 @@
                     </li>
                     <li class="flex items-start gap-2">
                         <i class="fa-solid fa-check text-teal-500 mt-1 shrink-0"></i>
-                        <span>BFS는 <strong>최단 경로를 보장</strong>합니다 → 7수 해</span>
+                        <span>모든 이동의 비용이 같으므로 BFS가 <strong>최단 경로를 보장</strong>합니다 → 7수 해</span>
                     </li>
                 </ul>
             </div>
@@ -609,6 +609,7 @@
             BFS가 탐색하며 만드는 상태 공간 트리입니다.<br>
             <span class="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded font-bold mr-1">붉은 노드</span> = 규칙 위반(가지치기),
             <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 rounded font-bold mr-1">회색 노드</span> = 이미 방문,
+            <span class="inline-block px-2 py-0.5 bg-white border border-slate-300 text-slate-600 rounded font-bold mr-1">흰 노드</span> = 탐색했지만 정답 경로가 아닌 상태,
             <span class="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold mr-1">노란 노드</span> = 정답 경로,
             <span class="inline-block px-2 py-0.5 bg-green-100 text-green-800 rounded font-bold">초록 노드</span> = 목표
         </p>
@@ -739,10 +740,11 @@ print(f"최단 해: {len(solution)}번 건너기")  # → 7번</code></pre>
                 <div class="bg-teal-50 p-6 rounded-2xl border border-teal-100 flex-1">
                     <p class="text-slate-800 font-medium mb-3 text-base">아닙니다. 이 이동은 <strong>반드시 필요합니다.</strong></p>
                     <p class="text-slate-600 leading-relaxed text-base">
-                        늑대와 양배추를 오른쪽으로 옮기려면 양이 왼쪽에 홀로 있으면 안 됩니다.
-                        양을 다시 왼쪽으로 데려와야만 늑대·양배추를 안전하게 나를 수 있습니다.
-                        탐색 알고리즘은 이런 <strong>"목표에서 일시적으로 멀어지는 경로"도 포기하지 않고 탐색</strong>하기 때문에
-                        최적 해를 찾을 수 있습니다.
+                        늑대와 양배추는 둘만 남겨도 안전하지만, 양은 늑대와도 양배추와도 함께 둘 수 없습니다.
+                        ③번 수를 마치면 오른쪽에 늑대와 양이 함께 있으므로, 농부가 그냥 돌아오면 규칙 위반입니다.
+                        그래서 양을 다시 왼쪽으로 데려와야만 늑대·양배추를 안전하게 나를 수 있습니다.
+                        너비 우선 탐색은 이런 <strong>"목표에서 일시적으로 멀어지는 경로"도 버리지 않고 함께 탐색</strong>하기 때문에
+                        이 해를 놓치지 않습니다.
                     </p>
                 </div>
             </div>
@@ -873,7 +875,7 @@ print(f"최단 해: {len(solution)}번 건너기")  # → 7번</code></pre>
                     2. 가까운 상태부터 차례대로 탐색해 처음 목표에 닿는 경로가 최단이므로
                 </button>
                 <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-teal-500 hover:bg-teal-50 transition-all font-medium text-slate-700 text-base"
-                        onclick="checkAnswer(this, false, '상태 수가 적으면 브루트포스도 작동하지만, 최단 보장의 이유는 아닙니다.')">
+                        onclick="checkAnswer(this, false, '상태 수가 적으면 모든 경우를 다 늘어놓아도 풀리지만, 최단 보장의 이유는 아닙니다.')">
                     3. 상태 수가 16개로 적어서
                 </button>
                 <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-teal-500 hover:bg-teal-50 transition-all font-medium text-slate-700 text-base"
@@ -1230,45 +1232,50 @@ function buildTree() {
     const container = document.getElementById('treeContainer');
     container.innerHTML = '';
 
-    // BFS로 전체 트리 구성 (방문 여부 포함)
-    const pathKeys = new Set();
-    BFS_SOLUTION.forEach(step => { pathKeys.add(stateKey(step.to)); });
-    pathKeys.add(stateKey(INIT));
+    // 정답 경로의 상태 → 몇 번째 수인지
+    const pathStep = new Map();
+    BFS_SOLUTION.forEach((step, i) => { pathStep.set(stateKey(step.to), i); });
 
-    // 트리를 직접 내장 (레벨 0~7, 핵심 경로 강조)
-    const treeData = [
-        { level: 0, nodes: [
-            { key: '0000', label: '(왼,왼,왼,왼)', type: 'path' }
-        ]},
-        { level: 1, nodes: [
-            { key: '1001', label: '(오,왼,오,왼)', type: 'invalid', note: '양+양배추 위험' },
-            { key: '1010', label: '(오,왼,왼,오)', type: 'invalid', note: '늑대+양 위험' },
-            { key: '1100', label: '(오,오,왼,왼)', type: 'invalid', note: '늑대+양 위험' },
-            { key: '1011', label: '(오,왼,왼,왼)', type: 'path', note: '① 혼자→' },
-        ]},
-        { level: 2, nodes: [
-            { key: '0011', label: '(왼,왼,왼,왼)', type: 'visited', note: '초기 상태 재방문' },
-            { key: '0111', label: '(왼,오,왼,왼)', type: 'path', note: '② 혼자←' },
-        ]},
-        { level: 3, nodes: [
-            { key: '1111', label: '(오,오,왼,왼)', type: 'path', note: '③ 늑대와→' },
-            { key: '1011', label: '(오,왼,왼,왼)', type: 'visited', note: '이미 방문' },
-        ]},
-        { level: 4, nodes: [
-            { key: '0101', label: '(왼,오,왼,왼)', type: 'invalid', note: '불필요' },
-            { key: '0110', label: '(왼,오,왼,왼)', type: 'path', note: '④ 양을 데려옴← ★' },
-        ]},
-        { level: 5, nodes: [
-            { key: '1110', label: '(오,오,왼,오)', type: 'path', note: '⑤ 양배추와→' },
-            { key: '1101', label: '(오,오,오,왼)', type: 'invalid', note: '늑대+양 위험' },
-        ]},
-        { level: 6, nodes: [
-            { key: '0100', label: '(왼,오,왼,오)', type: 'path', note: '⑥ 혼자←' },
-        ]},
-        { level: 7, nodes: [
-            { key: '1100', label: '(오,오,오,오)', type: 'goal', note: '⑦ 양과→ 🎉 목표!' },
-        ]},
-    ];
+    const NUM = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+    const CARGO_NAME = ['늑대와', '양과', '양배추와'];
+    const label = k => '(' + k.split('').map(c => (c === '1' ? '오' : '왼')).join(',') + ')';
+
+    // bfs()와 똑같은 순서로 확장하며 레벨별 노드를 기록한다.
+    // 여기서 만드는 자식 목록은 getNeighbors와 같은 규칙이되,
+    // 가지치기된 자식도 화면에 보여야 하므로 걸러내지 않고 함께 담는다.
+    const treeData = [{ level: 0, nodes: [{ label: label(stateKey(INIT)), type: 'path' }] }];
+    const visited = new Set([stateKey(INIT)]);
+    let frontier = [INIT];
+    for (let d = 1; d <= 12 && frontier.length; d++) {
+        const nodes = [], next = [];
+        for (const s of frontier) {
+            const f = s[0];
+            for (let cargo = -1; cargo <= 2; cargo++) {
+                if (cargo >= 0 && s[cargo + 1] !== f) continue;
+                const ns = [...s];
+                ns[0] = 1 - f;
+                if (cargo >= 0) ns[cargo + 1] = ns[0];
+                const k = stateKey(ns);
+                const move = (cargo === -1 ? '혼자' : CARGO_NAME[cargo]) + ' ' + (ns[0] === 1 ? '→' : '←');
+                if (!isSafe(ns)) {
+                    const why = (ns[1] === ns[2] && ns[0] !== ns[1]) ? '늑대+양 위험' : '양+양배추 위험';
+                    nodes.push({ label: label(k), type: 'invalid', note: move + ' / ' + why });
+                } else if (visited.has(k)) {
+                    nodes.push({ label: label(k), type: 'visited', note: move + ' / 이미 방문' });
+                } else {
+                    visited.add(k);
+                    next.push(ns);
+                    const i = pathStep.get(k);
+                    if (k === stateKey(GOAL_S)) nodes.push({ label: label(k), type: 'goal', note: NUM[i] + ' ' + move + ' 🎉 목표!' });
+                    else if (i === d - 1) nodes.push({ label: label(k), type: 'path', note: NUM[i] + ' ' + move });
+                    else nodes.push({ label: label(k), type: '', note: move });
+                }
+            }
+        }
+        treeData.push({ level: d, nodes });
+        if (visited.has(stateKey(GOAL_S))) break;
+        frontier = next;
+    }
 
     treeData.forEach((lvl, li) => {
         if (li > 0) {

@@ -272,7 +272,7 @@ const studentInfoTable = (toolName = null) => {
                         labelCell("학번", LB),
                         valueCell("20251234  (예시)", VC),
                         labelCell("이름", LB),
-                        valueCell("홍길동  (예시)", VC2),
+                        valueCell("학생 A  (예시)", VC2),
                     ]
                     : [
                         labelCell("학번", LB),

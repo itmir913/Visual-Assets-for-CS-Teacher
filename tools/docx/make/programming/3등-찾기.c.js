@@ -17,11 +17,11 @@ makeDocument({
         ],
         screenExample: [
             "(입력)  4",
-            "        김철수 98",
-            "        이민수 95",
-            "        박영희 92",
-            "        최지훈 88",
-            "(출력)  박영희",
+            "        학생A 98",
+            "        학생B 95",
+            "        학생C 92",
+            "        학생D 88",
+            "(출력)  학생C",
         ],
     },
 
@@ -32,11 +32,11 @@ makeDocument({
             "2행~n+1행: '이름 점수' 형식으로 n줄 입력 (공백 구분)",
             "자료형: 이름 char[], 점수 int (scanf(\"%s %d\", name, &score))",
         ],
-        inputExample: ["4", "김철수 98", "이민수 95", "박영희 92", "최지훈 88"],
+        inputExample: ["4", "학생A 98", "학생B 95", "학생C 92", "학생D 88"],
         outputDesign: [
             "점수 기준 내림차순 정렬 후 인덱스 2 위치(3등)의 이름 출력",
         ],
-        outputExample: ["박영희"],
+        outputExample: ["학생C"],
         constraints: [
             "n ≥ 3 보장 (n < 3이면 students[2] 접근이 정의되지 않은 동작)",
             "qsort의 비교 함수는 내림차순을 위해 b의 점수 - a의 점수 반환",
@@ -129,7 +129,7 @@ makeDocument({
             "버블 정렬로 직접 구현하면 swap 시 name과 score를 함께 교환해야 하므로 strcpy를 활용해야 한다.",
         ],
         testCases: [
-            {input: "4명: 98,95,92,88", expected: "박영희 (92점, 3등)", actual: "박영희", pass: "O"},
+            {input: "4명: 98,95,92,88", expected: "학생C (92점, 3등)", actual: "학생C", pass: "O"},
             {input: "3명: 100,75,50", expected: "B (50점, 3등)", actual: "B", pass: "O"},
             {input: "compare 방향 역전 (a-b)", expected: "오름차순 → 잘못된 결과", actual: "잘못된 이름", pass: "X"},
             {input: "정렬 후 students[2].name", expected: "3등 이름", actual: "정상 출력", pass: "O"},

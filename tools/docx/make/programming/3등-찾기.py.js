@@ -17,11 +17,11 @@ makeDocument({
         ],
         screenExample: [
             "(입력)  4",
-            "        김철수 98",
-            "        이민수 95",
-            "        박영희 92",
-            "        최지훈 88",
-            "(출력)  박영희",
+            "        학생A 98",
+            "        학생B 95",
+            "        학생C 92",
+            "        학생D 88",
+            "(출력)  학생C",
         ],
     },
 
@@ -32,11 +32,11 @@ makeDocument({
             "2행~n+1행: '이름 점수' 형식으로 n줄 입력 (공백 구분)",
             "자료형: 이름 str, 점수 int (반드시 int() 변환 필요)",
         ],
-        inputExample: ["4", "김철수 98", "이민수 95", "박영희 92", "최지훈 88"],
+        inputExample: ["4", "학생A 98", "학생B 95", "학생C 92", "학생D 88"],
         outputDesign: [
             "점수 기준 내림차순 정렬 후 인덱스 2 위치(3등)의 이름 출력",
         ],
-        outputExample: ["박영희"],
+        outputExample: ["학생C"],
         constraints: [
             "n ≥ 3 보장 (n < 3이면 students[2] 접근 시 IndexError 발생)",
             "점수를 int()로 변환하지 않으면 '9' > '10' 처럼 사전순 비교 오류 발생",
@@ -117,7 +117,7 @@ makeDocument({
             "3등 대신 k등을 찾는 경우 students[k-1][0]으로 일반화할 수 있다.",
         ],
         testCases: [
-            {input: "4명: 98,95,92,88", expected: "박영희 (92점, 3등)", actual: "박영희", pass: "O"},
+            {input: "4명: 98,95,92,88", expected: "학생C (92점, 3등)", actual: "학생C", pass: "O"},
             {input: "3명: 100,75,50", expected: "B (50점, 3등)", actual: "B", pass: "O"},
             {input: "점수 문자열 저장 시", expected: "정렬 오류 발생", actual: "잘못된 이름 출력", pass: "X"},
             {input: "정렬 후 students[2][0]", expected: "3등 이름", actual: "정상 출력", pass: "O"},

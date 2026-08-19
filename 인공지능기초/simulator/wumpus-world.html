@@ -229,7 +229,7 @@
                         <li class="flex items-start">
                             <i class="fa-solid fa-check text-green-500 mt-1 mr-2"></i>
                             <span><strong>(1,0) 이동 후:</strong> 바람(💨)을 감지했다. <i
-                                    class="fa-solid fa-arrow-right mx-1 text-slate-400"></i> 방금 온 (0,0)은 안전하므로, 나머지 인접 칸인 <strong>(2,0) 또는 (1,1) 중 하나에 무조건 함정(Pit)이 있다!</strong> 일단 다른 안전한 길을 찾아야겠다.</span>
+                                    class="fa-solid fa-arrow-right mx-1 text-slate-400"></i> 방금 온 (0,0)은 안전하므로, 나머지 인접 칸인 <strong>(2,0)과 (1,1) 가운데 적어도 한 곳에는 함정(Pit)이 있다!</strong> 둘 다 함정일 수도 있으니, 어느 쪽도 안전하다고 말할 수 없다.</span>
                         </li>
                     </ul>
                 </div>
@@ -244,7 +244,7 @@
                             <span class="block font-bold text-slate-800 mb-1">방문 완료</span>
                             <span class="text-base text-slate-500">이미 지나온 길</span>
                         </div>
-                        <div class="bg-green-100 border-2 border-green-400 p-3 rounded-xl shadow-sm">
+                        <div class="bg-green-50 border-2 border-green-400 p-3 rounded-xl shadow-sm">
                             <span class="block font-bold text-green-700 mb-1">안전 지대</span>
                             <span class="text-base text-green-600">논리적으로 100% 안전함</span>
                         </div>
@@ -252,11 +252,13 @@
                             <span class="block font-bold text-yellow-700 mb-1">위험 의심</span>
                             <span class="text-base text-yellow-600">위험할 가능성이 있음</span>
                         </div>
-                        <div class="bg-rose-100 border-2 border-rose-500 p-3 rounded-xl shadow-sm">
+                        <div class="bg-rose-300 border-2 border-rose-500 p-3 rounded-xl shadow-sm">
                             <span class="block font-bold text-rose-700 mb-1">사망</span>
-                            <span class="text-base text-rose-600">추론 실패 또는 운 나쁨</span>
+                            <span class="text-base text-rose-600">안전을 확정하지 못한 칸에 들어갔다</span>
                         </div>
                     </div>
+                    <p class="text-base text-slate-600 mt-4">에이전트는 안전이 확정된 칸을 먼저 밟고, 그런 칸이 더 남아 있지 않을 때에만 위험이 가장
+                        낮아 보이는 칸을 골라 들어갑니다. 사망은 이때 일어납니다.</p>
                 </div>
 
                 <div class="text-center pt-2">
@@ -671,6 +673,15 @@
             document.getElementById('percept-panel').innerHTML = formatLogic(txt);
             logMessage(`[1. 지각] (${agent.x},${agent.y}): ${txt}`, 'sense');
 
+            // 반짝임이 보이는 칸이 곧 금이 있는 칸이다. 지각한 뒤에 줍는다.
+            if (p.glitter) {
+                agent.hasGold = true;
+                logMessage(`[3. 행동] 💰 반짝임을 보고 금을 주웠습니다(Grab).`, 'success');
+                stopAutoRun();
+                renderGrid();
+                return;
+            }
+
             agent.lastPercept = p;
             agent.state = 'INFER';
             renderGrid();
@@ -743,14 +754,6 @@
                     logMessage(`[3. 행동] 다른 목적지를 향해 (${agent.x}, ${agent.y}) 밟고 우회 중`, 'move');
                 }
 
-                if (env.gold.x === agent.x && env.gold.y === agent.y) {
-                    agent.hasGold = true;
-                    logMessage(`[성공] 💰 금괴를 획득했습니다! 탈출 성공!`, 'success');
-                    stopAutoRun();
-                    renderGrid();
-                    return;
-                }
-
                 if (env.pits.has(key(agent.x, agent.y))) {
                     agent.isDead = true;
                     logMessage(`[사망] 🕳️ 함정에 빠졌습니다!`, 'death');
@@ -759,6 +762,18 @@
                     agent.isDead = true;
                     logMessage(`[사망] 👹 괴물에게 당했습니다!`, 'death');
                     stopAutoRun();
+                } else {
+                    // 밟고 살아남았으니 이 칸에는 함정도 괴물도 없다. 지식 베이스에 사실로 남긴다.
+                    const here = key(agent.x, agent.y);
+                    agent.pitSafe.add(here);
+                    agent.wumpusSafe.add(here);
+                    agent.possiblePit.delete(here);
+                    agent.possibleWumpus.delete(here);
+                    if (!agent.safe.has(here)) {
+                        agent.safe.add(here);
+                        logMessage(`[KB] 밟고 살아남음 → (${agent.x},${agent.y})에는 함정도 괴물도 없음`, 'infer');
+                    }
+                    updateKBUI();
                 }
             } else {
                 // 수정: 타겟이 없을 때 루프를 빠져나가도록 강제 종료 상태 처리

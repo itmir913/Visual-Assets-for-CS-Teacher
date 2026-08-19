@@ -152,7 +152,8 @@
         <div class="text-center space-y-4">
             <span class="text-indigo-600 font-bold tracking-widest uppercase text-base">Core Mechanism</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-900">연속된 숫자에서 '확률'로 변환하다</h2>
-            <p class="text-slate-600 text-lg font-medium">선형회귀의 계산 결과를 S자 모양의 함수에 넣어 0%~100% 사이의 확률로 바꿉니다.</p>
+            <p class="text-slate-600 text-lg font-medium">이름에 &lsquo;회귀&rsquo;가 들어 있지만 분류에 쓰는 알고리즘입니다.
+                선형 회귀의 계산 결과를 S자 모양의 함수에 넣어 0%~100% 사이의 확률로 바꾸고, 그 확률로 갈래를 정합니다.</p>
         </div>
 
         <div class="relative grid grid-cols-1 md:grid-cols-4 gap-6 mt-12">
@@ -193,8 +194,8 @@
                 </div>
                 <span class="px-3 py-1 bg-emerald-50 text-emerald-600 font-bold rounded-full text-base mb-3">Step 4</span>
                 <h3 class="text-xl font-black mb-2 text-slate-800">결정 경계 탐색</h3>
-                <p class="text-slate-600 text-base leading-relaxed break-keep">확률이 0.5(50%)가 되는 지점을 기준으로 두 그룹을 가장 잘 나누는
-                    경계선을 찾습니다.</p>
+                <p class="text-slate-600 text-base leading-relaxed break-keep">학습이 끝나면 확률이 0.5(50%)가 되는 지점이 두 그룹의
+                    경계가 됩니다. 0.5는 흔히 쓰는 기준값이고, 문제에 따라 다른 값으로 옮기기도 합니다.</p>
             </div>
         </div>
     </section>
@@ -204,7 +205,8 @@
         <div class="mb-6 space-y-2 text-center md:text-left">
             <span class="text-indigo-600 font-bold tracking-widest uppercase text-base">Interactive Simulator</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-800">로지스틱 회귀 분류 시뮬레이터</h2>
-            <p class="text-slate-600 text-lg">캔버스의 위쪽을 클릭하면 '클래스 1', 아래쪽을 클릭하면 '클래스 0' 데이터가 추가됩니다.</p>
+            <p class="text-slate-600 text-lg">학습을 시작하기 전에는 캔버스 위쪽을 클릭하면 '클래스 1', 아래쪽을 클릭하면 '클래스 0' 데이터가 추가됩니다.
+                학습이 끝난 뒤에 클릭하면 그 자리의 x값을 바로 분류해 봅니다.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr_260px] gap-4 items-start">
@@ -302,7 +304,7 @@
                     <p class="text-sm font-bold text-indigo-300 mb-2">
                         <i class="fa-solid fa-magnifying-glass-chart mr-1"></i>새로운 데이터 분류하기
                     </p>
-                    <form id="predictForm" class="flex gap-2" onsubmit="uiController.executePredictForm(event)">
+                    <form id="predictForm" class="flex gap-2">
                         <input type="number" id="predictInputX" placeholder="x값 입력" step="any"
                                class="w-full px-3 py-2 rounded-lg bg-slate-800 text-white border border-slate-600 focus:border-indigo-400 outline-none text-sm transition-colors">
                         <button type="submit"
@@ -747,13 +749,17 @@
                 let classes = new Set(this.dataManager.points.map(p => p.y));
                 if (classes.size < 2) return alert('클래스 0과 1 데이터가 모두 1개 이상씩 필요합니다.');
 
-                if (!this.model.hasStarted) this.model.init();
+                // 발산한 뒤에는 w·b 가 임계값을 넘은 채로 남아 있다.
+                // 학습률만 낮추고 다시 누르면 첫 스텝에서 곧바로 다시 발산 판정이 나므로,
+                // 발산 상태에서는 모델을 새로 잡아 준다.
+                if (!this.model.hasStarted || this.model.diverged) this.model.init();
                 this.model.hasStarted = true;
                 this.model.isTraining = true;
                 this.model.predictData = null;
 
                 const btn = document.getElementById('btnTrain');
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>학습 중...';
+                btn.classList.remove('state-diverged', 'state-complete');
                 btn.classList.replace('bg-indigo-500', 'bg-indigo-700');
                 btn.disabled = true;
 
@@ -784,11 +790,14 @@
             document.getElementById('btnRandomData').addEventListener('click', () => {
                 this.dataManager.clear(); // 기존 데이터 초기화
                 const count = 50;
+                // 범위는 데이터를 비운 직후에 한 번만 잡는다.
+                // 루프 안에서 다시 부르면 방금 넣은 점 하나에 범위가 눌려,
+                // 50개가 몇 단위 폭에 몰린 데이터가 만들어진다.
+                const b = this.dataManager.getBounds();
+                let range = b.maxX - b.minX;
+                if (range === 0) range = 100;
                 for (let i = 0; i < count; i++) {
                     let y = Math.random() > 0.5 ? 1 : 0;
-                    let b = this.dataManager.getBounds();
-                    let range = b.maxX - b.minX;
-                    if (range === 0) range = 100;
                     let xOffset = y === 1 ? range * 0.4 : 0;
                     let x = b.minX + xOffset + (Math.random() + Math.random()) * (range * 0.3);
 
@@ -846,6 +855,17 @@
                     btn.classList.add('state-diverged');
                     btn.disabled = false;
                     document.getElementById('btnPause').disabled = true;
+                } else if (!isConverged) {
+                    // 기울기가 0에 닿아 멈춘 것이 아니라 3000회 반복 한도에서 끊긴 것이다.
+                    // 여기에 「완료」라고 적으면 학습률이 작을 때 아직 한참 남은 모델을
+                    // 다 됐다고 읽게 된다. 이어서 더 돌릴 수 있게 버튼을 살려 둔다.
+                    btn.innerHTML = '<i class="fa-solid fa-forward mr-2"></i>3000회까지 학습 · 더 돌리기';
+                    btn.classList.replace('bg-indigo-700', 'bg-indigo-500');
+                    btn.disabled = false;
+                    this.model.epoch = 0;
+
+                    // 예측 패널 활성화
+                    document.getElementById('predictPanel').classList.remove('opacity-50', 'pointer-events-none');
                 } else {
                     btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>경계선 탐색 완료';
                     btn.classList.add('state-complete');

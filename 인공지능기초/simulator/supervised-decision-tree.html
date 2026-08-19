@@ -160,8 +160,9 @@
             <div class="mb-8">
                 <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-3">
                     <i class="fa-solid fa-apple-whole text-emerald-500 mr-2"></i>스무고개 AI (과일 맞히기)</h2>
-                <p class="text-slate-600 text-lg">과일의 특징(색깔, 크기, 모양)이 담긴 표를 학습하여 AI가 불순도(Gini)를 낮추는 최적의 질문 트리를
-                    생성합니다.</p>
+                <p class="text-slate-600 text-lg">과일의 특징(색깔, 크기, 모양)이 담긴 표를 학습하여, 매 단계마다 불순도(Gini,
+                    한 무리에 여러 종류가 섞인 정도)를 가장 많이 낮추는 질문을 하나씩 골라 트리를 키웁니다. 한 단계씩 최선을 고르는 방식이라,
+                    만들어진 트리가 모든 트리 가운데 가장 좋은 트리라는 보장은 없습니다.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-5 gap-10 items-stretch">
@@ -295,7 +296,8 @@
             <div class="mb-8">
                 <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-3">
                     <i class="fa-solid fa-map-location-dot mr-2 text-blue-500"></i>2차원 데이터 분류</h2>
-                <p class="text-slate-600 text-lg">X축, Y축을 기준으로 데이터가 나뉘는 결정 경계(Decision Boundary)를 시각적으로 확인합니다.</p>
+                <p class="text-slate-600 text-lg">X축, Y축을 기준으로 데이터가 나뉘는 결정 경계(Decision Boundary)를 시각적으로 확인합니다.
+                    좌표는 화면 좌표를 그대로 쓰므로, 왼쪽 위 모서리가 (0, 0)이고 <b>Y 값은 아래로 내려갈수록 커집니다.</b></p>
             </div>
 
             <div class="flex flex-col space-y-10">
@@ -637,8 +639,9 @@
             if (!node.isLeaf) {
                 nodesArr.push({
                     id: currId,
-                    // [교육적 개선] Gini 계수를 시각적으로 표시하여 분할의 의미를 학습하도록 유도
-                    label: `${FEATURE_NAMES[node.feature]}이(가)\n'${node.value}' 입니까?\n(불순도: ${node.gini.toFixed(3)})`,
+                    // node.gini 는 이 노드 자신의 불순도가 아니라, 이 질문으로 나눈 뒤
+                    // 두 자식의 불순도를 표본 수로 가중평균한 값이다. 라벨도 그렇게 적는다.
+                    label: `${FEATURE_NAMES[node.feature]}이(가)\n'${node.value}' 입니까?\n나눈 뒤 불순도 ${node.gini.toFixed(3)}`,
                     shape: 'box',
                     color: {background: '#f8fafc', border: '#10b981'},
                     font: {color: '#064e3b', bold: true, size: 16},
@@ -872,6 +875,9 @@
         }
         tree2D = null;
         draw2DCanvas();
+        // 데이터가 통째로 바뀌었으므로 앞서 그린 트리를 지운다.
+        // 남겨 두면 지금 화면의 점들과 맞지 않는 트리를 보게 된다.
+        render2DTree();
         showToast('랜덤 2차원 데이터가 생성되었습니다.', 'info');
     }
 
@@ -927,8 +933,10 @@
 
         ['x', 'y'].forEach(f => {
             let sorted = [...data].sort((a, b) => a[f] - b[f]);
+            // 이웃한 두 점의 클래스가 같다고 건너뛰면 안 된다. 같은 화면 좌표를 여러 번
+            // 클릭해 값이 겹치면, 실제로 이득이 나는 절단점이 후보에서 통째로 빠져
+            // 더 나눌 수 있는 데이터가 리프로 끝나 버린다.
             for (let i = 0; i < sorted.length - 1; i++) {
-                if (sorted[i].cls === sorted[i + 1].cls) continue;
                 let v = (sorted[i][f] + sorted[i + 1][f]) / 2;
 
                 let left = data.filter(d => d[f] <= v);
@@ -937,7 +945,8 @@
                 // 한쪽이 비면 자식이 null 이 되어 그리기/예측에서 터진다.
                 // (같은 좌표에 클래스가 다른 점이 겹쳐 있을 때 실제로 발생한다.)
                 if (left.length === 0 || right.length === 0) continue;
-                if (left.length < minLeaf / 2 || right.length < minLeaf / 2) continue;
+                // 화면의 '리프 최소 개수'가 곧 리프 하나에 들어갈 최소 점 개수다.
+                if (left.length < minLeaf || right.length < minLeaf) continue;
 
                 const probL = left.length / data.length;
                 const probR = right.length / data.length;
@@ -986,7 +995,10 @@
             network2D = null;
         }
 
-        if (!tree2D) return;
+        if (!tree2D) {
+            container.innerHTML = '';
+            return;
+        }
 
         let nodesArr = [];
         let edgesArr = [];
@@ -999,8 +1011,8 @@
             if (!node.isLeaf) {
                 nodesArr.push({
                     id: currId,
-                    // [교육적 개선] 불순도(Gini) 표시 추가
-                    label: `${node.feature.toUpperCase()}축 값이\n${Math.round(node.value)} 이하인가?\n(불순도: ${node.gini.toFixed(3)})`,
+                    // 범주형 탭과 같다 — 이 값은 나눈 뒤 두 자식의 가중평균 불순도다.
+                    label: `${node.feature.toUpperCase()}축 값이\n${Math.round(node.value)} 이하인가?\n나눈 뒤 불순도 ${node.gini.toFixed(3)}`,
                     shape: 'box',
                     color: {background: '#f8fafc', border: '#6366f1'},
                     font: {color: '#312e81', bold: true, size: 16},

@@ -13,6 +13,10 @@
 4. **CSS가 가리키는 자산이 실제로 있는지** — 빌드가 글꼴을 깎아 이름을 다시 매기므로
    (`tools/vite/subset-icon-font.js`), 참조 고치기를 한 군데라도 빠뜨리면 404가 난다.
    아이콘은 안 그려져도 페이지가 멀쩡해 보여서 **눈으로는 못 잡는다.**
+5. **모듈 스크립트가 남아 있지 않은지, 스크립트가 가리키는 파일이 있는지** —
+   `<script type="module">`은 `file://`에서 CORS로 통째로 막힌다. 릴리즈 zip을 풀어
+   연 사람에게만 깨진 화면이 가므로 **사이트만 보아서는 알 수 없다.**
+   빌드가 평범한 스크립트로 바꾸어 놓는다 → `tools/vite/classic-scripts.js`.
 
 사용법:
     python tools/check_dist.py            # dist/
@@ -47,6 +51,8 @@ UNLINKED_OK = {
 }
 CDN_RE = re.compile(r"https://(?:cdn|unpkg|cdnjs)[a-zA-Z0-9./_-]*")
 URL_RE = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""")
+MODULE_SCRIPT_RE = re.compile(r'<script[^>]*type="module"')
+SCRIPT_SRC_RE = re.compile(r'<script[^>]*src="([^"]+)"')
 
 
 def check_docx_links(files: list[Path]) -> tuple[list[str], int]:
@@ -100,6 +106,28 @@ def check_nesting(files: list[Path]) -> list[str]:
     return bad
 
 
+def check_scripts(files: list[Path]) -> tuple[list[str], int]:
+    """스크립트가 **어디서 열어도** 실행될 모양인지 본다.
+
+    모듈 스크립트는 `file://`에서 출처가 `null`이라 CORS로 막힌다. 사이트에서는
+    멀쩡하고 릴리즈 zip에서만 깨지므로, 여기서 막지 않으면 아무도 모른 채 나간다.
+    """
+    bad: list[str] = []
+    total = 0
+    for h in files:
+        html = h.read_text(encoding="utf-8")
+        if MODULE_SCRIPT_RE.search(html):
+            bad.append(f"모듈 스크립트가 남았다(file://에서 막힌다): {h}")
+        for m in SCRIPT_SRC_RE.finditer(html):
+            src = m.group(1)
+            if src.startswith(("http://", "https://", "//", "data:")):
+                continue
+            total += 1
+            if not (h.parent / src).exists():
+                bad.append(f"스크립트가 없는 파일을 가리킨다: {h} -> {src}")
+    return bad, total
+
+
 def check_asset_refs(root: Path) -> tuple[list[str], int]:
     """CSS의 url()이 가리키는 로컬 파일이 실제로 있는지 본다."""
     bad: list[str] = []
@@ -138,13 +166,15 @@ def main() -> int:
     cdn_bad = check_cdn(files)
     nest_bad = check_nesting(files)
     ref_bad, ref_total = check_asset_refs(root)
+    script_bad, script_total = check_scripts(files)
 
-    log.debug("HTML %d개, docx 링크 %d건, CSS 자산 참조 %d건", len(files), docx_total, ref_total)
-    errs = docx_bad + cdn_bad + nest_bad + ref_bad
+    log.debug("HTML %d개, docx 링크 %d건, CSS 자산 참조 %d건, 스크립트 %d건",
+              len(files), docx_total, ref_total, script_total)
+    errs = docx_bad + cdn_bad + nest_bad + ref_bad + script_bad
     for e in errs:
         log.error("%s", e)
-    log.info("완료 — HTML %d, docx 링크 %d, CSS 자산 참조 %d, 문제 %d",
-             len(files), docx_total, ref_total, len(errs))
+    log.info("완료 — HTML %d, docx 링크 %d, CSS 자산 참조 %d, 스크립트 %d, 문제 %d",
+             len(files), docx_total, ref_total, script_total, len(errs))
     return 1 if errs else 0
 
 

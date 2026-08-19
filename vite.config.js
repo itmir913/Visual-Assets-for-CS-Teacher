@@ -8,8 +8,11 @@
 // 것이면 거기서 `window`에 얹는다. `public/`에 남는 것은 MathJax 글꼴뿐이다 —
 // 실행 중에 이름을 조립해 받아오므로 해시된 자산으로 바꾸면 못 찾는다.
 //
-// **모듈은 defer라 body 끝의 인라인 스크립트보다 늦게 돈다.** 인라인이 최상위에서
+// **라이브러리 스크립트는 body 끝의 인라인 스크립트보다 늦게 돈다.** 인라인이 최상위에서
 // 라이브러리를 바로 부르면 ReferenceError로 죽고 기다려도 낫지 않는다 → load 핸들러로 감싼다.
+//
+// **산출물에는 `type="module"`이 남지 않는다.** 모듈은 `file://`에서 CORS로 통째로 막혀
+// 릴리즈 zip을 풀어 연 사람에게만 깨진 화면이 간다 → tools/vite/classic-scripts.js.
 //
 // **빌드 설정은 이 파일 하나다.** CSS 파이프라인도 여기 있고 postcss.config.js는 두지 않는다.
 // 이 파일은 **조립만** 한다. 실제로 하는 일은 tools/vite/ 밑에 하나씩 나뉘어 있다.
@@ -19,6 +22,7 @@
 //   tools/vite/vendor-public.js       이름이 그대로여야 하는 파일(MathJax 글꼴)만 public/으로
 //   tools/vite/copy-lecture-assets.js 강의노트 딸림 파일(.py·.c)을 산출물로
 //   tools/vite/strip-crossorigin.js   원본에 없던 속성 제거
+//   tools/vite/classic-scripts.js     모듈 스크립트를 평범한 스크립트로 (file:// 대응)
 //   tools/vite/copy-code-button.js    코드 블록마다 복사 버튼을 얹는다
 //   tools/vite/drop-ttf-fallback.js   아무도 받지 않는 ttf 대체 경로를 지운다 (PostCSS)
 //   tools/vite/subset-icon-font.js    아이콘 폰트를 실제로 쓰는 글자만 남기고 깎는다
@@ -32,6 +36,7 @@ import injectCode from './tools/vite/inject-code.js';
 import vendorPublic from './tools/vite/vendor-public.js';
 import copyLectureAssets from './tools/vite/copy-lecture-assets.js';
 import stripCrossorigin from './tools/vite/strip-crossorigin.js';
+import classicScripts from './tools/vite/classic-scripts.js';
 import copyCodeButton from './tools/vite/copy-code-button.js';
 import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
 import subsetIconFont from './tools/vite/subset-icon-font.js';
@@ -79,12 +84,17 @@ export default {
         vendorPublic(),
         copyLectureAssets(),
         stripCrossorigin(),
-        // 마지막이다 — 최종 HTML을 봐야 어떤 아이콘을 쓰는지 알 수 있다.
+        // 최종 HTML을 봐야 어떤 아이콘을 쓰는지 알 수 있다 — 파일을 다 쓴 뒤에 돈다.
         subsetIconFont(),
+        // **정말 마지막이다.** 글꼴 이름을 다시 매긴 뒤라야 그 참조까지 눌러 담긴다.
+        classicScripts(),
     ],
     build: {
         outDir: 'dist',
         emptyOutDir: true,
+        // 미리 받기 힌트와 그 폴리필을 넣지 않는다. 페이지마다 스크립트가 하나뿐이라
+        // 미리 받을 것이 없고, 폴리필은 그 자체가 또 하나의 모듈 스크립트가 된다.
+        modulePreload: false,
         rollupOptions: {
             input,
             output: { assetFileNames: 'assets/[name]-[hash][extname]' },

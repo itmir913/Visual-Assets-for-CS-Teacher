@@ -62,6 +62,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | `vendor-public.js` | 이름이 그대로여야 하는 파일(MathJax 글꼴)만 `public/`으로 |
 | `copy-lecture-assets.js` | 강의노트 딸림 파일(`.py`·`.c`)을 산출물로 |
 | `strip-crossorigin.js` | 원본에 없던 속성 제거 |
+| `classic-scripts.js` | 페이지가 받던 청크를 **평범한 `<script defer>` 하나로** 눌러 담는다 |
 
 **Tailwind는 단위마다 한 번씩** 굽는다. 파일마다 굽던 때는 146번이었고 3분 32초가 걸렸다.
 
@@ -84,8 +85,13 @@ window.Chart = Chart;
 ```
 
 **진입점을 페이지마다 두는 이유** — 단위로 묶으면 시뮬레이터 한 장을 열 때
-d3·p5·ml5·chart·vis를 전부 받게 된다. 페이지마다 두면 그 페이지가 쓰는 것만 받고,
-여러 페이지가 함께 쓰는 것은 Vite가 공통 청크로 뽑아 캐시된다.
+d3·p5·ml5·chart·vis를 전부 받게 된다. 페이지마다 두면 그 페이지가 쓰는 것만 받는다.
+
+**산출물에서는 페이지마다 스크립트가 하나다.** 여러 페이지가 함께 쓰는 것도
+공통 청크로 남기지 않고 페이지마다 눌러 담는다 — 모듈 스크립트가 `file://`에서
+CORS로 막혀 **릴리즈 zip을 푼 사람에게만 깨진 화면이 가기 때문**이다.
+까닭과 하는 일은 [`vite/classic-scripts.js`](vite/classic-scripts.js)의 머리말에 있고,
+모듈이 남지 않았는지는 `npm run check:dist`가 지킨다.
 
 **옮기며 밟은 함정 넷.** 새 라이브러리를 넣을 때 같은 것을 겪을 수 있다.
 
@@ -94,7 +100,7 @@ d3·p5·ml5·chart·vis를 전부 받게 된다. 페이지마다 두면 그 페�
 | **npm 판과 CDN 판의 API가 다를 수 있다** | lucide는 UMD 판이 `createIcons()`만으로 됐지만 npm 판은 아이콘 목록을 받는다. 호출부를 다 고치는 대신 진입점에서 감쌌다 |
 | **최상위 `await`를 쓰지 않는다** | 모듈 완료가 `window.onload`보다 늦어져 그때 부르는 코드가 조용히 실패한다. Prism 하이라이팅이 그렇게 죽었다 |
 | **전역에 얹는 순서** | Prism 언어 확장은 전역 `Prism`이 선 뒤에 평가되어야 한다. `_lib/prism.js`를 먼저 `import` 하는 정적 순서로 맞춘다 |
-| **모듈은 defer다** | body 끝 인라인 스크립트가 **먼저** 돈다. 거기서 라이브러리를 바로 부르면 깨진다 — `DOMContentLoaded`로 미룬다 |
+| **라이브러리 스크립트는 defer다** | dev에서는 모듈이라, 빌드에서는 `defer`를 달아서 그렇다. 어느 쪽이든 body 끝 인라인 스크립트가 **먼저** 돈다 — 거기서 라이브러리를 바로 부르면 깨지므로 `DOMContentLoaded`로 미룬다 |
 
 **이름이 그대로여야 하는 파일만 `public/`에 둔다.** 지금은 MathJax 글꼴뿐이다.
 MathJax는 실행 중에 `${fontURL}/MathJax_Main-Regular.woff` 식으로 이름을 조립해

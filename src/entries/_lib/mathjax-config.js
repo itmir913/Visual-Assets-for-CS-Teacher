@@ -9,7 +9,8 @@
 // 있는 자산 링크에서 산출물 루트를 거꾸로 읽어 낸다 — 빌드에서는 `../assets/…`,
 // dev에서는 `/src/…`라 어느 쪽이든 맞는 값이 나온다.
 function distRoot() {
-    const el = document.querySelector('link[rel="stylesheet"][href*="assets/"], script[type="module"][src]');
+    // 빌드에서는 CSS·JS 둘 다 `assets/`를 지나가고, dev에서는 `/src/…`라 앞이 `/`다.
+    const el = document.querySelector('link[rel="stylesheet"][href*="assets/"], script[src]');
     const ref = el?.getAttribute('href') ?? el?.getAttribute('src') ?? '';
     const cut = ref.indexOf('assets/');
     if (cut >= 0) return ref.slice(0, cut);          // 빌드: '', '../', '../../'

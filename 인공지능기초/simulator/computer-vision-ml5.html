@@ -507,6 +507,13 @@
     let mirrorMode = true;
     let currentMode = 'classification';
 
+    // 모델 가중치는 **일부러** 번들에 담지 않고 인터넷에서 받는다(네 모델 합쳐 60MB 남짓).
+    // 그래서 인터넷이 없거나 학교망이 막으면 못 받는데, 그때 화면이 「로딩 중」에서
+    // 멈춘 것처럼 보이면 안 된다. 아래 셋이 그것을 막는다.
+    let modelSlowTimer = null;   // 오래 걸릴 때 「기다리는 중」이라고 말해 주는 시계
+    let modelFailed = false;     // 콜백과 프로미스가 함께 알려 오므로 한 번만 안내한다
+    const MODEL_SLOW_MS = 30000;
+
     // DOM 요소 캐싱
     let cameraSelect, startBtn, stopBtn;
     let statusMessage, statusText, loadingOverlay;
@@ -732,7 +739,8 @@
         });
     }
 
-    function setStatus(msg, loading = false) {
+    // persist=true 면 3초 뒤에 사라지지 않는다. 읽고 조치해야 하는 안내에 쓴다.
+    function setStatus(msg, loading = false, persist = false) {
         if (!statusMessage || !statusText) return;
         statusMessage.classList.remove('hidden');
         statusMessage.classList.add('flex');
@@ -740,6 +748,7 @@
             statusText.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> ${msg}`;
         } else {
             statusText.innerHTML = msg;
+            if (persist) return;
             setTimeout(() => {
                 statusMessage.classList.add('hidden');
                 statusMessage.classList.remove('flex');
@@ -776,6 +785,7 @@
 
     function stopSystem() {
         isRunning = false;
+        clearTimeout(modelSlowTimer); // 받는 도중에 껐다면 안내도 함께 접는다
 
         if (stopBtn) {
             stopBtn.classList.add('hidden');
@@ -837,6 +847,54 @@
         showToast(msg, 'error');
     }
 
+    // 모델을 받기 시작할 때마다 부른다. 오래 걸리는 것과 못 받는 것은 다른 일이라
+    // 다르게 말해 준다 — 처음 한 번은 수십 MB라 느린 회선에서 정말 오래 걸린다.
+    function beginModelLoad() {
+        modelFailed = false;
+        clearTimeout(modelSlowTimer);
+        modelSlowTimer = setTimeout(() => {
+            if (isRunning && !modelFailed) {
+                setStatus('AI 모델을 처음 받는 중입니다. 회선이 느리면 몇 분 걸릴 수 있습니다.', true);
+            }
+        }, MODEL_SLOW_MS);
+    }
+
+    // ml5는 실패를 **콜백의 두 번째 인자**로 알리고 `ready` 프로미스도 함께 거절한다.
+    // 둘 다 잡는다 — 콜백만 보면 콘솔에 처리되지 않은 거절이 남고,
+    // 프로미스만 보면 ml5가 콜백만 부르는 자리를 놓친다.
+    function watchModel(instance) {
+        if (instance && instance.ready && typeof instance.ready.catch === 'function') {
+            instance.ready.catch(handleModelError);
+        }
+        return instance;
+    }
+
+    // 모델을 못 받았을 때 UI를 되돌리고 이유를 알려 준다.
+    // **이 데모의 모델은 번들에 없다** — 인터넷에서 받으므로 연결이 끊기거나
+    // 학교망이 CDN을 막으면 여기로 온다. 말해 주지 않으면 학생 화면은 로딩 중인 채로 멈춘다.
+    function handleModelError(err) {
+        clearTimeout(modelSlowTimer);
+        if (modelFailed) return;
+        modelFailed = true;
+
+        // 반쯤 만들어진 모델은 버린다. 다시 고르면 처음부터 받는다.
+        classifier = null;
+        detector = null;
+        faceMesh = null;
+        bodySegmentation = null;
+
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        if (video && video.elt) video.elt.play(); // 받는 동안 멈춰 둔 화면을 되돌린다
+
+        const msg = navigator.onLine === false
+            ? 'AI 모델을 받지 못했습니다. 이 데모는 모델을 인터넷에서 내려받으므로 연결이 필요합니다.'
+            : 'AI 모델을 받지 못했습니다. 인터넷 연결과 학교망 차단 여부를 확인한 뒤 다시 시도하세요.';
+
+        console.error('모델 로딩 오류:', err);
+        setStatus(`<i class="fa-solid fa-exclamation-circle mr-2"></i> ${msg}`, false, true);
+        showToast(msg, 'error');
+    }
+
     async function startVideo() {
         if (video) {
             if (video.elt && video.elt.srcObject) {
@@ -890,7 +948,8 @@
             if (currentMode === 'classification') {
                 if (!classifier) {
                     setStatus('MobileNet 모델 로딩 중 (최초 1회)...', true);
-                    classifier = ml5.imageClassifier('MobileNet', modelReady);
+                    beginModelLoad();
+                    classifier = watchModel(ml5.imageClassifier('MobileNet', modelReady));
                 } else {
                     modelReady(); // 이미 모델이 있으면 바로 실행
                 }
@@ -899,7 +958,8 @@
 
                 if (!detector) {
                     setStatus('COCO-SSD 모델 로딩 중 (최초 1회)...', true);
-                    detector = ml5.objectDetection('cocossd', modelReady);
+                    beginModelLoad();
+                    detector = watchModel(ml5.objectDetection('cocossd', modelReady));
                 } else {
                     modelReady();
                 }
@@ -909,7 +969,8 @@
                 if (!faceMesh) {
                     setStatus('FaceMesh 모델 로딩 중 (최초 1회)...', true);
                     let options = {maxFaces: 1, refineLandmarks: false, flipHorizontal: false};
-                    faceMesh = ml5.faceMesh(options, modelReady);
+                    beginModelLoad();
+                    faceMesh = watchModel(ml5.faceMesh(options, modelReady));
                 } else {
                     modelReady();
                 }
@@ -918,8 +979,9 @@
 
                 if (!bodySegmentation) {
                     setStatus('Segmentation 모델 로딩 중 (최초 1회)...', true);
+                    beginModelLoad();
                     // 옵션을 주지 않으면 기본값으로 SelfieSegmentation이 로드됩니다.
-                    bodySegmentation = ml5.bodySegmentation("SelfieSegmentation", modelReady);
+                    bodySegmentation = watchModel(ml5.bodySegmentation("SelfieSegmentation", modelReady));
                 } else {
                     modelReady();
                 }
@@ -934,7 +996,14 @@
         }, 100); // 100ms 지연
     }
 
-    function modelReady() {
+    // ml5는 **실패했을 때도 이 콜백을 부른다** — 두 번째 인자가 오류다.
+    // 받아 보지 않으면 모델이 없는 채로 분석을 시작해 엉뚱한 곳에서 터진다.
+    function modelReady(model, error) {
+        clearTimeout(modelSlowTimer);
+        if (error) {
+            handleModelError(error);
+            return;
+        }
         if (!isRunning) return;
 
         // 1) 상태 메시지 변경 (여전히 로딩 오버레이는 떠있는 상태)

@@ -188,8 +188,8 @@
                 </div>
                 <span class="px-3 py-1 bg-rose-50 text-rose-600 font-bold rounded-full text-base mb-3">Step 3</span>
                 <h3 class="text-xl font-black mb-2 text-slate-800">오차 계산</h3>
-                <p class="text-slate-600 text-base leading-relaxed break-keep">현재 직선과 실제 데이터 점들 사이의 수직 거리(오차)를 모두 계산하여
-                    합칩니다.</p>
+                <p class="text-slate-600 text-base leading-relaxed break-keep">현재 직선과 실제 데이터 점들 사이의 수직 거리(오차)를 구한 뒤,
+                    제곱해서 평균 낸 값을 오차의 크기로 삼습니다. 이 값을 평균제곱오차(MSE)라고 합니다.</p>
             </div>
 
             <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
@@ -218,6 +218,8 @@
                 <ul class="list-disc list-outside text-rose-900 space-y-1 text-base pl-5">
                     <li>선형회귀가 <strong>항상 완벽하게 모든 점을 지나는 선</strong>을 찾는 것은 아닙니다.</li>
                     <li>현실의 데이터는 직선 관계가 아닐 수도 있습니다 (곡선 형태 등).</li>
+                    <li>절편(b)은 <strong>직선의 높이를 맞춰 주는 숫자</strong>입니다. 예제에는 x가 0인 자료가 없으므로,
+                        절편을 'x가 0일 때의 기본값'으로 읽지 않습니다.</li>
                 </ul>
             </div>
         </div>
@@ -350,7 +352,7 @@
                         <span id="valIntercept" class="font-black text-slate-800 math-font">0.000</span>
                     </div>
                     <div class="bg-white px-4 py-3 rounded-xl border border-rose-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-rose-500 text-base">MSE (오차)</span>
+                        <span class="font-bold text-rose-500 text-base">MSE (평균제곱오차)</span>
                         <span id="valMSE" class="font-black text-rose-600 math-font">0.000</span>
                     </div>
                     <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
@@ -545,18 +547,20 @@
                     let x = i;
                     let y = 0;
 
+                    // y 값이 축 이름과 어긋나지 않도록 범위를 잡는다.
+                    // (점수는 100점 만점을 넘지 않게, 판매량과 속도는 음수가 되지 않게)
                     switch (type) {
                         case 1:
-                            y = 5 * x + 50 + (Math.random() * 100 - 50);
+                            y = 0.8 * x + 40 + (Math.random() * 20 - 10);
                             break;
                         case 2:
-                            y = 1.5 * x - 300 + (Math.random() * 60 - 30);
+                            y = 1.5 * x + 30 + (Math.random() * 60 - 30);
                             break;
                         case 3:
                             y = 12 * x + 100 + (Math.random() * 300 - 50);
                             break;
                         case 4:
-                            y = 300 / x + (Math.random() * 70 - 7.5);
+                            y = 300 / x + 10 + (Math.random() * 15 - 7.5);
                             break;
                     }
 
@@ -566,10 +570,11 @@
             }
 
             this.examples = {
-                1: {desc: "밤샘 공부 시간이 늘어나면 시험 점수가 올라갑니다.", data: generateData(1)},
-                2: {desc: "기온이 높아질수록 아이스크림 판매량이 증가합니다.", data: generateData(2)},
-                3: {desc: "게임 연습 시간이 늘어날수록 게임 점수가 올라갑니다.", data: generateData(3)},
-                4: {desc: "공유기에서 멀어질수록 WiFi 속도가 느려집니다.", data: generateData(4)}
+                // 관찰 자료의 기울기를 인과로 읽지 않도록 비교 화법으로 쓴다.
+                1: {desc: "밤샘 공부 시간이 긴 학생일수록 시험 점수가 높게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(1)},
+                2: {desc: "기온이 높은 날일수록 아이스크림 판매량이 많게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(2)},
+                3: {desc: "게임 연습 시간이 긴 사람일수록 게임 점수가 높게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(3)},
+                4: {desc: "공유기에서 먼 자리일수록 WiFi 속도가 느리게 측정된 자료입니다. (수업용으로 지어낸 값)", data: generateData(4)}
             };
 
             this.bindEvents();
@@ -621,10 +626,12 @@
                     msg = '적당한 학습률입니다.';
                     cls = 'text-base font-medium mt-2 leading-snug break-keep text-slate-400';
                 } else if (lr <= 1.2) {
-                    msg = '다소 큽니다. 직선이 좌우로 진동할 수 있습니다.';
+                    // 정규화 좌표에서 발산 임계값은 데이터 모양에 따라 대략 0.57~0.87이다.
+                    // 이 구간은 '진동만 하고 끝나는' 구간이 아니라 발산이 섞이는 구간이다.
+                    msg = '큽니다. 직선이 좌우로 진동하다가 발산할 수 있습니다.';
                     cls = 'text-base font-medium mt-2 leading-snug break-keep text-amber-400';
                 } else {
-                    msg = '너무 큽니다. 발산할 가능성이 높습니다.';
+                    msg = '너무 큽니다. 거의 항상 발산합니다.';
                     cls = 'text-base font-medium mt-2 leading-snug break-keep text-rose-400';
                 }
                 lrHint.innerText = msg;
@@ -636,14 +643,19 @@
 
             document.getElementById('btnTrain').addEventListener('click', () => {
                 if (this.dataManager.points.length < 2) return alert('데이터를 2개 이상 넣어주세요.');
-                if (!this.model.hasStarted) this.model.init();
+                // 발산한 뒤에는 w·b가 이미 한계값(1e6) 밖이라, 그대로 이어서 돌리면
+                // 학습률을 낮춰도 첫 스텝에서 다시 '발산'으로 판정된다.
+                // 안내 문구대로 학습률을 낮춰 다시 시도할 수 있도록 여기서 새로 시작한다.
+                if (!this.model.hasStarted || this.model.diverged) this.model.init();
                 this.model.hasStarted = true;
                 this.model.isTraining = true;
 
                 const btn = document.getElementById('btnTrain');
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>학습 중...';
                 btn.classList.replace('bg-blue-500', 'bg-blue-700');
+                btn.classList.remove('state-diverged', 'state-complete');
                 btn.disabled = true;
+                document.getElementById('btnPause').disabled = false;
 
                 this.loop();
             });

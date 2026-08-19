@@ -299,10 +299,10 @@
                             <label class="font-bold text-slate-700 text-sm">K (탐색할 이웃 수)</label>
                             <span id="kValueDisplay" class="font-black text-purple-600 text-2xl leading-none">3</span>
                         </div>
-                        <input type="range" id="kSlider" min="1" max="30" value="3" step="2"
+                        <input type="range" id="kSlider" min="1" max="29" value="3" step="2"
                                class="w-full accent-purple-600 mb-1.5 cursor-pointer">
                         <p class="text-base font-bold text-purple-500 text-center bg-purple-50 py-1.5 rounded break-keep leading-snug">
-                            ※ 슬라이더를 움직이면 즉시 재분류됩니다.</p>
+                            ※ K는 홀수(1~29)만 고를 수 있습니다. 슬라이더를 움직이면 즉시 재분류됩니다.</p>
                     </div>
                     <button id="btnStep" disabled
                             class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex items-center justify-center whitespace-nowrap">
@@ -344,7 +344,7 @@
                         </div>
                         <div id="flow-DONE"
                              class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 3 & 4</span>
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 3</span>
                             <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
                                 <i class="fa-solid fa-check-to-slot w-5 shrink-0"></i>다수결 투표 및 분류 완료
                             </div>
@@ -374,7 +374,8 @@
                 <p class="text-slate-300 text-xl mb-10 leading-relaxed font-medium break-keep text-center md:text-left">
                     시뮬레이터에서 득표수가 똑같이 나왔을 때 <span class="text-yellow-400 font-black tracking-wide">"(동점: 거리 우선)"</span>
                     이라는 메시지를 보셨나요?<br class="hidden md:block">
-                    K-NN 알고리즘은 다수결로 승부를 가리지 못할 때, 매우 합리적인 예외 처리(Edge Case Handling) 규칙을 사용합니다.
+                    다수결이 승부를 가리지 못했을 때 무엇을 고를지는 K-NN이 정해 주지 않습니다. 만드는 사람이 규칙을 하나 정해야 하고,
+                    구현마다 그 규칙이 다릅니다. 이 시뮬레이터는 아래 규칙을 씁니다.
                 </p>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -382,10 +383,10 @@
                         <div class="w-14 h-14 bg-purple-500/30 rounded-xl flex items-center justify-center text-3xl mb-5 text-purple-300 border border-purple-400/20">
                             <i class="fa-solid fa-scale-balanced"></i>
                         </div>
-                        <h3 class="text-2xl font-bold mb-3 text-white">거리 가중치 (1-NN Fallback)</h3>
+                        <h3 class="text-2xl font-bold mb-3 text-white">동점인 그룹 중 가장 가까운 이웃을 따른다</h3>
                         <p class="text-slate-300 text-lg leading-relaxed break-keep">
-                            득표수가 똑같다면, 동점인 그룹 중에서 <strong>'나와 가장 거리가 가까운 이웃'</strong>이 속한 그룹의 손을 들어줍니다. 즉, 다수결이 실패하면 가장
-                            친한 친구 1명의 의견을 따르는 셈이죠!
+                            득표수가 똑같다면, <strong>동점인 그룹들 안에서</strong> 나와 가장 가까운 이웃 한 명을 찾아 그 그룹의 손을 들어줍니다.
+                            동점에 끼지 못한 그룹은 그 그룹의 이웃이 아무리 가까이 있어도 이 판단에 끼어들지 않습니다.
                         </p>
                     </div>
 
@@ -756,6 +757,9 @@
             clearTimeout(autoRunTimer);
             autoRunTimer = null;
             btnRun.innerHTML = '<i class="fa-solid fa-play mr-2"></i> 자동 실행';
+            // 자동 실행을 멈추면 단계 실행을 다시 쓸 수 있어야 한다.
+            // (DONE에 도달해 멈춘 경우에는 호출한 쪽에서 곧바로 다시 잠근다.)
+            btnStep.disabled = false;
         }
     }
 

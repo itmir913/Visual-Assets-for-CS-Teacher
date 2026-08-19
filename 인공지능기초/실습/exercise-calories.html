@@ -4,126 +4,21 @@
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>운동 시간과 소모 칼로리 예측</title>
-    <link rel="stylesheet" href="/src/styles/ai-basics.css">
-    <style>
-        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
-           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
-        code, kbd, samp, pre,
-        body .font-mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
-            "Malgun Gothic", monospace;
-        }
-
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: "Pretendard Variable", Pretendard, sans-serif;
-            background-color: #f8fafc;
-        }
-
-        .hero-gradient {
-            background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
-        }
-
-        .sticky-nav {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.9);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-
-        .section-card {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 2rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0/0.05);
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-        }
-
-        .q-header {
-            background: #fff7ed;
-            border-left: 4px solid #f97316;
-            padding: 1rem 1.25rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .answer-block {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.75rem;
-            padding: 1.25rem 1.5rem;
-            line-height: 1.8;
-        }
-
-        .checklist-box {
-            background: #eff6ff;
-            border: 2px solid #3b82f6;
-            border-radius: 0.75rem;
-            padding: 1rem 1.25rem;
-        }
-
-        .two-col-answer {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        @media (max-width: 640px) {
-            .two-col-answer {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-    
-        /* 코드 블록이 좁은 화면에서 화면 밖으로 넘치는 것을 막는다.
-           white-space:pre 를 유지해 들여쓰기 원형을 보존하고, 넘치는 줄은
-           코드 블록 안에서만 가로로 스크롤된다. flex 자식일 때 정상적으로
-           줄어들도록 min-width:0 을 함께 준다. */
-        body pre {
-            overflow-x: auto;
-            max-width: 100%;
-            min-width: 0;
-        }
-    </style>
+    <link rel="stylesheet" href="/src/styles/ai-project.css">
 </head>
-<body class="text-slate-900">
+<body class="type-regression text-slate-900">
 
-<header class="hero-gradient text-white py-28 px-6 relative overflow-hidden" id="intro">
+<header class="hero-gradient text-white py-24 px-6 relative overflow-hidden" id="intro">
     <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
         <i class="fa-solid fa-dumbbell absolute top-10 left-10 text-8xl -rotate-12"></i>
         <i class="fa-solid fa-fire-flame-curved absolute bottom-10 right-10 text-9xl"></i>
     </div>
     <div class="max-w-4xl mx-auto text-center relative z-10">
         <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">기계학습 모델 구현 보고서</span>
-        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight break-keep">운동 시간과 소모 칼로리 예측</h1>
+        <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">운동 시간과 소모 칼로리 예측</h1>
         <p class="text-lg opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            지도학습 · 예측 (선형 회귀) · Orange<br>
-            <span class="text-base opacity-75">진로 연관: 스포츠 · 보건 · 피트니스</span>
+            30일치 내 운동 기록에서 직선 하나를 찾아내면,<br>
+            아직 해 보지 않은 운동 시간의 칼로리도 말할 수 있을까?
         </p>
     </div>
 </header>
@@ -131,156 +26,254 @@
 <div class="bg-white border-b border-slate-200 px-6 py-6">
     <div class="max-w-4xl mx-auto">
         <div class="flex flex-wrap justify-center gap-3">
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-full text-base font-bold text-orange-700">
-                <i class="fa-solid fa-brain"></i> 지도학습 · 선형 회귀
-            </span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full text-base font-bold text-amber-700">
-                <i class="fa-solid fa-toolbox"></i> 도구: Orange
-            </span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full text-base font-bold text-sky-700">
-                <i class="fa-solid fa-briefcase"></i> 스포츠 · 보건 · 피트니스
-            </span>
+            <span class="chip"><i class="fa-solid fa-brain"></i> 지도학습 · 예측 (선형 회귀)</span>
+            <span class="chip chip-neutral"><i class="fa-solid fa-toolbox"></i> 도구: 오렌지</span>
+            <span class="chip chip-neutral"><i class="fa-solid fa-briefcase"></i> 스포츠 · 보건 · 피트니스</span>
         </div>
-        <p class="text-slate-500 text-base text-center mt-3">💡 본 자료는 기계학습 모델 구현의 이해를 돕기 위해 제작된 예시 프로젝트입니다.
-            <br class="hidden lg:block">실습 및 모델 구현 시 전체적인 흐름을 파악하는 참고용으로 활용하시기 바랍니다.
+        <p class="text-slate-500 text-base text-center mt-4 leading-relaxed">
+            기계학습 모델 구현 보고서를 어떻게 쓰는지 보여 주는 <strong>예시 프로젝트</strong>입니다.
+            문항을 푸는 순서와 근거를 대는 방식을 참고하되, 내용은 자신의 프로젝트로 채웁니다.<br class="hidden lg:block">
+            <strong>표와 그래프의 숫자는 수업에서 원리를 확인하려고 지어낸 값</strong>이며 실제 측정값이 아닙니다.
         </p>
     </div>
 </div>
 
 <nav class="sticky-nav px-6 py-3">
-    <div class="max-w-6xl mx-auto flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow">
+    <div class="max-w-6xl mx-auto flex justify-between items-center gap-4">
+        <div class="flex items-center space-x-3 shrink-0">
+            <div class="w-9 h-9 brand-mark rounded-xl flex items-center justify-center text-white shadow">
                 <i class="fa-solid fa-chart-line text-base"></i>
             </div>
             <span class="font-black text-lg tracking-tight text-slate-800">칼로리 예측 모델</span>
         </div>
-        <div class="hidden md:flex space-x-4 text-base font-bold text-slate-500">
-            <a class="hover:text-orange-600 transition" href="#story">아이디어</a>
-            <a class="hover:text-orange-600 transition" href="#q1">문제정의</a>
-            <a class="hover:text-orange-600 transition" href="#q2">모델설명</a>
-            <a class="hover:text-orange-600 transition" href="#q3">유형·도구</a>
-            <a class="hover:text-orange-600 transition" href="#q4">데이터</a>
-            <a class="hover:text-orange-600 transition" href="#q5">학습결과</a>
-            <a class="hover:text-orange-600 transition" href="#q6">테스트</a>
-            <a class="hover:text-orange-600 transition" href="#q7">기대·개선</a>
-            <a class="hover:text-orange-600 transition" href="#q8">소감</a>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-base font-bold">
+            <a class="nav-link" href="#story">아이디어</a>
+            <a class="nav-link" href="#q1">문제정의</a>
+            <a class="nav-link" href="#q2">모델설명</a>
+            <a class="nav-link" href="#q3">유형·도구</a>
+            <a class="nav-link" href="#q4">데이터</a>
+            <a class="nav-link" href="#q5">학습결과</a>
+            <a class="nav-link" href="#q6">테스트</a>
+            <a class="nav-link" href="#q7">기대·개선</a>
+            <a class="nav-link" href="#q8">소감</a>
         </div>
     </div>
 </nav>
 
 <main class="max-w-6xl mx-auto px-6 py-16 space-y-10">
 
-    <!-- 기계학습 구현 보고서 -->
-    <section class="concept-card bg-indigo-50 p-6 md:p-8 shadow-sm border border-indigo-200 rounded-2xl">
+    <!-- 배부 양식 내려받기 -->
+    <section class="bg-indigo-50 p-6 md:p-8 shadow-sm border border-indigo-200 rounded-2xl">
         <div class="flex flex-col lg:flex-row items-center justify-between text-center lg:text-left gap-6 lg:gap-8">
             <div class="w-full lg:flex-1">
-                <h3 class="text-xl md:text-2xl font-bold text-indigo-900 mb-3 flex items-center justify-center lg:justify-start gap-2">
+                <h2 class="text-xl md:text-2xl font-bold text-indigo-900 mb-3 flex items-center justify-center lg:justify-start gap-2">
                     <i class="fa-solid fa-file-word text-indigo-600"></i>
-                    기계학습 모델 구현 보고서 예시 다운로드
-                </h3>
-                <p class="text-indigo-700 text-base md:text-lg leading-relaxed break-keep">
-                    기계학습 모델 구현 과정을 담은 보고서 예시 파일입니다. 다운로드하여 전반적인 작성 방법을 확인하고 본인의 프로젝트에 활용해 보세요.
+                    기계학습 모델 구현 보고서 예시 내려받기
+                </h2>
+                <p class="text-indigo-700 text-base md:text-lg leading-relaxed">
+                    이 페이지의 문항 1~8을 그대로 담은 보고서 파일입니다. 내려받아 작성 방법을 확인하고
+                    자신의 프로젝트로 바꾸어 채웁니다.
                 </p>
             </div>
             <div class="flex flex-wrap justify-center lg:justify-end gap-3 w-full lg:w-auto shrink-0">
                 <a href="docx/exercise-calories.docx"
                    download="[기계학습 모델 구현 보고서] 운동 시간과 소모 칼로리 예측.docx"
                    class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3.5 rounded-xl font-bold transition-all sm:hover:scale-105 shadow-md whitespace-nowrap text-base">
-                    <i class="fa-solid fa-download"></i> 예시 보고서 다운로드 (.docx)
+                    <i class="fa-solid fa-download"></i> 예시 보고서 내려받기 (.docx)
                 </a>
             </div>
         </div>
     </section>
 
-    <!-- 아이디어 스토리 -->
+    <!-- ── 아이디어 ─────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="story">
         <div class="mb-5">
             <h2 class="text-xl font-black text-slate-800 mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-route text-orange-500"></i>
+                <i class="fa-solid fa-route accent-ink"></i>
                 아이디어 발견부터 설계까지
             </h2>
             <p class="text-slate-500 text-base">이 모델은 어떤 계기로 만들게 됐을까? 왜 기계학습이 필요한지, 왜 하필 이 방법인지 사고의 흐름을 따라가 보자.</p>
         </div>
+
+        <figure class="mb-6">
+            <div class="overflow-x-auto pb-1">
+                <svg class="w-full h-auto mx-auto" viewBox="0 0 560 176" style="min-width:560px;max-width:560px"
+                     role="img" aria-label="기계학습 프로젝트의 다섯 단계: 문제 정의, 데이터 모으기, 유형·도구 고르기, 학습, 테스트·개선">
+                    <text x="280" y="22" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                        보고서 여덟 문항은 이 다섯 단계를 따라간다
+                    </text>
+
+                    <g>
+                        <rect x="10" y="40" width="94" height="88" rx="14" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                        <circle cx="57" cy="62" r="13" class="svg-accent"/>
+                        <text x="57" y="68" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">1</text>
+                        <text x="57" y="96" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">문제</text>
+                        <text x="57" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">정의</text>
+                    </g>
+                    <polygon points="108,78 120,84 108,90" fill="#94a3b8"/>
+
+                    <g>
+                        <rect x="122" y="40" width="94" height="88" rx="14" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                        <circle cx="169" cy="62" r="13" class="svg-accent"/>
+                        <text x="169" y="68" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">2</text>
+                        <text x="169" y="96" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">데이터</text>
+                        <text x="169" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">모으기</text>
+                    </g>
+                    <polygon points="220,78 232,84 220,90" fill="#94a3b8"/>
+
+                    <g>
+                        <rect x="234" y="40" width="94" height="88" rx="14" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                        <circle cx="281" cy="62" r="13" class="svg-accent"/>
+                        <text x="281" y="68" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">3</text>
+                        <text x="281" y="96" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">유형·도구</text>
+                        <text x="281" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">고르기</text>
+                    </g>
+                    <polygon points="332,78 344,84 332,90" fill="#94a3b8"/>
+
+                    <g>
+                        <rect x="346" y="40" width="94" height="88" rx="14" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                        <circle cx="393" cy="62" r="13" class="svg-accent"/>
+                        <text x="393" y="68" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">4</text>
+                        <text x="393" y="96" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">학습</text>
+                        <text x="393" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">시키기</text>
+                    </g>
+                    <polygon points="444,78 456,84 444,90" fill="#94a3b8"/>
+
+                    <g>
+                        <rect x="458" y="40" width="94" height="88" rx="14" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                        <circle cx="505" cy="62" r="13" class="svg-accent"/>
+                        <text x="505" y="68" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">5</text>
+                        <text x="505" y="96" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">테스트</text>
+                        <text x="505" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">개선</text>
+                    </g>
+
+                    <text x="10" y="154" font-size="17" fill="#475569">문항 1 · 2</text>
+                    <text x="122" y="154" font-size="17" fill="#475569">문항 4</text>
+                    <text x="234" y="154" font-size="17" fill="#475569">문항 3</text>
+                    <text x="346" y="154" font-size="17" fill="#475569">문항 5</text>
+                    <text x="458" y="154" font-size="17" fill="#475569">문항 6 · 7</text>
+                </svg>
+            </div>
+            <figcaption class="figure-cap">
+                문항 번호와 단계 번호가 나란히 가지 않는다. <strong>유형과 도구는 데이터를 본 다음에 고르는 것</strong>이라
+                보고서에서는 3번이지만 실제 작업은 데이터를 모은 뒤에 한다.
+            </figcaption>
+        </figure>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="flex gap-4 items-start p-4 bg-orange-50 rounded-xl border border-orange-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center font-black text-base">
-                    1
-                </div>
+            <div class="flex gap-4 items-start p-4 rounded-xl border border-sky-200 bg-sky-50">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-sky-500 text-white flex items-center justify-center font-black text-base">1</div>
                 <div>
-                    <p class="font-bold text-orange-700 text-lg mb-2 break-keep"><i
-                            class="fa-solid fa-lightbulb mr-1"></i> 어디서
-                        아이디어를 얻었나? — 실생활의 불편함</p>
-                    <p class="text-slate-700 text-base leading-relaxed">헬스장에서 운동을 끝내고 기기에 표시된 칼로리를 보는데, 같은 시간을 뛰어도 트레드밀과
-                        자전거가 서로 다른 수치를 보여줬다. '어떤 게 맞는 걸까?' 의심이 생겼고, 내 실제 운동 기록을 직접 쌓아서 나만의 패턴을 파악해보고 싶었다.</p>
+                    <p class="font-bold text-sky-800 text-lg mb-2"><i class="fa-solid fa-lightbulb mr-1"></i> 어디서 아이디어를 얻었나 — 실생활의 불편함</p>
+                    <p class="text-slate-700 text-base leading-relaxed">
+                        운동을 끝내고 기기에 뜬 칼로리를 봤는데, 같은 시간을 움직였는데도 트레드밀과 자전거가 서로 다른 수치를 보여 줬다.
+                        어느 쪽을 믿어야 할지 알 수 없어서, 내 기록을 직접 쌓아 나에게 맞는 기준을 만들어 보기로 했다.
+                    </p>
                 </div>
             </div>
-            <div class="flex gap-4 items-start p-4 bg-amber-50 rounded-xl border border-amber-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-base">
-                    2
-                </div>
+            <div class="flex gap-4 items-start p-4 rounded-xl border border-slate-200 bg-slate-50">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500 text-white flex items-center justify-center font-black text-base">2</div>
                 <div>
-                    <p class="font-bold text-amber-700 text-lg mb-2 break-keep"><i class="fa-solid fa-code mr-1"></i> 왜
-                        기계학습이
-                        필요한가? — 전통적 코딩의 한계</p>
-                    <p class="text-slate-700 text-base leading-relaxed">"운동 시간 × 8 = 칼로리"처럼 공식을 하나 만들면 되지 않을까? 하지만 사람마다
-                        체중·운동 강도·심박수가 달라 고정 계수를 쓰면 개인화가 안 된다. 내 기록 데이터를 직접 학습시키면 AI가 나에게 맞는 계수를 자동으로 찾아주기 때문에 기계학습이
-                        필요하다.</p>
+                    <p class="font-bold text-slate-800 text-lg mb-2"><i class="fa-solid fa-code mr-1"></i> 왜 기계학습인가 — 규칙을 직접 쓰기 어렵다</p>
+                    <p class="text-slate-700 text-base leading-relaxed">
+                        <code class="bg-white px-1.5 py-0.5 rounded border border-slate-300">칼로리 = 시간 × 8</code> 같은 식을 내가 정해서 쓸 수도 있다.
+                        그런데 <strong>8이라는 숫자는 어디서 나오는가?</strong> 사람마다 체중과 운동 강도가 달라 아무 수나 넣을 수 없다.
+                        기계학습은 그 숫자를 <strong>내 기록에서 직접 찾아 준다.</strong>
+                    </p>
                 </div>
             </div>
-            <div class="flex gap-4 items-start p-4 bg-teal-50 rounded-xl border border-teal-200">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-black text-base">
-                    3
-                </div>
+            <div class="flex gap-4 items-start p-4 rounded-xl border border-slate-200 bg-slate-50">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500 text-white flex items-center justify-center font-black text-base">3</div>
                 <div>
-                    <p class="font-bold text-teal-700 text-lg mb-2 break-keep"><i class="fa-solid fa-brain mr-1"></i> 왜
-                        예측(선형 회귀)인가? — 기계학습 방법 선택의 논리</p>
-                    <p class="text-slate-700 text-base leading-relaxed">예측하려는 값이 '몇 kcal'라는 연속적인 숫자다. '많이 탔다/적게 탔다'처럼
-                        범주를 나누는 것(분류)도 아니고, 비슷한 그룹을 묶는 것(군집)도 아니다. 칼로리 정답 수치가 데이터에 이미 있으므로 지도학습이고, 연속 수치를 추정하므로
-                        예측(선형 회귀)이 가장 적합하다.</p>
+                    <p class="font-bold text-slate-800 text-lg mb-2"><i class="fa-solid fa-brain mr-1"></i> 왜 예측인가 — 답의 생김새가 정한다</p>
+                    <p class="text-slate-700 text-base leading-relaxed">
+                        내가 얻고 싶은 답은 <strong>&lsquo;몇 kcal&rsquo;라는 하나의 숫자</strong>다.
+                        &lsquo;많이 탔다 / 적게 탔다&rsquo;는 칸으로 나누는 것이 아니고, 비슷한 날끼리 묶는 것도 아니다.
+                        <strong>얻고 싶은 답의 생김새</strong>가 방법을 정한다.
+                    </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Q1 -->
+    <!-- ── 문항 1 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q1">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 1. 문제 정의</p>
-            <p class="text-slate-600 text-base">실생활에서 AI로 해결하고자 하는 문제를 구체적으로 정의하시오. 어떤 불편함 또는 필요가 발생하는지 포함하여 서술하시오.</p>
+            <p class="q-number">문항 1. 문제 정의</p>
+            <p class="text-slate-600 text-base">실생활이나 학문 분야에서 인공지능으로 해결하고자 하는 문제를 구체적으로 정의하시오.
+                어떤 상황에서 어떤 불편함 또는 필요가 발생하는지를 포함하여 서술하시오.</p>
         </div>
         <div class="answer-block text-slate-700 text-base mb-4">
-            <p>헬스장에서 꾸준히 운동하고 있지만, 운동 후 실제로 칼로리를 얼마나 소모했는지 정확히 알기 어렵다. 운동 기기마다 계산 방식이 달라 신뢰하기 어렵고, 막연히 '많이 움직이면 많이 탄다'는
-                감각에만 의존해야 하는 불편함이 있다.</p>
-            <p class="mt-2">운동 시간(분)을 입력하면 소모 칼로리(kcal)를 자동으로 예측해주는 인공지능 모델을 만들어, 개인 맞춤형 운동 계획을 수립하는 데 활용하고자 한다.</p>
+            <p>운동을 꾸준히 하고 있지만 실제로 칼로리를 얼마나 소모했는지 알기 어렵다. 운동 기기마다 계산 방식이 달라 같은 시간을
+                움직여도 표시되는 수치가 다르고, 결국 &lsquo;많이 움직이면 많이 탄다&rsquo;는 감각에만 기대게 된다.</p>
+            <p class="mt-2">내 운동 기록을 학습시켜, <strong>운동 시간(분)을 넣으면 소모 칼로리(kcal)를 알려 주는 모델</strong>을
+                만들고자 한다. 목표 칼로리에 맞춰 운동 시간을 정하는 데 쓰는 것이 목적이다.</p>
         </div>
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 해결하고자 하는 문제가 실생활 또는 학문 분야와 연관되어 구체적으로 제시되어 있다.</li>
                 <li>☑ 문제가 발생하는 상황(불편함·필요성)이 명확하게 서술되어 있다.</li>
             </ul>
         </div>
     </section>
 
-    <!-- Q2 -->
+    <!-- ── 문항 2 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q2">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 2. 모델 설명 (입력 → 출력)</p>
-            <p class="text-slate-600 text-base">구현하려는 AI 모델이 어떤 데이터를 <strong>입력</strong>받아 어떤 결과를 <strong>출력</strong>하는지
-                구체적으로 서술하시오.</p>
+            <p class="q-number">문항 2. 모델 설명 (입력 → 출력)</p>
+            <p class="text-slate-600 text-base">구현하려는 인공지능 모델을 설명하시오. 이 모델은 어떤 데이터를 <strong>입력</strong>받아,
+                어떤 결과를 <strong>출력</strong>하는가? 입력과 출력을 중심으로 모델의 역할을 구체적으로 서술하시오.</p>
         </div>
         <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-1 mb-3">
-                <li><strong>■ 입력:</strong> 하루 운동 시간 (단위: 분)</li>
-                <li><strong>■ 출력:</strong> 예측 소모 칼로리 (단위: kcal)</li>
+            <ul class="space-y-1 mb-3 list-none pl-0">
+                <li><strong>■ 입력:</strong> 하루 운동 시간 (단위: 분) &mdash; 숫자 하나</li>
+                <li><strong>■ 출력:</strong> 예측 소모 칼로리 (단위: kcal) &mdash; 숫자 하나</li>
             </ul>
-            <p>과거의 운동 기록 데이터를 학습하여, 새로운 운동 시간이 주어지면 해당 시간 동안 소모될 칼로리를 수치로 예측한다. 운동 시간이 길어질수록 소모 칼로리도 선형적으로 증가하는 패턴을
-                포착한다.</p>
+            <p>지난 운동 기록으로 <strong>시간과 칼로리 사이를 지나는 직선 하나</strong>를 찾아 두고, 새로운 운동 시간이 들어오면
+                그 직선 위의 높이를 답으로 내놓는다. 모델이 학습하는 것은 칼로리 값 자체가 아니라 <strong>직선의 기울기와 높이</strong>다.</p>
         </div>
+
+        <figure class="mb-4">
+            <div class="overflow-x-auto pb-1">
+                <svg class="w-full h-auto mx-auto" viewBox="0 0 560 200" style="min-width:560px;max-width:560px"
+                     role="img" aria-label="입력 45분이 학습된 직선을 지나 출력 314 kcal가 되는 과정">
+                    <text x="280" y="24" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                        숫자 하나가 들어가서 숫자 하나가 나온다
+                    </text>
+
+                    <rect x="8" y="52" width="152" height="104" rx="14" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                    <text x="84" y="80" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">입력</text>
+                    <text x="84" y="108" text-anchor="middle" font-size="17" fill="#334155">운동 시간</text>
+                    <text x="84" y="138" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">45분</text>
+
+                    <line x1="166" y1="104" x2="184" y2="104" stroke="#94a3b8" stroke-width="2"/>
+                    <polygon points="184,98 194,104 184,110" fill="#94a3b8"/>
+
+                    <rect x="196" y="44" width="168" height="120" rx="14" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                    <text x="280" y="72" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">학습된 모델</text>
+                    <line x1="216" y1="86" x2="344" y2="86" stroke="#e2e8f0" stroke-width="2"/>
+                    <text x="280" y="112" text-anchor="middle" font-size="17" fill="#334155">칼로리 =</text>
+                    <text x="280" y="140" text-anchor="middle" font-size="18" font-weight="700" class="svg-accent-deep">7.2 × 시간 − 10</text>
+
+                    <line x1="366" y1="104" x2="384" y2="104" stroke="#94a3b8" stroke-width="2"/>
+                    <polygon points="384,98 394,104 384,110" fill="#94a3b8"/>
+
+                    <rect x="396" y="52" width="156" height="104" rx="14" class="svg-accent" stroke="none"/>
+                    <text x="474" y="80" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">출력</text>
+                    <text x="474" y="108" text-anchor="middle" font-size="17" fill="#f0f9ff">예측 칼로리</text>
+                    <text x="474" y="138" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff">314 kcal</text>
+
+                    <text x="280" y="188" text-anchor="middle" font-size="17" fill="#64748b">
+                        학습이 정한 것은 가운데 상자의 7.2와 −10, 두 개뿐이다
+                    </text>
+                </svg>
+            </div>
+        </figure>
+
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 만들고자 하는 모델의 입력 데이터(종류·형태)가 명확히 제시되어 있다.</li>
                 <li>☑ 모델이 출력하는 결과(레이블·수치·군집 등)가 구체적으로 서술되어 있다.</li>
                 <li>☑ 입력과 출력을 통해 모델의 역할이 명확하게 드러난다.</li>
@@ -288,23 +281,81 @@
         </div>
     </section>
 
-    <!-- Q3 -->
+    <!-- ── 문항 3 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q3">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 3. 기계학습 유형 및 구현 도구 선택</p>
-            <p class="text-slate-600 text-base">①&nbsp;기계학습 유형(지도/비지도)을 선택하고 이유를 설명하시오. ②&nbsp;구현 도구를 선택하고 그 이유를
-                서술하시오.</p>
+            <p class="q-number">문항 3. 기계학습 유형 및 구현 도구 선택</p>
+            <p class="text-slate-600 text-base">위에서 구상한 모델을 구현하기 위해 아래 ①, ② 순서대로 선택하고 그 이유를 서술하시오.
+                <strong>① 기계학습 유형</strong> &mdash; 지도학습과 비지도학습 중 이 모델에 적합한 유형을 선택하고, 분류·군집·예측 등의 개념을 활용하여 그 이유를 설명하시오.
+                <strong>② 구현 도구</strong> &mdash; ①에서 선택한 유형을 구현하기 위해 티처블머신·코랩·오렌지 중 어떤 도구를 선택했는지 밝히고, 그 이유를 서술하시오.</p>
         </div>
+
+        <figure class="mb-5">
+            <div class="overflow-x-auto pb-1">
+                <svg class="w-full h-auto mx-auto" viewBox="0 0 560 374" style="min-width:560px;max-width:560px"
+                     role="img" aria-label="기계학습 유형을 고르는 판단 나무. 정답 유무로 지도·비지도를 가르고, 출력이 숫자인지 범주인지로 예측과 분류를 가른다">
+                    <text x="280" y="22" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+                        유형은 취향이 아니라 두 번의 질문으로 정해진다
+                    </text>
+
+                    <rect x="150" y="38" width="260" height="64" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                    <text x="280" y="64" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">데이터에 정답(레이블)이</text>
+                    <text x="280" y="88" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">함께 들어 있는가?</text>
+
+                    <path d="M 190 102 L 130 128" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                    <path d="M 370 102 L 430 128" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                    <text x="140" y="120" text-anchor="end" font-size="17" font-weight="700" fill="#64748b">아니오</text>
+                    <text x="420" y="120" text-anchor="start" font-size="17" font-weight="700" fill="#64748b">예</text>
+
+                    <rect x="50" y="130" width="160" height="50" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="130" y="161" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">비지도학습</text>
+                    <line x1="130" y1="180" x2="130" y2="210" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="50" y="210" width="160" height="50" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="130" y="241" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">군집</text>
+
+                    <rect x="350" y="130" width="160" height="50" rx="12" class="svg-accent-soft" stroke="#bae6fd" stroke-width="2"/>
+                    <text x="430" y="161" text-anchor="middle" font-size="17" font-weight="700" class="svg-accent-deep">지도학습</text>
+                    <line x1="430" y1="180" x2="430" y2="200" stroke="#94a3b8" stroke-width="2"/>
+
+                    <rect x="300" y="200" width="240" height="56" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+                    <text x="420" y="234" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">출력이 숫자인가, 칸인가?</text>
+
+                    <path d="M 350 256 L 320 288" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                    <path d="M 490 256 L 500 288" stroke="#94a3b8" stroke-width="2" fill="none"/>
+                    <text x="308" y="280" text-anchor="end" font-size="17" font-weight="700" fill="#64748b">숫자</text>
+                    <text x="512" y="280" text-anchor="start" font-size="17" font-weight="700" fill="#64748b">칸</text>
+
+                    <rect x="228" y="288" width="180" height="70" rx="12" class="svg-accent" stroke="none"/>
+                    <text x="318" y="316" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">예측 (회귀)</text>
+                    <text x="318" y="342" text-anchor="middle" font-size="17" fill="#ffffff">← 이 프로젝트</text>
+
+                    <rect x="428" y="288" width="112" height="70" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="484" y="329" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">분류</text>
+                </svg>
+            </div>
+            <figcaption class="figure-cap">
+                이 나무의 잎 세 개가 실습 보고서 일곱 편이 앉는 자리다. 같은 나무에서 갈라져 나왔다는 것이 보이면
+                <strong>&lsquo;왜 이 방법인가&rsquo;에 답할 수 있다.</strong>
+            </figcaption>
+        </figure>
+
         <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="font-semibold text-slate-800 mb-1">① 기계학습 유형: 지도학습 — 예측 (선형 회귀)</p>
-            <p class="mb-3">운동 시간(연속형 수치)을 입력받아 칼로리(연속형 수치)를 출력하는 것이므로, '분류'처럼 범주를 나누는 것이 아니라 수치를 추정하는 '예측' 모델이 적합하다. 정답
-                레이블(칼로리 수치)이 포함된 데이터로 학습하기 때문에 지도학습에 해당한다.</p>
-            <p class="font-semibold text-slate-800 mb-1">② 구현 도구: Orange</p>
-            <p>CSV 파일을 불러와 선형 회귀 분석과 산점도 시각화를 코딩 없이 노드 연결만으로 구현할 수 있다. 회귀선을 시각적으로 바로 확인할 수 있어 결과 해석이 직관적이다.</p>
+            <p class="font-semibold text-slate-800 mb-1">① 기계학습 유형: 지도학습 &mdash; 예측 (선형 회귀)</p>
+            <p class="mb-2">모아 둔 운동 기록에는 <strong>그날 실제로 소모한 칼로리가 함께 적혀 있다.</strong> 정답이 붙어 있으므로 지도학습이다.
+                그리고 내놓아야 할 답이 <strong>연속된 숫자</strong>이므로, 칸을 고르는 분류가 아니라 수치를 맞히는 예측을 쓴다.</p>
+            <p class="mb-3 text-slate-600"><strong>다른 방법이 아닌 이유</strong> &mdash;
+                <span class="font-semibold">분류</span>로 하려면 칼로리를 &lsquo;적음·보통·많음&rsquo; 같은 칸으로 미리 잘라야 하는데,
+                어디서 자를지 내가 정해야 하고 자르는 순간 정보가 사라진다.
+                <span class="font-semibold">군집</span>은 정답을 쓰지 않고 비슷한 날끼리 묶는 방법이라, 이미 갖고 있는 칼로리 정답을 버리게 된다.</p>
+            <p class="font-semibold text-slate-800 mb-1">② 구현 도구: 오렌지(Orange)</p>
+            <p>표 형태의 CSV를 그대로 읽어 들이고, 선형 회귀와 산점도를 <strong>블록을 잇는 것만으로</strong> 만들 수 있다.
+                회귀선이 데이터 위에 바로 겹쳐 보이므로 결과를 눈으로 확인하기 쉽다.
+                티처블머신은 사진·소리를 다루는 도구라 표 데이터에는 맞지 않고, 코랩은 같은 일을 할 수 있지만 코드를 직접 써야 해서
+                이번 목적에는 과하다.</p>
         </div>
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 지도학습 또는 비지도학습 중 하나를 명확히 선택하였다.</li>
                 <li>☑ 분류·군집·예측 등의 개념을 활용하여 유형 선택 이유가 논리적으로 서술되어 있다.</li>
                 <li>☑ 구현 도구를 선택하고 그 이유가 기계학습 유형과 연결되어 설명되어 있다.</li>
@@ -312,31 +363,48 @@
         </div>
     </section>
 
-    <!-- Q4 -->
+    <!-- ── 문항 4 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q4">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 4. 데이터 설명</p>
-            <p class="text-slate-600 text-base">모델 학습에 사용한 데이터의 출처·유형·수량·특성을 작성하고, 필요한 경우 스크린샷을 첨부하시오.</p>
+            <p class="q-number">문항 4. 데이터 설명</p>
+            <p class="text-slate-600 text-base">모델 학습에 사용한 데이터를 설명하시오. 데이터의 출처·유형·수량·특성 등을 작성하고,
+                필요한 경우 스크린샷을 첨부하시오.</p>
         </div>
         <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-1 mb-3">
-                <li>• <strong>출처:</strong> 삼성헬스 앱 운동 기록 내보내기 (직접 수집)</li>
+            <ul class="space-y-1 mb-3 list-none pl-0">
+                <li>• <strong>출처:</strong> 스마트폰 건강 앱의 운동 기록 내보내기 (직접 수집)</li>
                 <li>• <strong>유형:</strong> 수치형 정형 데이터 (CSV, 2개 열)</li>
                 <li>• <strong>수량:</strong> 30일간의 유산소 운동 기록 (30행)</li>
+                <li>• <strong>범위:</strong> 운동 시간 20분 ~ 75분 &mdash; <strong>이 범위를 적어 두는 것이 중요하다</strong></li>
             </ul>
-            <pre class="bg-slate-100 rounded-lg p-3 text-base overflow-x-auto leading-relaxed">운동 시간(분) | 소모 칼로리(kcal)
+            <pre class="bg-slate-100 rounded-lg p-3 text-base leading-relaxed">운동 시간(분) | 소모 칼로리(kcal)
 ─────────────┼──────────────────
-20           | 148
-35           | 261
-50           | 375
-60           | 445
-75           | 558
+20           | 122
+35           | 254
+50           | 350
+60           | 434
+75           | 518
 (이하 25행 생략 / 전체 30행)</pre>
-            <p class="mt-3 text-slate-500 text-base">※ 스크린샷: 삼성헬스 앱 데이터 내보내기 화면 및 Orange CSV 로드 화면 [실제 수행평가 시 첨부]</p>
+            <p class="mt-3 text-slate-500 text-base">※ 스크린샷: 건강 앱 기록 내보내기 화면 및 오렌지 CSV 불러오기 화면 [실제 수행평가 시 첨부]</p>
         </div>
+
+        <div class="warn-box text-base text-slate-700 mb-4">
+            <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 데이터를 모을 때 놓치기 쉬운 것</p>
+            <ul class="space-y-1.5 list-disc list-outside pl-5">
+                <li><strong>범위가 곧 모델의 사정거리다.</strong> 20~75분만 모았다면 이 모델은 그 바깥을 모른다.
+                    120분을 물어봐도 답은 나오지만, 그 답을 믿을 근거는 데이터에 없다.</li>
+                <li><strong>한쪽에 몰린 기록은 직선을 기울인다.</strong> 30일 중 25일이 30분대라면 사실상 30분 근처만 학습한 셈이다.
+                    시간대를 고르게 흩어 두어야 한다.</li>
+                <li><strong>다른 조건이 섞이면 원인을 가릴 수 없다.</strong> 같은 30분이라도 걷기와 달리기는 다르다.
+                    기록을 모을 때 운동 종류를 한 가지로 고정하거나, 최소한 어떤 운동이었는지 함께 적어 둔다.</li>
+                <li><strong>남의 기록을 가져다 쓸 때는 출처와 이용 조건을 확인한다.</strong> 공개 데이터셋이라도
+                    라이선스가 붙어 있고, 사람에 관한 기록이면 누구의 것인지 알 수 없게 되어 있어야 한다.</li>
+            </ul>
+        </div>
+
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 데이터의 출처(직접 촬영·공개 데이터셋·직접 수집 등)가 명시되어 있다.</li>
                 <li>☑ 데이터의 유형(이미지·텍스트·수치 등)과 수량이 구체적으로 서술되어 있다.</li>
                 <li>☑ 학습에 사용된 데이터 화면 또는 데이터 목록 스크린샷이 첨부되어 있다.</li>
@@ -344,24 +412,116 @@
         </div>
     </section>
 
-    <!-- Q5 -->
+    <!-- ── 문항 5 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q5">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 5. 학습 결과</p>
-            <p class="text-slate-600 text-base">모델을 학습시킨 결과를 서술하시오. 학습 완료 화면 또는 학습 결과(정확도·손실 등)를 스크린샷으로 첨부하고 의미를
-                설명하시오.</p>
+            <p class="q-number">문항 5. 학습 결과</p>
+            <p class="text-slate-600 text-base">수집한 데이터로 모델을 학습시킨 결과를 서술하시오. 학습이 완료된 화면 또는 학습 결과를
+                스크린샷으로 첨부하고, 수치나 지표를 포함하여 결과의 의미를 간략히 설명하시오.</p>
         </div>
+
+        <div class="note-box text-base text-slate-700 mb-4">
+            <p class="font-bold accent-ink mb-2"><i class="fa-solid fa-diagram-project mr-1"></i> 이 결과를 직접 만들어 보려면 &mdash; 오렌지에서 잇는 순서</p>
+            <ol class="step-list text-base">
+                <li><strong>File</strong> 블록을 놓고 운동 기록 CSV를 불러온다.</li>
+                <li>열 설정에서 <strong>소모 칼로리를 target</strong>으로, 운동 시간을 feature로 지정한다.
+                    이것을 빠뜨리면 무엇을 맞혀야 하는지 모델이 알 수 없다.</li>
+                <li><strong>Scatter Plot</strong>을 이어 점이 어떻게 흩어져 있는지 먼저 눈으로 본다.
+                    <strong>직선으로 보이지 않으면 선형 회귀를 쓸 자리가 아니다.</strong></li>
+                <li><strong>Linear Regression</strong>과 <strong>Test and Score</strong>를 잇고, 교차 검증을 켜서 R²와 평균 오차를 읽는다.</li>
+                <li><strong>Predictions</strong>에 새 값을 넣어 실제로 답이 나오는지 확인한다.</li>
+            </ol>
+            <p class="mt-2 text-slate-600">이 상자는 보고서에 쓰는 답이 아니라 <strong>따라 해 보라는 안내</strong>다.</p>
+        </div>
+
         <div class="answer-block text-slate-700 text-base mb-4">
-            <ul class="space-y-2 mb-3">
-                <li>• 산점도에서 데이터 점들이 회귀선 근처에 촘촘하게 모여 있어 운동 시간과 칼로리 사이에 강한 선형 관계임을 시각적으로 확인</li>
-                <li>• 학습된 회귀식: <strong>칼로리 = 7.3 × 운동 시간 − 14.2</strong></li>
-                <li>• 평균적으로 약 13 kcal 오차 범위 내에서 예측 → 실용적으로 충분한 정확도</li>
+            <ul class="space-y-2 mb-3 list-disc list-outside pl-5">
+                <li>산점도에서 점들이 한 줄로 늘어서 있어 <strong>시간이 긴 날일수록 칼로리도 큰 값으로 기록되어 있음</strong>을 눈으로 확인했다.</li>
+                <li>학습된 회귀식: <strong class="accent-ink">칼로리 = 7.2 × 운동 시간 &minus; 10</strong></li>
+                <li>R&sup2; = 0.97 / 평균 절대 오차 약 12 kcal</li>
+                <li>식의 &minus;10은 &lsquo;0분일 때의 칼로리&rsquo;가 아니라 <strong>선의 높이를 맞춰 준 숫자</strong>다.
+                    0분은 기록이 없는 자리이므로 이 값은 해석하지 않는다.</li>
+                <li>R&sup2; 0.97은 <strong>학습에 쓴 20~75분 구간에 붙은 점수</strong>이며, 그 바깥까지 보장하지 않는다.</li>
             </ul>
-            <p class="text-slate-500 text-base">※ 스크린샷: Orange 회귀선 산점도 및 Test and Score 결과 화면 [실제 수행평가 시 첨부]</p>
+            <p class="text-slate-500 text-base">※ 스크린샷: 오렌지 회귀선 산점도 및 Test and Score 결과 화면 [실제 수행평가 시 첨부]</p>
         </div>
+
+        <div class="note-box text-base text-slate-700 mb-4">
+            <p class="font-bold accent-ink mb-2"><i class="fa-solid fa-circle-question mr-1"></i> R&sup2;와 평균 절대 오차는 무엇을 재는 숫자인가</p>
+            <p class="mb-2"><strong>평균 절대 오차 12 kcal</strong> &mdash; 예측값이 실제 기록에서 평균 12 kcal쯤 빗나간다는 뜻이다.
+                단위가 kcal이라 &lsquo;얼마나 틀리는가&rsquo;를 바로 가늠할 수 있다.</p>
+            <p class="mb-2"><strong>R&sup2; = 0.97</strong> &mdash; 날마다 오르내리는 칼로리 값의 <strong>97%를 운동 시간만으로 설명할 수 있다</strong>는 뜻이다.
+                1에 가까울수록 직선이 점들을 잘 지나간다.</p>
+            <p class="text-slate-600"><strong>다만 R&sup2;가 높다는 것이 &lsquo;예측이 항상 맞는다&rsquo;는 뜻은 아니다.</strong>
+                R&sup2;는 <strong>학습에 쓴 데이터 안에서</strong> 직선이 얼마나 잘 맞는지를 잰다. 그 바깥에서도 맞을지는 이 숫자가 말해 주지 않는다.</p>
+        </div>
+
+        <figure class="mb-4">
+            <div class="overflow-x-auto pb-1">
+                <svg class="w-full h-auto mx-auto" viewBox="0 0 560 366" style="min-width:560px;max-width:560px"
+                     role="img" aria-label="운동 시간과 칼로리 산점도. 20~75분은 학습한 구간, 그 바깥은 학습하지 않은 구간이며 120분에서 예측과 실제가 크게 벌어진다">
+                    <text x="75" y="26" font-size="17" font-weight="700" fill="#334155">소모 칼로리(kcal)</text>
+
+                    <rect x="145" y="60" width="192.5" height="240" fill="#f0f9ff"/>
+                    <rect x="337.5" y="60" width="192.5" height="240" fill="#fff7ed"/>
+
+                    <text x="241" y="54" text-anchor="middle" font-size="17" font-weight="700" fill="#0369a1">학습한 구간</text>
+                    <text x="434" y="54" text-anchor="middle" font-size="17" font-weight="700" fill="#c2410c">학습하지 않은 구간</text>
+
+                    <line x1="75" y1="60" x2="75" y2="300" stroke="#94a3b8" stroke-width="2"/>
+                    <line x1="75" y1="300" x2="530" y2="300" stroke="#94a3b8" stroke-width="2"/>
+
+                    <line x1="70" y1="220" x2="530" y2="220" stroke="#e2e8f0" stroke-width="1"/>
+                    <line x1="70" y1="140" x2="530" y2="140" stroke="#e2e8f0" stroke-width="1"/>
+                    <line x1="70" y1="60" x2="530" y2="60" stroke="#e2e8f0" stroke-width="1"/>
+                    <text x="64" y="306" text-anchor="end" font-size="17" fill="#64748b">0</text>
+                    <text x="64" y="226" text-anchor="end" font-size="17" fill="#64748b">300</text>
+                    <text x="64" y="146" text-anchor="end" font-size="17" fill="#64748b">600</text>
+                    <text x="64" y="66" text-anchor="end" font-size="17" fill="#64748b">900</text>
+
+                    <text x="75" y="324" text-anchor="middle" font-size="17" fill="#64748b">0</text>
+                    <text x="180" y="324" text-anchor="middle" font-size="17" fill="#64748b">30</text>
+                    <text x="285" y="324" text-anchor="middle" font-size="17" fill="#64748b">60</text>
+                    <text x="390" y="324" text-anchor="middle" font-size="17" fill="#64748b">90</text>
+                    <text x="495" y="324" text-anchor="middle" font-size="17" fill="#64748b">120</text>
+                    <text x="302" y="352" text-anchor="middle" font-size="17" font-weight="700" fill="#334155">운동 시간(분)</text>
+
+                    <line x1="75" y1="302.7" x2="145" y2="264.3" stroke="#0ea5e9" stroke-width="2" stroke-dasharray="2 4"/>
+                    <line x1="145" y1="264.3" x2="337.5" y2="158.7" stroke="#0284c7" stroke-width="4"/>
+                    <line x1="337.5" y1="158.7" x2="530" y2="53" stroke="#f97316" stroke-width="3" stroke-dasharray="8 6"/>
+
+                    <circle cx="145" cy="267.5" r="6" fill="#0369a1"/>
+                    <circle cx="197.5" cy="232.3" r="6" fill="#0369a1"/>
+                    <circle cx="250" cy="206.7" r="6" fill="#0369a1"/>
+                    <circle cx="285" cy="184.2" r="6" fill="#0369a1"/>
+                    <circle cx="337.5" cy="161.9" r="6" fill="#0369a1"/>
+
+                    <line x1="495" y1="72.3" x2="495" y2="116" stroke="#dc2626" stroke-width="2"/>
+                    <circle cx="495" cy="72.3" r="7" fill="#ffffff" stroke="#f97316" stroke-width="3"/>
+                    <circle cx="495" cy="116" r="7" fill="#dc2626"/>
+                    <text x="482" y="70" text-anchor="end" font-size="17" font-weight="700" fill="#c2410c">식이 말한 854</text>
+                    <text x="482" y="122" text-anchor="end" font-size="17" font-weight="700" fill="#b91c1c">실제 690</text>
+                </svg>
+            </div>
+            <figcaption class="figure-cap">
+                파란 굵은 선은 <strong>기록이 있는 20~75분 구간</strong>이고, 주황 점선은 <strong>그 선을 그냥 늘여 놓은 것</strong>이다.
+                점선 구간에는 이 선이 맞다고 볼 근거가 하나도 없다.
+            </figcaption>
+        </figure>
+
+        <div class="warn-box text-base text-slate-700 mb-4">
+            <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 식의 &minus;10은 &lsquo;가만히 있어도 &minus;10 kcal&rsquo;라는 뜻이 아니다</p>
+            <p class="mb-2">식에 운동 시간 0분을 넣으면 &minus;10 kcal가 나온다. 하지만 <strong>칼로리가 음수로 소모되는 일은 없다.</strong>
+                모순처럼 보이는 이 숫자는 실은 아주 평범한 것이다.</p>
+            <p class="mb-2">&minus;10은 <strong>&lsquo;기본으로 깔리는 칼로리&rsquo;가 아니라 20~75분 구간의 점들을 가장 잘 지나가도록
+                선의 높이를 맞춰 준 숫자</strong>다. 0분은 <strong>기록이 하나도 없는 자리</strong>이고, 거기까지 선을 늘였을 때 나오는 값일 뿐이다.</p>
+            <p class="text-slate-600">그래서 <strong>절편을 해석할 때는 x=0이 실제로 있을 수 있는 상황인지 먼저 본다.</strong>
+                없는 상황이라면 그 값은 해석하지 않는다.</p>
+        </div>
+
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 학습이 완료된 모델 화면 또는 학습 결과 스크린샷이 첨부되어 있다.</li>
                 <li>☑ 모델의 학습 결과를 확인할 수 있는 수치나 지표가 언급되어 있다.</li>
                 <li>☑ 학습 결과의 의미(모델이 잘 학습되었는지 여부 등)가 서술되어 있다.</li>
@@ -369,63 +529,84 @@
         </div>
     </section>
 
-    <!-- Q6 -->
+    <!-- ── 문항 6 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q6">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 6. 테스트 및 결과 분석</p>
-            <p class="text-slate-600 text-base">학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오. 예상 결과와 실제 결과를 비교하고, 차이가 있다면 원인을
-                분석하시오.</p>
+            <p class="q-number">문항 6. 테스트 및 결과 분석</p>
+            <p class="text-slate-600 text-base">학습된 모델에 새로운 데이터를 직접 입력하여 성능을 테스트하시오.
+                테스트 전 예상했던 결과와 실제 결과를 비교하고, 차이가 발생했다면 그 원인을 분석하시오.</p>
         </div>
         <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 1</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 45분</li>
-                <li>예상: 약 314 kcal (= 7.3 × 45 − 14.2)</li>
-                <li>실제 출력: 315 kcal → 오차 1 kcal, 예상과 거의 일치</li>
+            <p class="font-semibold text-slate-800 mb-1">■ 테스트 1 &mdash; 학습 범위 안 (45분)</p>
+            <ul class="space-y-0.5 mb-3 list-none pl-2">
+                <li>예상: 약 314 kcal (= 7.2 × 45 &minus; 10)</li>
+                <li>실제 기록: 302 kcal</li>
+                <li>차이: 12 kcal &mdash; 평균 절대 오차와 비슷한 정도. <strong>예상대로 맞았다.</strong></li>
             </ul>
-            <p class="font-semibold text-slate-800 mb-1">■ 테스트 2</p>
-            <ul class="space-y-0.5 mb-3 pl-2">
-                <li>입력: 90분 (학습 데이터보다 더 긴 시간)</li>
-                <li>예상: 약 643 kcal</li>
-                <li>실제 출력: 648 kcal → 오차 5 kcal 이내, 신뢰 가능</li>
+            <p class="font-semibold text-slate-800 mb-1">■ 테스트 2 &mdash; 학습 범위 밖 (120분)</p>
+            <ul class="space-y-0.5 mb-3 list-none pl-2">
+                <li>예상: 약 854 kcal (= 7.2 × 120 &minus; 10)</li>
+                <li>실제 기록: 690 kcal</li>
+                <li>차이: <strong>164 kcal</strong> &mdash; 테스트 1의 열세 배가 넘는다. <strong>예상이 크게 빗나갔다.</strong></li>
             </ul>
             <p class="font-semibold text-slate-800 mb-1">■ 분석</p>
-            <p>운동 강도 차이(가벼운 걷기 vs 고강도 달리기)는 현재 모델에 반영되지 않아, 동일 시간이라도 실제 소모량은 달라질 수 있다. 다만 평균적인 유산소 운동 기준으로는 예측이 비교적
-                정확하다.</p>
+            <p class="mb-2">두 테스트의 차이를 가른 것은 <strong>모델의 성능이 아니라 물어본 자리</strong>다.
+                45분은 20~75분 안이라 비슷한 기록이 여러 날 있었지만, <strong>120분짜리 기록은 학습 데이터에 한 건도 없었다.</strong>
+                모델은 그 구간을 배운 적이 없으면서도 직선을 그대로 늘여 답을 내놓았다.</p>
+            <p class="mb-2">실제로 두 시간을 움직이면 <strong>뒤로 갈수록 속도가 떨어져 분당 소모량이 줄어든다.</strong>
+                점들은 완만하게 눕는 곡선을 그리는데, 직선은 그 사실을 알 방법이 없다.</p>
+            <p>즉 R&sup2; 0.97은 <strong>20~75분 구간에 한해 붙은 점수</strong>였다.
+                모델을 쓸 때는 성능 지표만 볼 것이 아니라 <strong>지금 묻는 값이 학습 범위 안인지 먼저 확인해야 한다.</strong></p>
         </div>
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 학습에 사용하지 않은 새로운 데이터로 테스트를 수행하였다.</li>
                 <li>☑ 테스트 전 예상 결과와 실제 결과가 모두 서술되어 있다.</li>
-                <li>☑ 예상과 실제 사이에 차이가 있다면 그 원인이 분석되어 있다.</li>
+                <li>☑ 예상과 실제 사이에 차이가 있다면 그 원인이 분석되어 있다. (차이가 없으면 이유 서술)</li>
             </ul>
         </div>
     </section>
 
-    <!-- Q7 -->
+    <!-- ── 문항 7 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q7">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 7. 기대 효과 및 개선 사항</p>
-            <p class="text-slate-600 text-base">이 모델을 관심 분야에 적용했을 때 기대 효과를 서술하고, 현재 모델의 한계와 개선 방향을 제시하시오.</p>
+            <p class="q-number">문항 7. 기대 효과 및 개선 사항</p>
+            <p class="text-slate-600 text-base"><strong>기대 효과</strong> &mdash; 이 모델을 자신의 관심 분야(예: 의료·환경·스포츠 등)에
+                적용한다면 어떤 효과를 기대할 수 있는지 서술하시오.
+                <strong>개선 사항</strong> &mdash; 현재 모델의 한계를 바탕으로, 성능을 향상시키기 위해 필요한 개선사항을 구체적으로 서술하시오.</p>
         </div>
         <div class="two-col-answer mb-4">
             <div class="answer-block text-slate-700 text-base">
-                <p class="font-bold text-orange-700 mb-2">기대 효과</p>
+                <p class="font-bold accent-ink mb-2">기대 효과</p>
                 <p class="mb-2"><strong>관심 분야:</strong> 스포츠 · 보건</p>
-                <p class="mb-2">퍼스널 트레이너가 회원의 목표 칼로리를 입력하면 필요한 운동 시간을 역산하는 방식으로 활용할 수 있다.</p>
-                <p>학교 체육 시간에 학생별 적정 운동량 처방, 피트니스 앱에 내장하여 개인 맞춤 운동 알림 기능을 제공하는 서비스로 발전시킬 수 있다.</p>
+                <p class="mb-2">식을 거꾸로 풀면 <strong>목표 칼로리에서 필요한 운동 시간을 역산</strong>할 수 있다.
+                    300 kcal를 태우려면 약 43분이 필요하다는 식이다.</p>
+                <p>기기가 알려 주는 값을 그대로 믿는 대신 <strong>내 기록으로 만든 기준</strong>을 갖게 된다는 것이
+                    이 모델의 진짜 쓸모다.</p>
             </div>
             <div class="answer-block text-slate-700 text-base">
-                <p class="font-bold text-orange-700 mb-2">개선 사항</p>
-                <p class="mb-2"><strong>현재 모델의 한계:</strong> 운동 시간 하나만 변수로 사용하여 운동 종류(달리기·수영·근력), 체중, 연령 차이를 전혀 반영하지 못한다.
-                </p>
-                <p><strong>개선 방향:</strong> 운동 종류·체중을 추가 특성으로 포함한 다중 선형 회귀로 확장하거나, 개인별 데이터를 따로 학습시켜 개인화 모델을 만들 수 있다.</p>
+                <p class="font-bold accent-ink mb-2">개선 사항</p>
+                <p class="mb-2"><strong>한계:</strong> 변수가 운동 시간 하나뿐이라 운동 종류·강도·체중이 전혀 반영되지 않는다.
+                    그리고 <strong>학습 범위인 20~75분 밖에서는 믿을 수 없다.</strong></p>
+                <p><strong>개선 방향:</strong> ① 운동 종류와 심박수를 열로 추가해 여러 변수를 함께 쓰는 회귀로 넓힌다.
+                    ② <strong>긴 시간대 기록을 실제로 더 모은다</strong> &mdash; 범위 밖 문제는 모델을 바꿔서가 아니라
+                    데이터를 넓혀야 풀린다.</p>
             </div>
         </div>
+
+        <div class="warn-box text-base text-slate-700 mb-4">
+            <p class="font-bold text-orange-800 mb-2"><i class="fa-solid fa-scale-unbalanced mr-1"></i> 개선해도 남는 어려움</p>
+            <p class="mb-2"><strong>변수를 늘리면 정확해지지만 데이터를 모으기는 어려워진다.</strong> 심박수까지 기록하려면 장비가 필요하고,
+                기록해야 할 항목이 늘수록 빠뜨리는 날이 생긴다. <strong>빠진 칸이 많은 데이터는 변수가 적은 데이터보다 나쁠 수 있다.</strong></p>
+            <p>그리고 이 모델은 <strong>내 기록으로 만든 것이라 나에게만 맞는다.</strong> 여러 사람에게 쓰려면 사람마다 따로 만들거나
+                체중·나이를 변수로 넣어야 하는데, 그 순간 <strong>남의 몸 정보를 모으는 일</strong>이 된다.
+                더 정확한 모델과 덜 모으는 것 사이에서 무엇을 택할지는 정확도만으로 정할 수 없다.</p>
+        </div>
+
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 자신의 관심 분야가 명시되고, 모델 적용 시 기대되는 효과가 구체적으로 서술되어 있다.</li>
                 <li>☑ 현재 모델의 한계 또는 부족한 점이 언급되어 있다.</li>
                 <li>☑ 성능 향상을 위한 개선사항(데이터 확충·모델 변경·파라미터 조정 등)이 제시되어 있다.</li>
@@ -433,23 +614,25 @@
         </div>
     </section>
 
-    <!-- Q8 -->
+    <!-- ── 문항 8 ───────────────────────────────────────────────────────── -->
     <section class="section-card scroll-mt-24" id="q8">
         <div class="q-header">
-            <p class="font-black text-orange-700 text-lg mb-1">문항 8. 소감</p>
-            <p class="text-slate-600 text-base">기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것, 또는 느낀 점을 자유롭게
-                서술하시오.</p>
+            <p class="q-number">문항 8. 소감</p>
+            <p class="text-slate-600 text-base">기계학습 모델을 직접 구현하는 과정에서 달라진 생각, 어려웠던 점, 새롭게 알게 된 것,
+                또는 느낀 점을 자유롭게 서술하시오.</p>
         </div>
         <div class="answer-block text-slate-700 text-base mb-4">
-            <p class="mb-2">처음에는 '시간이 길면 칼로리가 늘어난다'는 것을 수식으로 표현하는 게 어려울 것 같았는데, Orange에서 데이터를 연결하고 Linear Regression
-                노드를 이으면 자동으로 그래프가 그려지는 것이 신기했다.</p>
-            <p class="mb-2">R² = 0.94라는 숫자가 처음엔 낯설었지만, '내 운동 시간으로 칼로리 변동의 94%를 설명할 수 있다'는 뜻임을 이해하고 나서 AI가 패턴을 수치로 표현한다는
-                점이 흥미로웠다.</p>
-            <p>앞으로 운동 종류와 체중까지 추가하면 더 정확한 모델을 만들 수 있을 것 같고, 스포츠 과학 분야에서 이런 예측 모델이 실제로 어떻게 활용되는지 더 공부해보고 싶다.</p>
+            <p class="mb-2">블록 몇 개를 잇자 자동으로 직선이 그려지는 것이 신기했다. 내가 정하지 않은 7.2라는 숫자를
+                컴퓨터가 내 기록에서 찾아냈다는 점이 특히 그랬다.</p>
+            <p class="mb-2">R&sup2;가 0.97이라고 나왔을 때는 모델이 거의 완벽한 줄 알았다. 그런데 120분을 넣어 보고 크게 빗나가는 것을 보고,
+                <strong>그 점수가 내가 기록해 둔 시간대 안에서만 붙은 점수였다</strong>는 걸 알았다. 숫자가 높다고 안심하면 안 된다는 것이
+                이번에 가장 크게 남았다.</p>
+            <p>모델을 고치는 것보다 데이터를 더 넓게 모으는 쪽이 답일 때가 있다는 것도 알게 됐다.
+                다음에는 두 시간짜리 운동 기록부터 쌓아 보고 싶다.</p>
         </div>
         <div class="checklist-box">
             <p class="font-bold text-blue-700 text-base mb-2"><i class="fa-solid fa-list-check mr-1"></i> 자기점검 체크리스트</p>
-            <ul class="space-y-1 text-base text-slate-600">
+            <ul class="space-y-1 text-base text-slate-600 list-none pl-0">
                 <li>☑ 기계학습 구현 과정에서 새롭게 알게 된 것 또는 달라진 생각이 포함되어 있다.</li>
                 <li>☑ 자신의 경험을 바탕으로 진솔하게 작성되어 있다.</li>
             </ul>

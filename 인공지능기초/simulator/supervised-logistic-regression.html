@@ -444,21 +444,27 @@
         }
 
         resize() {
-            const rect = this.canvas.parentElement.getBoundingClientRect();
+            // **테두리를 뺀 안쪽(padding-box) 크기를 잰다.** `getBoundingClientRect()` 는
+            // 테두리까지 세는데, 캔버스는 `absolute top-0 left-0` 이라 기준이 padding-box 다.
+            // 그 차이(`border-2` 가 상하좌우 2px씩)만큼 캔버스가 오른쪽·아래로 삐져나가는데,
+            // 평소에는 부모의 `overflow-hidden` 이 잘라 내서 보이지 않다가
+            // 전체 화면에서 `overflow-y: auto` 가 걸리면 스크롤바로 드러났다.
+            const box = this.canvas.parentElement;
+            const w = box.clientWidth;
+            const h = box.clientHeight;
             // 디바이스 픽셀 비율 대응 (Retina Display 선명도 보정)
             const dpr = window.devicePixelRatio || 1;
 
-            this.canvas.width = rect.width * dpr;
-            this.canvas.height = rect.height * dpr;
+            this.canvas.width = Math.round(w * dpr);
+            this.canvas.height = Math.round(h * dpr);
 
-            // CSS 크기는 고정
-            this.canvas.style.width = `${rect.width}px`;
-            this.canvas.style.height = `${rect.height}px`;
+            // **CSS 크기는 `w-full h-full` 이 정하게 둔다.** 인라인 px 을 얹으면
+            // 위의 어긋남이 그대로 되살아난다.
 
             this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            this.logicalWidth = rect.width;
-            this.logicalHeight = rect.height;
+            this.logicalWidth = w;
+            this.logicalHeight = h;
         }
 
         pixelToData(px, py, bounds) {

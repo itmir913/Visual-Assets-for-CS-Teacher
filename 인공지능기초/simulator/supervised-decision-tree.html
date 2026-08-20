@@ -247,7 +247,7 @@
                     <div class="flex-grow border-2 border-slate-200 rounded-2xl bg-slate-50 relative overflow-hidden min-h-[400px]">
                         <div class="absolute inset-0 tree-network" id="network-cat"></div>
                         <button class="absolute top-3 right-3 z-10 text-sm font-bold bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-100 transition-colors"
-                                onclick="if(networkCat) networkCat.fit()">
+                                onclick="if(catView) catView.fit(300)">
                             <i class="fa-solid fa-compress mr-1"></i>맞춤
                         </button>
                     </div>
@@ -391,7 +391,7 @@
                         <div class="flex justify-between items-center mb-6">
                             <p class="font-bold text-slate-800 text-xl">🌳 생성된 결정 트리</p>
                             <button class="text-sm font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
-                                    onclick="if(network2D) network2D.fit()"><i
+                                    onclick="if(view2D) view2D.fit(300)"><i
                                     class="fa-solid fa-compress mr-1"></i>맞춤
                             </button>
                         </div>
@@ -446,11 +446,11 @@
         if (tab === 'cat') {
             btnCat.className = 'tab-btn tab-active px-10 py-5 text-lg md:text-xl text-emerald-600 border-emerald-600';
             btn2d.className = 'tab-btn tab-inactive px-10 py-5 text-lg md:text-xl';
-            if (networkCat) networkCat.fit();
+            if (catView) catView.resize(300);
         } else {
             btn2d.className = 'tab-btn tab-active px-10 py-5 text-lg md:text-xl text-indigo-600 border-indigo-600';
             btnCat.className = 'tab-btn tab-inactive px-10 py-5 text-lg md:text-xl';
-            if (network2D) network2D.fit();
+            if (view2D) view2D.resize(300);
         }
     }
 
@@ -469,8 +469,9 @@
     // ==========================================
     let datasetCat = [];
     let treeCat = null;
-    let networkCat = null;
-    let nodesDataCat = null;
+    let catView = null;
+    let catTreeRoot = null;
+    let catNodeMap = new Map();
     let isPredictingCat = false; // 예측 애니메이션 도중 상태 오염을 막기 위한 플래그
 
     const FEATURES = ['color', 'size', 'shape'];
@@ -623,90 +624,106 @@
         resEl.classList.add('opacity-0', 'pointer-events-none');
     }
 
+    // 트리 노드의 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+    // 범주형 탭은 emerald, 2차원 탭은 indigo를 쓴다.
+    const CAT_TREE_COLORS = {
+        question: {fill: '#f8fafc', border: '#10b981', text: '#064e3b', width: 2},
+        leaf: {fill: '#10b981', border: '#059669', text: '#ffffff', width: 1},
+        visiting: {fill: '#fef08a', border: '#eab308', text: '#064e3b', width: 4},
+        passed: {fill: '#dcfce3', border: '#22c55e', text: '#064e3b', width: 2},
+        result: {fill: '#ef4444', border: '#b91c1c', text: '#ffffff', width: 4},
+    };
+
+    // 트리 카드 둘이 같은 설정을 쓴다. 다른 것은 색뿐이다.
+    function treeViewOptions(colors) {
+        return {
+            shape: (d) => (d.kind === 'leaf' ? 'ellipse' : 'box'),
+            fontSize: 16,
+            levelSeparation: 100,
+            siblingGap: 24,
+            padX: 14,
+            padY: 10,
+            focusScale: 1.2,
+            label: (d) => d.lines,
+            edgeLabel: (d) => d.edgeLabel || null,
+            arrow: true,
+            arrowColor: '#cbd5e1',
+            nodeStyle: (d) => {
+                const c = colors[d.state] || colors[d.kind] || colors.question;
+                return {
+                    fill: d.leafColor && (d.state === 'leaf' || !d.state) ? d.leafColor : c.fill,
+                    stroke: d.leafBorder && (d.state === 'leaf' || !d.state) ? d.leafBorder : c.border,
+                    strokeWidth: c.width,
+                    textColor: c.text,
+                };
+            },
+            linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
+        };
+    }
+
     function renderCatTree() {
         const container = document.getElementById('network-cat');
 
-        // [렌더링 오류 수정] 메모리 누수 및 DOM 중첩을 막기 위해 기존 네트워크 인스턴스 파괴
-        if (networkCat) {
-            networkCat.destroy();
-            networkCat = null;
+        // 뷰를 새로 만들 때는 먼저 지운다. 안 그러면 SVG가 겹쳐 쌓인다.
+        if (catView) {
+            catView.destroy();
+            catView = null;
         }
 
         if (!treeCat) {
             container.innerHTML = '<div class="flex h-full items-center justify-center text-slate-500 text-lg font-bold"><i class="fa-solid fa-tree text-2xl mr-3 text-emerald-500"></i>데이터가 변경되었습니다. [트리 생성] 버튼을 다시 눌러주세요.</div>';
             return;
         }
+        container.innerHTML = '';
 
-        let nodesArr = [];
-        let edgesArr = [];
         let nodeId = 1;
+        catNodeMap = new Map();
 
-        function traverse(node, parentId = null, edgeLabel = '') {
-            if (!node) return;
-            let currId = nodeId++;
+        function traverse(node, edgeLabel = '') {
+            if (!node) return null;
+            const currId = nodeId++;
             node.visId = currId;
 
-            if (!node.isLeaf) {
-                nodesArr.push({
-                    id: currId,
-                    // node.gini 는 이 노드 자신의 불순도가 아니라, 이 질문으로 나눈 뒤
-                    // 두 자식의 불순도를 표본 수로 가중평균한 값이다. 라벨도 그렇게 적는다.
-                    label: `${FEATURE_NAMES[node.feature]}이(가)\n'${node.value}' 입니까?\n나눈 뒤 불순도 ${node.gini.toFixed(3)}`,
-                    shape: 'box',
-                    color: {background: '#f8fafc', border: '#10b981'},
-                    font: {color: '#064e3b', bold: true, size: 16},
-                    borderWidth: 2
-                });
-                if (parentId) edgesArr.push({
-                    from: parentId,
-                    to: currId,
-                    label: edgeLabel,
-                    font: {color: '#64748b', bold: true},
-                    color: {color: '#cbd5e1'}
-                });
+            const view = {id: currId, edgeLabel: edgeLabel, children: []};
+            catNodeMap.set(currId, view);
 
-                traverse(node.left, currId, '예');
-                traverse(node.right, currId, '아니오');
+            if (!node.isLeaf) {
+                view.kind = 'question';
+                view.state = 'question';
+                // node.gini 는 이 노드 자신의 불순도가 아니라, 이 질문으로 나눈 뒤
+                // 두 자식의 불순도를 표본 수로 가중평균한 값이다. 라벨도 그렇게 적는다.
+                view.lines = [
+                    `${FEATURE_NAMES[node.feature]}이(가)`,
+                    `'${node.value}' 입니까?`,
+                    `나눈 뒤 불순도 ${node.gini.toFixed(3)}`,
+                ];
+                const l = traverse(node.left, '예');
+                const r = traverse(node.right, '아니오');
+                if (l) view.children.push(l);
+                if (r) view.children.push(r);
             } else {
-                nodesArr.push({
-                    id: currId,
-                    label: `결과:\n${node.result}`,
-                    shape: 'ellipse',
-                    color: {background: '#10b981', border: '#059669'},
-                    font: {color: 'white', bold: true, size: 16}
-                });
-                if (parentId) edgesArr.push({
-                    from: parentId,
-                    to: currId,
-                    label: edgeLabel,
-                    font: {color: '#64748b', bold: true},
-                    color: {color: '#cbd5e1'}
-                });
+                view.kind = 'leaf';
+                view.state = 'leaf';
+                view.lines = ['결과:', String(node.result)];
             }
+            return view;
         }
 
-        traverse(treeCat);
-        nodesDataCat = new vis.DataSet(nodesArr);
-        networkCat = new vis.Network(container, {nodes: nodesDataCat, edges: edgesArr}, {
-            layout: {hierarchical: {direction: 'UD', sortMethod: 'directed', levelSeparation: 90, nodeSpacing: 160}},
-            physics: false,
-            // 애니메이션 충돌 방지를 위해 예측(상호작용) 중 드래그 뷰를 제어 가능토록 설정
-            interaction: {dragNodes: false, zoomView: true, dragView: true},
-            edges: {arrows: {to: {enabled: true, scaleFactor: 0.5}}, smooth: {type: 'cubicBezier'}}
-        });
+        catTreeRoot = traverse(treeCat);
+        catView = window.createTreeView(container, treeViewOptions(CAT_TREE_COLORS));
+        catView.setData(catTreeRoot).update(0);
+        catView.fit(300);
+    }
+
+    function setCatNodeState(visId, state) {
+        const n = catNodeMap.get(visId);
+        if (n) n.state = state;
     }
 
     function resetCatTreeColors() {
-        if (!nodesDataCat) return;
-        const updates = [];
-        nodesDataCat.forEach(n => {
-            if (n.shape === 'box') {
-                updates.push({id: n.id, color: {background: '#f8fafc', border: '#10b981'}, borderWidth: 2});
-            } else {
-                updates.push({id: n.id, color: {background: '#10b981', border: '#059669'}, borderWidth: 1});
-            }
-        });
-        nodesDataCat.update(updates);
+        if (!catNodeMap) return;
+        for (const n of catNodeMap.values()) n.state = n.kind;
+        if (catView) catView.update(200);
     }
 
     // 트리 탐색 애니메이션 기능 (비동기 충돌 방지 로직 적용)
@@ -744,41 +761,31 @@
 
         while (current) {
             // [예외 처리] 중간에 트리가 소멸되거나 데이터가 비정상 변경되었는지 확인
-            if (!networkCat || !nodesDataCat) break;
+            if (!catView) break;
 
-            nodesDataCat.update({
-                id: current.visId,
-                color: {background: '#fef08a', border: '#eab308'},
-                borderWidth: 4
-            });
-
-            networkCat.focus(current.visId, {scale: 1.2, animation: {duration: 500, easingFunction: 'easeInOutQuad'}});
+            setCatNodeState(current.visId, 'visiting');
+            catView.update(200);
+            catView.focus(current.visId, 500);
 
             await sleep(1000);
 
             // 상태 체크 다시 한번 (비동기 깨어난 직후)
-            if (!isPredictingCat || !nodesDataCat) break;
+            if (!isPredictingCat || !catView) break;
 
             if (current.isLeaf) break;
 
-            nodesDataCat.update({
-                id: current.visId,
-                color: {background: '#dcfce3', border: '#22c55e'},
-                borderWidth: 2
-            });
+            setCatNodeState(current.visId, 'passed');
+            catView.update(200);
 
             if (testData[current.feature] === current.value) current = current.left;
             else current = current.right;
         }
 
-        if (current && nodesDataCat) {
-            nodesDataCat.update({
-                id: current.visId,
-                color: {background: '#ef4444', border: '#b91c1c'},
-                borderWidth: 4
-            });
+        if (current && catView) {
+            setCatNodeState(current.visId, 'result');
+            catView.update(200);
             resEl.innerHTML = `이 데이터는 <b>${current.result}</b>(으)로 분류되었습니다.`;
-            networkCat.fit({animation: {duration: 1000, easingFunction: 'easeInOutQuad'}});
+            catView.fit(1000);
         }
 
         // 상태 해제
@@ -796,7 +803,8 @@
     let points2D = [];
     let currentClass2D = 1;
     let tree2D = null;
-    let network2D = null;
+    let view2D = null;
+    let tree2DRoot = null;
 
     const colors2D = {
         1: {base: '#ef4444', light: 'rgba(239, 68, 68, 0.2)', text: '빨강'},
@@ -894,9 +902,9 @@
     function clear2DData() {
         points2D = [];
         tree2D = null;
-        if (network2D) {
-            network2D.destroy();
-            network2D = null;
+        if (view2D) {
+            view2D.destroy();
+            view2D = null;
         }
         document.getElementById('network-2d').innerHTML = '';
         draw2DCanvas();
@@ -996,78 +1004,65 @@
         render2DTree();
     }
 
+    const TREE2D_COLORS = {
+        question: {fill: '#f8fafc', border: '#6366f1', text: '#312e81', width: 2},
+        // 잎은 그 반의 색을 그대로 쓴다. 아래 traverse 가 노드마다 넣어 준다.
+        leaf: {fill: '#6366f1', border: '#ffffff', text: '#ffffff', width: 1},
+    };
+
     function render2DTree() {
         const container = document.getElementById('network-2d');
 
-        // [렌더링 오류 수정] 메모리 누수 방지
-        if (network2D) {
-            network2D.destroy();
-            network2D = null;
+        // 뷰를 새로 만들 때는 먼저 지운다. 안 그러면 SVG가 겹쳐 쌓인다.
+        if (view2D) {
+            view2D.destroy();
+            view2D = null;
         }
 
         if (!tree2D) {
             container.innerHTML = '';
             return;
         }
+        container.innerHTML = '';
 
-        let nodesArr = [];
-        let edgesArr = [];
         let nodeId = 1;
 
-        function traverse(node, parentId = null, edgeLabel = '') {
-            if (!node) return;
-            let currId = nodeId++;
+        function traverse(node, edgeLabel = '') {
+            if (!node) return null;
+            const view = {id: nodeId++, edgeLabel: edgeLabel, children: []};
 
             if (!node.isLeaf) {
-                nodesArr.push({
-                    id: currId,
-                    // 범주형 탭과 같다 — 이 값은 나눈 뒤 두 자식의 가중평균 불순도다.
-                    label: `${node.feature.toUpperCase()}축 값이\n${Math.round(node.value)} 이하인가?\n나눈 뒤 불순도 ${node.gini.toFixed(3)}`,
-                    shape: 'box',
-                    color: {background: '#f8fafc', border: '#6366f1'},
-                    font: {color: '#312e81', bold: true, size: 16},
-                    borderWidth: 2
-                });
-                if (parentId) edgesArr.push({
-                    from: parentId,
-                    to: currId,
-                    label: edgeLabel,
-                    font: {color: '#64748b', bold: true},
-                    color: {color: '#cbd5e1'}
-                });
-
-                traverse(node.left, currId, '예');
-                traverse(node.right, currId, '아니오');
+                view.kind = 'question';
+                view.state = 'question';
+                // 범주형 탭과 같다 — 이 값은 나눈 뒤 두 자식의 가중평균 불순도다.
+                view.lines = [
+                    `${node.feature.toUpperCase()}축 값이`,
+                    `${Math.round(node.value)} 이하인가?`,
+                    `나눈 뒤 불순도 ${node.gini.toFixed(3)}`,
+                ];
+                const l = traverse(node.left, '예');
+                const r = traverse(node.right, '아니오');
+                if (l) view.children.push(l);
+                if (r) view.children.push(r);
             } else {
-                nodesArr.push({
-                    id: currId,
-                    label: `결과:\n${colors2D[node.cls].text}`,
-                    shape: 'ellipse',
-                    color: {background: colors2D[node.cls].base, border: '#fff'},
-                    font: {color: 'white', bold: true, size: 16}
-                });
-                if (parentId) edgesArr.push({
-                    from: parentId,
-                    to: currId,
-                    label: edgeLabel,
-                    font: {color: '#64748b', bold: true},
-                    color: {color: '#cbd5e1'}
-                });
+                view.kind = 'leaf';
+                view.state = 'leaf';
+                view.lines = ['결과:', String(colors2D[node.cls].text)];
+                // 잎의 색은 그 반의 색이다. 트리만 보고도 어느 반인지 알 수 있어야 한다.
+                view.leafColor = colors2D[node.cls].base;
+                view.leafBorder = '#ffffff';
             }
+            return view;
         }
 
-        traverse(tree2D);
-        network2D = new vis.Network(container, {nodes: nodesArr, edges: edgesArr}, {
-            layout: {hierarchical: {direction: 'UD', sortMethod: 'directed', levelSeparation: 90, nodeSpacing: 160}},
-            physics: false,
-            interaction: {dragNodes: false, zoomView: true, dragView: true},
-            edges: {arrows: {to: {enabled: true, scaleFactor: 0.5}}, smooth: {type: 'cubicBezier'}},
-            nodes: {font: {face: 'Pretendard', size: 16}}
-        });
+        tree2DRoot = traverse(tree2D);
+        view2D = window.createTreeView(container, treeViewOptions(TREE2D_COLORS));
+        view2D.setData(tree2DRoot).update(0);
+        view2D.fit(300);
     }
 
-    // 초기화 — 둘 다 vis를 쓴다. 라이브러리는 모듈 진입점이 올리는데 모듈은 defer라
-    // 이 인라인 스크립트보다 늦게 돈다. load를 기다려야 트리가 그려진다.
+    // 초기화 — 둘 다 공용 트리 렌더러를 쓴다. 라이브러리는 모듈 진입점이 올리는데
+    // 모듈은 defer라 이 인라인 스크립트보다 늦게 돈다. load를 기다려야 트리가 그려진다.
     window.addEventListener('load', function () {
         initCatData();
         draw2DCanvas();

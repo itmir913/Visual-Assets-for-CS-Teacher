@@ -168,7 +168,9 @@
         }
 
         .tab-content:fullscreen .sim-stage {
-            height: calc(100vh - 8.5rem);
+            /* 전체 화면일 때 이 안에 든 것은 .sim-stage 하나뿐이다.
+               위아래 안여백(1.25rem씩)만 빼면 남는 높이를 전부 쓴다. */
+            height: calc(100vh - 2.5rem);
         }
 
         /* 수식 패널. 숫자가 바뀔 때마다 줄 길이가 달라져도 자리가 흔들리지 않게 한다.
@@ -885,9 +887,9 @@
         });
         updateStageHeight();
         if (TAB_ON_OPEN[index]) TAB_ON_OPEN[index]();
-        // 한 화면에 들어오도록 만든 두 탭은, 열 때 탭바가 상단 바 바로 아래에 오게 보낸다.
-        // 그래야 교사가 따로 스크롤하지 않고 바로 조작할 수 있다.
-        if (index === 2 || index === 3) scrollTabBarToTop();
+        // 탭을 열면 탭바가 상단 바 바로 아래에 오게 보낸다.
+        // 그래야 어느 탭이든 누르자마자 따로 스크롤하지 않고 바로 조작할 수 있다.
+        scrollTabBarToTop();
     }
 
     function scrollTabBarToTop() {
@@ -2103,15 +2105,28 @@
 
     /* ---------- 신경망 그림 (두 탭이 함께 쓴다) ---------- */
 
+    /* 캔버스 위 모서리에 HTML 배지 둘이 얹혀 있다(현재 단계·탭 이름).
+       그 몫만큼 위를 비워 두지 않으면 열 이름을 덮어 버린다. */
+    const NET_BADGE_BAND = 52;   // 배지가 차지하는 띠
+    const NET_TITLE_BAND = 28;   // 열 이름 줄
+
     function netLayout(w, h) {
-        /* 노드 안에 16px 숫자 두 줄이 들어가야 한다. 자리를 좁히는 것은 세로 간격이므로
+        const top = NET_BADGE_BAND + NET_TITLE_BAND;   // 그림이 시작되는 자리
+        const hh = Math.max(80, h - top);
+        /* 노드 안에 숫자 두 줄이 들어가야 한다. 자리를 좁히는 것은 세로 간격이므로
            높이를 기준으로 잡고, 가로로도 이웃 열과 닿지 않게 함께 묶는다. */
-        const r = Math.max(24, Math.min(46, Math.min(h * 0.16, w * 0.13)));
+        const r = Math.max(20, Math.min(46, Math.min(hh * 0.16, w * 0.13)));
         return {
             r,
-            input: [{x: w * 0.16, y: h * 0.34}, {x: w * 0.16, y: h * 0.72}],
-            hidden: [{x: w * 0.5, y: h * 0.34}, {x: w * 0.5, y: h * 0.72}],
-            out: {x: w * 0.84, y: h * 0.53}
+            titleY: NET_BADGE_BAND + 4,
+            /* 대각선 라벨을 위아래로 벌리는 거리. 고정값으로 두면 그림이 낮아졌을 때
+               가로 간선의 라벨과 부딪힌다. 두 줄 사이 간격에 맞춰 함께 줄인다.
+               간선 넷의 라벨이 한 열에 모이므로 네 자리로 흩는다 — 가로 간선은
+               바깥쪽으로 조금, 대각선은 안쪽으로 크게 민다. */
+            nudge: Math.max(18, Math.min(34, hh * 0.0836)),
+            input: [{x: w * 0.16, y: top + hh * 0.34}, {x: w * 0.16, y: top + hh * 0.72}],
+            hidden: [{x: w * 0.5, y: top + hh * 0.34}, {x: w * 0.5, y: top + hh * 0.72}],
+            out: {x: w * 0.84, y: top + hh * 0.53}
         };
     }
 
@@ -2174,7 +2189,7 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
-        ctx.font = netFont(r, 0.46);
+        ctx.font = netFont(r, 0.42);
         const fs = parseFloat(ctx.font);
         if (lines.length === 1) {
             ctx.fillText(lines[0], p.x, p.y);
@@ -2189,9 +2204,9 @@
         ctx.fillStyle = '#64748b';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('입력층', L.input[0].x, 10);
-        ctx.fillText('은닉층', L.hidden[0].x, 10);
-        ctx.fillText('출력층', L.out.x, 10);
+        ctx.fillText('입력층', L.input[0].x, L.titleY);
+        ctx.fillText('은닉층', L.hidden[0].x, L.titleY);
+        ctx.fillText('출력층', L.out.x, L.titleY);
     }
 
     // 노드 옆에 붙는 작은 꼬리표 (편향·정답 등)
@@ -2496,7 +2511,7 @@
                             : nf(x[i]) + '×' + par(n.w1[i][j]) + '=' + nf(x[i] * n.w1[i][j]);
                     }
                     drawEdge(ctx, L.input[i], L.hidden[j], L.r, n.w1[i][j], dim, label, null,
-                        i === 0 ? 0.3 : 0.7, i === j ? 0 : (i === 0 ? -26 : 26));
+                        i === 0 ? 0.3 : 0.7, i === j ? (i === 0 ? -L.nudge * 0.5 : L.nudge * 0.5) : (i === 0 ? L.nudge : -L.nudge));
                 }
             }
             // 은닉 → 출력
@@ -2522,14 +2537,12 @@
                 const isDead = dead[j] && netSim.act === 'relu';
                 drawNode(ctx, L.hidden[j], L.r, isDead ? '#94a3b8' : '#6366f1',
                     isDead ? '#64748b' : '#4338ca', lines, p < 2);
-                drawTag(ctx, L.hidden[j], L.r, 'b=' + nf(n.b1[j]), '#4338ca', false);
                 if (isDead) drawTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', true);
             }
             let outLines = ['?'];
             if (p >= 6) outLines = ['z ' + nf(fw.z2), nf(fw.a2, 3)];
             else if (p >= 5) outLines = ['z ' + nf(fw.z2)];
             drawNode(ctx, L.out, L.r, '#10b981', '#047857', outLines, p < 5);
-            drawTag(ctx, L.out, L.r, 'b=' + nf(n.b2), '#047857', false);
             if (p >= 6) {
                 const [, y] = netSim.sample();
                 drawTag(ctx, L.out, L.r, '정답 ' + y, '#334155', true);
@@ -3009,7 +3022,7 @@
                     const label = on ? (compact ? nf(g.dw1[i][j], 3) : '기울기 ' + nf(g.dw1[i][j], 3))
                         : nf(n.w1[i][j]);
                     drawEdge(ctx, L.input[i], L.hidden[j], L.r, n.w1[i][j], !on, label,
-                        on ? '#be123c' : null, i === 0 ? 0.3 : 0.7, i === j ? 0 : (i === 0 ? -26 : 26));
+                        on ? '#be123c' : null, i === 0 ? 0.3 : 0.7, i === j ? (i === 0 ? -L.nudge * 0.5 : L.nudge * 0.5) : (i === 0 ? L.nudge : -L.nudge));
                 }
             }
             // 은닉 → 출력. 1단계부터 기울기를 적는다.

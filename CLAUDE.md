@@ -30,7 +30,7 @@
 | `src/entries/<페이지>.js` | **페이지별** 라이브러리 진입점. 그 페이지가 쓰는 것만 담는다 |
 | `src/tailwind/<단위>.config.js` | 단위별 Tailwind 설정(`content`를 그 단위로 좁힌다). `base.config.js`는 의존 패키지 CSS가 지나갈 때의 기본값 |
 | `public/` | **이름이 그대로여야 하는 파일**만. 지금은 MathJax 글꼴뿐. 저장소에 담지 않는다 |
-| `.github/workflows/` | 배포 워크플로 |
+| `.github/` | 배포 워크플로(`workflows/`)와 PR 템플릿 |
 | `.idea/runConfigurations/` | IntelliJ 실행 구성(**편의용**. 없어도 터미널로 다 된다). **전부 `npm run`을 부른다.** `.gitignore`가 `.idea/*`를 막고 이 폴더만 되살린다 |
 | `package.json` | **명령을 정의하는 유일한 곳** |
 | `CONTRIBUTING.md` | **바깥에서 온 사람이 처음 읽는 문서.** 여기서 `docs/`와 이 문서로 갈라진다 |

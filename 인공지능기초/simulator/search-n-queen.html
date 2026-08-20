@@ -1112,215 +1112,86 @@
     let cellElements = []; // DOM 재사용을 위한 2차원 배열
 
     /* =========================================
-       2. D3.js 트리 시각화 변수 및 초기화
+       2. 트리 시각화 — 공용 렌더러(src/entries/_lib/tree-view.js)에 맡긴다
     ========================================= */
-    let d3Svg, d3G, zoomBehavior, d3Tree;
+    let treeView = null;
     let rootNodeData;
     let nodeMap = {};
 
+    // 노드 종류마다 바탕색과 글자색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+    const NODE_COLORS = {
+        root: {fill: '#94a3b8', text: '#ffffff'},
+        try: {fill: '#fde047', text: '#854d0e'},
+        place: {fill: '#34d399', text: '#064e3b'},
+        prune: {fill: '#fb7185', text: '#881337'},
+        backtrack: {fill: '#64748b', text: '#f8fafc'},
+        solution: {fill: '#fcd34d', text: '#78350f'},
+    };
+    const FALLBACK_COLOR = {fill: '#ffffff', text: '#000000'};
+
     function initD3Tree() {
-        d3.select("#dfsTreeContainer").selectAll("svg").remove();
+        if (treeView) treeView.destroy();
 
-        d3Svg = d3.select("#dfsTreeContainer").append("svg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .style("position", "absolute")
-            .style("top", "0")
-            .style("left", "0")
-            .style("display", "block")
-            .style("cursor", "grab");
+        treeView = window.createTreeView('#dfsTreeContainer', {
+            shape: () => 'circle',
+            radius: 14,
+            // 예전 nodeSize([45, 60]) 과 같은 간격 — 지름 28 에 이웃 여백 17 이면 45 가 된다.
+            levelSeparation: 60,
+            siblingGap: 17,
+            fitPadding: 60,
+            maxFitScale: 1.2,
+            focusScale: 1.2,
+            viewMode: document.getElementById('treeViewMode').value,
+            label: (d) => d.name,
+            nodeStyle: (d) => {
+                const c = NODE_COLORS[d.type] || FALLBACK_COLOR;
+                return {
+                    fill: c.fill,
+                    textColor: c.text,
+                    stroke: d.type === 'solution' ? '#f59e0b' : '#1e293b',
+                    strokeWidth: d.type === 'solution' ? 3 : 2,
+                    fontSize: d.name === '시작' ? 10 : 9,
+                };
+            },
+            linkStyle: (target) => ({
+                stroke: target.type === 'solution' ? '#f59e0b' : '#475569',
+                strokeWidth: target.type === 'solution' ? 3 : 2,
+            }),
+        });
 
-        d3G = d3Svg.append("g");
-
-        zoomBehavior = d3.zoom()
-            .scaleExtent([0.05, 4])
-            .on("zoom", (event) => {
-                d3G.attr("transform", event.transform);
-                // 사용자가 마우스로 패닝/줌 시도 시 '자유 이동' 모드로 자동 전환
-                if (event.sourceEvent && (event.sourceEvent.type === 'mousemove' || event.sourceEvent.type === 'wheel' || event.sourceEvent.type === 'touchmove')) {
-                    const modeSelect = document.getElementById('treeViewMode');
-                    if (modeSelect.value !== 'free') modeSelect.value = 'free';
-                }
-            });
-
-        d3Svg.call(zoomBehavior);
-        d3Tree = d3.tree().nodeSize([45, 60]);
+        // 렌더러가 스스로 '자유 이동'으로 넘어가면(사람이 끌거나 굴렸을 때) 선택 상자도 맞춘다.
+        treeView.on('viewmode', (mode) => {
+            document.getElementById('treeViewMode').value = mode;
+        });
 
         rootNodeData = {id: "root", name: "시작", type: "root", children: []};
         nodeMap = {"root": rootNodeData};
         activeNodeId = "root";
 
-        resetZoom(0);
+        treeView.setData(rootNodeData).setActive("root");
         updateD3Visuals(0);
+        resetZoom(0);
     }
 
-    // 노드 추적 (Panning) 로직
+    // 노드 추적(Panning)
     function focusOnNode(nodeId, duration) {
-        if (!d3Svg || !rootNodeData) return;
-        const root = d3.hierarchy(rootNodeData);
-        d3Tree(root);
-
-        let targetNode = null;
-        root.each(d => {
-            if (d.data.id === nodeId) targetNode = d;
-        });
-        if (!targetNode) return;
-
-        const container = document.getElementById('dfsTreeContainer');
-        const width = container.clientWidth || 600;
-        const height = container.clientHeight || 650;
-
-        // 글자가 잘 보이는 고정 배율
-        const scale = 1.2;
-
-        // 화면 중앙 약간 위에 위치하도록 조정
-        const tx = (width / 2) - (targetNode.x * scale);
-        const ty = (height / 3.5) - (targetNode.y * scale);
-
-        d3Svg.transition().duration(duration).call(
-            zoomBehavior.transform,
-            d3.zoomIdentity.translate(tx, ty).scale(scale)
-        );
+        if (treeView) treeView.focus(nodeId, duration);
     }
 
-    // 전체 자동 맞춤 로직
+    // 전체 자동 맞춤
     function resetZoom(duration = 500) {
-        if (!d3Svg || !rootNodeData) return;
-        const container = document.getElementById('dfsTreeContainer');
-        const width = container.clientWidth || 600;
-        const height = container.clientHeight || 650;
-
-        const root = d3.hierarchy(rootNodeData);
-        d3Tree(root);
-
-        let minX = 0, maxX = 0, maxY = 0;
-        root.each(d => {
-            if (d.x < minX) minX = d.x;
-            if (d.x > maxX) maxX = d.x;
-            if (d.y > maxY) maxY = d.y;
-        });
-
-        if (root.descendants().length <= 1) {
-            d3Svg.transition().duration(duration).call(
-                zoomBehavior.transform,
-                d3.zoomIdentity.translate(width / 2, 40).scale(1)
-            );
-            return;
-        }
-
-        const treeWidth = maxX - minX || 1;
-        const treeHeight = maxY || 1;
-        const paddingX = window.innerWidth < 640 ? 20 : 60;
-        const paddingY = window.innerWidth < 640 ? 30 : 80;
-
-        const scaleX = (width - paddingX * 2) / treeWidth;
-        const scaleY = (height - paddingY * 2) / treeHeight;
-        let scale = Math.min(scaleX, scaleY, 1.2);
-
-        const centerX = (minX + maxX) / 2;
-        const tx = (width / 2) - (centerX * scale);
-        const ty = 40;
-
-        d3Svg.transition().duration(duration).call(
-            zoomBehavior.transform,
-            d3.zoomIdentity.translate(tx, ty).scale(scale)
-        );
+        if (treeView) treeView.fit(duration);
     }
 
     // 뷰 모드 수동 변경 시 즉각 반영
     function applyViewMode() {
-        const mode = document.getElementById('treeViewMode').value;
-        if (mode === 'fit') resetZoom(500);
-        else if (mode === 'track' && activeNodeId) focusOnNode(activeNodeId, 500);
+        if (!treeView) return;
+        treeView.setViewMode(document.getElementById('treeViewMode').value, 500);
     }
 
     function updateD3Visuals(duration = 200) {
-        const root = d3.hierarchy(rootNodeData);
-        d3Tree(root);
-
-        const linkGen = d3.linkVertical()
-            .x(d => d.x)
-            .y(d => d.y);
-
-        const links = d3G.selectAll(".link")
-            .data(root.links(), d => d.target.data.id);
-
-        links.enter().insert("path", "g")
-            .attr("class", "link")
-            .attr("fill", "none")
-            .attr("stroke", d => d.target.data.type === 'solution' ? "#f59e0b" : "#475569")
-            .attr("stroke-width", d => d.target.data.type === 'solution' ? 3 : 2)
-            .attr("d", d => linkGen({source: d.source, target: d.source}))
-            .transition().duration(duration)
-            .attr("d", linkGen);
-
-        links.transition().duration(duration)
-            .attr("stroke", d => d.target.data.type === 'solution' ? "#f59e0b" : "#475569")
-            .attr("stroke-width", d => d.target.data.type === 'solution' ? 3 : 2)
-            .attr("d", linkGen);
-
-        const nodes = d3G.selectAll(".node")
-            .data(root.descendants(), d => d.data.id);
-
-        const nodeEnter = nodes.enter().append("g")
-            .attr("class", "node")
-            .attr("transform", d => `translate(${d.parent ? d.parent.x : d.x},${d.parent ? d.parent.y : d.y})`);
-
-        nodeEnter.append("circle")
-            .attr("r", 14)
-            .attr("fill", d => getNodeColor(d.data.type))
-            .attr("stroke", d => d.data.type === 'solution' ? "#f59e0b" : "#1e293b")
-            .attr("stroke-width", d => d.data.type === 'solution' ? 3 : 2);
-
-        nodeEnter.append("text")
-            .attr("dy", "0.35em")
-            .attr("text-anchor", "middle")
-            .attr("fill", d => getTextColor(d.data.type))
-            .attr("font-size", d => d.data.name === "시작" ? "10px" : "9px")
-            .text(d => d.data.name);
-
-        const nodeUpdate = nodeEnter.merge(nodes);
-
-        nodeUpdate.transition().duration(duration)
-            .attr("transform", d => `translate(${d.x},${d.y})`);
-
-        nodeUpdate.select("circle")
-            .transition().duration(duration)
-            .attr("fill", d => getNodeColor(d.data.type))
-            .attr("stroke", d => d.data.type === 'solution' ? "#f59e0b" : "#1e293b")
-            .attr("stroke-width", d => d.data.type === 'solution' ? 3 : 2);
-
-        nodeUpdate.select("text")
-            .transition().duration(duration)
-            .attr("fill", d => getTextColor(d.data.type));
-
-        // 뷰 모드에 따른 화면 업데이트 처리
-        const viewMode = document.getElementById('treeViewMode').value;
-        if (viewMode === 'fit' && root.descendants().length > 1) {
-            resetZoom(duration);
-        } else if (viewMode === 'track' && activeNodeId) {
-            focusOnNode(activeNodeId, duration);
-        }
-    }
-
-    function getNodeColor(type) {
-        if (type === 'root') return '#94a3b8';
-        if (type === 'try') return '#fde047';
-        if (type === 'place') return '#34d399';
-        if (type === 'prune') return '#fb7185';
-        if (type === 'backtrack') return '#64748b';
-        if (type === 'solution') return '#fcd34d';
-        return '#fff';
-    }
-
-    function getTextColor(type) {
-        if (type === 'root') return '#ffffff';
-        if (type === 'try') return '#854d0e';
-        if (type === 'place') return '#064e3b';
-        if (type === 'prune') return '#881337';
-        if (type === 'backtrack') return '#f8fafc';
-        if (type === 'solution') return '#78350f';
-        return '#000';
+        if (!treeView) return;
+        treeView.setActive(activeNodeId).update(duration);
     }
 
     /* =========================================

@@ -6,8 +6,8 @@
 
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
-import * as d3 from 'd3';
+import {createTreeView} from '../../_lib/tree-view.js';
 import '../../_lib/prism.js';
 import 'prismjs/components/prism-python.min.js';
 
-window.d3 = d3;
+window.createTreeView = createTreeView;

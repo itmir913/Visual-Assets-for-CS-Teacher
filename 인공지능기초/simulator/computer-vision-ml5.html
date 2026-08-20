@@ -72,13 +72,12 @@
         /* 전체 화면에서는 폭이 아니라 남는 높이가 영상 크기를 정한다.
            16:9를 지킨 채 높이에 맞추고 폭이 따라오게 뒤집는다. */
         .fs-stage:fullscreen .video-container {
-            /* 남는 높이는 **영상이** 갖는다. `flex-basis: 0` 이 없으면 옆에 붙는
-               분류 결과 칸과 높이를 나눠 가지며 영상이 눌린다. */
-            flex: 1 1 0;
-            min-height: 0;
-            width: auto;
-            height: 100%;
-            max-height: none;
+            /* 2열이 되면 **오른쪽 칸의 폭**이 영상 크기를 정한다. 16:9 를 지키면 대개
+               높이가 남으므로 폭으로 재는 것이 크게 나온다.
+               남는 높이보다 커지는 화면에서만 `max-height` 가 묶는다. */
+            width: 100%;
+            height: auto;
+            max-height: 100%;
             margin-inline: auto;
         }
 
@@ -262,9 +261,12 @@
                 <p class="text-slate-500 text-base break-keep fs-hide">웹캠을 켜고 브라우저 안에서 실시간으로 작동하는 AI 모델을 직접 체험해보세요.</p>
             </div>
 
-            <div class="fs-fill p-6 md:p-8 flex flex-col space-y-8">
-                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- 넓은 화면에서는 왼쪽에 설정, 오른쪽에 웹캠을 둔다. 위아래로 쌓으면
+                 설정 카드가 높이를 먼저 가져가 **영상이 그만큼 작아진다.**
+                 좁은 화면에서만 위아래로 쌓는다. -->
+            <div class="fs-fill p-6 md:p-8 flex flex-col gap-8 lg:flex-row lg:items-stretch">
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col space-y-6 lg:w-96 lg:shrink-0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-8">
                         <div class="space-y-3">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-3">
@@ -321,14 +323,20 @@
                         </div>
                     </div>
 
-                    <div class="pt-5 border-t border-slate-200 flex flex-col md:flex-row gap-4 items-center">
-                        <div class="flex-1 w-full min-h-[56px]">
+                    <div class="pt-5 border-t border-slate-200 flex flex-col md:flex-row lg:flex-col gap-4 items-center">
+                        <!-- 상태 문구 자리. 가로로 나란할 때는 단추 **옆**이라 미리 자리를 잡아 두어도
+                             티가 나지 않지만, 좁은 칸에서 세로로 서면 그 빈 칸이 단추 위에 얹혀
+                             **먼저 눈에 띈다.** 그 폭에서는 자리를 잡아 두지 않고 단추 아래로 보낸다 —
+                             문구가 떠도 아래로만 자라므로 단추는 그대로 있다. -->
+                        <div class="flex-1 w-full min-h-[56px] lg:min-h-0 lg:flex-none lg:order-2">
                             <div class="hidden w-full min-h-[56px] py-2 px-5 text-base leading-snug break-keep text-blue-800 rounded-xl bg-blue-100/50 font-medium items-center justify-center md:justify-start"
                                  id="statusMessage">
                                 <span id="statusText">AI 모델을 로드하는 중...</span>
                             </div>
                         </div>
-                        <div class="w-full md:w-auto flex-shrink-0 h-[56px] flex gap-2">
+                        <!-- 좁은 칸(왼쪽 설정 열)에서는 단추가 줄 왼쪽에 붙는다 — `md:w-auto` 로 폭이
+                             줄어드는데 줄은 여전히 왼쪽부터 채우기 때문이다. 그 폭에서는 가운데로 모은다. -->
+                        <div class="w-full md:w-auto lg:w-full lg:order-1 flex-shrink-0 h-[56px] flex gap-2 lg:justify-center">
                             <button class="w-full md:w-auto h-full bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 rounded-xl transition shadow-lg shadow-blue-600/30 flex justify-center items-center gap-2"
                                     id="startBtn">
                                 <i class="fa-solid fa-camera"></i> 웹캠 켜기 및 AI 시작
@@ -341,7 +349,7 @@
                     </div>
                 </div>
 
-                <div class="fs-fit relative flex flex-col bg-slate-100 rounded-2xl p-2 md:p-4 border border-slate-200">
+                <div class="fs-fit relative flex flex-col justify-center bg-slate-100 rounded-2xl p-2 md:p-4 border border-slate-200 lg:flex-1 min-w-0">
                     <div class="video-container bg-slate-900 relative rounded-xl mx-auto w-full">
                         <video autoplay id="webcam" muted playsinline></video>
                         <canvas id="canvas"></canvas>

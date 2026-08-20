@@ -61,7 +61,10 @@ export default {
     root: ROOT,
     base: './',
     // 포트를 못 박지 않는다. 다른 것이 쓰고 있으면 환경변수로 넘겨받는다.
-    server: { port: Number(process.env.PORT) || 5173 },
+    // host 를 열어 두는 것은 **폰으로 실측하려는 것**이다 — 375px 배치와 터치 조작은
+    // 데스크톱 브라우저의 좁은 창으로는 끝까지 확인되지 않는다.
+    // 같은 망에 있는 사람 누구나 열 수 있으므로 개발 서버에만 해당한다(빌드는 무관).
+    server: { host: true, port: Number(process.env.PORT) || 5173 },
     // CSS 파이프라인. 별도 postcss.config.js를 두지 않는다 — 빌드 설정은 이 파일 하나다.
     // 단위별 설정은 각 CSS가 @config 로 자기 것을 가리키므로 여기 base는 기본값일 뿐이다.
     css: {

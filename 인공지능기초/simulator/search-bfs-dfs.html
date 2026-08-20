@@ -177,12 +177,12 @@
     <div class="max-w-6xl mx-auto flex justify-center">
         <button class="px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors"
                 id="tab-tree"
-                onclick="switchTab('tree')">
+                onclick="window.UIController.switchTab('tree')">
             <i class="fa-solid fa-network-wired mr-2"></i>트리 탐색 (Tree)
         </button>
         <button class="px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors"
                 id="tab-grid"
-                onclick="switchTab('grid')">
+                onclick="window.UIController.switchTab('grid')">
             <i class="fa-solid fa-table-cells mr-2"></i>2D 공간 탐색 (Grid)
         </button>
     </div>
@@ -349,19 +349,19 @@
                     <div class="flex flex-wrap md:flex-nowrap gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 w-full md:w-auto">
                         <button id="btn-cam-free"
                                 class="flex-1 md:flex-none px-3 py-1 text-sm font-bold rounded-md bg-white text-indigo-600 shadow-sm transition-colors text-center"
-                                onclick="setGridCameraMode('free')">
+                               >
                             <i class="fa-solid fa-hand mr-1"></i>자유 이동
                         </button>
 
                         <button id="btn-cam-track"
                                 class="flex-1 md:flex-none px-3 py-1 text-sm font-bold rounded-md text-slate-500 hover:text-indigo-600 transition-colors text-center"
-                                onclick="setGridCameraMode('track')">
+                               >
                             <i class="fa-solid fa-crosshairs mr-1"></i>노드 추적
                         </button>
 
                         <button id="btn-cam-fit"
                                 class="flex-1 md:flex-none px-3 py-1 text-sm font-bold rounded-md text-slate-500 hover:text-indigo-600 transition-colors text-center"
-                                onclick="setGridCameraMode('fit')">
+                               >
                             <i class="fa-solid fa-expand mr-1"></i>전체 맞춤
                         </button>
                     </div>
@@ -492,820 +492,834 @@
 </footer>
 
 <script>
-    // --- 탭 전환 로직 ---
-    function switchTab(tabName) {
-        const gridSec = document.getElementById('grid-search-section');
-        const treeSec = document.getElementById('tree-search-section');
-        const gridTab = document.getElementById('tab-grid');
-        const treeTab = document.getElementById('tab-tree');
+    /* ==============================================================
+       구조는 정보 이용 탐색(search-heuristic.html)과 같게 둔다.
+       탭마다 클래스 하나, 탭 전환은 UIController 하나가 맡는다.
+       **HTML에는 onclick을 적지 않는다** — 무엇이 무엇에 걸리는지 여기서만 본다.
 
-        if (typeof isAutoPlaying !== "undefined" && isAutoPlaying) stopAutoPlay();
-        if (typeof isTreePlaying !== "undefined" && isTreePlaying) stopTreeAutoPlay();
+       알림은 상태 바 하나로만 한다. 예전에는 화면 아래에 잠깐 떴다 사라지는 토스트를
+       함께 썼는데, 교실 화면에서는 학생이 고개를 든 순간 이미 사라져 있는 일이 많았다.
+       상태 바는 다음 일이 생길 때까지 남으므로 놓칠 수가 없다.
+       ============================================================== */
 
-        if (tabName === 'grid') {
-            gridSec.classList.remove('hidden');
-            gridSec.classList.add('block');
-            treeSec.classList.remove('block');
-            treeSec.classList.add('hidden');
-
-            gridTab.className = "px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors";
-            treeTab.className = "px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors";
-        } else {
-            treeSec.classList.remove('hidden');
-            treeSec.classList.add('block');
-            gridSec.classList.remove('block');
-            gridSec.classList.add('hidden');
-
-            treeTab.className = "px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors";
-            gridTab.className = "px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors";
-
-            if (!treeRoot) generateRandomTree();
-            // 숨어 있던 동안에는 컨테이너 크기가 0이라 화면을 맞출 수 없었다. 이제 맞춘다.
-            else if (treeView) treeView.resize(300);
-        }
-    }
-
-    // --- 공통 유틸리티 ---
-    //
-    // **알림은 상태 바 하나로만 한다.** 예전에는 화면 아래에 잠깐 떴다 사라지는 토스트를
-    // 함께 썼는데, 교실 화면에서는 학생이 고개를 든 순간 이미 사라져 있는 일이 많았다.
-    // 상태 바는 다음 일이 생길 때까지 남으므로 놓칠 수가 없다.
-
-    // ==========================================
-    // GRID SEARCH LOGIC
-    // ==========================================
-    // 격자 칸은 손가락으로 벽을 그리는 대상이라 최소 44px는 되어야 한다.
-    // 10칸을 좁은 화면에 그대로 넣으면 28px까지 줄어 오조작이 잦으므로 화면 폭에 맞춰 칸 수를 줄인다.
-    // 구간 값은 실측으로 정했다. 각 구간의 가장 좁은 폭에서도 칸이 44px 이상이 되도록 잡았다.
-    function computeGridSize() {
-        const w = window.innerWidth;
-        if (w < 372) return 6;   // 360px 안드로이드 기준 약 50px
-        if (w < 460) return 7;   // 375px 기준 약 45px
-        if (w < 620) return 8;
-        return 10;
-    }
-
-    let ROWS = computeGridSize();
-    let COLS = ROWS;
-    const gridContainer = document.getElementById('grid-container');
-
-    let grid = [];
-    let gridState = [];
-
-    let startNode = {r: 1, c: 1};
-    let endNode = {r: ROWS - 2, c: COLS - 2};
-
-    let currentTool = 'wall';
-    let isDrawing = false;
-
-    let isGridPlaying = false;
-    let isAutoPlaying = false;
-    let searchGenerator = null;
-    let playInterval = null;
-
-    // 카메라 모드: 'free'(자유 이동), 'track'(추적), 'fit'(전체 자동 맞춤)
-    let gridCameraMode = 'free';
-
-    // 격자 탐색이 자라며 그리는 트리. 공용 렌더러는 `{id, children}` 꼴을 먹으므로
-    // 노드를 id로 찾을 수 있게 표를 따로 하나 둔다.
-    let gridTreeRoot = null;
-    let gridTreeMap = new Map();
-    let gridTree = null;
-
-    // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
-    const GRID_NODE_COLORS = {
-        discovered: {border: '#0284c7', text: '#334155'},
-        visited: {fill: '#3b82f6', border: '#1e40af', text: '#ffffff'},
-        path: {fill: '#f59e0b', border: '#b45309', text: '#ffffff'},
-    };
-
-    const btnPlay = document.getElementById('btn-play');
-    const btnStep = document.getElementById('btn-step');
-    const statusText = document.getElementById('status-text');
-    const speedSlider = document.getElementById('speed-slider');
-
-    const iconStart = '<i class="fa-solid fa-location-dot text-white text-xl drop-shadow-md"></i>';
-    const iconEnd = '<i class="fa-solid fa-flag text-white text-xl drop-shadow-md"></i>';
-    const iconPath = '<i class="fa-solid fa-star text-white opacity-80"></i>';
-
-    // --- 카메라 모드 제어 함수 ---
-    function setGridCameraMode(mode) {
-        gridCameraMode = mode;
-        const btnFree = document.getElementById('btn-cam-free');
-        const btnTrack = document.getElementById('btn-cam-track');
-        const btnFit = document.getElementById('btn-cam-fit');
-
-        const activeClass = 'px-3 py-1 text-sm font-bold rounded-md bg-white text-indigo-600 shadow-sm transition-colors';
-        const inactiveClass = 'px-3 py-1 text-sm font-bold rounded-md text-slate-500 hover:text-indigo-600 transition-colors';
-
-        btnFree.className = (mode === 'free') ? activeClass : inactiveClass;
-        btnTrack.className = (mode === 'track') ? activeClass : inactiveClass;
-        btnFit.className = (mode === 'fit') ? activeClass : inactiveClass;
-
-        // 버튼 클릭 즉시 모드 동작 실행
-        if (gridTree) gridTree.setViewMode(mode, 300);
-    }
-
-    // --- 2. 초기화 및 이벤트 바인딩 ---
-    function initGrid() {
-        createGrid();
-        initTreeNetwork();
-        bindEvents();
-        updateGridVisuals();
-    }
-
-    function createGrid() {
-        gridContainer.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
-        gridContainer.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
-        gridContainer.innerHTML = '';
-        grid = [];
-        gridState = [];
-
-        for (let r = 0; r < ROWS; r++) {
-            let rowDom = [];
-            let rowState = [];
-            for (let c = 0; c < COLS; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'grid-cell';
-                cell.dataset.r = r;
-                cell.dataset.c = c;
-                cell.addEventListener('pointerdown', handleCellMouseDown);
-                cell.addEventListener('pointerenter', handleCellMouseEnter);
-                gridContainer.appendChild(cell);
-                rowDom.push(cell);
-                rowState.push(0);
-            }
-            grid.push(rowDom);
-            gridState.push(rowState);
-        }
-
-        document.onpointerup = () => isDrawing = false;
-        document.onpointercancel = () => isDrawing = false;
-    }
-
-    function initTreeNetwork() {
-        gridTree = window.createTreeView('#tree-network-for-grid', {
-            shape: () => 'circle',
-            radius: 18,
-            fontSize: 12,
-            levelSeparation: 70,
-            siblingGap: 14,
-            viewMode: gridCameraMode,
-            label: (d) => d.label,
-            nodeStyle: (d) => {
-                const c = GRID_NODE_COLORS[d.state] || GRID_NODE_COLORS.discovered;
-                return {
-                    fill: c.fill || d.baseColor,
-                    stroke: c.border,
-                    strokeWidth: 2,
-                    textColor: c.text,
-                };
-            },
-            linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
-        });
-
-        // 사람이 화면을 끌면 렌더러가 '자유 이동'으로 넘어간다. 위쪽 단추도 그에 맞춘다.
-        gridTree.on('viewmode', (mode) => setGridCameraMode(mode));
-
-        resetGridTree();
-    }
-
-    // 격자 트리를 빈 상태로 되돌린다.
-    function resetGridTree() {
-        gridTreeRoot = null;
-        gridTreeMap.clear();
-        if (gridTree) gridTree.setData(null).clear();
-    }
-
-    function bindEvents() {
-        document.querySelectorAll('.tool-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('tool-active'));
-                e.currentTarget.classList.add('tool-active');
-                currentTool = e.currentTarget.dataset.tool;
-            });
-        });
-        document.getElementById('btn-reset').addEventListener('click', resetSearch);
-        btnPlay.addEventListener('click', toggleGridAutoPlay);
-        btnStep.addEventListener('click', stepForward);
-        document.getElementById('algo-select').addEventListener('change', resetSearch);
-
-        // 트리 탭. HTML에 onclick을 적지 않고 여기서 건다 — 정보 이용 탐색과 같은 방식이다.
-        document.getElementById('btn-tree-gen').addEventListener('click', generateRandomTree);
-        document.getElementById('btn-tree-play').addEventListener('click', toggleTreeAutoPlay);
-        document.getElementById('btn-tree-step').addEventListener('click', stepTreeSearchManually);
-        document.getElementById('btn-tree-reset').addEventListener('click', resetTreeSearch);
-        document.getElementById('tree-algo').addEventListener('change', resetTreeSearch);
-
-        // 화면을 돌리거나 창 크기를 바꿨을 때만 격자를 다시 만든다.
-        // 칸 수가 그대로면 만들지 않으므로 그리던 벽이 사라지지 않는다.
-        let gridResizeTimer = null;
-        window.addEventListener('resize', () => {
-            clearTimeout(gridResizeTimer);
-            gridResizeTimer = setTimeout(() => {
-                const next = computeGridSize();
-                if (next === ROWS) return;
-                ROWS = COLS = next;
-                startNode = {r: 1, c: 1};
-                endNode = {r: ROWS - 2, c: COLS - 2};
-                createGrid();
-                clearSearchVisuals();
-                updateGridVisuals();
-                setStatus(`화면 크기에 맞춰 격자를 ${ROWS}×${COLS}로 바꿨습니다.`);
-            }, 250);
-        });
-    }
-
-    function handleCellMouseDown(e) {
-        // 터치 입력은 기본적으로 포인터가 첫 셀에 캡처되어 이웃 셀의 pointerenter가 발생하지 않는다.
-        // 캡처를 풀어 주어야 마우스와 동일하게 드래그로 벽을 그릴 수 있다.
-        if (e.pointerId !== undefined && e.currentTarget.hasPointerCapture?.(e.pointerId)) {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-        }
-        isDrawing = true;
-        applyTool(e.currentTarget);
-    }
-
-    function handleCellMouseEnter(e) {
-        if (!isDrawing) return;
-        if (currentTool === 'start' || currentTool === 'end') return;
-        applyTool(e.currentTarget);
-    }
-
-    function clearSearchVisuals() {
-        stopAutoPlay();
-        isGridPlaying = false;
-        searchGenerator = null;
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                grid[r][c].classList.remove('cell-discovered', 'cell-visited', 'cell-path');
-                if (r !== startNode.r || c !== startNode.c) {
-                    if (r !== endNode.r || c !== endNode.c) grid[r][c].innerHTML = '';
-                }
-            }
-        }
-        resetGridTree();
-        setStatus('대기 중입니다. 벽을 그리고 <b>자동 실행</b>을 눌러 보세요.');
-    }
-
-    function applyTool(cell) {
-        clearSearchVisuals();
-        const r = parseInt(cell.dataset.r);
-        const c = parseInt(cell.dataset.c);
-        const isStart = (r === startNode.r && c === startNode.c);
-        const isEnd = (r === endNode.r && c === endNode.c);
-
-        if (currentTool === 'start') {
-            if (isEnd) return;
-            startNode = {r, c};
-            gridState[r][c] = 0;
-        } else if (currentTool === 'end') {
-            if (isStart) return;
-            endNode = {r, c};
-            gridState[r][c] = 0;
-        } else if (currentTool === 'wall') {
-            if (isStart || isEnd) return;
-            gridState[r][c] = 1;
-        } else if (currentTool === 'eraser') {
-            if (isStart || isEnd) return;
-            gridState[r][c] = 0;
-        }
-        updateGridVisuals();
-    }
-
-    function updateGridVisuals() {
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                const cell = grid[r][c];
-                cell.className = 'grid-cell';
-                if (r === startNode.r && c === startNode.c) {
-                    cell.classList.add('cell-start');
-                    cell.innerHTML = iconStart;
-                } else if (r === endNode.r && c === endNode.c) {
-                    cell.classList.add('cell-end');
-                    cell.innerHTML = iconEnd;
-                } else if (gridState[r][c] === 1) {
-                    cell.classList.add('cell-wall');
-                    cell.innerHTML = '';
-                } else {
-                    cell.innerHTML = '';
-                }
-            }
-        }
-    }
-
-    function* createSearchGenerator(algoType) {
-        let treeIdCounter = 0;
-        const queueStack = [];
-        const visited = Array(ROWS).fill(0).map(() => Array(COLS).fill(false));
-        const parent = Array(ROWS).fill(0).map(() => Array(COLS).fill(null));
-        // 실제로 꺼내서 확인한 그 노드의 탐색 트리 번호. DFS는 같은 칸이 여러 번 쌓여
-        // 트리 노드도 여러 개 생기므로, 경로를 칠할 때 어느 노드를 칠할지 이것으로 정한다.
-        const visitTreeId = Array(ROWS).fill(0).map(() => Array(COLS).fill(null));
-
-        const isBFS = (algoType === 'bfs');
-        const dr = [-1, 0, 1, 0];
-        const dc = [0, 1, 0, -1];
-
-        const startTreeId = treeIdCounter++;
-        queueStack.push({r: startNode.r, c: startNode.c, treeId: startTreeId, parentCoords: null});
-
-        if (isBFS) visited[startNode.r][startNode.c] = true;
-
-        yield {
-            type: 'add_node',
-            node: {
-                r: startNode.r,
-                c: startNode.c,
-                treeId: startTreeId,
-                parentTreeId: null,
-                label: 'S',
-                color: '#10b981'
-            }
+    /* ==============================================================
+       1. Tree Search Simulator (트리 탐색)
+       ============================================================== */
+    class TreeSearchSimulator {
+        // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+        static COLORS = {
+            default: {fill: '#6366f1', border: '#4f46e5', text: '#ffffff'},
+            goal: {fill: '#ef4444', border: '#b91c1c', text: '#ffffff'},
+            current: {fill: '#eab308', border: '#ca8a04', text: '#ffffff'},
+            done: {fill: '#94a3b8', border: '#64748b', text: '#ffffff'},
+            found: {fill: '#22c55e', border: '#16a34a', text: '#ffffff'},
         };
 
-        let isPathFound = false;
+        constructor() {
+            this.view = null;
+            this.root = null;
+            this.nodeMap = new Map();
+            this.adjList = {};
+            this.goalNode = null;
+            this.searchState = null;
+            this.isPlaying = false;
+            this.playTimer = null;
 
-        while (queueStack.length > 0) {
-            const current = isBFS ? queueStack.shift() : queueStack.pop();
+            document.getElementById('btn-tree-gen').onclick = () => this.generateTree();
+            document.getElementById('btn-tree-play').onclick = () => this.togglePlay();
+            document.getElementById('btn-tree-step').onclick = () => this.stepManually();
+            document.getElementById('btn-tree-reset').onclick = () => this.resetSearch();
+            document.getElementById('tree-algo').addEventListener('change', () => this.resetSearch());
+        }
 
-            if (!isBFS) {
-                if (visited[current.r][current.c]) continue;
-                visited[current.r][current.c] = true;
-                if (current.parentCoords) parent[current.r][current.c] = current.parentCoords;
+        // --- 그리기 ---
+
+        initView() {
+            if (this.view) return;
+            this.view = window.createTreeView('#tree-network-for-tree', {
+                shape: () => 'circle',
+                radius: 18,
+                fontSize: 13,
+                levelSeparation: 80,
+                siblingGap: 16,
+                viewMode: 'fit',
+                label: (d) => d.label,
+                nodeStyle: (d) => {
+                    const c = TreeSearchSimulator.COLORS[d.state] || TreeSearchSimulator.COLORS.default;
+                    return {fill: c.fill, stroke: c.border, strokeWidth: 2, textColor: c.text};
+                },
+                linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
+            });
+            this.view.on('nodeclick', (id) => this.setGoalNode(id));
+        }
+
+        setNodeState(id, state) {
+            const n = this.nodeMap.get(id);
+            if (n) n.state = state;
+        }
+
+        paint(duration = 300) {
+            if (this.view && this.root) this.view.update(duration);
+        }
+
+        // 목표만 빨갛게 두고 나머지는 기본색으로 되돌린다.
+        repaintToDefault() {
+            for (const n of this.nodeMap.values()) {
+                n.state = (n.id === this.goalNode) ? 'goal' : 'default';
+            }
+        }
+
+        setStatus(msg) {
+            document.getElementById('tree-status').innerHTML = msg;
+        }
+
+        // 숨어 있던 동안에는 컨테이너 크기가 0이라 화면을 맞출 수 없었다. 탭을 켤 때 맞춘다.
+        onShown() {
+            if (!this.root) this.generateTree();
+            else if (this.view) this.view.resize(300);
+        }
+
+        // --- 트리 만들기 ---
+
+        generateTree() {
+            try {
+                this.resetSearch();
+
+                let depthInput = parseInt(document.getElementById('tree-max-depth').value) || 3;
+                let childrenInput = parseInt(document.getElementById('tree-max-children').value) || 2;
+                const maxDepth = Math.min(Math.max(depthInput, 2), 6);
+                const maxChildren = Math.min(Math.max(childrenInput, 1), 4);
+
+                document.getElementById('tree-max-depth').value = maxDepth;
+                document.getElementById('tree-max-children').value = maxChildren;
+
+                const MAX_NODES = 500;
+                let adj = {};
+                let currentId = 1;
+
+                this.initView();
+                this.nodeMap.clear();
+
+                const makeNode = (id) => {
+                    const n = {id: id, label: String(id), state: 'default', children: []};
+                    this.nodeMap.set(id, n);
+                    return n;
+                };
+
+                this.root = makeNode(1);
+                adj[1] = [];
+
+                const buildNode = (parent, depth) => {
+                    if (depth > maxDepth) return;
+                    if (currentId >= MAX_NODES) return;
+                    const numChildren = Math.floor(Math.random() * maxChildren) + 1;
+
+                    for (let i = 0; i < numChildren; i++) {
+                        if (currentId >= MAX_NODES) return;
+                        currentId++;
+                        const child = makeNode(currentId);
+                        parent.children.push(child);
+
+                        if (!adj[parent.id]) adj[parent.id] = [];
+                        adj[parent.id].push(child.id);
+                        adj[child.id] = [];
+
+                        buildNode(child, depth + 1);
+                    }
+                };
+
+                buildNode(this.root, 1);
+                this.adjList = adj;
+
+                this.view.setData(this.root);
+
+                const allNodes = [...this.nodeMap.keys()];
+                if (allNodes.length > 1) {
+                    const randomTarget = allNodes[Math.floor(Math.random() * (allNodes.length - 1)) + 1];
+                    this.setGoalNode(randomTarget);
+                }
+                this.paint(0);
+                this.view.fit(300);
+            } catch (e) {
+                console.error("Tree generation error:", e);
+                this.root = null;
+                this.nodeMap.clear();
+                this.adjList = {};
+                if (this.view) this.view.setData(null).clear();
+            }
+        }
+
+        setGoalNode(nodeId) {
+            if (this.searchState && this.searchState.status !== 'finished') {
+                this.setStatus('⚠️ 탐색이 도는 중에는 목표를 바꿀 수 없습니다. <b>초기화</b> 뒤에 골라 주세요.');
+                return;
+            }
+            if (!this.nodeMap.has(nodeId)) return;
+
+            if (this.goalNode !== null) this.setNodeState(this.goalNode, 'default');
+
+            this.goalNode = nodeId;
+            this.setNodeState(nodeId, 'goal');
+            this.paint(300);
+            this.setStatus(`노드 <b>${nodeId}</b>번을 목표로 정했습니다. 알고리즘을 고르고 실행해 보세요.`);
+        }
+
+        // --- 탐색 ---
+
+        initSearch() {
+            const algo = document.getElementById('tree-algo').value;
+            this.searchState = {
+                algo: algo,
+                dataStructure: [1],
+                visited: new Set([1]),
+                status: 'running',
+                currentNode: null,
+            };
+            this.setStatus(`<b>${algo.toUpperCase()}</b>로 탐색을 시작합니다. 목표가 어디 있는지는 모른 채 정해진 순서로만 엽니다.`);
+
+            this.repaintToDefault();
+            this.paint(0);
+        }
+
+        step() {
+            if (!this.searchState) this.initSearch();
+            if (this.searchState.status !== 'running') return false;
+
+            const st = this.searchState;
+
+            if (st.currentNode !== null && st.currentNode !== this.goalNode) {
+                this.setNodeState(st.currentNode, 'done');
             }
 
-            visitTreeId[current.r][current.c] = current.treeId;
-            yield {type: 'visit', node: current};
-
-            if (current.r === endNode.r && current.c === endNode.c) {
-                isPathFound = true;
-                break;
+            if (st.dataStructure.length === 0) {
+                st.status = 'finished';
+                this.paint(300);
+                this.setStatus('❌ 열어 볼 노드가 더 없습니다. 트리 안의 모든 노드를 확인했지만 목표를 찾지 못했습니다.');
+                return false;
             }
 
-            const pushOrder = isBFS ? [0, 1, 2, 3] : [3, 2, 1, 0];
+            const current = st.algo === 'bfs' ? st.dataStructure.shift() : st.dataStructure.pop();
+            st.currentNode = current;
 
-            for (let i of pushOrder) {
-                const nr = current.r + dr[i];
-                const nc = current.c + dc[i];
+            if (current === this.goalNode) {
+                st.status = 'finished';
+                this.setNodeState(current, 'found');
+                this.paint(300);
+                this.setStatus(`✅ 목표 노드 <b>${current}</b>번을 찾았습니다. 회색으로 바뀐 노드가 여기까지 열어 본 노드입니다.`);
+                return false;
+            }
 
-                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
-                    if (!visited[nr][nc] && gridState[nr][nc] !== 1) {
-                        // DFS는 교과서대로 '꺼낼 때' 방문 처리한다.
-                        // 그래서 같은 칸이 여러 부모에게서 스택에 중복으로 쌓일 수 있고,
-                        // 나중에 꺼낼 때 이미 방문했으면 건너뛴다.
-                        // (이 중복이 쌓이는 모습이 스택 기반 DFS의 실제 동작이다.)
-                        const neighborTreeId = treeIdCounter++;
-                        const neighbor = {
-                            r: nr,
-                            c: nc,
-                            treeId: neighborTreeId,
-                            parentTreeId: current.treeId,
-                            parentCoords: {r: current.r, c: current.c}
-                        };
-                        queueStack.push(neighbor);
+            this.setNodeState(current, 'current');
+            this.paint(300);
 
-                        // BFS는 '넣을 때' 방문 처리한다. 그래야 같은 칸이 큐에 두 번 들어가지 않고
-                        // 최단 경로가 보장된다. DFS는 위 설명대로 꺼낼 때 처리하므로 여기서 아무것도 하지 않는다.
-                        if (isBFS) {
-                            visited[nr][nc] = true;
-                            parent[nr][nc] = {r: current.r, c: current.c};
-                        }
+            const children = this.adjList[current] || [];
+            const insertOrder = st.algo === 'dfs' ? [...children].reverse() : children;
 
-                        let labelStr = (nr === endNode.r && nc === endNode.c) ? 'E' : `${nr},${nc}`;
-                        yield {type: 'add_node', node: {...neighbor, label: labelStr, color: '#bae6fd'}};
+            for (let child of insertOrder) {
+                if (!st.visited.has(child)) {
+                    st.visited.add(child);
+                    st.dataStructure.push(child);
+                }
+            }
+            return true;
+        }
+
+        stepManually() {
+            if (this.isPlaying) this.stopPlay();
+            if (this.searchState && this.searchState.status === 'finished') {
+                this.setStatus('탐색이 이미 끝났습니다. <b>초기화</b> 뒤에 다시 실행해 주세요.');
+                return;
+            }
+            this.step();
+        }
+
+        togglePlay() {
+            if (this.isPlaying) this.stopPlay();
+            else this.startPlay();
+        }
+
+        startPlay() {
+            if (this.searchState && this.searchState.status === 'finished') this.resetSearch();
+            this.isPlaying = true;
+            const btn = document.getElementById('btn-tree-play');
+            btn.innerHTML = `<i class="fa-solid fa-pause"></i> 일시 정지`;
+            btn.classList.replace('bg-indigo-600', 'bg-rose-500');
+            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
+
+            const loop = () => {
+                if (!this.isPlaying) return;
+                if (this.step()) {
+                    const el = document.getElementById('tree-speed');
+                    const speed = Number(el.max) - Number(el.value) + 100;
+                    this.playTimer = setTimeout(loop, speed);
+                } else {
+                    this.stopPlay();
+                }
+            };
+            loop();
+        }
+
+        stopPlay() {
+            this.isPlaying = false;
+            clearTimeout(this.playTimer);
+            const btn = document.getElementById('btn-tree-play');
+            btn.innerHTML = `<i class="fa-solid fa-play"></i> 자동 실행 (Run)`;
+            btn.classList.replace('bg-rose-500', 'bg-indigo-600');
+            btn.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-700');
+        }
+
+        resetSearch() {
+            if (this.isPlaying) this.stopPlay();
+            this.searchState = null;
+            this.setStatus('탐색이 초기화되었습니다. 알고리즘을 고르고 시작하세요.');
+            this.repaintToDefault();
+            this.paint(300);
+        }
+    }
+
+
+    /* ==============================================================
+       2. Grid Search Simulator (2D 공간 탐색)
+       ============================================================== */
+    class GridSearchSimulator {
+        // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+        static COLORS = {
+            discovered: {border: '#0284c7', text: '#334155'},
+            visited: {fill: '#3b82f6', border: '#1e40af', text: '#ffffff'},
+            path: {fill: '#f59e0b', border: '#b45309', text: '#ffffff'},
+        };
+
+        static ICON_START = '<i class="fa-solid fa-location-dot text-white text-xl drop-shadow-md"></i>';
+        static ICON_END = '<i class="fa-solid fa-flag text-white text-xl drop-shadow-md"></i>';
+        static ICON_PATH = '<i class="fa-solid fa-star text-white opacity-80"></i>';
+
+        constructor() {
+            this.container = document.getElementById('grid-container');
+            this.btnPlay = document.getElementById('btn-play');
+            this.btnStep = document.getElementById('btn-step');
+            this.statusText = document.getElementById('status-text');
+            this.speedSlider = document.getElementById('speed-slider');
+
+            this.rows = GridSearchSimulator.computeSize();
+            this.cols = this.rows;
+            this.grid = [];
+            this.state = [];
+            this.startNode = {r: 1, c: 1};
+            this.endNode = {r: this.rows - 2, c: this.cols - 2};
+
+            this.currentTool = 'wall';
+            this.isDrawing = false;
+
+            this.isSearching = false;
+            this.isPlaying = false;
+            this.generator = null;
+            this.playTimer = null;
+
+            // 카메라 모드: 'free'(자유 이동), 'track'(추적), 'fit'(전체 자동 맞춤)
+            this.cameraMode = 'free';
+
+            // 탐색이 자라며 그리는 트리. 공용 렌더러는 `{id, children}` 꼴을 먹으므로
+            // 노드를 id로 찾을 수 있게 표를 따로 하나 둔다.
+            this.treeRoot = null;
+            this.treeMap = new Map();
+            this.view = null;
+
+            this.createGrid();
+            this.initView();
+            this.bindEvents();
+            this.updateVisuals();
+        }
+
+        // 격자 칸은 손가락으로 벽을 그리는 대상이라 최소 44px는 되어야 한다.
+        // 10칸을 좁은 화면에 그대로 넣으면 28px까지 줄어 오조작이 잦으므로 화면 폭에 맞춰 칸 수를 줄인다.
+        // 구간 값은 실측으로 정했다. 각 구간의 가장 좁은 폭에서도 칸이 44px 이상이 되도록 잡았다.
+        static computeSize() {
+            const w = window.innerWidth;
+            if (w < 372) return 6;   // 360px 안드로이드 기준 약 50px
+            if (w < 460) return 7;   // 375px 기준 약 45px
+            if (w < 620) return 8;
+            return 10;
+        }
+
+        setStatus(text) {
+            this.statusText.innerHTML = text;
+        }
+
+        // --- 격자 만들기 ---
+
+        createGrid() {
+            this.container.style.gridTemplateColumns = `repeat(${this.cols}, minmax(0, 1fr))`;
+            this.container.style.gridTemplateRows = `repeat(${this.rows}, minmax(0, 1fr))`;
+            this.container.innerHTML = '';
+            this.grid = [];
+            this.state = [];
+
+            for (let r = 0; r < this.rows; r++) {
+                let rowDom = [];
+                let rowState = [];
+                for (let c = 0; c < this.cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.addEventListener('pointerdown', (e) => this.onCellDown(e));
+                    cell.addEventListener('pointerenter', (e) => this.onCellEnter(e));
+                    this.container.appendChild(cell);
+                    rowDom.push(cell);
+                    rowState.push(0);
+                }
+                this.grid.push(rowDom);
+                this.state.push(rowState);
+            }
+
+            document.onpointerup = () => this.isDrawing = false;
+            document.onpointercancel = () => this.isDrawing = false;
+        }
+
+        initView() {
+            this.view = window.createTreeView('#tree-network-for-grid', {
+                shape: () => 'circle',
+                radius: 18,
+                fontSize: 12,
+                levelSeparation: 70,
+                siblingGap: 14,
+                viewMode: this.cameraMode,
+                label: (d) => d.label,
+                nodeStyle: (d) => {
+                    const c = GridSearchSimulator.COLORS[d.state] || GridSearchSimulator.COLORS.discovered;
+                    return {
+                        fill: c.fill || d.baseColor,
+                        stroke: c.border,
+                        strokeWidth: 2,
+                        textColor: c.text,
+                    };
+                },
+                linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
+            });
+
+            // 사람이 화면을 끌면 렌더러가 '자유 이동'으로 넘어간다. 위쪽 단추도 그에 맞춘다.
+            this.view.on('viewmode', (mode) => this.setCameraMode(mode));
+
+            this.resetTree();
+        }
+
+        resetTree() {
+            this.treeRoot = null;
+            this.treeMap.clear();
+            if (this.view) this.view.setData(null).clear();
+        }
+
+        setCameraMode(mode) {
+            this.cameraMode = mode;
+            const active = 'px-3 py-1 text-sm font-bold rounded-md bg-white text-indigo-600 shadow-sm transition-colors';
+            const inactive = 'px-3 py-1 text-sm font-bold rounded-md text-slate-500 hover:text-indigo-600 transition-colors';
+
+            document.getElementById('btn-cam-free').className = (mode === 'free') ? active : inactive;
+            document.getElementById('btn-cam-track').className = (mode === 'track') ? active : inactive;
+            document.getElementById('btn-cam-fit').className = (mode === 'fit') ? active : inactive;
+
+            if (this.view) this.view.setViewMode(mode, 300);
+        }
+
+        bindEvents() {
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('tool-active'));
+                    e.currentTarget.classList.add('tool-active');
+                    this.currentTool = e.currentTarget.dataset.tool;
+                });
+            });
+            document.getElementById('btn-reset').addEventListener('click', () => this.resetSearch());
+            this.btnPlay.addEventListener('click', () => this.togglePlay());
+            this.btnStep.addEventListener('click', () => this.stepManually());
+            document.getElementById('algo-select').addEventListener('change', () => this.resetSearch());
+
+            document.getElementById('btn-cam-free').addEventListener('click', () => this.setCameraMode('free'));
+            document.getElementById('btn-cam-track').addEventListener('click', () => this.setCameraMode('track'));
+            document.getElementById('btn-cam-fit').addEventListener('click', () => this.setCameraMode('fit'));
+
+            // 화면을 돌리거나 창 크기를 바꿨을 때만 격자를 다시 만든다.
+            // 칸 수가 그대로면 만들지 않으므로 그리던 벽이 사라지지 않는다.
+            let resizeTimer = null;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    const next = GridSearchSimulator.computeSize();
+                    if (next === this.rows) return;
+                    this.rows = this.cols = next;
+                    this.startNode = {r: 1, c: 1};
+                    this.endNode = {r: this.rows - 2, c: this.cols - 2};
+                    this.createGrid();
+                    this.clearSearchVisuals();
+                    this.updateVisuals();
+                    this.setStatus(`화면 크기에 맞춰 격자를 ${this.rows}×${this.cols}로 바꿨습니다.`);
+                }, 250);
+            });
+        }
+
+        // --- 벽 그리기 ---
+
+        onCellDown(e) {
+            // 터치 입력은 기본적으로 포인터가 첫 셀에 캡처되어 이웃 셀의 pointerenter가 발생하지 않는다.
+            // 캡처를 풀어 주어야 마우스와 동일하게 드래그로 벽을 그릴 수 있다.
+            if (e.pointerId !== undefined && e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+            this.isDrawing = true;
+            this.applyTool(e.currentTarget);
+        }
+
+        onCellEnter(e) {
+            if (!this.isDrawing) return;
+            if (this.currentTool === 'start' || this.currentTool === 'end') return;
+            this.applyTool(e.currentTarget);
+        }
+
+        applyTool(cell) {
+            this.clearSearchVisuals();
+            const r = parseInt(cell.dataset.r);
+            const c = parseInt(cell.dataset.c);
+            const isStart = (r === this.startNode.r && c === this.startNode.c);
+            const isEnd = (r === this.endNode.r && c === this.endNode.c);
+
+            if (this.currentTool === 'start') {
+                if (isEnd) return;
+                this.startNode = {r, c};
+                this.state[r][c] = 0;
+            } else if (this.currentTool === 'end') {
+                if (isStart) return;
+                this.endNode = {r, c};
+                this.state[r][c] = 0;
+            } else if (this.currentTool === 'wall') {
+                if (isStart || isEnd) return;
+                this.state[r][c] = 1;
+            } else if (this.currentTool === 'eraser') {
+                if (isStart || isEnd) return;
+                this.state[r][c] = 0;
+            }
+            this.updateVisuals();
+        }
+
+        updateVisuals() {
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    const cell = this.grid[r][c];
+                    cell.className = 'grid-cell';
+                    if (r === this.startNode.r && c === this.startNode.c) {
+                        cell.classList.add('cell-start');
+                        cell.innerHTML = GridSearchSimulator.ICON_START;
+                    } else if (r === this.endNode.r && c === this.endNode.c) {
+                        cell.classList.add('cell-end');
+                        cell.innerHTML = GridSearchSimulator.ICON_END;
+                    } else if (this.state[r][c] === 1) {
+                        cell.classList.add('cell-wall');
+                        cell.innerHTML = '';
+                    } else {
+                        cell.innerHTML = '';
                     }
                 }
             }
         }
 
-        if (isPathFound) {
-            let path = [];
-            let curr = {r: endNode.r, c: endNode.c};
-            while (curr !== null) {
-                path.push(curr);
-                const p = parent[curr.r][curr.c];
-                if (p) curr = {r: p.r, c: p.c};
-                else curr = null;
-            }
-            path.reverse();
-
-            for (let i = 0; i < path.length; i++) {
-                yield {type: 'path', node: {...path[i], treeId: visitTreeId[path[i].r][path[i].c]}};
-            }
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    // 격자 탭의 상태 바. 무슨 일이 있었는지에 더해 **다음에 무엇을 할지**를 적는다.
-    function setStatus(text) {
-        statusText.innerHTML = text;
-    }
-
-    function prepareSearch() {
-        clearSearchVisuals();
-        const algo = document.getElementById('algo-select').value;
-        searchGenerator = createSearchGenerator(algo);
-        isGridPlaying = true;
-        setStatus('탐색을 시작합니다. 아직 목표가 어디 있는지 모른 채 이웃 칸을 하나씩 엽니다.');
-    }
-
-    function processStep() {
-        if (!searchGenerator) prepareSearch();
-        const result = searchGenerator.next();
-
-        if (result.done) {
-            stopAutoPlay();
-            isGridPlaying = false;
-            // 다 끝난 제너레이터를 그대로 두면 버튼을 한 번 더 눌렀을 때
-            // next()가 값 없이 done만 돌려주어 성공한 탐색이 '경로 없음'으로 뒤집힌다.
-            // 여기서 비워 두면 다음 버튼 입력이 새 탐색을 시작한다.
-            searchGenerator = null;
-            const isBFS = document.getElementById('algo-select').value === 'bfs';
-            if (result.value) {
-                // 한 칸 이동 비용이 모두 같으므로 BFS가 찾은 경로만 최단임이 보장된다.
-                setStatus(isBFS
-                    ? '✅ 목표에 닿았습니다. 한 칸 이동 비용이 모두 같으므로 이 경로가 <b>최단 경로</b>입니다.'
-                    : '✅ 목표에 닿았습니다. 다만 DFS가 찾은 이 경로가 <b>가장 짧다는 보장은 없습니다.</b>');
-            } else {
-                setStatus('❌ 목표까지 갈 수 있는 길이 없습니다. 벽을 지우고 다시 실행해 보세요.');
-            }
-
-            if (gridTree && gridTreeRoot) gridTree.fit(300);
-            return false;
-        }
-
-        handleAction(result.value);
-        return true;
-    }
-
-    function handleAction(action) {
-        const {type, node} = action;
-        const cell = grid[node.r][node.c];
-        const isStartEnd = (node.r === startNode.r && node.c === startNode.c) || (node.r === endNode.r && node.c === endNode.c);
-
-        if (type === 'add_node') {
-            if (!isStartEnd) cell.classList.add('cell-discovered');
-
-            // r, c 를 함께 저장해 두어야 경로 강조 시 라벨('S'/'E')에 관계없이 찾을 수 있다.
-            const treeNode = {
-                id: node.treeId, label: node.label, r: node.r, c: node.c,
-                baseColor: node.color, state: 'discovered', children: [],
-            };
-            gridTreeMap.set(node.treeId, treeNode);
-
-            if (node.parentTreeId === null) {
-                gridTreeRoot = treeNode;
-                gridTree.setData(gridTreeRoot);
-            } else {
-                const parent = gridTreeMap.get(node.parentTreeId);
-                if (parent) parent.children.push(treeNode);
-            }
-
-        } else if (type === 'visit') {
-            if (!isStartEnd) cell.classList.add('cell-visited');
-            const n = gridTreeMap.get(node.treeId);
-            if (n) n.state = 'visited';
-
-        } else if (type === 'path') {
-            if (!isStartEnd) {
-                cell.classList.add('cell-path');
-                cell.innerHTML = iconPath;
-            }
-            // 실제로 지나간 그 노드 하나만 칠한다. 같은 칸의 다른 트리 노드(DFS에서 쌓인
-            // 중복 후보)까지 칠하면 경로가 아닌 가지가 경로처럼 보인다.
-            if (node.treeId !== null && node.treeId !== undefined) {
-                const n = gridTreeMap.get(node.treeId);
-                if (n) n.state = 'path';
-            } else {
-                for (const n of gridTreeMap.values()) {
-                    if (n.r === node.r && n.c === node.c) n.state = 'path';
+        clearSearchVisuals() {
+            this.stopPlay();
+            this.isSearching = false;
+            this.generator = null;
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    this.grid[r][c].classList.remove('cell-discovered', 'cell-visited', 'cell-path');
+                    if (r !== this.startNode.r || c !== this.startNode.c) {
+                        if (r !== this.endNode.r || c !== this.endNode.c) this.grid[r][c].innerHTML = '';
+                    }
                 }
             }
+            this.resetTree();
+            this.setStatus('대기 중입니다. 벽을 그리고 <b>자동 실행</b>을 눌러 보세요.');
         }
 
-        // --- 카메라 모드에 따른 화면 제어 ---
-        // 추적 모드에서 따라갈 노드를 먼저 정하고 나서 그린다.
-        // update() 가 그 모드에 맞춰 화면까지 옮겨 준다.
-        if (gridTree && gridTreeRoot) {
-            if (type === 'add_node' || type === 'visit') gridTree.setActive(node.treeId);
-            gridTree.update(300);
-        }
-    }
+        // --- 탐색 ---
 
-    function stepForward() {
-        if (isAutoPlaying) stopAutoPlay();
-        processStep();
-    }
+        * createGenerator(algoType) {
+            let treeIdCounter = 0;
+            const queueStack = [];
+            const visited = Array(this.rows).fill(0).map(() => Array(this.cols).fill(false));
+            const parent = Array(this.rows).fill(0).map(() => Array(this.cols).fill(null));
+            // 실제로 꺼내서 확인한 그 노드의 탐색 트리 번호. DFS는 같은 칸이 여러 번 쌓여
+            // 트리 노드도 여러 개 생기므로, 경로를 칠할 때 어느 노드를 칠할지 이것으로 정한다.
+            const visitTreeId = Array(this.rows).fill(0).map(() => Array(this.cols).fill(null));
 
-    function toggleGridAutoPlay() {
-        if (isAutoPlaying) stopAutoPlay();
-        else startAutoPlay();
-    }
+            const isBFS = (algoType === 'bfs');
+            const dr = [-1, 0, 1, 0];
+            const dc = [0, 1, 0, -1];
 
-    function startAutoPlay() {
-        if (!searchGenerator) prepareSearch();
-        if (!isGridPlaying) return;
+            const startTreeId = treeIdCounter++;
+            queueStack.push({r: this.startNode.r, c: this.startNode.c, treeId: startTreeId, parentCoords: null});
 
-        isAutoPlaying = true;
-        btnPlay.innerHTML = `<i class="fa-solid fa-pause text-lg"></i><span class="">일시 정지</span>`;
-        btnPlay.classList.replace('bg-indigo-600', 'bg-rose-500');
-        btnPlay.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
+            if (isBFS) visited[this.startNode.r][this.startNode.c] = true;
 
-        function loop() {
-            if (isAutoPlaying && isGridPlaying) {
-                const hasNext = processStep();
-                if (hasNext) {
-                    const max = Number(speedSlider.max);
-                    const min = Number(speedSlider.min);
-                    const currentSpeed = max - Number(speedSlider.value) + min;
-                    playInterval = setTimeout(loop, currentSpeed);
+            yield {
+                type: 'add_node',
+                node: {
+                    r: this.startNode.r,
+                    c: this.startNode.c,
+                    treeId: startTreeId,
+                    parentTreeId: null,
+                    label: 'S',
+                    color: '#10b981'
                 }
-            }
-        }
-
-        loop();
-    }
-
-    function stopAutoPlay() {
-        isAutoPlaying = false;
-        clearTimeout(playInterval);
-        btnPlay.innerHTML = `<i class="fa-solid fa-play text-lg"></i><span class="">자동 실행</span>`;
-        btnPlay.classList.replace('bg-rose-500', 'bg-indigo-600');
-        btnPlay.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-700');
-    }
-
-    function resetSearch() {
-        clearSearchVisuals();
-        if (gridTree && gridTreeRoot) gridTree.fit(300);
-    }
-
-
-    // ==========================================
-    // TREE SEARCH LOGIC
-    // ==========================================
-    let treeView = null;
-    let treeRoot = null;
-    let treeNodeMap = new Map();
-    let treeAdjList = {};
-    let treeGoalNode = null;
-
-    let treeSearchState = null;
-    let isTreePlaying = false;
-    let treePlayInterval = null;
-
-    // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
-    const TREE_NODE_COLORS = {
-        default: {fill: '#6366f1', border: '#4f46e5', text: '#ffffff'},
-        goal: {fill: '#ef4444', border: '#b91c1c', text: '#ffffff'},
-        current: {fill: '#eab308', border: '#ca8a04', text: '#ffffff'},
-        done: {fill: '#94a3b8', border: '#64748b', text: '#ffffff'},
-        found: {fill: '#22c55e', border: '#16a34a', text: '#ffffff'},
-    };
-
-    function initTreeView() {
-        if (treeView) return;
-        treeView = window.createTreeView('#tree-network-for-tree', {
-            shape: () => 'circle',
-            radius: 18,
-            fontSize: 13,
-            levelSeparation: 80,
-            siblingGap: 16,
-            viewMode: 'fit',
-            label: (d) => d.label,
-            nodeStyle: (d) => {
-                const c = TREE_NODE_COLORS[d.state] || TREE_NODE_COLORS.default;
-                return {fill: c.fill, stroke: c.border, strokeWidth: 2, textColor: c.text};
-            },
-            linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
-        });
-        treeView.on('nodeclick', (id) => setTreeGoalNode(id));
-    }
-
-    // 노드 상태를 바꾸고 다시 그린다. 색을 직접 만지는 곳을 여기 하나로 모은다.
-    function setTreeNodeState(id, state) {
-        const n = treeNodeMap.get(id);
-        if (n) n.state = state;
-    }
-
-    function paintTree(duration = 300) {
-        if (treeView && treeRoot) treeView.update(duration);
-    }
-
-    // 목표만 빨갛게 두고 나머지는 기본색으로 되돌린다.
-    function repaintTreeToDefault() {
-        for (const n of treeNodeMap.values()) {
-            n.state = (n.id === treeGoalNode) ? 'goal' : 'default';
-        }
-    }
-
-    function generateRandomTree() {
-        try {
-            resetTreeSearch();
-
-            let depthInput = parseInt(document.getElementById('tree-max-depth').value) || 4;
-            let childrenInput = parseInt(document.getElementById('tree-max-children').value) || 2;
-            const maxDepth = Math.min(Math.max(depthInput, 2), 6);
-            const maxChildren = Math.min(Math.max(childrenInput, 1), 4);
-
-            document.getElementById('tree-max-depth').value = maxDepth;
-            document.getElementById('tree-max-children').value = maxChildren;
-
-            const MAX_NODES = 500;
-            let tempAdj = {};
-            let currentId = 1;
-
-            initTreeView();
-            treeNodeMap.clear();
-
-            const makeNode = (id) => {
-                const n = {id: id, label: String(id), state: 'default', children: []};
-                treeNodeMap.set(id, n);
-                return n;
             };
 
-            treeRoot = makeNode(1);
-            tempAdj[1] = [];
+            let isPathFound = false;
 
-            function buildNode(parent, depth) {
-                if (depth > maxDepth) return;
-                if (currentId >= MAX_NODES) return;
-                const numChildren = Math.floor(Math.random() * maxChildren) + 1;
+            while (queueStack.length > 0) {
+                const current = isBFS ? queueStack.shift() : queueStack.pop();
 
-                for (let i = 0; i < numChildren; i++) {
-                    if (currentId >= MAX_NODES) return;
-                    currentId++;
-                    const child = makeNode(currentId);
-                    parent.children.push(child);
+                if (!isBFS) {
+                    if (visited[current.r][current.c]) continue;
+                    visited[current.r][current.c] = true;
+                    if (current.parentCoords) parent[current.r][current.c] = current.parentCoords;
+                }
 
-                    if (!tempAdj[parent.id]) tempAdj[parent.id] = [];
-                    tempAdj[parent.id].push(child.id);
-                    tempAdj[child.id] = [];
+                visitTreeId[current.r][current.c] = current.treeId;
+                yield {type: 'visit', node: current};
 
-                    buildNode(child, depth + 1);
+                if (current.r === this.endNode.r && current.c === this.endNode.c) {
+                    isPathFound = true;
+                    break;
+                }
+
+                const pushOrder = isBFS ? [0, 1, 2, 3] : [3, 2, 1, 0];
+
+                for (let i of pushOrder) {
+                    const nr = current.r + dr[i];
+                    const nc = current.c + dc[i];
+
+                    if (nr >= 0 && nr < this.rows && nc >= 0 && nc < this.cols) {
+                        if (!visited[nr][nc] && this.state[nr][nc] !== 1) {
+                            // DFS는 교과서대로 '꺼낼 때' 방문 처리한다.
+                            // 그래서 같은 칸이 여러 부모에게서 스택에 중복으로 쌓일 수 있고,
+                            // 나중에 꺼낼 때 이미 방문했으면 건너뛴다.
+                            // (이 중복이 쌓이는 모습이 스택 기반 DFS의 실제 동작이다.)
+                            const neighborTreeId = treeIdCounter++;
+                            const neighbor = {
+                                r: nr,
+                                c: nc,
+                                treeId: neighborTreeId,
+                                parentTreeId: current.treeId,
+                                parentCoords: {r: current.r, c: current.c}
+                            };
+                            queueStack.push(neighbor);
+
+                            // BFS는 '넣을 때' 방문 처리한다. 그래야 같은 칸이 큐에 두 번 들어가지 않고
+                            // 최단 경로가 보장된다. DFS는 위 설명대로 꺼낼 때 처리하므로 여기서 아무것도 하지 않는다.
+                            if (isBFS) {
+                                visited[nr][nc] = true;
+                                parent[nr][nc] = {r: current.r, c: current.c};
+                            }
+
+                            let labelStr = (nr === this.endNode.r && nc === this.endNode.c) ? 'E' : `${nr},${nc}`;
+                            yield {type: 'add_node', node: {...neighbor, label: labelStr, color: '#bae6fd'}};
+                        }
+                    }
                 }
             }
 
-            buildNode(treeRoot, 1);
-            treeAdjList = tempAdj;
+            if (isPathFound) {
+                let path = [];
+                let curr = {r: this.endNode.r, c: this.endNode.c};
+                while (curr !== null) {
+                    path.push(curr);
+                    const p = parent[curr.r][curr.c];
+                    if (p) curr = {r: p.r, c: p.c};
+                    else curr = null;
+                }
+                path.reverse();
 
-            treeView.setData(treeRoot);
-
-            const allNodes = [...treeNodeMap.keys()];
-            if (allNodes.length > 1) {
-                const randomTarget = allNodes[Math.floor(Math.random() * (allNodes.length - 1)) + 1];
-                setTreeGoalNode(randomTarget);
-            }
-            paintTree(0);
-            treeView.fit(300);
-        } catch (e) {
-            console.error("Tree generation error:", e);
-            treeRoot = null;
-            treeNodeMap.clear();
-            treeAdjList = {};
-            if (treeView) treeView.setData(null).clear();
-        }
-    }
-
-    // 트리 탭의 상태 바. 격자 탭의 setStatus 와 짝을 이룬다.
-    function setTreeStatus(msg) {
-        document.getElementById('tree-status').innerHTML = msg;
-    }
-
-    function setTreeGoalNode(nodeId) {
-        if (treeSearchState && treeSearchState.status !== 'finished') {
-            setTreeStatus('⚠️ 탐색이 도는 중에는 목표를 바꿀 수 없습니다. <b>초기화</b> 뒤에 골라 주세요.');
-            return;
-        }
-        if (!treeNodeMap.has(nodeId)) return;
-
-        if (treeGoalNode !== null) setTreeNodeState(treeGoalNode, 'default');
-
-        treeGoalNode = nodeId;
-        setTreeNodeState(nodeId, 'goal');
-        paintTree(300);
-        setTreeStatus(`노드 <b>${nodeId}</b>번을 목표로 정했습니다. 알고리즘을 고르고 실행해 보세요.`);
-    }
-
-    function initTreeSearch() {
-        const algo = document.getElementById('tree-algo').value;
-        treeSearchState = {
-            algo: algo,
-            dataStructure: [1],
-            visited: new Set([1]),
-            status: 'running',
-            currentNode: null
-        };
-        setTreeStatus(`<b>${algo.toUpperCase()}</b>로 탐색을 시작합니다. 목표가 어디 있는지는 모른 채 정해진 순서로만 엽니다.`);
-
-        repaintTreeToDefault();
-        paintTree(0);
-    }
-
-    function stepTreeCore() {
-        if (!treeSearchState) initTreeSearch();
-        if (treeSearchState.status !== 'running') return false;
-
-        const st = treeSearchState;
-
-        if (st.currentNode !== null && st.currentNode !== treeGoalNode) {
-            setTreeNodeState(st.currentNode, 'done');
-        }
-
-        if (st.dataStructure.length === 0) {
-            st.status = 'finished';
-            paintTree(300);
-            setTreeStatus('❌ 열어 볼 노드가 더 없습니다. 트리 안의 모든 노드를 확인했지만 목표를 찾지 못했습니다.');
-            return false;
-        }
-
-        const current = st.algo === 'bfs' ? st.dataStructure.shift() : st.dataStructure.pop();
-        st.currentNode = current;
-
-        if (current === treeGoalNode) {
-            st.status = 'finished';
-            setTreeNodeState(current, 'found');
-            paintTree(300);
-            setTreeStatus(`✅ 목표 노드 <b>${current}</b>번을 찾았습니다. 회색으로 바뀐 노드가 여기까지 열어 본 노드입니다.`);
-            return false;
-        }
-
-        setTreeNodeState(current, 'current');
-        paintTree(300);
-
-        const children = treeAdjList[current] || [];
-        const insertOrder = st.algo === 'dfs' ? [...children].reverse() : children;
-
-        for (let child of insertOrder) {
-            if (!st.visited.has(child)) {
-                st.visited.add(child);
-                st.dataStructure.push(child);
+                for (let i = 0; i < path.length; i++) {
+                    yield {type: 'path', node: {...path[i], treeId: visitTreeId[path[i].r][path[i].c]}};
+                }
+                return true;
+            } else {
+                return false;
             }
         }
-        return true;
-    }
 
-    function stepTreeSearchManually() {
-        if (isTreePlaying) stopTreeAutoPlay();
-        if (treeSearchState && treeSearchState.status === 'finished') {
-            setTreeStatus('탐색이 이미 끝났습니다. <b>초기화</b> 뒤에 다시 실행해 주세요.');
-            return;
+        prepareSearch() {
+            this.clearSearchVisuals();
+            const algo = document.getElementById('algo-select').value;
+            this.generator = this.createGenerator(algo);
+            this.isSearching = true;
+            this.setStatus('탐색을 시작합니다. 아직 목표가 어디 있는지 모른 채 이웃 칸을 하나씩 엽니다.');
         }
-        stepTreeCore();
-    }
 
-    function stopTreeAutoPlay() {
-        isTreePlaying = false;
-        clearTimeout(treePlayInterval);
-        const btn = document.getElementById('btn-tree-play');
-        btn.innerHTML = `<i class="fa-solid fa-play"></i> 자동 실행 (Run)`;
-        btn.classList.replace('bg-rose-500', 'bg-indigo-600');
-        btn.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-700');
-    }
+        processStep() {
+            if (!this.generator) this.prepareSearch();
+            const result = this.generator.next();
 
-    function toggleTreeAutoPlay() {
-        if (isTreePlaying) stopTreeAutoPlay();
-        else startTreeAutoPlay();
-    }
-
-    function startTreeAutoPlay() {
-        if (treeSearchState && treeSearchState.status === 'finished') resetTreeSearch();
-        isTreePlaying = true;
-        const btn = document.getElementById('btn-tree-play');
-        btn.innerHTML = `<i class="fa-solid fa-pause"></i> 일시 정지`;
-        btn.classList.replace('bg-indigo-600', 'bg-rose-500');
-        btn.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
-
-        function loop() {
-            if (isTreePlaying) {
-                const hasNext = stepTreeCore();
-                if (hasNext) {
-                    const speed = document.getElementById('tree-speed').max - document.getElementById('tree-speed').value + 100;
-                    treePlayInterval = setTimeout(loop, speed);
+            if (result.done) {
+                this.stopPlay();
+                this.isSearching = false;
+                // 다 끝난 제너레이터를 그대로 두면 버튼을 한 번 더 눌렀을 때
+                // next()가 값 없이 done만 돌려주어 성공한 탐색이 '경로 없음'으로 뒤집힌다.
+                // 여기서 비워 두면 다음 버튼 입력이 새 탐색을 시작한다.
+                this.generator = null;
+                const isBFS = document.getElementById('algo-select').value === 'bfs';
+                if (result.value) {
+                    // 한 칸 이동 비용이 모두 같으므로 BFS가 찾은 경로만 최단임이 보장된다.
+                    this.setStatus(isBFS
+                        ? '✅ 목표에 닿았습니다. 한 칸 이동 비용이 모두 같으므로 이 경로가 <b>최단 경로</b>입니다.'
+                        : '✅ 목표에 닿았습니다. 다만 DFS가 찾은 이 경로가 <b>가장 짧다는 보장은 없습니다.</b>');
                 } else {
-                    stopTreeAutoPlay();
+                    this.setStatus('❌ 목표까지 갈 수 있는 길이 없습니다. 벽을 지우고 다시 실행해 보세요.');
                 }
+
+                if (this.view && this.treeRoot) this.view.fit(300);
+                return false;
+            }
+
+            this.handleAction(result.value);
+            return true;
+        }
+
+        handleAction(action) {
+            const {type, node} = action;
+            const cell = this.grid[node.r][node.c];
+            const isStartEnd = (node.r === this.startNode.r && node.c === this.startNode.c)
+                || (node.r === this.endNode.r && node.c === this.endNode.c);
+
+            if (type === 'add_node') {
+                if (!isStartEnd) cell.classList.add('cell-discovered');
+
+                // r, c 를 함께 저장해 두어야 경로 강조 시 라벨('S'/'E')에 관계없이 찾을 수 있다.
+                const treeNode = {
+                    id: node.treeId, label: node.label, r: node.r, c: node.c,
+                    baseColor: node.color, state: 'discovered', children: [],
+                };
+                this.treeMap.set(node.treeId, treeNode);
+
+                if (node.parentTreeId === null) {
+                    this.treeRoot = treeNode;
+                    this.view.setData(this.treeRoot);
+                } else {
+                    const parent = this.treeMap.get(node.parentTreeId);
+                    if (parent) parent.children.push(treeNode);
+                }
+
+            } else if (type === 'visit') {
+                if (!isStartEnd) cell.classList.add('cell-visited');
+                const n = this.treeMap.get(node.treeId);
+                if (n) n.state = 'visited';
+
+            } else if (type === 'path') {
+                if (!isStartEnd) {
+                    cell.classList.add('cell-path');
+                    cell.innerHTML = GridSearchSimulator.ICON_PATH;
+                }
+                // 실제로 지나간 그 노드 하나만 칠한다. 같은 칸의 다른 트리 노드(DFS에서 쌓인
+                // 중복 후보)까지 칠하면 경로가 아닌 가지가 경로처럼 보인다.
+                if (node.treeId !== null && node.treeId !== undefined) {
+                    const n = this.treeMap.get(node.treeId);
+                    if (n) n.state = 'path';
+                } else {
+                    for (const n of this.treeMap.values()) {
+                        if (n.r === node.r && n.c === node.c) n.state = 'path';
+                    }
+                }
+            }
+
+            // 추적 모드에서 따라갈 노드를 먼저 정하고 나서 그린다.
+            // update() 가 그 모드에 맞춰 화면까지 옮겨 준다.
+            if (this.view && this.treeRoot) {
+                if (type === 'add_node' || type === 'visit') this.view.setActive(node.treeId);
+                this.view.update(300);
             }
         }
 
-        loop();
+        stepManually() {
+            if (this.isPlaying) this.stopPlay();
+            this.processStep();
+        }
+
+        togglePlay() {
+            if (this.isPlaying) this.stopPlay();
+            else this.startPlay();
+        }
+
+        startPlay() {
+            if (!this.generator) this.prepareSearch();
+            if (!this.isSearching) return;
+
+            this.isPlaying = true;
+            this.btnPlay.innerHTML = `<i class="fa-solid fa-pause text-lg"></i><span class="">일시 정지</span>`;
+            this.btnPlay.classList.replace('bg-indigo-600', 'bg-rose-500');
+            this.btnPlay.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
+
+            const loop = () => {
+                if (!this.isPlaying || !this.isSearching) return;
+                if (this.processStep()) {
+                    const max = Number(this.speedSlider.max);
+                    const min = Number(this.speedSlider.min);
+                    const currentSpeed = max - Number(this.speedSlider.value) + min;
+                    this.playTimer = setTimeout(loop, currentSpeed);
+                }
+            };
+            loop();
+        }
+
+        stopPlay() {
+            this.isPlaying = false;
+            clearTimeout(this.playTimer);
+            this.btnPlay.innerHTML = `<i class="fa-solid fa-play text-lg"></i><span class="">자동 실행</span>`;
+            this.btnPlay.classList.replace('bg-rose-500', 'bg-indigo-600');
+            this.btnPlay.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-700');
+        }
+
+        resetSearch() {
+            this.clearSearchVisuals();
+            if (this.view && this.treeRoot) this.view.fit(300);
+        }
     }
 
-    function resetTreeSearch() {
-        if (isTreePlaying) stopTreeAutoPlay();
-        treeSearchState = null;
-        setTreeStatus('탐색이 초기화되었습니다. 알고리즘을 고르고 시작하세요.');
-        repaintTreeToDefault();
-        paintTree(300);
-    }
 
-    // --- 초기화 ---
-    window.onload = () => {
-        initGrid();
-        switchTab('tree');
+    /* ==============================================================
+       3. Main UI Controller
+       ============================================================== */
+    window.UIController = {
+        init() {
+            window.GridApp = new GridSearchSimulator();
+            window.TreeApp = new TreeSearchSimulator();
+            this.switchTab('tree');
+        },
+        switchTab(tab) {
+            const tabTree = document.getElementById('tab-tree');
+            const tabGrid = document.getElementById('tab-grid');
+            const sectionTree = document.getElementById('tree-search-section');
+            const sectionGrid = document.getElementById('grid-search-section');
+
+            if (window.GridApp) window.GridApp.stopPlay();
+            if (window.TreeApp) window.TreeApp.stopPlay();
+
+            const activeClass = 'px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors';
+            const inactiveClass = 'px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors';
+
+            if (tab === 'tree') {
+                sectionTree.classList.remove('hidden');
+                sectionGrid.classList.add('hidden');
+                tabTree.className = activeClass;
+                tabGrid.className = inactiveClass;
+                if (window.TreeApp) window.TreeApp.onShown();
+            } else {
+                sectionGrid.classList.remove('hidden');
+                sectionTree.classList.add('hidden');
+                tabGrid.className = activeClass;
+                tabTree.className = inactiveClass;
+            }
+        }
     };
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.UIController.init();
+    });
 </script>
 <script>
 /* ============================================================

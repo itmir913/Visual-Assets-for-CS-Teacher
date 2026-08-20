@@ -14,6 +14,16 @@ function targetOf(btn) {
 }
 
 function bind() {
+    /* **iOS 사파리(아이폰)에는 요소 전체 화면이 없다.** `requestFullscreen` 자체가
+       없어서, 그냥 두면 눌러도 아무 일이 없는 죽은 단추가 남는다.
+       쓸 수 없으면 내놓지 않는다 — 좁은 화면 숨김은 CSS 가 따로 맡는다. */
+    if (!document.fullscreenEnabled) {
+        document.querySelectorAll('button[data-fullscreen]').forEach((btn) => {
+            btn.hidden = true;
+        });
+        return;
+    }
+
     document.querySelectorAll('button[data-fullscreen]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const el = targetOf(btn);

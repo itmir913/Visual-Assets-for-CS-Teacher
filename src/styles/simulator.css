@@ -24,11 +24,16 @@
 /* ============================================================
    전체 화면(프레젠테이션) 모드
    교실 화면·빔프로젝터에 시뮬레이터만 띄우려고 만든다.
-   HTML 쪽 규약은 셋뿐이다.
+   HTML 쪽 규약은 이것뿐이다. 앞의 둘만 있으면 되고, 뒤의 셋은 화면을 꽉 채우고 싶을 때 쓴다.
 
      1. 화면을 다 쓸 요소에 `fs-stage` 클래스와 `id`를 준다.
      2. 그 안에 `<button data-fullscreen="<그 id>">`를 넣는다.
      3. 전체 화면에서 감출 머리말·안내 문구에는 `fs-hide`를 준다.
+     4. 남는 높이를 가질 **직계 자식**에 `fs-fill`을 준다.
+     5. 그 안에서 남는 높이를 쓸 그림 상자에 `fs-fit`(비율을 지킨다) 또는
+        `fs-grow`(폭은 그대로 두고 높이만 채운다)를 준다.
+     6. 그림 옆·아래에 딸린 곁들이 상자(보상 그래프 등)에는 `fs-aside`를 준다.
+        높이를 나눠 갖지 않고 제 몫만 갖는다.
 
    `fs-btn`은 **자리를 정해 주지 않았을 때 쓰는 기본 모양**이다(상자 오른쪽 위 모서리).
    deep-learning.html처럼 조작 패널 머리에 단추를 직접 앉히는 페이지는 붙이지 않는다.
@@ -61,6 +66,16 @@
     color: #1e293b;
 }
 
+/* 좁은 화면에서는 내놓지 않는다. 전체 화면은 **교실 화면에 띄우려고** 만든 것이라
+   폰에서는 쓸 일이 없는데, 가운데 정렬된 머리말 글자 위에 얹혀 읽기만 방해한다.
+   **`.fs-btn`이 아니라 `data-fullscreen`으로 잡는다** — 모서리에 띄우지 않고
+   조작 줄 안에 앉힌 단추(deep-learning·트리 탐색)도 함께 숨겨야 하기 때문이다. */
+@media (max-width: 767px) {
+    button[data-fullscreen] {
+        display: none;
+    }
+}
+
 /* 전체 화면일 때. 배경을 직접 칠하지 않으면 브라우저가 검게 깐다.
    높이가 모자라면 잘라 내지 않고 스크롤한다 — 교실에서 못 읽는 것보다 낫다. */
 .fs-stage:fullscreen {
@@ -69,11 +84,93 @@
     background: #fff;
     border-radius: 0;
     overflow: auto;
+    /* 사방을 같은 값으로 띄운다. 카드가 `!p-*`로 자기 안여백을 못박아 두었으면
+       그쪽이 이긴다 — 여기 값은 **안여백이 없는 상자의 기본값**이다.
+       없으면 위는 뜨고 좌우는 붙어 페이지마다 들쭉날쭉해진다. */
+    padding: 1.25rem;
 }
 
-/* 단추는 내용이 스크롤해도 자리를 지켜야 나가는 길이 늘 보인다. */
-.fs-stage:fullscreen .fs-btn {
-    position: fixed;
+/* 화면을 꽉 채우는 짜임 — 남는 높이를 그림에 준다.
+   **가로 비율(`aspect-ratio`)로 높이가 정해지는 상자는 화면이 넓을수록 더 높아진다.**
+   1920폭에서 오히려 1366폭보다 더 넘치는 것이 이 때문이다. 그래서 전체 화면에서는
+   폭이 아니라 **남는 높이**가 그림 크기를 정하게 뒤집는다.
+
+     - `fs-fill` : 전체 화면일 때 남는 높이를 전부 갖는 **직계 자식**
+     - `fs-fit`  : 그 안에서 남는 높이에 자기를 맞추는 그림 상자.
+                   **비율은 그대로 지키고 폭이 따라온다** — 늘려서 찌그러뜨리지 않는다.
+
+   둘 다 전체 화면에서만 듣는다. 평소 배치는 건드리지 않는다. */
+.fs-stage:fullscreen:has(> .fs-fill) {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 늘릴 자리를 정해 두지 않은 상자는 내용이 짧으면 아래에만 여백이 몰린다.
+   위아래로 나눠 화면 가운데 앉힌다. `safe`가 있어야 내용이 화면보다 길어졌을 때
+   위쪽이 스크롤 밖으로 잘려 나가지 않는다. */
+.fs-stage:fullscreen:not(:has(> .fs-fill)) {
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
+}
+
+/* fs-fill 자신이 세로로 쌓는 상자라면, 그 안의 그림도 남는 높이를 받을 수 있어야 한다. */
+.fs-stage:fullscreen > .fs-fill:has(> .fs-fit),
+.fs-stage:fullscreen > .fs-fill:has(> .fs-grow) {
+    display: flex;
+    flex-direction: column;
+}
+
+.fs-stage:fullscreen > .fs-fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;   /* items-start 로 잡아 둔 격자도 세로로 늘린다 */
+    /* 격자일 때 줄 높이를 상자에 묶는다. 안 묶으면 줄이 「가장 긴 칸」만큼 커져
+       상자를 뚫는데, 늘리는 것은 align-items 로 되지만 **줄이는 것은 이것뿐이다.** */
+    grid-auto-rows: minmax(0, 1fr);
+}
+
+/* 칸이 자기 내용보다 작아질 수 있어야 안쪽이 남는 높이를 나눠 가진다.
+   **넘치는 것은 조작 칸이지 그림이 아니다** — 슬라이더·예제 단추가 길어서 넘친다.
+   그래서 넘침을 화면 전체가 아니라 그 칸 안에서 받는다. 그러면 그림은 늘 제자리에
+   있고, 학생이 볼 것이 스크롤 밖으로 밀려나지 않는다. */
+.fs-stage:fullscreen > .fs-fill > * {
+    min-height: 0;
+    overflow-y: auto;
+    /* 못박아 둔 높이(`h-[550px]` 같은 것)를 푼다. **`align-items: stretch`는
+       높이가 auto 일 때만 듣는다** — 이것이 없으면 그 칸만 제 높이를 고집해 상자를 뚫는다. */
+    height: auto;
+}
+
+/* 비율이 따로 없는 그림 상자(트리·격자 그림)는 폭을 그대로 두고 남는 높이만 채운다.
+   `fs-fit`과 달리 폭을 건드리지 않는다 — 여기서 폭을 줄이면 트리가 가로로 잘린다. */
+.fs-stage:fullscreen .fs-grow {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* 곁들이 상자(보상 그래프·로그)는 **남는 높이를 나눠 갖지 않는다.**
+   그냥 두면 `flex-1` 끼리 반씩 갈라 가져 주인공인 그림이 절반으로 쪼그라든다.
+   교실에서 크게 봐야 하는 것은 그림이므로, 곁들이는 제 몫만 갖고 나머지를 넘긴다. */
+.fs-stage:fullscreen .fs-aside {
+    flex: 0 0 12rem;
+    min-height: 0;
+}
+
+.fs-stage:fullscreen .fs-fit {
+    /* 세로 flex 안에서는 `flex-basis: 0`이 이겨 남는 높이만큼을 갖고,
+       격자 칸 안에서는 flex 속성이 무시되어 `height: 100%`가 듣는다. */
+    flex: 1 1 0;
+    height: 100%;
+    /* 바닥을 둔다. 조작 칸이 길면 그림이 한없이 눌리는데, 교실에서는
+       **눌린 그림보다 스크롤이 낫다.** 여기 걸리면 상자가 스크롤된다. */
+    min-height: 15rem;
+    /* 폭을 놓아 주어야 `aspect-ratio`가 높이에서 폭을 끌어낸다.
+       `align-self: center` 가 없으면 flex 가 폭을 늘려 비율이 깨진다. */
+    width: auto;
+    max-width: 100%;
+    align-self: center;
 }
 
 /* 교실 화면에서는 세로 한 줄이 아깝다. 설명용 머리말은 접는다. */

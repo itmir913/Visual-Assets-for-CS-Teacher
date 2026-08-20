@@ -170,7 +170,7 @@
                     만들어진 트리가 모든 트리 가운데 가장 좋은 트리라는 보장은 없습니다.</p>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-10 items-stretch">
+            <div class="fs-fill grid grid-cols-1 lg:grid-cols-5 gap-10 items-stretch">
                 <div class="lg:col-span-2 space-y-6 flex flex-col">
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <p class="font-bold text-slate-700 mb-4 text-lg">데이터 추가하기</p>
@@ -310,7 +310,7 @@
                     좌표는 화면 좌표를 그대로 쓰므로, 왼쪽 위 모서리가 (0, 0)이고 <b>Y 값은 아래로 내려갈수록 커집니다.</b></p>
             </div>
 
-            <div class="flex flex-col space-y-10">
+            <div class="fs-fill flex flex-col space-y-10">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 bg-slate-50 p-8 rounded-2xl border border-slate-100 items-start">
                     <div>
                         <p class="font-bold text-slate-700 text-lg mb-4">1. 데이터 클래스 선택</p>
@@ -1075,68 +1075,16 @@
 </script>
 <script>
 /* ============================================================
-   실행 버튼 -> 시각화 영역 자동 스크롤
-   모바일에서는 실행 버튼이 시각화 아래에 있어, 누르는 순간 관찰 대상이 화면 밖으로 나간다.
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
    ============================================================ */
-(function () {
-    // 스크롤 후 상단에 남길 추가 여백(px). 화면이 좁을수록 조금 더 준다.
-    window.SIM_SCROLL_GAP = window.SIM_SCROLL_GAP || 16;
-
-    /* 지금 화면 맨 위에 붙어 있는 고정/스티키 막대들의 실제 아래쪽 좌표를 구한다.
-       탭바와 내비게이션이 겹쳐 있는 페이지도 있어서, 클래스 이름을 믿지 않고
-       실제 위치를 재서 가장 아래에 걸친 값을 쓴다. */
-    function topBarBottom() {
-        let bottom = 0;
-        document.querySelectorAll('body *').forEach(el => {
-            const cs = getComputedStyle(el);
-            if (cs.position !== 'sticky' && cs.position !== 'fixed') return;
-            if (cs.visibility === 'hidden' || cs.display === 'none') return;
-            const r = el.getBoundingClientRect();
-            // 화면 위쪽에 붙어 있고 높이가 있는 것만
-            if (r.top <= 2 && r.height > 0 && r.bottom > bottom) bottom = r.bottom;
-        });
-        return bottom;
-    }
-
-    function scrollToSimView(target) {
-        const el = (typeof target === 'string') ? document.querySelector(target) : target;
-        if (!el) return;
-
-        const extra = window.SIM_SCROLL_GAP + (window.innerWidth < 640 ? 8 : 0);
-        const gap = topBarBottom() + extra;
-        const r = el.getBoundingClientRect();
-
-        // 이미 보기 좋은 위치에 있으면 움직이지 않는다.
-        // (단계 실행을 연달아 누를 때 화면이 계속 튀는 것을 막는다.)
-        if (r.top >= gap && r.top <= window.innerHeight * 0.6) return;
-
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        window.scrollTo({
-            top: Math.max(0, r.top + window.scrollY - gap),
-            behavior: reduce ? 'auto' : 'smooth'
-        });
-    }
-
-    window.scrollToSimView = scrollToSimView;
-
-    window.bindSimScroll = function (pairs) {
-        pairs.forEach(([selectors, target]) => {
-            selectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(btn => {
-                    // 버튼의 원래 동작이 먼저 돌도록 한 박자 뒤에 스크롤한다.
-                    btn.addEventListener('click', () => setTimeout(() => scrollToSimView(target), 0));
-                });
-            });
-        });
-    };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        window.bindSimScroll([
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
             [['#btnCatTrain'], '#network-cat'],
             [['[onclick=\'run2DTraining()\']', '[onclick="run2DTraining()"]'], '#canvas2d']
-        ]);
-    });
-})();
+    ]);
+});
 </script>
 
 </body>

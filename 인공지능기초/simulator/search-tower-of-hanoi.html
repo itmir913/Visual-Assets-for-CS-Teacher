@@ -151,7 +151,10 @@
         .graph-svg {
             width: 100%;
             max-width: 700px;
-            margin: 0 auto;
+            /* `margin: 0 auto` 로 쓰면 세로 여백까지 0으로 못박아,
+               HTML 이 붙인 `mb-*` 가 조용히 지워진다(특정도가 같아 나중에 온 이쪽이 이긴다).
+               가운데 정렬만 하려는 것이므로 가로만 건드린다. */
+            margin-inline: auto;
             display: block;
             overflow: visible;
         }
@@ -531,8 +534,8 @@
     </div>
 
     <!-- ── 탭 3: 상태 공간 그래프 ── -->
-    <div class="tab-panel section-card" id="tab-graph">
-        <div id="graphPanel">
+    <div class="tab-panel section-card fs-fill" id="tab-graph">
+        <div class="fs-grow" id="graphPanel">
             <!-- n에 따라 JS로 채움 -->
         </div>
     </div>
@@ -1302,30 +1305,16 @@ function buildGraphPanel() {
 }
 
 /* ============================================================
-   스크롤 유틸
-============================================================ */
-(function() {
-    window.SIM_SCROLL_GAP = 16;
-    function topBarBottom() {
-        let b = 0;
-        document.querySelectorAll('body *').forEach(el => {
-            const cs = getComputedStyle(el);
-            if (cs.position !== 'sticky' && cs.position !== 'fixed') return;
-            if (cs.visibility === 'hidden' || cs.display === 'none') return;
-            const r = el.getBoundingClientRect();
-            if (r.top <= 2 && r.height > 0 && r.bottom > b) b = r.bottom;
-        });
-        return b;
-    }
-    window.scrollToSimView = function(target) {
-        const el = typeof target === 'string' ? document.querySelector(target) : target;
-        if (!el) return;
-        const gap = topBarBottom() + window.SIM_SCROLL_GAP;
-        const r = el.getBoundingClientRect();
-        if (r.top >= gap && r.top <= window.innerHeight * 0.6) return;
-        window.scrollTo({ top: Math.max(0, r.top + window.scrollY - gap), behavior: 'smooth' });
-    };
-})();
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
+        [['#aiStepBtn', '#aiPlayBtn'], '#aiScene'],
+        [['[data-tab="graph"]'], '#graphPanel']
+    ]);
+});
 
 /* ============================================================
    초기화

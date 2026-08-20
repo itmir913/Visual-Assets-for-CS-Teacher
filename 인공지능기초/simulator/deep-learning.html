@@ -119,10 +119,11 @@
                 grid-template-columns: minmax(0, 1fr) 23rem;
                 grid-template-rows: minmax(0, 1fr) 13rem;
                 height: var(--sim-stage-h, 560px);
-                /* 그림 바닥 20rem + 수식 칸 + 사이 여백 1rem.
-                   이보다 낮추면 캔버스가 자기 행을 넘어 아래 칸을 덮는다 —
-                   그리드는 넘치는 항목을 밀어내지 않고 겹쳐 버린다. */
-                min-height: 34rem;
+                /* 뷰포트에 묶기만 하면 낮은 노트북에서 그림 칸이 눌린다 — 아래 칸이 13rem으로
+                   고정이라 눌리는 쪽은 언제나 그림이다. **눌린 그림보다 페이지 스크롤이 낫다.**
+                   그래서 그림 칸이 30rem은 되도록 바닥을 잡는다(30 + 13 + 사이 여백 1).
+                   전체 화면에서는 이 바닥을 풀어 화면에 딱 맞춘다. */
+                min-height: 44rem;
             }
         }
 
@@ -130,7 +131,7 @@
         @media (min-width: 1024px) and (min-height: 880px) {
             .sim-stage {
                 grid-template-rows: minmax(0, 1fr) 15rem;
-                min-height: 36rem;
+                min-height: 46rem;
             }
         }
 
@@ -164,6 +165,9 @@
            배경·모서리·스크롤·안여백과 단추 동작은 공통 규약(src/styles/simulator.css)과
            카드의 `!p-*`가 맡는다. 이 페이지만의 것은 스테이지 높이 하나다. */
         .fs-stage:fullscreen .sim-stage {
+            /* 바깥에서 잡아 둔 바닥값을 여기서 푼다. 그대로 두면 낮은 화면에서
+               전체 화면인데도 스크롤이 생긴다. */
+            min-height: 0;
             /* 전체 화면일 때 이 안에 든 것은 .sim-stage 하나뿐이다.
                바깥 상자가 100vh이고 box-sizing이 border-box이므로 100%가 곧
                「안여백을 뺀 나머지 전부」다. **안여백 값을 여기 적지 않는다** —
@@ -3320,78 +3324,33 @@
         ofSim.init();
         bindFullscreenResize();
         updateStageHeight();
+        /* **스테이지 높이가 정해진 뒤라야 캔버스가 제 크기를 안다.**
+           위의 `init()` 들은 --sim-stage-h 가 아직 없는 상태에서 재므로, 값이 들어온 지금
+           열려 있는 탭을 한 번 더 그린다. 이것이 없으면 **첫 화면에서 그림이 비어 있다가
+           탭을 한 번 눌러야 나타난다** — 탭을 열 때만 다시 그리게 되어 있기 때문이다. */
+        const openTab = [...document.querySelectorAll('.tab-content')]
+            .findIndex(el => el.classList.contains('active'));
+        if (openTab >= 0 && TAB_ON_OPEN[openTab]) TAB_ON_OPEN[openTab]();
         window.addEventListener('resize', updateStageHeight);
     };
 </script>
 
 <script>
 /* ============================================================
-   실행 버튼 -> 시각화 영역 자동 스크롤
-   모바일에서는 실행 버튼이 시각화 아래에 있어, 누르는 순간 관찰 대상이 화면 밖으로 나간다.
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
    ============================================================ */
-(function () {
-    // 스크롤 후 상단에 남길 추가 여백(px). 화면이 좁을수록 조금 더 준다.
-    window.SIM_SCROLL_GAP = window.SIM_SCROLL_GAP || 16;
-
-    /* 지금 화면 맨 위에 붙어 있는 고정/스티키 막대들의 실제 아래쪽 좌표를 구한다.
-       탭바와 내비게이션이 겹쳐 있는 페이지도 있어서, 클래스 이름을 믿지 않고
-       실제 위치를 재서 가장 아래에 걸친 값을 쓴다. */
-    function topBarBottom() {
-        let bottom = 0;
-        document.querySelectorAll('body *').forEach(el => {
-            const cs = getComputedStyle(el);
-            if (cs.position !== 'sticky' && cs.position !== 'fixed') return;
-            if (cs.visibility === 'hidden' || cs.display === 'none') return;
-            const r = el.getBoundingClientRect();
-            // 화면 위쪽에 붙어 있고 높이가 있는 것만
-            if (r.top <= 2 && r.height > 0 && r.bottom > bottom) bottom = r.bottom;
-        });
-        return bottom;
-    }
-
-    function scrollToSimView(target) {
-        const el = (typeof target === 'string') ? document.querySelector(target) : target;
-        if (!el) return;
-
-        const extra = window.SIM_SCROLL_GAP + (window.innerWidth < 640 ? 8 : 0);
-        const gap = topBarBottom() + extra;
-        const r = el.getBoundingClientRect();
-
-        // 이미 보기 좋은 위치에 있으면 움직이지 않는다.
-        // (단계 실행을 연달아 누를 때 화면이 계속 튀는 것을 막는다.)
-        if (r.top >= gap && r.top <= window.innerHeight * 0.6) return;
-
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        window.scrollTo({
-            top: Math.max(0, r.top + window.scrollY - gap),
-            behavior: reduce ? 'auto' : 'smooth'
-        });
-    }
-
-    window.scrollToSimView = scrollToSimView;
-
-    window.bindSimScroll = function (pairs) {
-        pairs.forEach(([selectors, target]) => {
-            selectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(btn => {
-                    // 버튼의 원래 동작이 먼저 돌도록 한 박자 뒤에 스크롤한다.
-                    btn.addEventListener('click', () => setTimeout(() => scrollToSimView(target), 0));
-                });
-            });
-        });
-    };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        window.bindSimScroll([
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
             [['#gdBtnNext', '#gdBtnStep', '#gdBtnAuto'], '#gdCanvas'],
             [['#btnForward'], '#nnCanvas'],
             [['#fpBtnNext', '#fpBtnPrev'], '#fpCanvas'],
             [['#bpBtnNext', '#bpBtnSample', '#bpBtnEpoch', '#bpBtnAuto'], '#bpCanvas'],
             [['#btnDbTrain'], '#dbCanvas'],
             [['#btnOfRun'], '#overfitChart']
-        ]);
-    });
-})();
+    ]);
+});
 </script>
 
 </body>

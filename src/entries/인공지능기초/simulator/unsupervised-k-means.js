@@ -3,3 +3,4 @@
 // 여러 페이지가 함께 쓰는 것은 Vite가 공통 청크로 뽑는다.
 
 import '../../_lib/fullscreen.js';
+import '../../_lib/sim-scroll.js';

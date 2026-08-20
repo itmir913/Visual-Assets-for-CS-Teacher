@@ -5,6 +5,7 @@
 // 전체 화면 단추는 라이브러리가 아니라 시뮬레이터 공통 동작이라 여기서 함께 받는다.
 
 import '../../_lib/fullscreen.js';
+import '../../_lib/sim-scroll.js';
 import * as d3 from 'd3';
 import '../../_lib/prism.js';
 import 'prismjs/components/prism-python.min.js';

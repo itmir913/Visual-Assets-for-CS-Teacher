@@ -222,7 +222,7 @@
             <p class="text-slate-600 text-lg fs-hide">데이터를 배치하고 'Train(학습)' 버튼을 눌러보세요. SVM이 선을 움직이며 마진을 찾아가는 과정을 볼 수 있습니다.</p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
+        <div class="fs-fill grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
 
             <!-- Col 1: 데이터 입력 도구 -->
             <div class="flex flex-col gap-4">
@@ -271,7 +271,7 @@
 
             <!-- Col 2: 캔버스 + 상태 메시지 -->
             <div class="flex flex-col gap-4">
-                <div class="relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner aspect-square">
+                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner aspect-square">
                     <canvas id="svmCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
                 </div>
                 <!-- 캔버스에 그려지는 표시의 뜻. 없으면 노란 테두리와 점선이 무엇인지 알 길이 없다. -->
@@ -1089,67 +1089,15 @@
 </script>
 <script>
 /* ============================================================
-   실행 버튼 -> 시각화 영역 자동 스크롤
-   모바일에서는 실행 버튼이 시각화 아래에 있어, 누르는 순간 관찰 대상이 화면 밖으로 나간다.
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
    ============================================================ */
-(function () {
-    // 스크롤 후 상단에 남길 추가 여백(px). 화면이 좁을수록 조금 더 준다.
-    window.SIM_SCROLL_GAP = window.SIM_SCROLL_GAP || 16;
-
-    /* 지금 화면 맨 위에 붙어 있는 고정/스티키 막대들의 실제 아래쪽 좌표를 구한다.
-       탭바와 내비게이션이 겹쳐 있는 페이지도 있어서, 클래스 이름을 믿지 않고
-       실제 위치를 재서 가장 아래에 걸친 값을 쓴다. */
-    function topBarBottom() {
-        let bottom = 0;
-        document.querySelectorAll('body *').forEach(el => {
-            const cs = getComputedStyle(el);
-            if (cs.position !== 'sticky' && cs.position !== 'fixed') return;
-            if (cs.visibility === 'hidden' || cs.display === 'none') return;
-            const r = el.getBoundingClientRect();
-            // 화면 위쪽에 붙어 있고 높이가 있는 것만
-            if (r.top <= 2 && r.height > 0 && r.bottom > bottom) bottom = r.bottom;
-        });
-        return bottom;
-    }
-
-    function scrollToSimView(target) {
-        const el = (typeof target === 'string') ? document.querySelector(target) : target;
-        if (!el) return;
-
-        const extra = window.SIM_SCROLL_GAP + (window.innerWidth < 640 ? 8 : 0);
-        const gap = topBarBottom() + extra;
-        const r = el.getBoundingClientRect();
-
-        // 이미 보기 좋은 위치에 있으면 움직이지 않는다.
-        // (단계 실행을 연달아 누를 때 화면이 계속 튀는 것을 막는다.)
-        if (r.top >= gap && r.top <= window.innerHeight * 0.6) return;
-
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        window.scrollTo({
-            top: Math.max(0, r.top + window.scrollY - gap),
-            behavior: reduce ? 'auto' : 'smooth'
-        });
-    }
-
-    window.scrollToSimView = scrollToSimView;
-
-    window.bindSimScroll = function (pairs) {
-        pairs.forEach(([selectors, target]) => {
-            selectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(btn => {
-                    // 버튼의 원래 동작이 먼저 돌도록 한 박자 뒤에 스크롤한다.
-                    btn.addEventListener('click', () => setTimeout(() => scrollToSimView(target), 0));
-                });
-            });
-        });
-    };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        window.bindSimScroll([
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
             [['#btnTrain'], '#svmCanvas']
-        ]);
-    });
-})();
+    ]);
+});
 </script>
 
 </body>

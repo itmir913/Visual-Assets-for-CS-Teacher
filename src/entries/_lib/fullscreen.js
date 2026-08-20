@@ -13,6 +13,22 @@ function targetOf(btn) {
     return document.getElementById(btn.dataset.fullscreen);
 }
 
+/* **전체 화면일 때는 그 요소 바깥이 아예 그려지지 않는다.**
+   그래서 `document.body` 에 붙인 토스트는 전체 화면에서 통째로 보이지 않는다 —
+   규칙 위반 이유처럼 **꼭 보여야 하는 것**이 조용히 사라진다.
+
+   새로 만들어 띄우는 것은 `window.fsOverlayHost()` 가 주는 자리에 붙이고,
+   마크업에 이미 있는 것은 `fs-float` 를 달아 두면 드나들 때 이 모듈이 옮겨 준다.
+   `position: fixed` 는 안으로 옮겨도 화면 기준 그대로라 자리는 변하지 않는다. */
+window.fsOverlayHost = () => document.fullscreenElement || document.body;
+
+function moveFloats() {
+    const host = window.fsOverlayHost();
+    document.querySelectorAll('.fs-float').forEach((el) => {
+        if (el.parentElement !== host) host.appendChild(el);
+    });
+}
+
 function bind() {
     /* **iOS 사파리(아이폰)에는 요소 전체 화면이 없다.** `requestFullscreen` 자체가
        없어서, 그냥 두면 눌러도 아무 일이 없는 죽은 단추가 남는다.
@@ -34,6 +50,7 @@ function bind() {
     });
 
     document.addEventListener('fullscreenchange', () => {
+        moveFloats();
         window.dispatchEvent(new Event('resize'));
     });
 }

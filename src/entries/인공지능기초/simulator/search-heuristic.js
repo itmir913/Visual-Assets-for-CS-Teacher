@@ -6,6 +6,6 @@
 
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
-import * as vis from 'vis-network/standalone';
+import {createTreeView} from '../../_lib/tree-view.js';
 
-window.vis = vis;
+window.createTreeView = createTreeView;

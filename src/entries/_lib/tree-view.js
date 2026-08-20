@@ -378,7 +378,9 @@ export class TreeView {
             const bold = style.fontWeight === 'bold' || style.fontWeight === 700;
 
             let textW = 0;
-            for (const line of lines) textW = Math.max(textW, this.measurer.width(line, fs, bold));
+            for (const line of lines) {
+                textW = Math.max(textW, this.measurer.width(line.text, fs, line.bold ?? bold));
+            }
 
             const padX = shape === 'ellipse' ? this.opt.padX * 1.6 : this.opt.padX;
             const padY = shape === 'ellipse' ? this.opt.padY * 1.5 : this.opt.padY;
@@ -405,10 +407,21 @@ export class TreeView {
         return typeof r === 'function' ? r(data) : r;
     }
 
+    /**
+     * 라벨을 줄 단위로 푼다. 줄마다 `{text, bold}` 꼴로 맞춰 돌려준다.
+     *
+     * 부르는 쪽은 문자열('한 줄' 또는 줄바꿈이 든 여러 줄)이나 배열을 줄 수 있고,
+     * 배열의 원소는 문자열이거나 `{text, bold}` 다. **줄마다 굵기를 달리 줄 수 있어야**
+     * 「이름은 굵게, 값은 보통」인 상자를 그릴 수 있다.
+     */
     _lines(data) {
         const label = this.opt.label(data);
-        if (Array.isArray(label)) return label;
-        return String(label ?? '').split('\n');
+        const raw = Array.isArray(label) ? label : String(label ?? '').split('\n');
+        return raw.map(line => (
+            line && typeof line === 'object'
+                ? {text: String(line.text ?? ''), bold: !!line.bold}
+                : {text: String(line ?? ''), bold: null}   // null = 노드 기본값을 따른다
+        ));
     }
 
     /**
@@ -592,10 +605,10 @@ export class TreeView {
             .attr('pointer-events', 'none')
             .merge(texts)
             .attr('font-size', fs)
-            .attr('font-weight', style.fontWeight || '700')
+            .attr('font-weight', line => (line.bold === null ? (style.fontWeight || '700') : (line.bold ? '700' : '400')))
             .attr('y', (line, i) => top + i * step)
             .attr('fill', color)
-            .text(line => line);
+            .text(line => line.text);
     }
 
     /**

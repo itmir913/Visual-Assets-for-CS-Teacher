@@ -604,21 +604,42 @@
        2. Tree Search Simulator (트리 탐색)
        ============================================================== */
     class TreeSearchSimulator {
+        // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+        static COLORS = {
+            default: {bg: 'white', border: '#cbd5e1', font: '#1e293b'},
+            start: {bg: '#10b981', border: '#047857', font: 'white'},
+            goal: {bg: '#f43f5e', border: '#be123c', font: 'white'},
+            open: {bg: '#d9f99d', border: '#84cc16', font: '#1e293b'},
+            closed: {bg: '#bae6fd', border: '#0ea5e9', font: '#1e293b'},
+            current: {bg: '#fde047', border: '#eab308', font: '#1e293b'},
+            path: {bg: '#f59e0b', border: '#b45309', font: 'white'},
+        };
+
         constructor() {
             this.container = document.getElementById('tree-network');
-            this.nodes = new vis.DataSet();
-            this.edges = new vis.DataSet();
-            this.network = new vis.Network(this.container, {nodes: this.nodes, edges: this.edges}, {
-                layout: {hierarchical: {direction: 'UD', sortMethod: 'directed', levelSeparation: 90}},
-                physics: false,
-                nodes: {
-                    shape: 'box',
-                    font: {face: 'Pretendard', multi: 'html', size: 14, align: 'center'},
-                    margin: 10,
-                    borderWidth: 2,
-                    color: {background: 'white', border: '#cbd5e1'}
+
+            // 트리는 공용 렌더러(src/entries/_lib/tree-view.js)가 그린다.
+            // 노드는 `{id, children}` 꼴로 쥐고 있고, 상태와 라벨은 표에서 찾는다.
+            this.root = null;
+            this.nodeMap = new Map();
+            this.childrenOf = new Map();
+
+            this.view = window.createTreeView(this.container, {
+                shape: () => 'box',
+                fontSize: 14,
+                levelSeparation: 90,
+                siblingGap: 20,
+                padX: 12,
+                padY: 8,
+                label: (d) => [
+                    {text: d.baseLabel, bold: true},
+                    ...d.valueLines.map(t => ({text: t, bold: false})),
+                ],
+                nodeStyle: (d) => {
+                    const c = TreeSearchSimulator.COLORS[d.state] || TreeSearchSimulator.COLORS.default;
+                    return {fill: c.bg, stroke: c.border, strokeWidth: 2, textColor: c.font};
                 },
-                edges: {color: '#94a3b8', width: 2}
+                linkStyle: () => ({stroke: '#94a3b8', strokeWidth: 2}),
             });
 
             this.startNode = 1;
@@ -647,13 +668,10 @@
                 }
             });
 
-            this.network.on("click", (params) => {
-                if (params.nodes.length > 0) {
-                    let clickedNodeId = params.nodes[0];
-
+            this.view.on('nodeclick', (clickedNodeId) => {
+                {
                     if (clickedNodeId === this.startNode) {
                         this.setStatus('⚠️ 시작 노드는 목표 노드로 지정할 수 없습니다.');
-                        this.network.unselectAll();
                         return;
                     }
 
@@ -666,7 +684,6 @@
 
                     this.resetSearch();
                     this.setStatus(`노드 ${this.goalNode}이(가) 새로운 목표(Goal)로 설정되었습니다.`);
-                    this.network.unselectAll();
                 }
             });
 
@@ -675,8 +692,8 @@
 
         generateTree() {
             this.resetSearch();
-            this.nodes.clear();
-            this.edges.clear();
+            this.nodeMap.clear();
+            this.childrenOf.clear();
             this.nodeDataMap.clear();
 
             // number 입력은 직접 타이핑한 값에 min/max가 적용되지 않는다.
@@ -693,7 +710,7 @@
 
             let idCounter = 1;
             let currentLevel = [1];
-            this.addVisNode(1, 'Start');
+            this.root = this.addNode(1);
 
             for (let d = 1; d <= depth; d++) {
                 let nextLevel = [];
@@ -701,9 +718,10 @@
                     let childrenCount = Math.floor(Math.random() * maxChild) + 1;
                     for (let i = 0; i < childrenCount; i++) {
                         idCounter++;
-                        this.edges.add({from: parent, to: idCounter});
+                        const child = this.addNode(idCounter);
+                        this.nodeMap.get(parent).children.push(child);
+                        this.childrenOf.get(parent).push(idCounter);
                         nextLevel.push(idCounter);
-                        this.addVisNode(idCounter, 'Node');
                     }
                 }
                 currentLevel = nextLevel;
@@ -712,14 +730,17 @@
                 }
             }
 
+            this.view.setData(this.root);
+
             this.assignHeuristics();
 
             this.updateNodeStyle(this.startNode, 'start');
             this.updateNodeStyle(this.goalNode, 'goal');
             this.setStatus('새로운 트리가 생성되었습니다. 탐색을 시작하세요.');
 
-            // [수정 핵심] 트리 생성 후 네트워크 뷰를 화면 중앙에 자동으로 맞춰줌
-            setTimeout(() => this.network.fit(), 100);
+            // [수정 핵심] 트리 생성 후 뷰를 화면 중앙에 자동으로 맞춰줌
+            this.paint(0);
+            this.view.fit(300);
         }
 
         // --- 휴리스틱 h(n) 부여 ---
@@ -740,7 +761,7 @@
         // 그래서 트리 생성과 목표 변경이 같은 함수를 부른다.
         assignHeuristics() {
             let parentOf = new Map();
-            this.edges.get().forEach(e => parentOf.set(e.to, e.from));
+            this.childrenOf.forEach((kids, from) => kids.forEach(to => parentOf.set(to, from)));
 
             // 목표에서 뿌리까지의 조상 사슬: id -> 목표까지의 거리
             let goalChain = new Map();
@@ -757,7 +778,7 @@
                 return Infinity;
             };
 
-            let allIds = this.nodes.getIds();
+            let allIds = [...this.nodeMap.keys()];
             allIds.forEach(id => {
                 let h;
                 if (id === this.goalNode) {
@@ -772,12 +793,20 @@
             });
         }
 
-        addVisNode(id, type) {
-            this.nodes.add({id: id, label: `<b>${type} ${id}</b>`});
+        // 노드 하나를 만든다. 렌더러가 읽는 것은 baseLabel · valueLines · state 셋뿐이다.
+        addNode(id) {
+            const node = {id: id, baseLabel: `Node ${id}`, valueLines: [], state: 'default', children: []};
+            this.nodeMap.set(id, node);
+            this.childrenOf.set(id, []);
+            return node;
+        }
+
+        paint(duration = 250) {
+            if (this.view && this.root) this.view.update(duration);
         }
 
         updateNodeStyle(id, state, extraInfo = null) {
-            let n = this.nodes.get(id);
+            let n = this.nodeMap.get(id);
             if (!n) return;
 
             // 트리 재생성이 중간에 끊기면 nodes 와 nodeDataMap 이 어긋날 수 있다.
@@ -787,50 +816,20 @@
             let h = data.h;
             let baseLabel = id === this.startNode ? 'Start' : (id === this.goalNode ? 'Goal' : `Node ${id}`);
 
-            let labelText = `<b>${baseLabel}</b>`;
-            if (extraInfo && extraInfo.g !== undefined) {
-                labelText += `\nf: ${extraInfo.f}\ng: ${extraInfo.g} | h: ${h}`;
-            } else {
-                labelText += `\nh: ${h}`;
-            }
+            n.baseLabel = baseLabel;
+            n.valueLines = (extraInfo && extraInfo.g !== undefined)
+                ? [`f: ${extraInfo.f}`, `g: ${extraInfo.g} | h: ${h}`]
+                : [`h: ${h}`];
+            n.state = state;
 
-            let bg = 'white', border = '#cbd5e1', fontColor = '#1e293b';
-            if (state === 'start') {
-                bg = '#10b981';
-                border = '#047857';
-                fontColor = 'white';
-            } else if (state === 'goal') {
-                bg = '#f43f5e';
-                border = '#be123c';
-                fontColor = 'white';
-            } else if (state === 'open') {
-                bg = '#d9f99d';
-                border = '#84cc16';
-            } else if (state === 'closed') {
-                bg = '#bae6fd';
-                border = '#0ea5e9';
-            } else if (state === 'current') {
-                bg = '#fde047';
-                border = '#eab308';
-            } else if (state === 'path') {
-                bg = '#f59e0b';
-                border = '#b45309';
-                fontColor = 'white';
-            }
-
-            this.nodes.update({
-                id: id,
-                label: labelText,
-                color: {background: bg, border: border},
-                font: {color: fontColor}
-            });
+            this.paint();
         }
 
         initSearchEngine() {
             let algo = document.getElementById('tree-algo').value;
             this.searchEngine = new HeuristicSearch(
                 this.startNode, this.goalNode, algo,
-                (id) => this.edges.get({filter: e => e.from === id}).map(e => e.to),
+                (id) => this.childrenOf.get(id) || [],
                 (id) => this.nodeDataMap.get(id).h,
                 (from, to) => 1
             );
@@ -904,8 +903,8 @@
         resetSearch() {
             this.stopPlay();
             this.searchEngine = null;
-            if (this.nodes.length > 0) {
-                this.nodes.getIds().forEach(id => {
+            if (this.nodeMap.size > 0) {
+                [...this.nodeMap.keys()].forEach(id => {
                     let state = (id === this.startNode) ? 'start' : (id === this.goalNode) ? 'goal' : 'default';
                     this.updateNodeStyle(id, state);
                 });
@@ -1218,7 +1217,7 @@
                 tabGrid.classList.remove('text-teal-600', 'border-teal-600', 'font-bold');
                 tabGrid.classList.add('text-gray-500', 'border-transparent', 'font-medium');
 
-                if (window.TreeApp && window.TreeApp.network) window.TreeApp.network.fit();
+                if (window.TreeApp && window.TreeApp.view) window.TreeApp.view.resize(300);
             } else {
                 sectionGrid.classList.remove('hidden');
                 sectionTree.classList.add('hidden');

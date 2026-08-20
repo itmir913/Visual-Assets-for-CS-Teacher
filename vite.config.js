@@ -26,6 +26,7 @@
 //   tools/vite/copy-code-button.js    코드 블록마다 복사 버튼을 얹는다
 //   tools/vite/drop-ttf-fallback.js   아무도 받지 않는 ttf 대체 경로를 지운다 (PostCSS)
 //   tools/vite/subset-icon-font.js    아이콘 폰트를 실제로 쓰는 글자만 남기고 깎는다
+//   tools/vite/third-party-notices.js 번들에 들어간 제3자 라이선스 고지를 굽는다
 import { resolve } from 'node:path';
 
 import autoprefixer from 'autoprefixer';
@@ -40,6 +41,7 @@ import classicScripts from './tools/vite/classic-scripts.js';
 import copyCodeButton from './tools/vite/copy-code-button.js';
 import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
 import subsetIconFont from './tools/vite/subset-icon-font.js';
+import thirdPartyNotices from './tools/vite/third-party-notices.js';
 
 /**
  * 진입점 — 페이지 전부.
@@ -89,6 +91,8 @@ export default {
         stripCrossorigin(),
         // 최종 HTML을 봐야 어떤 아이콘을 쓰는지 알 수 있다 — 파일을 다 쓴 뒤에 돈다.
         subsetIconFont(),
+        // 모듈 그래프가 다 모인 뒤에 돈다 — 무엇이 번들에 들어갔는지 알아야 고지를 적는다.
+        thirdPartyNotices(),
         // **정말 마지막이다.** 글꼴 이름을 다시 매긴 뒤라야 그 참조까지 눌러 담긴다.
         classicScripts(),
     ],

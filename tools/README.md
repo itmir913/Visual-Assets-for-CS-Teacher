@@ -12,7 +12,7 @@
 | `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 검사 | **파일을 고칠 때마다** |
 | `check_dynamic_classes.py` | 런타임에 조립되는 Tailwind 클래스 검출 | **JS로 클래스를 붙이는 코드를 쓸 때마다** |
 | `check_code.py` | 강의노트가 끌어다 쓰는 `.py`·`.c`의 구문 오류 + `data-src` 마커 해석 | **코드 파일을 고칠 때마다** |
-| `check_dist.py` | **산출물** 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 | 배포 전. `npm run ci`가 부른다 |
+| `check_dist.py` | **산출물** 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 · 제3자 라이선스 고지 | 배포 전. `npm run ci`가 부른다 |
 | `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
 | `audit_svg_maxwidth.py` | 데스크톱에서 글자가 한없이 커지는 SVG 검출 | 도해를 넣거나 고쳤을 때 |
 | `check_stale_refs.py` | **지운 이름을 문서·주석이 아직 부르는지** | 이름·경로를 지우거나 옮긴 뒤 |
@@ -63,6 +63,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | `copy-lecture-assets.js` | 강의노트 딸림 파일(`.py`·`.c`)을 산출물로 |
 | `strip-crossorigin.js` | 원본에 없던 속성 제거 |
 | `classic-scripts.js` | 페이지가 받던 청크를 **평범한 `<script defer>` 하나로** 눌러 담는다 |
+| `third-party-notices.js` | 번들에 실제로 들어간 패키지의 라이선스 고지를 `THIRD-PARTY-NOTICES.txt`로 굽는다 |
 
 **Tailwind는 단위마다 한 번씩** 굽는다. 파일마다 굽던 때는 146번이었고 3분 32초가 걸렸다.
 

@@ -22,10 +22,22 @@ function targetOf(btn) {
    `position: fixed` 는 안으로 옮겨도 화면 기준 그대로라 자리는 변하지 않는다. */
 window.fsOverlayHost = () => document.fullscreenElement || document.body;
 
+/* **표시는 기억해 두고 요소로 붙잡는다.**
+   페이지의 `showToast` 들이 `el.className = '...'` 로 클래스를 통째로 덮어써서,
+   토스트가 한 번 뜨고 나면 `fs-float` 표시가 지워진다. 그때부터는 다시 찾을 수 없어
+   전체 화면에서 영영 안 보이게 된다. 그래서 **처음 본 요소를 그대로 들고 있는다** —
+   클래스가 지워져도 옮길 수 있다. */
+const floats = new Set();
+
+function collectFloats() {
+    document.querySelectorAll('.fs-float').forEach((el) => floats.add(el));
+}
+
 function moveFloats() {
+    collectFloats();          // 나중에 생긴 것도 여기서 주워 담는다
     const host = window.fsOverlayHost();
-    document.querySelectorAll('.fs-float').forEach((el) => {
-        if (el.parentElement !== host) host.appendChild(el);
+    floats.forEach((el) => {
+        if (el.isConnected && el.parentElement !== host) host.appendChild(el);
     });
 }
 
@@ -39,6 +51,8 @@ function bind() {
         });
         return;
     }
+
+    collectFloats();
 
     document.querySelectorAll('button[data-fullscreen]').forEach((btn) => {
         btn.addEventListener('click', () => {

@@ -31,7 +31,9 @@ const DEFAULTS = {
     minBoxWidth: 0,
 
     // --- 배치 ---
-    levelSeparation: 80,          // 세로 층 간격
+    // 세로 간격을 정하는 길이 둘. **`levelGap`을 주면 그쪽이 이긴다.**
+    levelSeparation: 80,          // 층과 층의 **중심 사이** 거리
+    levelGap: null,               // 위층 상자 아래끝과 아래층 상자 위끝의 **빈 틈**
     siblingGap: 20,               // 이웃 노드 사이에 최소로 띄울 가로 여백
 
     // --- 내용 ---
@@ -212,7 +214,7 @@ export class TreeView {
 
         const root = hierarchy(this.root);
         this._sizes.clear();
-        this.layout(root);
+        this._layout(root);
 
         this._drawLinks(root, duration);
         this._drawEdgeLabels(root, duration);
@@ -230,7 +232,7 @@ export class TreeView {
         if (!box || !this.root) return this;
 
         const root = hierarchy(this.root);
-        this.layout(root);
+        this._layout(root);
 
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         root.each(d => {
@@ -266,7 +268,7 @@ export class TreeView {
         if (!box || !this.root) return this;
 
         const root = hierarchy(this.root);
-        this.layout(root);
+        this._layout(root);
 
         let target = null;
         root.each(d => {
@@ -333,6 +335,32 @@ export class TreeView {
         this._emit('viewmode', this.viewMode);
     }
 
+    /**
+     * 배치를 계산한다. `levelGap`을 준 뷰는 세로 자리를 다시 매긴다.
+     *
+     * `d3.tree()`의 층 간격은 **중심 사이 거리**라서, 상자가 높아지면 그만큼 틈이 줄어든다.
+     * 여러 줄짜리 상자를 쓰는 트리에서는 **간선이 상자에 가려 안 보일 만큼** 좁아진다.
+     * 그래서 층마다 가장 높은 상자를 찾아, **상자와 상자 사이의 빈 틈**이 늘 같도록 다시 매긴다.
+     * 원처럼 크기가 일정한 노드만 쓰는 뷰는 `levelSeparation` 그대로 두면 되므로 건드리지 않는다.
+     */
+    _layout(root) {
+        this.layout(root);
+        if (!(this.opt.levelGap > 0)) return root;
+
+        const maxH = [];
+        root.each(d => {
+            const h = this._size(d).h;
+            if (!(maxH[d.depth] >= h)) maxH[d.depth] = h;
+        });
+
+        const yOf = [0];
+        for (let i = 1; i < maxH.length; i++) {
+            yOf[i] = yOf[i - 1] + maxH[i - 1] / 2 + this.opt.levelGap + maxH[i] / 2;
+        }
+        root.each(d => { d.y = yOf[d.depth]; });
+        return root;
+    }
+
     _viewport() {
         const width = this.el.clientWidth;
         const height = this.el.clientHeight;
@@ -345,15 +373,16 @@ export class TreeView {
         const t = zoomIdentity.translate(tx, ty).scale(scale);
         duration = this._effDuration(duration);
         if (duration > 0) {
-            const zoomRef = this.zoom, svgRef = this.svg;
-            this.svg.transition().duration(duration)
-                .call(zoomRef.transform, t)
-                // 화면 이동도 끊기면 중간에 멈춘다. 노드와 같은 이유로 목표를 찍어 둔다.
-                // 다만 **사람이 끌어서 끊은 것이면 찍지 않는다** — 그러면 손으로 옮긴 화면이
-                // 도로 튕겨 돌아간다. 그때는 이미 '자유 이동'으로 넘어가 있다.
-                .on('interrupt cancel', () => {
-                    if (this.viewMode !== 'free') svgRef.call(zoomRef.transform, t);
-                });
+            // **여기에는 `interrupt`/`cancel` 핸들러를 달지 않는다.** 노드에는 `_move` 가
+            // 그것을 다는데(끊겨도 끝값을 넣으려고), 화면 이동에 같은 것을 달면 무한 재귀에 빠진다 —
+            // `zoom.transform` 이 안에서 `selection.interrupt()` 를 부르고, d3 는 **핸들러를 부른
+            // 뒤에야** 스케줄을 지운다. 그래서 핸들러 안에서 `zoom.transform` 을 다시 부르면
+            // 아직 안 지워진 같은 스케줄을 또 깨운다.
+            //
+            // 달 필요도 없다. 화면 이동은 끊겨도 다음 `fit`·`focus` 가 그 자리에서 이어받고,
+            // 애니메이션이 아예 못 도는 경우(화면이 안 그려질 때)는 위에서 길이를 0으로 깎아
+            // 곧바로 찍는다.
+            this.svg.transition().duration(duration).call(this.zoom.transform, t);
         } else {
             this.svg.call(this.zoom.transform, t);
         }

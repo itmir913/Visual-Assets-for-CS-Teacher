@@ -11,7 +11,9 @@
 
 이 저장소는 **CC BY-NC-SA 4.0**으로 공개됩니다. Pull Request를 보내시려면 아래 두 가지에 동의해 주십시오.
 
-- [ ] [CONTRIBUTING.md의 「기여와 저작권」](https://github.com/itmir913/Visual-Assets-for-CS-Teacher/blob/master/CONTRIBUTING.md#기여와-저작권)을 읽었고 이에 동의합니다.
+- [ ] [CONTRIBUTING.md의 「기여와 저작권」](https://github.com/itmir913/Visual-Assets-for-CS-Teacher/blob/master/CONTRIBUTING.md#기여와-저작권)을 읽었고, **기여물의 저작재산권을 저장소 소유자에게 양도**하는 데 동의합니다.
 - [ ] 이 기여물은 제가 직접 만들었고, 제3자의 저작물을 포함하지 않습니다.
+
+양도하셔도 **보내 주신 것을 본인이 쓰시는 데에는 아무 제약이 없습니다** — 본인 수업에 쓰든 본인 저장소에 다시 올리든 자유입니다(「기여와 저작권」 3번).
 
 동의하기 어렵다면 **PR 대신 이슈로 제안**해 주십시오. 제안을 받아 직접 반영하겠습니다.

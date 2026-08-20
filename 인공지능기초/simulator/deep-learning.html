@@ -160,18 +160,15 @@
             }
         }
 
-        /* 전체 화면(프레젠테이션) 모드 — hero와 내비게이션이 사라진 자리를 전부 쓴다. */
-        .tab-content:fullscreen {
-            background: white;
-            padding: 1.25rem;
-            border-radius: 0;
-            overflow: auto;
-        }
-
-        .tab-content:fullscreen .sim-stage {
+        /* 전체 화면(프레젠테이션) 모드 — hero와 내비게이션이 사라진 자리를 전부 쓴다.
+           배경·모서리·스크롤·안여백과 단추 동작은 공통 규약(src/styles/simulator.css)과
+           카드의 `!p-*`가 맡는다. 이 페이지만의 것은 스테이지 높이 하나다. */
+        .fs-stage:fullscreen .sim-stage {
             /* 전체 화면일 때 이 안에 든 것은 .sim-stage 하나뿐이다.
-               위아래 안여백(1.25rem씩)만 빼면 남는 높이를 전부 쓴다. */
-            height: calc(100vh - 2.5rem);
+               바깥 상자가 100vh이고 box-sizing이 border-box이므로 100%가 곧
+               「안여백을 뺀 나머지 전부」다. **안여백 값을 여기 적지 않는다** —
+               적어 두면 카드의 `!p-*`를 손댈 때 이 숫자만 조용히 어긋난다. */
+            height: 100%;
         }
 
         /* 수식 패널. 숫자가 바뀔 때마다 줄 길이가 달라져도 자리가 흔들리지 않게 한다.
@@ -260,7 +257,7 @@
             </button>
         </div>
 
-        <div id="tab0" class="tab-content active section-card !p-4 md:!p-6 bg-white border-slate-300">
+        <div id="tab0" class="tab-content fs-stage active section-card !p-4 md:!p-6 bg-white border-slate-300">
 
             <div class="sim-stage grid grid-cols-1 gap-4">
 
@@ -515,7 +512,7 @@
 
         <!-- 순전파 탭. id가 tabFwd 인 것은 뒤에 만들어졌기 때문이고, 화면 순서는 세 번째다.
              switchTab 은 문서 순서로 세므로 id 이름과 번호가 어긋나도 상관없다. -->
-        <div id="tabFwd" class="tab-content section-card !p-4 md:!p-6 bg-white border-slate-300">
+        <div id="tabFwd" class="tab-content fs-stage section-card !p-4 md:!p-6 bg-white border-slate-300">
 
             <!-- 아래 칸(수식)의 높이를 못박아 두어야 위 그림이 흔들리지 않는다.
                  단계마다 식의 줄 수가 달라지므로, 빈 줄을 채워 줄 수까지 고정한다. -->
@@ -615,7 +612,7 @@
         </div>
 
         <!-- 역전파·갱신 탭. 순전파 탭과 같은 신경망 하나를 함께 쓴다. -->
-        <div id="tabBwd" class="tab-content section-card !p-4 md:!p-6 bg-white border-slate-300">
+        <div id="tabBwd" class="tab-content fs-stage section-card !p-4 md:!p-6 bg-white border-slate-300">
 
             <!-- 순전파 탭과 같은 짜임이다. 아래 칸의 높이를 못박아 위 그림이 흔들리지 않게 한다. -->
             <div class="sim-stage grid grid-cols-1 gap-4">
@@ -3297,18 +3294,13 @@
         }
     };
 
-    /* 전체 화면(프레젠테이션) 버튼 — 교실 화면에 띄울 때 hero와 내비게이션을 걷어낸다.
-       나갈 때는 브라우저가 주는 Esc를 그대로 쓴다. */
-    function bindFullscreenButtons() {
-        document.querySelectorAll('button[data-fullscreen]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const el = document.getElementById(btn.dataset.fullscreen);
-                if (!el) return;
-                if (document.fullscreenElement) document.exitFullscreen();
-                else if (el.requestFullscreen) el.requestFullscreen();
-            });
-        });
-        // 들어가고 나올 때 캔버스 크기가 달라지므로 다시 재게 한다.
+    /* 전체 화면 단추를 누르는 일은 src/entries/_lib/fullscreen.js 가 맡는다.
+       여기에는 이 페이지만의 뒷정리를 남긴다 — 캔버스 높이가 뷰포트에 묶여 있어
+       들고 날 때마다 --sim-stage-h 를 다시 재야 한다.
+       **재는 순서가 중요하다** — 스테이지 높이를 먼저 정해야 캔버스가 맞는 크기로 그려진다.
+       공통 모듈이 먼저 보낸 resize 는 옛 높이로 한 번 그리지만, 이 핸들러가 뒤에 돌아
+       마지막 값을 바로잡는다. */
+    function bindFullscreenResize() {
         document.addEventListener('fullscreenchange', () => {
             updateStageHeight();
             if (document.getElementById('tab0').classList.contains('active')) gdSim.resize();
@@ -3326,7 +3318,7 @@
         fpSim.init();
         dbSim.init();
         ofSim.init();
-        bindFullscreenButtons();
+        bindFullscreenResize();
         updateStageHeight();
         window.addEventListener('resize', updateStageHeight);
     };

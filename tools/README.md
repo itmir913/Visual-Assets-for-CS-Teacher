@@ -59,10 +59,13 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 |---|---|
 | `units.js` | 무엇을 굽는가 — `subjects.json`을 읽는다 |
 | `inject-code.js` | `data-src` 마커 자리에 실파일의 코드를 넣는다 |
-| `vendor-public.js` | 이름이 그대로여야 하는 파일(MathJax 글꼴)만 `public/`으로 |
+| `vendor-public.js` | **번들에 녹이면 안 되는 파일**을 `public/`으로 — 이름이 그대로여야 하거나(MathJax 글꼴) 라이선스가 요구하거나(p5는 LGPL) |
 | `copy-lecture-assets.js` | 강의노트 딸림 파일(`.py`·`.c`)을 산출물로 |
 | `strip-crossorigin.js` | 원본에 없던 속성 제거 |
 | `classic-scripts.js` | 페이지가 받던 청크를 **평범한 `<script defer>` 하나로** 눌러 담는다 |
+| `copy-code-button.js` | 모든 `<pre>` 오른쪽 위에 복사 버튼을 얹는다 |
+| `drop-ttf-fallback.js` | 아무도 받지 않는 `ttf` 대체 경로를 지운다 (PostCSS) |
+| `subset-icon-font.js` | 아이콘 폰트를 **실제로 쓰는 글자만 남기고** 깎는다 |
 | `third-party-notices.js` | 번들에 실제로 들어간 패키지의 라이선스 고지를 `THIRD-PARTY-NOTICES.txt`로 굽는다 |
 
 **Tailwind는 단위마다 한 번씩** 굽는다. 파일마다 굽던 때는 146번이었고 3분 32초가 걸렸다.

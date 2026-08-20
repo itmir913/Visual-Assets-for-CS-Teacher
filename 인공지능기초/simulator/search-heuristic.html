@@ -754,11 +754,14 @@
         // 그래서 트리상의 실제 거리를 먼저 구한 뒤,
         //  - 목표로 가는 길목(조상 사슬)에 있는 노드: 실제 남은 거리를 그대로 부여.
         //    h <= 실제 비용이므로 admissible 이 보장된다.
-        //  - 그 밖의 노드: 실제 거리의 20~70%로 과소평가.
-        //    이 가지들은 목표에 닿을 수 없어(자식 방향 간선만 존재) 실제 비용이 무한대이므로
-        //    어떤 값을 줘도 admissible 하다. 일부러 작게 잡아 '가까워 보이는 함정 가지'를 만들어,
-        //    h만 보는 그리디가 헛걸음하는 장면이 실제로 나오도록 한다.
+        //  - 그 밖의 노드: 실제 거리보다 작게 잡아 '가까워 보이는 함정 가지'를 만든다.
+        //    h만 보는 그리디가 헛걸음하는 장면이 실제로 나오도록 하는 장치다.
         //    A*는 g(n)을 함께 보므로 깊이 들어간 함정일수록 덜 속는다.
+        //
+        //    **다만 목표에서 두 칸 안쪽은 실제 거리를 그대로 준다.** 예전에는 이 구간까지
+        //    깎아 두 칸 떨어진 노드에 h:1이 붙었는데, 화면에는 「목표까지 남은 거리의
+        //    추정값」이라 적어 두고 한 칸 남았다고 말하는 셈이라 학생이 틀리게 읽는다.
+        //    함정은 세 칸 밖에서만 판다 — 거기서도 그리디는 충분히 속는다.
         //
         // 목표가 바뀌면 h는 전부 새 목표 기준으로 다시 매겨야 한다.
         // 그래서 트리 생성과 목표 변경이 같은 함수를 부른다.
@@ -781,28 +784,39 @@
                 return Infinity;
             };
 
-            let allIds = [...this.nodeMap.keys()];
-            allIds.forEach(id => {
+            // 거리를 한 번만 구해 두고 그것으로 값을 매긴다.
+            const dist = new Map();
+            for (const id of this.nodeMap.keys()) dist.set(id, treeDist(id));
+            const order = [...this.nodeMap.keys()];
+
+            const hOf = new Map();
+            for (const id of order) {
+                const d = dist.get(id);
                 let h;
-                if (id === this.goalNode) {
+                if (!Number.isFinite(d)) {
+                    h = 0;
+                } else if (d === 0) {
                     h = 0;
                 } else if (goalChain.has(id)) {
-                    h = goalChain.get(id);                       // 길목: 실제 남은 거리
+                    h = d;                                       // 길목: 실제 남은 거리
+                } else if (d <= 2) {
+                    // **목표 코앞은 정확하게 준다.** 깎으면 두 칸 떨어진 노드에 h:1 이 붙는데,
+                    // 화면에는 「목표까지 남은 거리의 추정값」이라 적어 두고 한 칸 남았다고
+                    // 말하는 셈이라 학생이 틀리게 읽는다. 이 구간에서 깎아 봐야 얻는 것도 없다 —
+                    // 그리디를 속이는 함정은 세 칸 밖에서 만들어진다.
+                    h = d;
                 } else {
-                    // 실제 거리에서 **절반까지만** 깎아 어림값을 만든다.
-                    //
-                    // h 는 실제보다 크면 안 된다(그러면 A* 가 최단 경로를 놓친다).
-                    // 예전에는 실제 거리에 0.2~0.7 배를 곱해 깎았는데, 그러면 거리가 2 든 3 이든
-                    // 반올림 뒤 바닥값에 걸려 **전부 1 이 되었다.** 화면에는 「목표까지 남은
-                    // 거리의 추정값」이라 적어 두고 값은 거리에 따라 변하지 않는 셈이라,
-                    // 학생이 h 를 거리와 무관한 무엇으로 읽게 된다.
-                    // 깎는 폭을 절반으로 묶으면 h 가 거리를 따라가면서도 실제를 넘지 않는다.
-                    const d = treeDist(id);
-                    h = d - Math.floor(Math.random() * (Math.floor(d / 2) + 1));
+                    // 세 칸 밖은 실제 거리의 20~70%로 과소평가해 '가까워 보이는 함정'을 만든다.
+                    h = Math.max(1, Math.round(d * (0.2 + Math.random() * 0.5)));
                 }
-                this.nodeDataMap.set(id, {h: h});
-                this.updateNodeStyle(id, 'default');
-            });
+                hOf.set(id, h);
+            }
+
+            for (const id of this.nodeMap.keys()) {
+                this.nodeDataMap.set(id, {h: hOf.get(id)});
+                this.setNodeStyle(id, 'default');
+            }
+            this.paint();
         }
 
         // 노드 하나를 만든다. 렌더러가 읽는 것은 baseLabel · valueLines · state 셋뿐이다.
@@ -817,7 +831,15 @@
             if (this.view && this.root) this.view.update(duration);
         }
 
+        // 노드 하나를 고치고 곧바로 다시 그린다. 한두 개를 만질 때 쓴다.
         updateNodeStyle(id, state, extraInfo = null) {
+            this.setNodeStyle(id, state, extraInfo);
+            this.paint();
+        }
+
+        // **값만 고치고 그리지는 않는다.** 전체 노드를 훑는 자리에서 쓴다 —
+        // 노드마다 다시 그리면 트리 하나에 노드 수만큼 전체 렌더가 돌아 화면이 멈춘다.
+        setNodeStyle(id, state, extraInfo = null) {
             let n = this.nodeMap.get(id);
             if (!n) return;
 
@@ -833,8 +855,6 @@
                 ? [`f: ${extraInfo.f}`, `g: ${extraInfo.g} | h: ${h}`]
                 : [`h: ${h}`];
             n.state = state;
-
-            this.paint();
         }
 
         initSearchEngine() {
@@ -918,8 +938,9 @@
             if (this.nodeMap.size > 0) {
                 [...this.nodeMap.keys()].forEach(id => {
                     let state = (id === this.startNode) ? 'start' : (id === this.goalNode) ? 'goal' : 'default';
-                    this.updateNodeStyle(id, state);
+                    this.setNodeStyle(id, state);
                 });
+                this.paint();
             }
             this.setStatus('탐색이 초기화되었습니다. 알고리즘을 선택하고 시작하세요.');
         }

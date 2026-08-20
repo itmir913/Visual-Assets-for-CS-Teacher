@@ -83,6 +83,31 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
 
+        /* 실습 단계의 판만 자리에 맞춰 커진다 — `.walkthrough-board`로 그린
+           걸어 보기 그림의 작은 판은 고정 크기 그대로 둔다.
+           칸을 고정 크기로 두면 판이 남는 자리를 쓰지 못한다. 폭은 칸이 나눠 갖고,
+           `grid-auto-rows: 1fr` 이 줄 높이를 판 높이에서 끌어내 정사각형이 유지된다. */
+        .board-fill {
+            width: min(30rem, calc(100% - 1rem));
+            aspect-ratio: 1;
+            grid-auto-rows: 1fr;
+        }
+
+        .board-fill .chess-cell {
+            width: auto;
+            height: auto;
+            /* 칸의 크기를 내용이 아니라 격자가 정하게 못박는다. 그래야 아래의
+               `cqmin` 이 「이 칸의 한 변」을 뜻하게 된다. */
+            container-type: size;
+        }
+
+        /* 판이 커지면 퀸도 함께 커져야 한다. 고정 `font-size` 로 두면 큰 판에서는
+           칸 한가운데 좁쌀만 하게 남고, 작은 판에서는 칸을 뚫는다.
+           `cqmin` 은 그 칸의 짧은 변이라 비율이 어느 크기에서나 같다. */
+        .board-fill .queen-icon {
+            font-size: 62cqmin;
+        }
+
         .chess-cell {
             width: 3.5rem;
             height: 3.5rem;
@@ -208,6 +233,13 @@
                가운데 정렬만 하려는 것이므로 가로만 건드린다. */
             margin-inline: auto;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 전체 화면에서는 30rem 이 교실 화면에 작다. 판은 정사각이라 폭을 키우면
+           높이도 같이 커지므로, **화면 높이에 맞춰** 폭 상한을 다시 잡는다.
+           옆 칸을 밀지 않도록 `calc(100% - 3rem)` 상한은 그대로 둔다. */
+        .fs-stage:fullscreen .iq-chess-board {
+            width: min(60vh, 40rem, calc(100% - 3rem));
         }
 
         .iq-cell {
@@ -698,10 +730,15 @@
             <div class="w-16 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
         </div>
 
-        <div class="section-card">
+        <div class="section-card fs-stage" id="iqStage">
+            <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추. -->
+            <button type="button" class="fs-btn" data-fullscreen="iqStage"
+                    title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+                <i class="fa-solid fa-expand"></i>
+            </button>
 
             <!-- 안내 배너 -->
-            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-8">
+            <div class="fs-hide bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-8">
                 <div class="shrink-0 w-12 h-12 bg-emerald-200 text-emerald-700 rounded-2xl flex items-center justify-center text-2xl shadow-sm">
                     <i class="fa-solid fa-hand-pointer"></i>
                 </div>
@@ -872,7 +909,6 @@
                         </div>
                     </div>
 
-                    <div class="chess-board mb-6 relative transition-opacity duration-300" id="chessBoard"></div>
 
                     <div class="flex flex-col items-center gap-2 w-full px-2">
                         <div class="min-h-10 py-1.5 font-bold text-slate-600 mb-0 transition-colors px-2 text-center flex items-center justify-center bg-slate-100 rounded-lg border border-slate-200 w-full text-base leading-snug break-keep"
@@ -891,7 +927,7 @@
                                     onclick="startAI()">
                                 <i class="fa-solid fa-play"></i> 자동 재생
                             </button>
-                            <button class="flex-[1.5] min-w-[120px] px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1"
+                            <button class="flex-[1.5] min-w-[120px] px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-indigo-800"
                                     onclick="stepNextAI()">
                                 <i class="fa-solid fa-forward-step mr-1"></i> 다음 단계
                             </button>
@@ -903,8 +939,10 @@
                                 <i class="fa-solid fa-stop mr-1"></i> 중지
                             </button>
                             <!-- border-b-4는 장식이 아니라 높이를 맞추는 장치다. 다른 두 그룹의 주 버튼이
-                                 같은 테두리를 갖고 있어, 여기서 빼면 그룹이 바뀔 때 버튼 줄이 4px 튄다. -->
-                            <button class="flex-[2] min-w-[160px] px-4 py-3 bg-amber-500 hover:bg-amber-400 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-amber-700 active:border-b-0 active:translate-y-1"
+                                 같은 테두리를 갖고 있어, 여기서 빼면 그룹이 바뀔 때 버튼 줄이 4px 튄다.
+                                 **누를 때 이 테두리를 없애는 효과도 쓰지 않는다** — 테두리가 사라지는
+                                 만큼 버튼이 낮아져서, 누를 때마다 아래 칸이 통째로 4px 올라왔다. -->
+                            <button class="flex-[2] min-w-[160px] px-4 py-3 bg-amber-500 hover:bg-amber-400 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-amber-700"
                                     onclick="pauseAI()">
                                 <i class="fa-solid fa-pause mr-1"></i> 일시정지
                             </button>
@@ -919,12 +957,18 @@
                                     onclick="resumeAI()">
                                 <i class="fa-solid fa-play"></i> 자동 재생
                             </button>
-                            <button class="flex-[1.5] min-w-[120px] px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1"
+                            <button class="flex-[1.5] min-w-[120px] px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all shadow-md border-b-4 border-indigo-800"
                                     onclick="stepNextAI()">
                                 <i class="fa-solid fa-forward-step mr-1"></i> 다음 단계
                             </button>
                         </div>
                     </div>
+
+                    <!-- 판은 조작 줄 **아래**에 둔다. 단추를 누르는 손이 판을 가리지 않고,
+                         좁은 화면에서도 누른 자리 바로 아래에서 결과가 보인다.
+                         전체 화면에서는 `fs-fit` 이 남는 높이를 전부 준다(정사각형 유지). -->
+                    <div class="chess-board board-fill fs-fit mt-6 relative transition-opacity duration-300"
+                         id="chessBoard"></div>
                 </div>
 
                 <div class="w-full lg:w-[60%] flex flex-col bg-slate-900 rounded-2xl overflow-hidden shadow-xl border-4 border-slate-800 min-h-[450px] flex-1 relative">

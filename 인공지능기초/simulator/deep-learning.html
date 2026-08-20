@@ -114,8 +114,38 @@
 
         @media (min-width: 1024px) {
             .sim-stage {
+                display: grid;
+                gap: 1rem;
+                grid-template-columns: minmax(0, 1fr) 23rem;
+                grid-template-rows: minmax(0, 1fr) 13rem;
                 height: var(--sim-stage-h, 560px);
-                min-height: 420px;
+                /* 그림 바닥 20rem + 수식 칸 + 사이 여백 1rem.
+                   이보다 낮추면 캔버스가 자기 행을 넘어 아래 칸을 덮는다 —
+                   그리드는 넘치는 항목을 밀어내지 않고 겹쳐 버린다. */
+                min-height: 34rem;
+            }
+        }
+
+        /* 화면이 넉넉하면 수식 칸을 넓게 쓴다. */
+        @media (min-width: 1024px) and (min-height: 880px) {
+            .sim-stage {
+                grid-template-rows: minmax(0, 1fr) 15rem;
+                min-height: 36rem;
+            }
+        }
+
+        /* 낮은 화면에서는 수식 글자를 한 단 줄여 다섯 줄이 잘리지 않게 한다.
+           줄여도 본문 최소 크기(16px) 아래로는 내려가지 않는다. */
+        @media (max-height: 879px) {
+            #fpFormulaBody,
+            #bpFormulaBody {
+                font-size: 1rem;
+                line-height: 1.5rem;
+            }
+
+            #fpFormulaBody > * + *,
+            #bpFormulaBody > * + * {
+                margin-top: 0.125rem;
             }
         }
 
@@ -356,7 +386,7 @@
 
             <div class="flex flex-col lg:flex-row gap-6 items-stretch min-h-[600px]">
 
-                <div class="w-full lg:w-2/3 canvas-container flex flex-col bg-slate-900 border-none rounded-2xl overflow-hidden shadow-2xl min-h-[400px]">
+                <div class="w-full lg:w-2/3 flex flex-col bg-slate-900 rounded-2xl overflow-hidden shadow-2xl min-h-[400px]">
 
                     <div class="p-5 bg-slate-800/50 border-b border-slate-700/50 backdrop-blur-md">
                         <div class="flex items-start gap-4">
@@ -497,7 +527,7 @@
 
             <!-- 아래 칸(수식)의 높이를 못박아 두어야 위 그림이 흔들리지 않는다.
                  단계마다 식의 줄 수가 달라지므로, 빈 줄을 채워 줄 수까지 고정한다. -->
-            <div class="sim-stage grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_23rem] lg:grid-rows-[minmax(0,1fr)_15rem]">
+            <div class="sim-stage grid grid-cols-1 gap-4">
 
                 <div class="relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
                     <div class="absolute top-3 left-3 bg-teal-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
@@ -516,7 +546,7 @@
                         <p class="text-teal-300 font-bold text-base mb-2 shrink-0">
                             <i class="fa-solid fa-square-root-variable mr-2"></i>지금 계산하는 식
                         </p>
-                        <div id="fpFormulaBody" class="space-y-1.5 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
+                        <div id="fpFormulaBody" class="space-y-1 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
                     </div>
                     <div id="fpStepDesc"
                          class="bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto">
@@ -596,7 +626,7 @@
         <div id="tabBwd" class="tab-content section-card !p-4 md:!p-6 bg-white border-slate-300">
 
             <!-- 순전파 탭과 같은 짜임이다. 아래 칸의 높이를 못박아 위 그림이 흔들리지 않게 한다. -->
-            <div class="sim-stage grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_23rem] lg:grid-rows-[minmax(0,1fr)_15rem]">
+            <div class="sim-stage grid grid-cols-1 gap-4">
 
                 <div class="relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
                     <div class="absolute top-3 left-3 bg-rose-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
@@ -615,7 +645,7 @@
                         <p class="text-rose-300 font-bold text-base mb-2 shrink-0">
                             <i class="fa-solid fa-square-root-variable mr-2"></i>지금 계산하는 식
                         </p>
-                        <div id="bpFormulaBody" class="space-y-1.5 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
+                        <div id="bpFormulaBody" class="space-y-1 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
                     </div>
                     <div class="bg-slate-50 rounded-xl p-3 border border-slate-300 flex flex-col min-w-0 min-h-0">
                         <p class="text-slate-700 font-bold text-base mb-2 shrink-0 leading-snug">
@@ -874,12 +904,17 @@
        재는 대상이 접히거나 줄바꿈되면 값이 달라지므로 크기가 바뀔 때마다 다시 잰다. */
     function updateStageHeight() {
         const nav = document.querySelector('.sticky-nav');
-        const tabBar = document.querySelector('.tab-btn')?.parentElement;
-        if (!nav || !tabBar) return;
-        // 상단 바 + 탭바 + 카드 안팎 여백(대략 7rem)
-        const used = nav.offsetHeight + tabBar.offsetHeight + 112;
-        const h = Math.max(420, window.innerHeight - used);
-        document.documentElement.style.setProperty('--sim-stage-h', h + 'px');
+        const sec = document.getElementById('simulator');
+        const stage = document.querySelector('.tab-content.active .sim-stage');
+        if (!nav || !sec || !stage) return;
+        /* 어림값(「대략 7rem」) 대신 실제로 잰다. 탭바가 줄바꿈되거나 여백이 바뀌면
+           어림값은 조용히 어긋나는데, 그러면 단추가 화면 밖으로 밀린다.
+           위쪽 차지분은 스테이지 높이와 무관하므로 여기서 재도 안전하다. */
+        const card = stage.parentElement;
+        const padBottom = parseFloat(getComputedStyle(card).paddingBottom) || 0;
+        const above = stage.getBoundingClientRect().top - sec.getBoundingClientRect().top;
+        const h = window.innerHeight - nav.offsetHeight - above - padBottom - 12;
+        document.documentElement.style.setProperty('--sim-stage-h', Math.max(320, h) + 'px');
     }
 
     /* =========================================================

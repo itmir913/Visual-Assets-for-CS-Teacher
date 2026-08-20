@@ -637,16 +637,28 @@
         }
     }
 
+    // ml5 가 돌려주는 좌표는 캔버스가 아니라 **카메라가 실제로 내보내는 해상도**(videoWidth/videoHeight)
+    // 기준이다. 우리는 연산량을 줄이려고 640x480 을 요청하지만, 그 해상도를 못 내는 카메라를 만나면
+    // 브라우저가 가까운 다른 해상도를 준다. 그때 좌표를 그대로 그리면 상자가 엉뚱한 곳에 놓인다.
+    // 요청대로 640x480 이 오면 배율이 정확히 1 이라 그리는 결과가 달라지지 않는다.
+    function videoScale() {
+        const vw = (video && video.elt) ? video.elt.videoWidth : 0;
+        const vh = (video && video.elt) ? video.elt.videoHeight : 0;
+        return {sx: vw > 0 ? width / vw : 1, sy: vh > 0 ? height / vh : 1};
+    }
+
     // 🎨 [기능 2] 객체 탐지(박스 그리기) 전담 함수
     function drawDetections() {
         if (!detections || detections.length === 0) return;
 
+        const {sx, sy} = videoScale();
+
         for (let i = 0; i < detections.length; i++) {
             let d = detections[i];
-            let x = d.x;
-            let y = d.y;
-            let w = d.width;
-            let h = d.height;
+            let x = d.x * sx;
+            let y = d.y * sy;
+            let w = d.width * sx;
+            let h = d.height * sy;
 
             if (mirrorMode) x = width - x - w; // 거울 모드 좌표 반전
 
@@ -674,12 +686,14 @@
     function drawFaceMesh() {
         if (!faces || faces.length === 0) return;
 
+        const {sx, sy} = videoScale();
+
         for (let i = 0; i < faces.length; i++) {
             let face = faces[i];
             for (let j = 0; j < face.keypoints.length; j++) {
                 let keypoint = face.keypoints[j];
-                let kx = keypoint.x;
-                let ky = keypoint.y;
+                let kx = keypoint.x * sx;
+                let ky = keypoint.y * sy;
 
                 if (mirrorMode) kx = width - kx; // 거울 모드 좌표 반전
 

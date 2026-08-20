@@ -131,11 +131,12 @@
             height: calc(100vh - 8.5rem);
         }
 
-        /* 수식 패널. 숫자가 바뀔 때마다 줄 길이가 달라져도 자리가 흔들리지 않게 한다. */
+        /* 수식 패널. 숫자가 바뀔 때마다 줄 길이가 달라져도 자리가 흔들리지 않게 한다.
+           가로 스크롤은 줄마다 걸지 않고 상자에 건다 — 줄에 걸면 스크롤바가 생기는 줄만
+           그만큼 높아져서, 긴 식이 나오는 단계에서 화면이 들썩인다. */
         .formula-line {
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
-            overflow-x: auto;
         }
 
         /* 커스텀 스크롤바 */
@@ -484,28 +485,28 @@
              switchTab 은 문서 순서로 세므로 id 이름과 번호가 어긋나도 상관없다. -->
         <div id="tabFwd" class="tab-content section-card !p-4 md:!p-6 bg-white border-slate-300">
 
-            <div class="sim-stage grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_23rem] gap-4">
+            <!-- 아래 칸(수식)의 높이를 못박아 두어야 위 그림이 흔들리지 않는다.
+                 단계마다 식의 줄 수가 달라지므로, 빈 줄을 채워 줄 수까지 고정한다. -->
+            <div class="sim-stage grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_23rem] lg:grid-rows-[minmax(0,1fr)_15rem]">
 
-                <div class="flex flex-col gap-3 min-h-0">
-                    <div class="canvas-container flex-1 min-h-[280px] bg-white border border-slate-400 shadow-sm relative">
-                        <div class="absolute top-3 left-3 bg-teal-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
-                            <i class="fa-solid fa-arrow-right-long mr-1"></i> 순전파 &mdash; 값이 앞으로 흐른다
-                        </div>
-                        <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
-                            <span id="fpStepLabel">준비</span>
-                        </div>
-                        <canvas id="fpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+                <div class="canvas-container min-h-[240px] bg-white border border-slate-400 shadow-sm relative lg:col-start-1 lg:row-start-1">
+                    <div class="absolute top-3 left-3 bg-teal-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
+                        <i class="fa-solid fa-arrow-right-long mr-1"></i> 순전파 &mdash; 값이 앞으로 흐른다
                     </div>
-
-                    <div class="shrink-0 bg-slate-900 text-slate-100 rounded-xl p-4 border border-slate-700 shadow-lg">
-                        <p class="text-teal-300 font-bold text-base mb-2">
-                            <i class="fa-solid fa-square-root-variable mr-2"></i>지금 계산하는 식
-                        </p>
-                        <div id="fpFormulaBody" class="space-y-1.5 text-lg font-mono min-h-[5.5rem]"></div>
+                    <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
+                        <span id="fpStepLabel">준비</span>
                     </div>
+                    <canvas id="fpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
                 </div>
 
-                <div class="flex flex-col gap-3 min-h-0 lg:overflow-y-auto">
+                <div class="bg-slate-900 text-slate-100 rounded-xl p-4 border border-slate-700 shadow-lg flex flex-col min-h-0 lg:col-start-1 lg:row-start-2">
+                    <p class="text-teal-300 font-bold text-base mb-2 shrink-0">
+                        <i class="fa-solid fa-square-root-variable mr-2"></i>지금 계산하는 식
+                    </p>
+                    <div id="fpFormulaBody" class="space-y-1.5 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
+                </div>
+
+                <div class="flex flex-col gap-3 min-h-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:overflow-y-auto">
 
                     <div class="flex items-center justify-between gap-2">
                         <h2 class="text-xl font-black text-slate-800">뉴런의 계산</h2>
@@ -538,21 +539,21 @@
                             </table>
                         </div>
                         <p class="text-base text-slate-500 mt-1">줄을 눌러 신경망에 넣을 자료를 고릅니다.</p>
-                        <p id="fpDataNote" class="text-base text-slate-600 mt-1 leading-snug"></p>
+                        <p id="fpDataNote" class="text-base text-slate-600 mt-1 leading-snug h-[3.25rem] overflow-y-auto"></p>
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-300">
                         <p class="text-base font-bold text-slate-700 mb-2">은닉층 활성화 함수</p>
                         <div id="fpActBtns" class="grid grid-cols-2 gap-2"></div>
-                        <div class="flex gap-3 items-center mt-3">
+                        <div class="flex gap-3 items-start mt-3 h-[5.5rem]">
                             <canvas id="fpActCanvas" class="w-[7.5rem] h-[5rem] shrink-0 bg-white rounded-lg border border-slate-300"></canvas>
-                            <p id="fpActDesc" class="text-base text-slate-600 leading-snug"></p>
+                            <p id="fpActDesc" class="text-base text-slate-600 leading-snug flex-1 min-w-0 h-full overflow-y-auto"></p>
                         </div>
                         <p class="text-base text-slate-500 mt-2">출력층은 0~1 사이 값으로 답하도록 시그모이드로 고정했습니다.</p>
                     </div>
 
                     <div id="fpStepDesc"
-                         class="bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed flex-1 min-h-[5rem]">
+                         class="bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed flex-1 min-h-0 overflow-y-auto">
                         '다음 단계'를 누르면 값이 한 층씩 앞으로 흘러갑니다.
                     </div>
 
@@ -578,38 +579,38 @@
         <!-- 역전파·갱신 탭. 순전파 탭과 같은 신경망 하나를 함께 쓴다. -->
         <div id="tabBwd" class="tab-content section-card !p-4 md:!p-6 bg-white border-slate-300">
 
-            <div class="sim-stage grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_23rem] gap-4">
+            <!-- 순전파 탭과 같은 짜임이다. 아래 칸의 높이를 못박아 위 그림이 흔들리지 않게 한다. -->
+            <div class="sim-stage grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_23rem] lg:grid-rows-[minmax(0,1fr)_15rem]">
 
-                <div class="flex flex-col gap-3 min-h-0">
-                    <div class="canvas-container flex-1 min-h-[280px] bg-white border border-slate-400 shadow-sm relative">
-                        <div class="absolute top-3 left-3 bg-rose-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
-                            <i class="fa-solid fa-arrow-left-long mr-1"></i> 역전파 &mdash; 책임이 거꾸로 온다
-                        </div>
-                        <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
-                            <span id="bpStepLabel">준비</span>
-                        </div>
-                        <canvas id="bpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+                <div class="canvas-container min-h-[240px] bg-white border border-slate-400 shadow-sm relative lg:col-start-1 lg:row-start-1">
+                    <div class="absolute top-3 left-3 bg-rose-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
+                        <i class="fa-solid fa-arrow-left-long mr-1"></i> 역전파 &mdash; 책임이 거꾸로 온다
                     </div>
+                    <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
+                        <span id="bpStepLabel">준비</span>
+                    </div>
+                    <canvas id="bpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+                </div>
 
-                    <div class="shrink-0 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                        <div class="bg-slate-900 text-slate-100 rounded-xl p-4 border border-slate-700 shadow-lg min-w-0">
-                            <p class="text-rose-300 font-bold text-base mb-2">
-                                <i class="fa-solid fa-square-root-variable mr-2"></i>지금 계산하는 식
-                            </p>
-                            <div id="bpFormulaBody" class="space-y-1.5 text-lg font-mono min-h-[5.5rem]"></div>
-                        </div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-300 min-w-0">
-                            <p class="text-slate-700 font-bold text-base mb-2">
-                                <i class="fa-solid fa-table-list mr-2 text-slate-500"></i>파라미터 9개 (바뀌기 전 &rarr; 뒤)
-                            </p>
-                            <p class="text-base text-slate-500 mb-2">한 줄이 뉴런 하나입니다 &mdash; 은닉1 · 은닉2 · 출력.
-                                아래쪽 흐린 숫자가 바뀌기 전 값입니다.</p>
-                            <div id="bpWeightGrid" class="grid grid-cols-3 gap-1.5 font-mono text-base"></div>
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 min-h-0 lg:col-start-1 lg:row-start-2">
+                    <div class="bg-slate-900 text-slate-100 rounded-xl p-4 border border-slate-700 shadow-lg flex flex-col min-w-0 min-h-0">
+                        <p class="text-rose-300 font-bold text-base mb-2 shrink-0">
+                            <i class="fa-solid fa-square-root-variable mr-2"></i>지금 계산하는 식
+                        </p>
+                        <div id="bpFormulaBody" class="space-y-1.5 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-300 flex flex-col min-w-0 min-h-0">
+                        <p class="text-slate-700 font-bold text-base mb-2 shrink-0 leading-snug">
+                            <i class="fa-solid fa-table-list mr-2 text-slate-500"></i>파라미터 9개 &mdash;
+                            한 줄이 뉴런 하나(은닉1 · 은닉2 · 출력), 화살표 앞이 바뀌기 전 값
+                        </p>
+                        <div class="overflow-x-auto flex-1 min-h-0">
+                            <div id="bpWeightGrid" class="grid grid-cols-3 gap-1.5 font-mono text-base min-w-[20rem]"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-3 min-h-0 lg:overflow-y-auto">
+                <div class="flex flex-col gap-3 min-h-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:overflow-y-auto">
 
                     <div class="flex items-center justify-between gap-2">
                         <h2 class="text-xl font-black text-slate-800">가중치 갱신</h2>
@@ -647,7 +648,7 @@
                     </div>
 
                     <div id="bpStepDesc"
-                         class="bg-rose-50 border border-rose-300 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed flex-1 min-h-[5rem]">
+                         class="bg-rose-50 border border-rose-300 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed flex-1 min-h-0 overflow-y-auto">
                         순전파로 나온 예측을 정답과 견주는 것부터 시작합니다.
                     </div>
 
@@ -2300,7 +2301,7 @@
                 msg += '\n\n지금 활성화 함수가 「없음」이라 z가 그대로 a가 됩니다. 꺾이는 데가 없습니다.';
             }
             box.textContent = msg;
-            box.className = 'bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+            box.className = 'bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
 
             const prev = document.getElementById('fpBtnPrev');
             const next = document.getElementById('fpBtnNext');
@@ -2322,63 +2323,73 @@
             return d;
         },
 
+        /* 어느 단계에서나 줄 수를 이만큼으로 맞춘다. 단계마다 줄 수가 달라지면
+           상자 높이가 변해 위쪽 그림까지 들썩인다. 모자라면 빈 줄로 채운다. */
+        FORMULA_LINES: 5,
+
         renderFormula() {
             const box = document.getElementById('fpFormulaBody');
+            const lines = this.formulaLines();
+            while (lines.length < this.FORMULA_LINES) lines.push('&nbsp;');
             box.innerHTML = '';
-            const [x] = netSim.sample();
+            for (const html of lines) box.appendChild(this.line(html));
+        },
+
+        formulaLines() {
+            const out = [];
+            const [x, y] = netSim.sample();
             const n = netSim.net, fw = netSim.fw, A = NET_ACT[netSim.act];
             const p = this.phase;
 
             if (p === 0) {
-                box.appendChild(this.line('<span class="text-slate-400">x₁ =</span> ' + nf(x[0]) +
-                    ' <span class="text-slate-400 ml-4">x₂ =</span> ' + nf(x[1])));
-                box.appendChild(this.line('<span class="text-slate-500 text-base">아직 계산 전입니다.</span>'));
-                return;
+                out.push('<span class="text-slate-400">x₁ =</span> ' + nf(x[0]) +
+                    ' <span class="text-slate-400 ml-4">x₂ =</span> ' + nf(x[1]));
+                out.push('<span class="text-slate-500 text-base">아직 계산 전입니다.</span>');
+                return out;
             }
 
             if (p >= 1 && p <= 3) {
                 // 이름 줄을 한 번 놓아, 숫자가 어느 가중치 자리인지 표에서 찾을 수 있게 한다.
-                box.appendChild(this.line('<span class="text-slate-400 text-base">z₁ = x₁×w₁₁ + x₂×w₂₁ + b₁' +
-                    ' &nbsp;/&nbsp; z₂ = x₁×w₁₂ + x₂×w₂₂ + b₂</span>'));
+                out.push('<span class="text-slate-400 text-base">z₁ = x₁×w₁₁ + x₂×w₂₁ + b₁' +
+                    ' &nbsp;/&nbsp; z₂ = x₁×w₁₂ + x₂×w₂₂ + b₂</span>');
                 for (let j = 0; j < 2; j++) {
                     const sub = j === 0 ? '₁' : '₂';
                     if (p === 1) {
-                        box.appendChild(this.line('<span class="text-teal-300">z' + sub + ' 의 재료</span> = ' +
-                            nf(x[0]) + '×' + par(n.w1[0][j]) + ' , ' + nf(x[1]) + '×' + par(n.w1[1][j])));
+                        out.push('<span class="text-teal-300">z' + sub + ' 의 재료</span> = ' +
+                            nf(x[0]) + '×' + par(n.w1[0][j]) + ' , ' + nf(x[1]) + '×' + par(n.w1[1][j]));
                     } else {
-                        box.appendChild(this.line('<span class="text-teal-300">z' + sub + '</span> = ' +
+                        out.push('<span class="text-teal-300">z' + sub + '</span> = ' +
                             nf(x[0]) + '×' + par(n.w1[0][j]) + ' + ' + nf(x[1]) + '×' + par(n.w1[1][j]) +
-                            ' + ' + par(n.b1[j]) + ' = <span class="text-white">' + nf(fw.z1[j]) + '</span>'));
+                            ' + ' + par(n.b1[j]) + ' = <span class="text-white">' + nf(fw.z1[j]) + '</span>');
                     }
                 }
                 if (p === 3) {
                     for (let j = 0; j < 2; j++) {
                         const sub = j === 0 ? '₁' : '₂';
-                        box.appendChild(this.line('<span class="text-emerald-300">a' + sub + '</span> = ' +
-                            A.call + '(' + nf(fw.z1[j]) + ') = <span class="text-white">' + nf(fw.a1[j], 3) + '</span>'));
+                        out.push('<span class="text-emerald-300">a' + sub + '</span> = ' +
+                            A.call + '(' + nf(fw.z1[j]) + ') = <span class="text-white">' + nf(fw.a1[j], 3) + '</span>');
                     }
                 }
-                return;
+                return out;
             }
 
+            out.push('<span class="text-slate-400 text-base">z₃ = a₁×u₁ + a₂×u₂ + b₃</span>');
             if (p === 4) {
-                box.appendChild(this.line('<span class="text-slate-400 text-base">z₃ = a₁×u₁ + a₂×u₂ + b₃</span>'));
-                box.appendChild(this.line('<span class="text-teal-300">z₃ 의 재료</span> = ' +
-                    nf(fw.a1[0], 3) + '×' + par(n.w2[0]) + ' , ' + nf(fw.a1[1], 3) + '×' + par(n.w2[1])));
-                return;
+                out.push('<span class="text-teal-300">z₃ 의 재료</span> = ' +
+                    nf(fw.a1[0], 3) + '×' + par(n.w2[0]) + ' , ' + nf(fw.a1[1], 3) + '×' + par(n.w2[1]));
+                return out;
             }
 
-            box.appendChild(this.line('<span class="text-slate-400 text-base">z₃ = a₁×u₁ + a₂×u₂ + b₃</span>'));
-            box.appendChild(this.line('<span class="text-teal-300">z₃</span> = ' +
+            out.push('<span class="text-teal-300">z₃</span> = ' +
                 nf(fw.a1[0], 3) + '×' + par(n.w2[0]) + ' + ' + nf(fw.a1[1], 3) + '×' + par(n.w2[1]) +
-                ' + ' + par(n.b2) + ' = <span class="text-white">' + nf(fw.z2) + '</span>'));
+                ' + ' + par(n.b2) + ' = <span class="text-white">' + nf(fw.z2) + '</span>');
             if (p >= 6) {
-                box.appendChild(this.line('<span class="text-emerald-300">예측</span> = 시그모이드(' + nf(fw.z2) +
-                    ') = <span class="text-white text-xl">' + nf(fw.a2, 3) + '</span>'));
-                const [, y] = netSim.sample();
-                box.appendChild(this.line('<span class="text-slate-400">정답</span> = ' + y +
-                    ' <span class="text-slate-500 text-base ml-2">(0.5보다 크면 1이라고 답한 것)</span>'));
+                out.push('<span class="text-emerald-300">예측</span> = 시그모이드(' + nf(fw.z2) +
+                    ') = <span class="text-white">' + nf(fw.a2, 3) + '</span>');
+                out.push('<span class="text-slate-400">정답</span> = ' + y +
+                    ' <span class="text-slate-500 text-base ml-2">(0.5보다 크면 1이라고 답한 것)</span>');
             }
+            return out;
         },
 
         draw() {
@@ -2743,30 +2754,30 @@
 
             const box = document.getElementById('bpStepDesc');
             let msg = this.PHASES[this.phase].desc;
-            let cls = 'bg-rose-50 border border-rose-300 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+            let cls = 'bg-rose-50 border border-rose-300 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
 
             if (netSim.act === 'step') {
                 msg = '계단 함수는 어디서나 기울기가 0입니다. 그래서 은닉 뉴런으로 들어가는 여섯 개(w₁₁ w₂₁ b₁ w₁₂ w₂₂ b₂)는 ' +
                     '기울기도 0이 되어 한 번도 바뀌지 않습니다. 오른쪽 아래 표에서 위 두 줄이 계속 그대로인 것을 확인해 보세요. ' +
                     '출력 뉴런의 세 개(u₁ u₂ b₃)만 배웁니다.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
             } else if (netSim.act === 'none' && netSim.dsKey === 'xor') {
                 msg = '활성화 함수가 「없음」이면 층을 쌓아도 직선 하나와 같아집니다. XOR는 직선 하나로 나눌 수 없으므로, ' +
                     '아무리 오래 돌려도 손실이 0.25 근처에서 더 내려가지 않습니다. 직접 자동으로 돌려 확인해 보세요.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
             } else if (netSim.solved()) {
                 msg = '🎉 네 자료를 모두 맞혔고 손실도 충분히 내려갔습니다. 학습이 끝난 것으로 봅니다.\n\n' + msg;
-                cls = 'bg-emerald-50 border border-emerald-400 rounded-xl p-3 text-base text-emerald-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+                cls = 'bg-emerald-50 border border-emerald-400 rounded-xl p-3 text-base text-emerald-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
             } else if (netSim.epoch >= this.AUTO_MAX_EPOCH) {
                 msg = netSim.epoch + '에포크를 돌렸는데도 아직 다 맞히지 못했습니다. 처음에 뽑은 가중치가 나쁘면 골짜기에 갇혀 ' +
                     '나오지 못하는 판이 생깁니다. 오른쪽 아래 초기화 단추로 가중치를 새로 뽑아 다시 해 보세요. ' +
                     '학습률을 바꿔 보는 것도 방법입니다.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
             } else if (netSim.act === 'relu' && netSim.deadHidden().some(d => d)) {
                 msg = 'ReLU 뉴런 하나가 네 자료 어디에서도 0만 내보내고 있습니다(죽은 뉴런). 0을 내보내는 동안에는 기울기도 0이라 ' +
                     '되살아나지 못합니다. 은닉 뉴런이 2개뿐인 이 작은 신경망에서 특히 잘 생기는 일이고, ' +
                     '뉴런이 훨씬 많은 신경망에서는 몇 개가 죽어도 나머지가 일을 이어받습니다. 초기화해 다시 해 보세요.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-[5rem]';
+                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
             }
 
             box.textContent = msg;
@@ -2776,20 +2787,30 @@
                 this.phase === this.MAX_PHASE ? '다음 자료로' : '다음 단계';
         },
 
+        // 순전파 탭과 같은 까닭으로 줄 수를 고정한다.
+        FORMULA_LINES: 3,
+
         renderFormula() {
             const box = document.getElementById('bpFormulaBody');
+            const lines = this.formulaLines();
+            while (lines.length < this.FORMULA_LINES) lines.push('&nbsp;');
             box.innerHTML = '';
+            for (const html of lines) box.appendChild(fpSim.line(html));
+        },
+
+        formulaLines() {
+            const out = [];
             const [x, y] = netSim.sample();
             const fw = netSim.fw, g = netSim.grad, n = netSim.net, A = NET_ACT[netSim.act];
             const p = this.phase;
-            const L = (html) => box.appendChild(fpSim.line(html));
+            const L = (html) => out.push(html);
 
             if (p === 0) {
                 L('<span class="text-rose-300">예측</span> = ' + nf(fw.a2, 3) +
                     ' <span class="text-slate-400 ml-3">정답</span> = ' + y);
                 L('<span class="text-rose-300">손실</span> = (' + nf(fw.a2, 3) + ' − ' + y +
-                    ')² = <span class="text-white text-xl">' + nf(netSim.loss(fw.a2, y), 4) + '</span>');
-                return;
+                    ')² = <span class="text-white">' + nf(netSim.loss(fw.a2, y), 4) + '</span>');
+                return out;
             }
             if (p === 1) {
                 L('<span class="text-slate-400 text-base">출력 뉴런의 몫 = 2×(예측−정답)×시그모이드의 기울기</span>');
@@ -2797,7 +2818,7 @@
                     nf(fw.a2, 3) + '×(1−' + nf(fw.a2, 3) + ') = <span class="text-white">' + nf(g.dz2, 4) + '</span>');
                 L('<span class="text-amber-300">u₁ 기울기</span> = ' + nf(g.dz2, 4) + '×a₁(' + nf(fw.a1[0], 3) + ') = ' + nf(g.dw2[0], 4) +
                     ' <span class="text-slate-500 ml-2">u₂ ' + nf(g.dw2[1], 4) + ' · b₃ ' + nf(g.db2, 4) + '</span>');
-                return;
+                return out;
             }
             if (p === 2) {
                 for (let j = 0; j < 2; j++) {
@@ -2807,7 +2828,7 @@
                         '×' + A.call + '′(' + nf(fw.z1[j]) + ') = <span class="text-white">' + nf(g.dz1[j], 4) + '</span>');
                 }
                 L('<span class="text-slate-500 text-base">활성화 함수의 기울기가 0이면 여기서 신호가 끊깁니다.</span>');
-                return;
+                return out;
             }
             if (p === 3) {
                 for (let j = 0; j < 2; j++) {
@@ -2817,19 +2838,20 @@
                         ' <span class="text-slate-500 ml-2">w₂' + sub + ' ' + nf(g.dw1[1][j], 4) +
                         ' · b' + sub + ' ' + nf(g.db1[j], 4) + '</span>');
                 }
-                return;
+                return out;
             }
 
             const b = netSim.before;
             if (!b) {
                 L('<span class="text-slate-400">아직 고치지 않았습니다.</span>');
-                return;
+                return out;
             }
             L('<span class="text-slate-400 text-base">새 가중치 = 옛 가중치 − 학습률 × 기울기</span>');
             L('<span class="text-emerald-300">w₁₁</span> = ' + nf(b.w1[0][0], 3) + ' − ' + nf(this.lr()) +
                 '×' + par(g.dw1[0][0], 4) + ' = <span class="text-white">' + nf(n.w1[0][0], 3) + '</span>');
             L('<span class="text-emerald-300">u₁</span> = ' + nf(b.w2[0], 3) + ' − ' + nf(this.lr()) +
                 '×' + par(g.dw2[0], 4) + ' = <span class="text-white">' + nf(n.w2[0], 3) + '</span>');
+            return out;
         },
 
         // 파라미터 9개를 한자리에 놓고 바뀌기 전후를 보여 준다.
@@ -2858,17 +2880,14 @@
                 const head = document.createElement('div');
                 head.className = 'text-slate-500';
                 head.textContent = name;
+                // 늘 두 줄이다. 값이 바뀔 때만 줄을 하나 더 얹으면 표 높이가 들썩인다.
                 const val = document.createElement('div');
-                val.className = changed ? 'text-emerald-700 font-bold' : 'text-slate-700 font-bold';
-                val.textContent = nf(now, 3);
+                val.className = changed
+                    ? 'text-emerald-700 font-bold whitespace-nowrap'
+                    : 'text-slate-700 font-bold whitespace-nowrap';
+                val.textContent = changed ? nf(was, 3) + '→' + nf(now, 3) : nf(now, 3);
                 cell.appendChild(head);
                 cell.appendChild(val);
-                if (changed) {
-                    const old = document.createElement('div');
-                    old.className = 'text-slate-400 text-base';
-                    old.textContent = '← ' + nf(was, 3);
-                    cell.appendChild(old);
-                }
                 grid.appendChild(cell);
             }
         },

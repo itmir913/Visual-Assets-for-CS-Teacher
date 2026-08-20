@@ -538,7 +538,9 @@
             treeTab.className = "px-8 py-4 font-bold text-indigo-600 border-b-4 border-indigo-600 transition-colors";
             gridTab.className = "px-8 py-4 font-medium text-gray-500 hover:text-indigo-600 border-b-4 border-transparent transition-colors";
 
-            if (!treeNetwork) generateRandomTree();
+            if (!treeRoot) generateRandomTree();
+            // 숨어 있던 동안에는 컨테이너 크기가 0이라 화면을 맞출 수 없었다. 이제 맞춘다.
+            else if (treeView) treeView.resize(300);
         }
     }
 
@@ -590,16 +592,18 @@
     // 카메라 모드: 'free'(자유 이동), 'track'(추적), 'fit'(전체 자동 맞춤)
     let gridCameraMode = 'free';
 
-    // 라이브러리는 모듈 진입점이 올린다. 그쪽이 defer라 이 인라인 스크립트보다
-    // 늦게 실행되므로, 선언만 여기서 하고 만드는 것은 DOMContentLoaded로 미룬다.
-    let nodes, edges;
+    // 격자 탐색이 자라며 그리는 트리. 공용 렌더러는 `{id, children}` 꼴을 먹으므로
+    // 노드를 id로 찾을 수 있게 표를 따로 하나 둔다.
+    let gridTreeRoot = null;
+    let gridTreeMap = new Map();
+    let gridTree = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        nodes = new vis.DataSet();
-        edges = new vis.DataSet();
-        treeData = {nodes: new vis.DataSet(), edges: new vis.DataSet()};
-    }, {once: true});
-    let network = null;
+    // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+    const GRID_NODE_COLORS = {
+        discovered: {border: '#0284c7', text: '#334155'},
+        visited: {fill: '#3b82f6', border: '#1e40af', text: '#ffffff'},
+        path: {fill: '#f59e0b', border: '#b45309', text: '#ffffff'},
+    };
 
     const btnPlay = document.getElementById('btn-play');
     const btnStep = document.getElementById('btn-step');
@@ -625,9 +629,7 @@
         btnFit.className = (mode === 'fit') ? activeClass : inactiveClass;
 
         // 버튼 클릭 즉시 모드 동작 실행
-        if (mode === 'fit' && network) {
-            network.fit({animation: {duration: 300, easingFunction: "easeInOutQuad"}});
-        }
+        if (gridTree) gridTree.setViewMode(mode, 300);
     }
 
     // --- 2. 초기화 및 이벤트 바인딩 ---
@@ -668,27 +670,37 @@
     }
 
     function initTreeNetwork() {
-        const container = document.getElementById('tree-network-for-grid');
-        const data = {nodes: nodes, edges: edges};
-        const options = {
-            layout: {hierarchical: {direction: "UD", sortMethod: "directed", nodeSpacing: 50, levelSeparation: 70}},
-            physics: false,
-            nodes: {
-                size: 30,
-                shape: "circle",
-                margin: 8,
-                font: {size: 18, color: '#334155'},
-                borderWidth: 2,
-                shadow: true
+        gridTree = window.createTreeView('#tree-network-for-grid', {
+            shape: () => 'circle',
+            radius: 18,
+            fontSize: 12,
+            levelSeparation: 70,
+            siblingGap: 14,
+            viewMode: gridCameraMode,
+            label: (d) => d.label,
+            nodeStyle: (d) => {
+                const c = GRID_NODE_COLORS[d.state] || GRID_NODE_COLORS.discovered;
+                return {
+                    fill: c.fill || d.baseColor,
+                    stroke: c.border,
+                    strokeWidth: 2,
+                    textColor: c.text,
+                };
             },
-            edges: {
-                width: 2,
-                color: {color: '#cbd5e1', highlight: '#3b82f6'},
-                smooth: {type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4}
-            },
-            interaction: {dragNodes: true, zoomView: true, dragView: true}
-        };
-        network = new vis.Network(container, data, options);
+            linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
+        });
+
+        // 사람이 화면을 끌면 렌더러가 '자유 이동'으로 넘어간다. 위쪽 단추도 그에 맞춘다.
+        gridTree.on('viewmode', (mode) => setGridCameraMode(mode));
+
+        resetGridTree();
+    }
+
+    // 격자 트리를 빈 상태로 되돌린다.
+    function resetGridTree() {
+        gridTreeRoot = null;
+        gridTreeMap.clear();
+        if (gridTree) gridTree.setData(null).clear();
     }
 
     function bindEvents() {
@@ -751,8 +763,7 @@
                 }
             }
         }
-        nodes.clear();
-        edges.clear();
+        resetGridTree();
         setStatus("대기 중", "bg-slate-100 text-slate-600");
     }
 
@@ -937,7 +948,7 @@
                 setStatus(isBFS ? "목표 도달! 최단 경로" : "목표 도달! 경로 완성", "bg-emerald-100 text-emerald-700");
             } else setStatus("경로 없음", "bg-rose-100 text-rose-700");
 
-            if (network) network.fit({animation: true});
+            if (gridTree && gridTreeRoot) gridTree.fit(300);
             return false;
         }
 
@@ -954,12 +965,24 @@
             if (!isStartEnd) cell.classList.add('cell-discovered');
 
             // r, c 를 함께 저장해 두어야 경로 강조 시 라벨('S'/'E')에 관계없이 찾을 수 있다.
-            nodes.add({id: node.treeId, label: node.label, r: node.r, c: node.c, color: {background: node.color, border: '#0284c7'}});
-            if (node.parentTreeId !== null) edges.add({from: node.parentTreeId, to: node.treeId});
+            const treeNode = {
+                id: node.treeId, label: node.label, r: node.r, c: node.c,
+                baseColor: node.color, state: 'discovered', children: [],
+            };
+            gridTreeMap.set(node.treeId, treeNode);
+
+            if (node.parentTreeId === null) {
+                gridTreeRoot = treeNode;
+                gridTree.setData(gridTreeRoot);
+            } else {
+                const parent = gridTreeMap.get(node.parentTreeId);
+                if (parent) parent.children.push(treeNode);
+            }
 
         } else if (type === 'visit') {
             if (!isStartEnd) cell.classList.add('cell-visited');
-            nodes.update({id: node.treeId, color: {background: '#3b82f6', border: '#1e40af'}, font: {color: 'white'}});
+            const n = gridTreeMap.get(node.treeId);
+            if (n) n.state = 'visited';
 
         } else if (type === 'path') {
             if (!isStartEnd) {
@@ -968,27 +991,22 @@
             }
             // 실제로 지나간 그 노드 하나만 칠한다. 같은 칸의 다른 트리 노드(DFS에서 쌓인
             // 중복 후보)까지 칠하면 경로가 아닌 가지가 경로처럼 보인다.
-            const targetNodes = (node.treeId !== null && node.treeId !== undefined)
-                ? [{id: node.treeId}]
-                : nodes.get({filter: item => item.r === node.r && item.c === node.c});
-            targetNodes.forEach(n => {
-                nodes.update({id: n.id, color: {background: '#f59e0b', border: '#b45309'}, font: {color: 'white'}});
-            });
+            if (node.treeId !== null && node.treeId !== undefined) {
+                const n = gridTreeMap.get(node.treeId);
+                if (n) n.state = 'path';
+            } else {
+                for (const n of gridTreeMap.values()) {
+                    if (n.r === node.r && n.c === node.c) n.state = 'path';
+                }
+            }
         }
 
         // --- 카메라 모드에 따른 화면 제어 ---
-        if (network) {
-            if (gridCameraMode === 'track' && (type === 'add_node' || type === 'visit')) {
-                network.focus(node.treeId, {
-                    scale: 1.0,
-                    animation: {duration: 300, easingFunction: "easeInOutQuad"}
-                });
-            } else if (gridCameraMode === 'fit' && type === 'add_node') {
-                // 새로운 노드가 추가될 때마다 전체 화면에 맞춰 자동으로 스케일 아웃
-                network.fit({
-                    animation: {duration: 300, easingFunction: "easeInOutQuad"}
-                });
-            }
+        // 추적 모드에서 따라갈 노드를 먼저 정하고 나서 그린다.
+        // update() 가 그 모드에 맞춰 화면까지 옮겨 준다.
+        if (gridTree && gridTreeRoot) {
+            if (type === 'add_node' || type === 'visit') gridTree.setActive(node.treeId);
+            gridTree.update(300);
         }
     }
 
@@ -1036,15 +1054,16 @@
 
     function resetSearch() {
         clearSearchVisuals();
-        if (network) network.fit();
+        if (gridTree && gridTreeRoot) gridTree.fit(300);
     }
 
 
     // ==========================================
     // TREE SEARCH LOGIC
     // ==========================================
-    let treeNetwork = null;
-    let treeData;
+    let treeView = null;
+    let treeRoot = null;
+    let treeNodeMap = new Map();
     let treeAdjList = {};
     let treeGoalNode = null;
 
@@ -1052,21 +1071,50 @@
     let isTreePlaying = false;
     let treePlayInterval = null;
 
-    const networkOptions = {
-        layout: {hierarchical: {direction: 'UD', sortMethod: 'directed', levelSeparation: 80, nodeSpacing: 100}},
-        physics: false,
-        interaction: {dragNodes: false, zoomView: true, dragView: true},
-        nodes: {
-            size: 30,
-            shape: 'circle',
-            margin: 10,
-            font: {size: 18, color: '#ffffff'},
-            borderWidth: 2,
-            color: {background: '#6366f1', border: '#4f46e5'},
-            shadow: true
-        },
-        edges: {width: 2, color: '#cbd5e1', smooth: {type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4}}
+    // 노드 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
+    const TREE_NODE_COLORS = {
+        default: {fill: '#6366f1', border: '#4f46e5', text: '#ffffff'},
+        goal: {fill: '#ef4444', border: '#b91c1c', text: '#ffffff'},
+        current: {fill: '#eab308', border: '#ca8a04', text: '#ffffff'},
+        done: {fill: '#94a3b8', border: '#64748b', text: '#ffffff'},
+        found: {fill: '#22c55e', border: '#16a34a', text: '#ffffff'},
     };
+
+    function initTreeView() {
+        if (treeView) return;
+        treeView = window.createTreeView('#tree-network-for-tree', {
+            shape: () => 'circle',
+            radius: 18,
+            fontSize: 13,
+            levelSeparation: 80,
+            siblingGap: 16,
+            viewMode: 'fit',
+            label: (d) => d.label,
+            nodeStyle: (d) => {
+                const c = TREE_NODE_COLORS[d.state] || TREE_NODE_COLORS.default;
+                return {fill: c.fill, stroke: c.border, strokeWidth: 2, textColor: c.text};
+            },
+            linkStyle: () => ({stroke: '#cbd5e1', strokeWidth: 2}),
+        });
+        treeView.on('nodeclick', (id) => setTreeGoalNode(id));
+    }
+
+    // 노드 상태를 바꾸고 다시 그린다. 색을 직접 만지는 곳을 여기 하나로 모은다.
+    function setTreeNodeState(id, state) {
+        const n = treeNodeMap.get(id);
+        if (n) n.state = state;
+    }
+
+    function paintTree(duration = 300) {
+        if (treeView && treeRoot) treeView.update(duration);
+    }
+
+    // 목표만 빨갛게 두고 나머지는 기본색으로 되돌린다.
+    function repaintTreeToDefault() {
+        for (const n of treeNodeMap.values()) {
+            n.state = (n.id === treeGoalNode) ? 'goal' : 'default';
+        }
+    }
 
     function generateRandomTree() {
         try {
@@ -1081,15 +1129,22 @@
             document.getElementById('tree-max-children').value = maxChildren;
 
             const MAX_NODES = 500;
-            let tempNodes = [];
-            let tempEdges = [];
             let tempAdj = {};
             let currentId = 1;
 
-            tempNodes.push({id: 1, label: "1", level: 0});
+            initTreeView();
+            treeNodeMap.clear();
+
+            const makeNode = (id) => {
+                const n = {id: id, label: String(id), state: 'default', children: []};
+                treeNodeMap.set(id, n);
+                return n;
+            };
+
+            treeRoot = makeNode(1);
             tempAdj[1] = [];
 
-            function buildNode(parentId, depth) {
+            function buildNode(parent, depth) {
                 if (depth > maxDepth) return;
                 if (currentId >= MAX_NODES) return;
                 const numChildren = Math.floor(Math.random() * maxChildren) + 1;
@@ -1097,52 +1152,35 @@
                 for (let i = 0; i < numChildren; i++) {
                     if (currentId >= MAX_NODES) return;
                     currentId++;
-                    const newId = currentId;
-                    tempNodes.push({id: newId, label: String(newId), level: depth});
-                    tempEdges.push({from: parentId, to: newId});
+                    const child = makeNode(currentId);
+                    parent.children.push(child);
 
-                    if (!tempAdj[parentId]) tempAdj[parentId] = [];
-                    tempAdj[parentId].push(newId);
-                    tempAdj[newId] = [];
+                    if (!tempAdj[parent.id]) tempAdj[parent.id] = [];
+                    tempAdj[parent.id].push(child.id);
+                    tempAdj[child.id] = [];
 
-                    buildNode(newId, depth + 1);
+                    buildNode(child, depth + 1);
                 }
             }
 
-            buildNode(1, 1);
-
-            treeData.nodes.clear();
-            treeData.edges.clear();
-            treeData.nodes.add(tempNodes);
-            treeData.edges.add(tempEdges);
+            buildNode(treeRoot, 1);
             treeAdjList = tempAdj;
 
-            const container = document.getElementById("tree-network-for-tree");
-            if (!treeNetwork) {
-                treeNetwork = new vis.Network(container, treeData, networkOptions);
-                treeNetwork.on("click", function (params) {
-                    if (params.nodes.length > 0) setTreeGoalNode(params.nodes[0]);
-                    treeNetwork.unselectAll();
-                });
-            } else {
-                treeNetwork.setData(treeData);
-            }
+            treeView.setData(treeRoot);
 
-            setTimeout(() => {
-                treeNetwork.fit({animation: true});
-            }, 100);
-
-            const allNodes = treeData.nodes.getIds();
+            const allNodes = [...treeNodeMap.keys()];
             if (allNodes.length > 1) {
                 const randomTarget = allNodes[Math.floor(Math.random() * (allNodes.length - 1)) + 1];
                 setTreeGoalNode(randomTarget);
             }
+            paintTree(0);
+            treeView.fit(300);
         } catch (e) {
             console.error("Tree generation error:", e);
-            treeData.nodes.clear();
-            treeData.edges.clear();
+            treeRoot = null;
+            treeNodeMap.clear();
             treeAdjList = {};
-            if (treeNetwork) treeNetwork.setData({nodes: [], edges: []});
+            if (treeView) treeView.setData(null).clear();
         }
     }
 
@@ -1151,15 +1189,13 @@
             showToast("탐색이 진행 중일 때는 목표를 변경할 수 없습니다.", "error");
             return;
         }
-        if (!treeData.nodes.get(nodeId)) return;
+        if (!treeNodeMap.has(nodeId)) return;
 
-        if (treeGoalNode !== null) {
-            const oldNode = treeData.nodes.get(treeGoalNode);
-            if (oldNode) treeData.nodes.update({id: treeGoalNode, color: {background: '#6366f1', border: '#4f46e5'}});
-        }
+        if (treeGoalNode !== null) setTreeNodeState(treeGoalNode, 'default');
 
         treeGoalNode = nodeId;
-        treeData.nodes.update({id: nodeId, color: {background: '#ef4444', border: '#b91c1c'}});
+        setTreeNodeState(nodeId, 'goal');
+        paintTree(300);
         showToast(`노드 [${nodeId}]번이 목표로 지정되었습니다.`, "success");
     }
 
@@ -1174,11 +1210,8 @@
         };
         document.getElementById('tree-status').innerText = `${algo.toUpperCase()} 탐색 중...`;
 
-        const nodesToUpdate = treeData.nodes.get().map(n => {
-            if (n.id === treeGoalNode) return {id: n.id, color: {background: '#ef4444', border: '#b91c1c'}};
-            return {id: n.id, color: {background: '#6366f1', border: '#4f46e5'}};
-        });
-        treeData.nodes.update(nodesToUpdate);
+        repaintTreeToDefault();
+        paintTree(0);
     }
 
     function stepTreeCore() {
@@ -1188,11 +1221,12 @@
         const st = treeSearchState;
 
         if (st.currentNode !== null && st.currentNode !== treeGoalNode) {
-            treeData.nodes.update({id: st.currentNode, color: {background: '#94a3b8', border: '#64748b'}});
+            setTreeNodeState(st.currentNode, 'done');
         }
 
         if (st.dataStructure.length === 0) {
             st.status = 'finished';
+            paintTree(300);
             document.getElementById('tree-status').innerText = '목표 노드를 찾지 못했습니다.';
             showToast('탐색 가능한 모든 노드를 확인했습니다.', 'error');
             return false;
@@ -1204,12 +1238,14 @@
         if (current === treeGoalNode) {
             st.status = 'finished';
             document.getElementById('tree-status').innerText = '목표 탐색 완료!';
-            treeData.nodes.update({id: current, color: {background: '#22c55e', border: '#16a34a'}});
+            setTreeNodeState(current, 'found');
+            paintTree(300);
             showToast(`목표 노드 [${current}]번을 성공적으로 찾았습니다!`, 'success');
             return false;
         }
 
-        treeData.nodes.update({id: current, color: {background: '#eab308', border: '#ca8a04'}});
+        setTreeNodeState(current, 'current');
+        paintTree(300);
 
         const children = treeAdjList[current] || [];
         const insertOrder = st.algo === 'dfs' ? [...children].reverse() : children;
@@ -1273,11 +1309,8 @@
         if (isTreePlaying) stopTreeAutoPlay();
         treeSearchState = null;
         document.getElementById('tree-status').innerText = '대기 중';
-        const nodesToUpdate = treeData.nodes.get().map(n => {
-            if (n.id === treeGoalNode) return {id: n.id, color: {background: '#ef4444', border: '#b91c1c'}};
-            return {id: n.id, color: {background: '#6366f1', border: '#4f46e5'}};
-        });
-        treeData.nodes.update(nodesToUpdate);
+        repaintTreeToDefault();
+        paintTree(300);
     }
 
     // --- 초기화 ---

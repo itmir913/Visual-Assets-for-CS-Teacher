@@ -15,7 +15,7 @@ const NM = 'node_modules';
 /**
  * 버전은 소스가 쓰던 CDN 주소와 맞춘다. 그냥 최신을 받으면 조용히 깨진다 —
  * Font Awesome은 7에서 아이콘 이름이 바뀌고, p5는 2에서 호환이 깨진다.
- * 소스가 버전을 안 박았던 chart.js·d3·vis-network는 이제 락파일이 대신 박는다.
+ * 소스가 버전을 안 박았던 chart.js와 d3는 이제 락파일이 대신 박는다.
  */
 export const VENDOR = [
     // MathJax 글꼴. 실행 중에 `${fontURL}/MathJax_Main-Regular.woff` 식으로

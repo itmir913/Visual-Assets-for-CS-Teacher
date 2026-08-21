@@ -303,7 +303,7 @@ function checkHeuristic() {
             }
         }
         const best = M.cheapestCost(sim.graph);
-        if (!Number.isFinite(best)) return;          // 길이 끊겼으면 견줄 것이 없다
+        if (!Number.isFinite(best)) return;          // 길이 끊겼으면 비교할 것이 없다
         const r = sim.runSilently('astar');
         if (!r) return bad(`고치기 ${무엇}: 갈 수 있는데 A*가 길을 못 찾았다`);
         if (!pathIsReal(sim.graph, r.path)) bad(`고치기 ${무엇}: 찾은 길이 이어져 있지 않다`);

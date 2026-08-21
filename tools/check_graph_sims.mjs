@@ -84,7 +84,23 @@ function makeSandbox() {
         return els.get(id);
     };
 
+    // 그리는 일은 하지 않되 **부르는 것은 다 있어야 한다.** 하나라도 빠지면 검사가
+    // 화면 문제로 죽어, 정작 보려던 탐색 결과를 못 본다.
     const view = {
+        viewMode: 'fit',
+        setViewMode(mode) {
+            this.viewMode = mode;
+            return this;
+        },
+        setActive() {
+            return this;
+        },
+        focus() {
+            return this;
+        },
+        clear() {
+            return this;
+        },
         setData() {
             return this;
         },
@@ -273,6 +289,51 @@ function checkHeuristic() {
                 if (r.opened > truth.nodes.length) bad(`${where}: 연 노드가 노드 수보다 많다`);
             }
         }
+    }
+
+    /* ---- 지도를 고친 뒤에도 값이 성립하는가 ----
+       간선을 끊고 잇고 노드를 옮기는 것은 **좌표와 간선을 바꾸는 일**이다. 비용과 h(n)이
+       거기서 나오므로, 고치고 나서도 h가 실제 남은 비용을 넘지 않아야 하고 A*가 여전히
+       가장 싼 길을 찾아야 한다. 고치기를 넣으면서 이것이 깨지면 아무도 모르게 깨진다. */
+    const 고친뒤에보기 = (무엇) => {
+        for (const n of sim.graph.nodes) {
+            const rest = M.cheapestCost(sim.graph, n.id, sim.graph.goal);
+            if (Number.isFinite(rest) && M.hOf(sim.graph, n.id) > rest) {
+                bad(`고치기 ${무엇}: h(${n.id})가 실제 남은 비용을 넘는다`);
+            }
+        }
+        const best = M.cheapestCost(sim.graph);
+        if (!Number.isFinite(best)) return;          // 길이 끊겼으면 견줄 것이 없다
+        const r = sim.runSilently('astar');
+        if (!r) return bad(`고치기 ${무엇}: 갈 수 있는데 A*가 길을 못 찾았다`);
+        if (!pathIsReal(sim.graph, r.path)) bad(`고치기 ${무엇}: 찾은 길이 이어져 있지 않다`);
+        if (r.cost !== best) bad(`고치기 ${무엇}: A*가 비용 ${r.cost}, 가장 싼 길은 ${best}`);
+    };
+
+    for (const preset of GRAPH_PRESETS) {
+        const combo = {directed: false, weighted: true, cyclic: true};
+
+        load(preset, combo);
+        const 끊을것 = sim.graph.edges.find(e => e.extra) || sim.graph.edges[0];
+        M.removeEdge(sim.graph, 끊을것.id);
+        고친뒤에보기(`${preset.id} 간선 끊기`);
+
+        load(preset, combo);
+        // 아직 이어지지 않은 두 노드를 찾아 잇는다
+        const ids = sim.graph.nodes.map(n => n.id);
+        for (const a of ids) {
+            const b = ids.find(x => x !== a && !M.neighborsOf(sim.graph, a).includes(x));
+            if (b) {
+                M.addEdge(sim.graph, a, b);
+                break;
+            }
+        }
+        고친뒤에보기(`${preset.id} 간선 잇기`);
+
+        load(preset, combo);
+        const 옮길것 = sim.graph.nodes[2] || sim.graph.nodes[0];
+        M.moveNode(sim.graph, 옮길것.id, 옮길것.x + 60, 옮길것.y - 45);
+        고친뒤에보기(`${preset.id} 노드 옮기기`);
     }
 
     // **볼 것이 없는 화면이 되지 않게 지킨다.** 최상 우선이 늘 A*와 같은 답을 낸다면

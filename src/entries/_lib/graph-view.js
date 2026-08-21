@@ -11,7 +11,7 @@
 //
 // **d3 서브모듈만 골라 받는다.** 여기서 새로 받는 것은 없다 — 트리 뷰가 이미 쓰는
 // `d3-selection`·`d3-zoom`·`d3-transition` 셋으로 끝난다.
-import {pointer, select} from 'd3-selection';
+import {select} from 'd3-selection';
 import {zoom as d3zoom, zoomIdentity} from 'd3-zoom';
 import 'd3-transition';   // selection.transition() 을 쓰려면 곁불로 한 번 실어야 한다.
 import {TextMeasurer} from './text-measure.js';
@@ -47,7 +47,6 @@ export const GRAPH_VIEW_DEFAULTS = {
     arrowSize: 9,
 
     // --- 화면 ---
-    draggable: false,
     minScale: 0.15,
     maxScale: 4,
     fitPadding: 48,
@@ -80,12 +79,8 @@ export class GraphView {
         this.nodeById = new Map();
         this.viewMode = this.opt.viewMode;
         this.activeId = null;
-        this._handlers = {nodeclick: [], edgeclick: [], canvasclick: []};
+        this._handlers = {nodeclick: [], edgeclick: []};
         this._sizes = new Map();
-        this._drag = null;
-        this._draggedAt = 0;
-        // 고치는 중인가. 노드를 끌 수 있는지와 화면을 끌 수 있는지를 함께 정한다.
-        this.editing = !!this.opt.draggable;
 
         // SVG는 컨테이너를 꽉 채운다. 컨테이너에 position 이 없으면 여기서 준다 —
         // 없으면 absolute 인 SVG 가 엉뚱한 조상에 붙는다.
@@ -108,17 +103,13 @@ export class GraphView {
 
         this.g = this.svg.append('g');
 
-        // 빈 자리를 누른 것을 알아내려면 받아 줄 면이 있어야 한다. 줌과 함께 움직여야
-        // 좌표를 그래프 좌표로 바로 읽을 수 있으므로 `g` 안에 둔다.
+        // **빈 자리에도 잡을 것이 있어야 화면을 끌어 옮길 수 있다.** 아무것도 없는
+        // 곳을 눌렀을 때 줌이 받아 줄 면을 깔아 둔다. 줌과 함께 움직여야 하므로 `g` 안이다.
         this.surface = this.g.append('rect')
             .attr('class', 'gv-surface')
             .attr('x', -1e5).attr('y', -1e5)
             .attr('width', 2e5).attr('height', 2e5)
-            .attr('fill', 'transparent')
-            .on('click', (event) => {
-                const [x, y] = pointer(event, this.g.node());
-                this._emit('canvasclick', x, y, event);
-            });
+            .attr('fill', 'transparent');
 
         // 층을 나눠 둔다. 간선이 늘 노드 밑에 깔리게 하려면 이 방법뿐이다 —
         // 그리는 순서에 맡기면 노드를 다시 그릴 때 위아래가 뒤집힌다.
@@ -128,16 +119,6 @@ export class GraphView {
 
         this.zoom = d3zoom()
             .scaleExtent([this.opt.minScale, this.opt.maxScale])
-            // **고치는 동안에는 화면을 끌어 옮기지 않는다.** 노드를 끌려는 손짓이
-            // 캔버스 이동으로 새어 나가, 노드가 제자리에 붙어 있는 것처럼 보인다.
-            // 휠 확대는 그대로 둔다 — 그것 때문에 헷갈리는 일은 없다.
-            //
-            // 뒤의 한 줄은 d3-zoom 의 기본 거르개와 같다. **거르개를 주는 순간 기본값이
-            // 통째로 밀려나므로 함께 적어 두어야 한다.**
-            .filter((event) => {
-                if (this.editing && (event.type === 'mousedown' || event.type === 'touchstart')) return false;
-                return (!event.ctrlKey || event.type === 'wheel') && !event.button;
-            })
             .on('zoom', (event) => {
                 this.g.attr('transform', event.transform);
                 // 사람이 직접 끌거나 굴리면 '자유 이동'으로 넘긴다.
@@ -247,27 +228,13 @@ export class GraphView {
         return this;
     }
 
-    /**
-     * 고치는 중인지 알린다. **노드 끌기와 화면 끌기는 함께 갈 수 없다.**
-     *
-     * 둘 다 켜 두면 노드를 끌려는 손짓이 캔버스 이동으로 새어 나간다. 그래서 하나를
-     * 켜면 다른 하나를 끈다 — 고치는 중이면 노드가 끌리고 화면은 가만히 있는다.
-     */
-    setEditing(on) {
-        this.editing = !!on;
-        this.opt.draggable = !!on;
-        this.svg.style('cursor', on ? 'default' : 'grab');
-        this.layerNodes.selectAll('g.gv-node').style('cursor', on ? 'move' : 'pointer');
-        return this;
-    }
-
     /** 'track' 모드에서 따라갈 노드 */
     setActive(id) {
         this.activeId = id;
         return this;
     }
 
-    /** 'nodeclick' | 'edgeclick' | 'canvasclick' | 'nodedrag' | 'nodedragend' | 'viewmode' */
+    /** 'nodeclick' | 'edgeclick' | 'viewmode' */
     on(event, fn) {
         (this._handlers[event] ||= []).push(fn);
         return this;
@@ -652,11 +619,9 @@ export class GraphView {
         const enter = sel.enter().append('g')
             .attr('class', 'gv-node')
             .attr('transform', d => `translate(${d.x},${d.y})`)
+            .style('cursor', this._handlers.nodeclick.length ? 'pointer' : null)
             .on('click', (event, d) => {
                 event.stopPropagation();
-                // 방금 끌어 놓은 것이라면 클릭으로 치지 않는다. 노드를 옮길 때마다
-                // 목표가 바뀌어 버리면 편집을 할 수가 없다.
-                if (Date.now() - this._draggedAt < 250) return;
                 this._emit('nodeclick', d.id, d, event);
             });
 
@@ -667,13 +632,7 @@ export class GraphView {
             else node.append('rect').attr('class', 'gv-shape');
         });
 
-        this._enableDrag(enter);
-
         const all = enter.merge(sel);
-
-        // 커서는 갱신할 때마다 지금 상태에 맞춘다. 들어올 때만 정하면 고치기를 켠 뒤에
-        // 새로 그려진 노드와 이미 있던 노드의 커서가 서로 달라진다.
-        all.style('cursor', this.opt.draggable ? 'move' : 'pointer');
 
         // **움직임만 트랜지션에 싣는다.** 크기와 색은 아래에서 곧바로 넣는다.
         this._move(all, 'transform', d => `translate(${d.x},${d.y})`, duration);
@@ -722,49 +681,6 @@ export class GraphView {
             .attr('y', (line, i) => top + i * step)
             .attr('fill', color)
             .text(line => line.text);
-    }
-
-    /**
-     * 노드를 끌어 옮긴다.
-     *
-     * **d3-drag를 받지 않는다.** 포인터 이벤트 셋이면 되는 일이라 패키지를 하나 더 받을
-     * 이유가 없다. 누른 자리에서 줌 팬으로 새지 않도록 `stopPropagation`을 먼저 한다.
-     */
-    _enableDrag(sel) {
-        const self = this;
-        // **`mousedown`·`touchstart` 도 함께 막는다.** d3-zoom 이 듣는 것은 `pointerdown`이
-        // 아니라 이 둘이라, `pointerdown` 만 막아서는 노드를 끌어도 캔버스가 따라 움직인다.
-        sel.on('mousedown touchstart', function (event) {
-            if (self.opt.draggable) event.stopPropagation();
-        });
-
-        sel.on('pointerdown', function (event, d) {
-            if (!self.opt.draggable) return;
-            event.stopPropagation();
-            try {
-                this.setPointerCapture(event.pointerId);
-            } catch { /* 포인터 캡처가 없는 환경이면 그냥 넘어간다 */
-            }
-            const [px, py] = pointer(event, self.g.node());
-            self._drag = {id: d.id, dx: d.x - px, dy: d.y - py, moved: false};
-        }).on('pointermove', function (event) {
-            if (!self._drag) return;
-            const [px, py] = pointer(event, self.g.node());
-            self._drag.moved = true;
-            self._emit('nodedrag', self._drag.id, px + self._drag.dx, py + self._drag.dy);
-        }).on('pointerup pointercancel', function (event) {
-            if (!self._drag) return;
-            try {
-                this.releasePointerCapture(event.pointerId);
-            } catch { /* 위와 같다 */
-            }
-            const drag = self._drag;
-            self._drag = null;
-            if (drag.moved) {
-                self._draggedAt = Date.now();
-                self._emit('nodedragend', drag.id);
-            }
-        });
     }
 
     /**

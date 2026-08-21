@@ -121,8 +121,8 @@ function orientAwayFromRoot(edges, root) {
 /**
  * 좌표에서 비용·휴리스틱·인접 목록을 다시 만든다.
  *
- * 노드를 끌어 옮기거나 목표를 바꾼 뒤에 부른다. **좌표가 곧 비용이므로** 옮기면
- * 값이 따라 바뀌는 것이 맞다 — 지도를 고쳤으면 거리도 달라진다.
+ * 간선을 잇거나 끊은 뒤에 부른다. **좌표가 곧 비용이므로** 새로 놓은 간선의 비용도
+ * 여기서 두 점 사이 거리로 정해진다.
  */
 export function recompute(graph) {
     const {byId, weighted} = graph;
@@ -303,39 +303,12 @@ export function pickPreset(presets, opts, avoid) {
 }
 
 /* ================================================================
-   편집 — 손대는 자리를 좁게 둔다
+   고치기 — 손대는 자리를 좁게 둔다
+
+   **노드를 더하거나 지우거나 옮기는 것은 없다.** 그래프에서 배우는 것은 「어디에
+   있는가」가 아니라 「무엇과 이어져 있는가」이고, 좌표를 건드리면 간선이 교차하지
+   않도록 골라 둔 배치가 그대로 무너진다. 그래서 고치는 것은 **간선뿐**이다.
    ================================================================ */
-
-/** 빈 자리에 노드를 하나 놓는다. 이름은 A, B, … 순으로 남은 글자를 준다. */
-export function addNode(graph, x, y) {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let id = null;
-    for (const ch of letters) {
-        if (!graph.byId.has(ch)) {
-            id = ch;
-            break;
-        }
-    }
-    if (id === null) return null;
-
-    const node = {id, x, y};
-    graph.nodes.push(node);
-    graph.byId.set(id, node);
-    recompute(graph);
-    return id;
-}
-
-/** 노드를 지운다. **거기 붙은 간선도 함께 지운다** — 남으면 그릴 수 없는 간선이 된다. */
-export function removeNode(graph, id) {
-    if (!graph.byId.has(id)) return false;
-    if (id === graph.start || id === graph.goal) return false;   // 시작·목표는 지우지 않는다
-
-    graph.nodes = graph.nodes.filter(n => n.id !== id);
-    graph.byId.delete(id);
-    graph.edges = graph.edges.filter(e => e.a !== id && e.b !== id);
-    recompute(graph);
-    return true;
-}
 
 /** 간선을 놓는다. 방향 지도면 a에서 b로만 간다. 이미 있으면 아무것도 하지 않는다. */
 export function addEdge(graph, a, b) {
@@ -358,16 +331,6 @@ export function removeEdge(graph, edgeId) {
     const before = graph.edges.length;
     graph.edges = graph.edges.filter(e => e.id !== edgeId);
     if (graph.edges.length === before) return false;
-    recompute(graph);
-    return true;
-}
-
-/** 노드를 끌어 옮긴다. **비용과 h가 따라 바뀐다** — 지도를 고쳤으면 거리도 달라진다. */
-export function moveNode(graph, id, x, y) {
-    const n = graph.byId.get(id);
-    if (!n) return false;
-    n.x = x;
-    n.y = y;
     recompute(graph);
     return true;
 }

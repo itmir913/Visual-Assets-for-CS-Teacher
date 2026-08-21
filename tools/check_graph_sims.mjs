@@ -95,9 +95,6 @@ function makeSandbox() {
         setActive() {
             return this;
         },
-        setEditing() {
-            return this;
-        },
         focus() {
             return this;
         },
@@ -389,11 +386,6 @@ function checkHeuristic() {
             }
         }
         고친뒤에보기(`${preset.id} 간선 잇기`);
-
-        load(preset, combo);
-        const 옮길것 = sim.graph.nodes[2] || sim.graph.nodes[0];
-        M.moveNode(sim.graph, 옮길것.id, 옮길것.x + 60, 옮길것.y - 45);
-        고친뒤에보기(`${preset.id} 노드 옮기기`);
     }
 
     // **볼 것이 없는 화면이 되지 않게 지킨다.** 최상 우선이 늘 A*와 같은 답을 낸다면

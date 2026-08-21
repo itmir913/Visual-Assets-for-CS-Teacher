@@ -712,16 +712,19 @@
             this.ctx = canvas.getContext('2d');
             this.data = data;
             this.svm = svm;
-            this.resize();
+            /* **첫 크기 맞추기를 DOMContentLoaded 로 미룬다.**
+               `window.fitCanvas` 를 올리는 진입점은 `defer` 라 body 끝의 이 인라인 스크립트보다
+               늦게 돈다(→ `tools/vite/classic-scripts.js` 가 산출물에서도 그 순서를 지킨다).
+               여기서 바로 부르면 아직 없다. `load` 는 그림·글꼴을 기다리느라 너무 늦어
+               그 사이에 rAF 루프가 크기 안 맞는 캔버스에 그린다 — DOMContentLoaded 가 맞는 자리다. */
+            document.addEventListener('DOMContentLoaded', () => this.resize());
             window.addEventListener('resize', () => this.resize());
             this.animate = this.animate.bind(this);
             requestAnimationFrame(this.animate);
         }
 
         resize() {
-            const rect = this.canvas.parentElement.getBoundingClientRect();
-            this.canvas.width = rect.width;
-            this.canvas.height = rect.height;
+            window.fitCanvas(this.canvas, this.ctx);
         }
 
         animate() {
@@ -732,8 +735,8 @@
         drawLine(w0, w1, b, offset, color, isDashed, lineWidth) {
             if (w0 === 0 && w1 === 0) return;
 
-            const cw = this.canvas.width;
-            const ch = this.canvas.height;
+            const cw = this.canvas.clientWidth;
+            const ch = this.canvas.clientHeight;
             const drawCtx = this.ctx;
 
             function toCanvasX(x) {
@@ -773,8 +776,8 @@
         drawRegionsAndBoundary(currentPhase) {
             if (this.svm.w[0] === 0 && this.svm.w[1] === 0) return;
 
-            let cw = this.canvas.width;
-            let ch = this.canvas.height;
+            let cw = this.canvas.clientWidth;
+            let ch = this.canvas.clientHeight;
             let w0 = this.svm.w[0], w1 = this.svm.w[1], b = this.svm.b;
 
             let A = w0 / (cw / 2);
@@ -818,14 +821,14 @@
         }
 
         draw(currentPhase) {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
 
             if (currentPhase === 'DONE' || currentPhase === 'TRAIN') {
                 this.drawRegionsAndBoundary(currentPhase);
 
                 this.svm.supportVectors.forEach(p => {
-                    let cx = (p.nx + 1) * this.canvas.width / 2;
-                    let cy = (1 - p.ny) * this.canvas.height / 2;
+                    let cx = (p.nx + 1) * this.canvas.clientWidth / 2;
+                    let cy = (1 - p.ny) * this.canvas.clientHeight / 2;
                     this.ctx.beginPath();
                     this.ctx.arc(cx, cy, 14, 0, Math.PI * 2);
                     this.ctx.strokeStyle = '#fbbf24';
@@ -835,8 +838,8 @@
             }
 
             this.data.points.forEach(p => {
-                let cx = (p.nx + 1) * this.canvas.width / 2;
-                let cy = (1 - p.ny) * this.canvas.height / 2;
+                let cx = (p.nx + 1) * this.canvas.clientWidth / 2;
+                let cy = (1 - p.ny) * this.canvas.clientHeight / 2;
 
                 // 개선사항 5: 교육적 피드백 시각화 강화 (마진 침범 데이터 붉은 강조)
                 let marginCheck = p.cls * (this.svm.w[0] * p.nx + this.svm.w[1] * p.ny + this.svm.b);
@@ -966,8 +969,8 @@
         const clientX = e.clientX - rect.left;
         const clientY = e.clientY - rect.top;
 
-        const nx = (clientX - canvas.width / 2) / (canvas.width / 2);
-        const ny = (canvas.height / 2 - clientY) / (canvas.height / 2);
+        const nx = (clientX - canvas.clientWidth / 2) / (canvas.clientWidth / 2);
+        const ny = (canvas.clientHeight / 2 - clientY) / (canvas.clientHeight / 2);
 
         dataManager.addPoint(nx, ny, activeTool);
         updateFlowUI('IDLE', '데이터가 추가되었습니다. 두 클래스 데이터가 모두 있다면 Train을 누르세요.', 'fa-check');
@@ -1016,7 +1019,7 @@
 
     btnRandom.addEventListener('click', () => {
         const spreadValue = parseInt(spreadSlider.value);
-        dataManager.generateRandom(canvas.width, canvas.height, spreadValue);
+        dataManager.generateRandom(canvas.clientWidth, canvas.clientHeight, spreadValue);
         resetSimulation();
         updateFlowUI('IDLE', '무작위 데이터가 생성되었습니다. Train 버튼을 눌러 학습을 시작하세요.', 'fa-bullseye');
     });

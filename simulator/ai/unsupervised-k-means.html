@@ -504,25 +504,21 @@
             this.actualWidth = 0;
             this.actualHeight = 0;
 
-            this.resize();
+            /* **첫 크기 맞추기를 DOMContentLoaded 로 미룬다.**
+               `window.fitCanvas` 를 올리는 진입점은 `defer` 라 body 끝의 이 인라인 스크립트보다
+               늦게 돈다(→ `tools/vite/classic-scripts.js` 가 산출물에서도 그 순서를 지킨다).
+               여기서 바로 부르면 아직 없다. `load` 는 그림·글꼴을 기다리느라 너무 늦어
+               그 사이에 rAF 루프가 크기 안 맞는 캔버스에 그린다 — DOMContentLoaded 가 맞는 자리다. */
+            document.addEventListener('DOMContentLoaded', () => this.resize());
             window.addEventListener('resize', () => this.resize());
             this.animate = this.animate.bind(this);
             requestAnimationFrame(this.animate);
         }
 
         resize() {
-            // [렌더링 오류 수정] 고해상도(Retina) 디스플레이 대응
-            const rect = this.canvas.parentElement.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-
-            this.canvas.style.width = `${rect.width}px`;
-            this.canvas.style.height = `${rect.height}px`;
-            this.canvas.width = rect.width * dpr;
-            this.canvas.height = rect.height * dpr;
-            this.ctx.scale(dpr, dpr);
-
-            this.actualWidth = rect.width;
-            this.actualHeight = rect.height;
+            const {w, h} = window.fitCanvas(this.canvas, this.ctx);
+            this.actualWidth = w;
+            this.actualHeight = h;
             this.requestDraw();
         }
 

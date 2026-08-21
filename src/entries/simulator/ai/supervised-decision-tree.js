@@ -4,6 +4,7 @@
 // 인라인 스크립트가 전역으로 쓰므로 window에 얹는다.
 // 전체 화면 단추는 라이브러리가 아니라 시뮬레이터 공통 동작이라 여기서 함께 받는다.
 
+import '../../_lib/canvas-dpr.js';
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
 import {createTreeView} from '../../_lib/tree-view.js';

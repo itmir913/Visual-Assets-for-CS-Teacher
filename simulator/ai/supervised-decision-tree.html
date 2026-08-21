@@ -792,6 +792,16 @@
     // ==========================================
     const canvas2d = document.getElementById('canvas2d');
     const ctx = canvas2d.getContext('2d');
+
+    /* **점 좌표가 사는 공간을 400×400 으로 붙들어 둔다.**
+       찍은 점을 캔버스 좌표로 들고 있기 때문이다 — 화면 크기에 따라 좌표계가 바뀌면
+       창을 줄이는 순간 점이 상자 밖으로 나간다. 화면에 맞추는 것은 해상도뿐이다.
+       상자가 `aspect-square` 라 가로세로가 늘 같다. */
+    const PLANE = 400;
+
+    function fitPlane() {
+        window.fitCanvasFixed(canvas2d, ctx, PLANE, PLANE);
+    }
     let points2D = [];
     let currentClass2D = 1;
     let tree2D = null;
@@ -812,10 +822,10 @@
     }
 
     function draw2DCanvas() {
-        ctx.clearRect(0, 0, canvas2d.width, canvas2d.height);
+        ctx.clearRect(0, 0, PLANE, PLANE);
 
         if (tree2D) {
-            drawBoundary(tree2D, 0, canvas2d.width, 0, canvas2d.height);
+            drawBoundary(tree2D, 0, PLANE, 0, PLANE);
         }
 
         points2D.forEach(p => {
@@ -859,8 +869,8 @@
 
     canvas2d.addEventListener('mousedown', (e) => {
         const rect = canvas2d.getBoundingClientRect();
-        const scaleX = canvas2d.width / rect.width;
-        const scaleY = canvas2d.height / rect.height;
+        const scaleX = PLANE / rect.width;
+        const scaleY = PLANE / rect.height;
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
@@ -1057,6 +1067,14 @@
     // 모듈은 defer라 이 인라인 스크립트보다 늦게 돈다. load를 기다려야 트리가 그려진다.
     window.addEventListener('load', function () {
         initCatData();
+        fitPlane();
+        draw2DCanvas();
+    });
+
+    /* 상자 크기가 바뀌면 해상도를 다시 맞춘다. 전체 화면을 드나들 때도 여기로 온다 —
+       공통 모듈(`_lib/fullscreen.js`)이 전환이 끝난 뒤 resize 를 한 번 더 보낸다. */
+    window.addEventListener('resize', function () {
+        fitPlane();
         draw2DCanvas();
     });
 </script>

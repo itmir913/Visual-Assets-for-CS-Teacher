@@ -843,19 +843,6 @@
 </footer>
 
 <script>
-    // 캔버스 해상도 보정 헬퍼 함수
-    function setupCanvasDPR(canvas, ctx) {
-        // [수정] 캔버스가 부모 상자 크기에 맞춰 유연하게 꽉 차도록 100% 적용
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.parentElement.getBoundingClientRect();
-
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-
-        return {w: rect.width, h: rect.height};
-    }
-
     /* 탭이 열릴 때 그 탭의 캔버스를 다시 재게 한다. 숨어 있는 동안에는 크기가 0으로 잡히기 때문이다.
        배열의 차례가 곧 화면에 놓인 차례다 — 요소의 id 이름은 만들어진 순서라 번호와 어긋난다. */
     const TAB_ON_OPEN = [
@@ -1320,7 +1307,7 @@
 
         resize() {
             if (!this.canvas) return;
-            const dims = setupCanvasDPR(this.canvas, this.ctx);
+            const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
             this.draw();
@@ -1737,7 +1724,7 @@
         },
 
         resize() {
-            const dims = setupCanvasDPR(this.canvas, this.ctx);
+            const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
             this.draw();
@@ -2001,7 +1988,7 @@
         },
 
         resize() {
-            const dims = setupCanvasDPR(this.canvas, this.ctx);
+            const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
             this.draw();
@@ -2512,18 +2499,15 @@
         },
 
         resize() {
-            const dims = setupCanvasDPR(this.canvas, this.ctx);
+            const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
 
-            // 활성화 함수 미니 그래프는 부모가 아니라 자기 크기에 맞춘다.
-            const dpr = window.devicePixelRatio || 1;
-            const r = this.actCanvas.getBoundingClientRect();
-            this.actCanvas.width = r.width * dpr;
-            this.actCanvas.height = r.height * dpr;
-            this.actCtx.scale(dpr, dpr);
-            this.actW = r.width;
-            this.actH = r.height;
+            // 활성화 함수 미니 그래프는 부모가 아니라 **자기 크기**에 맞춘다 — 폭·높이를
+            // 제 클래스(`w-[7.5rem] h-[5rem]`)가 정하기 때문이다. 그래서 잴 상자를 따로 준다.
+            const act = window.fitCanvas(this.actCanvas, this.actCtx, this.actCanvas);
+            this.actW = act.w;
+            this.actH = act.h;
 
             this.draw();
             this.drawActGraph();
@@ -2991,7 +2975,7 @@
 
         resize() {
             if (!this.canvas) return;
-            const dims = setupCanvasDPR(this.canvas, this.ctx);
+            const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
             // 손실 그래프는 탭이 숨겨진 채로 만들어져 크기가 0으로 잡힌다.

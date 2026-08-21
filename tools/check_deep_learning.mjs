@@ -86,6 +86,11 @@ class El {
     set innerHTML(v) { if (v === '') this.children = []; this._html = String(v); }
     get innerHTML() { return this._html || ''; }
 
+    /* 캔버스를 재는 쪽이 `clientWidth`/`clientHeight` 를 쓴다 — 테두리를 포함하는
+       `getBoundingClientRect()` 와 달라야 하므로 따로 흉내 낸다. */
+    get clientWidth() { return this.getBoundingClientRect().width; }
+    get clientHeight() { return this.getBoundingClientRect().height; }
+
     appendChild(c) { c.parentElement = this; this.children.push(c); return c; }
     addEventListener(t, f) { (this._listeners[t] ||= []).push(f); }
     getBoundingClientRect() { return this._rect; }
@@ -209,6 +214,12 @@ el('ofComplexSlider').value = '5';
    페이지 원문을 돌린다
    ================================================================ */
 
+/* **공용 라이브러리도 진짜를 얹는다.** 페이지가 `window.fitCanvas` 로 캔버스를 재므로,
+   여기서 가짜를 끼우면 라이브러리가 고장 나도 검사가 통과한다. */
+vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'entries', '_lib', 'canvas-dpr.js'), 'utf8'),
+    sandbox, {filename: 'canvas-dpr.js'});
+
 const html = fs.readFileSync(PAGE, 'utf8');
 const inline = html.match(/<script>([\s\S]*?)<\/script>/);
 if (!inline) {
@@ -219,7 +230,6 @@ if (!inline) {
 const NAMES = ['gdSim', 'nnSim', 'fpSim', 'bpSim', 'dbSim', 'ofSim', 'relayout', 'switchTab'];
 const expose = ';window.__ = {};' + NAMES.map((n) => 'try{window.__.' + n + '=' + n + ';}catch(e){}').join('');
 
-vm.createContext(sandbox);
 vm.runInContext(inline[1] + expose, sandbox, {filename: 'deep-learning.inline.js'});
 sandbox.onload();
 

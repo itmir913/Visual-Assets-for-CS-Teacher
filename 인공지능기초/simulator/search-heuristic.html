@@ -260,9 +260,11 @@
                             id="btn-tree-gen">
                         <i class="fa-solid fa-sitemap"></i> 트리 생성 및 h(n) 계산
                     </button>
-                    <p class="text-teal-700 font-bold text-center mt-3 text-xs bg-teal-50 py-2 rounded-lg border border-teal-100">
-                        h(n)은 그 노드에서 목표까지 남은 거리의 추정값입니다.
-                        노드를 클릭하면 목표 노드(Goal)가 바뀌고 h(n)도 다시 계산됩니다.
+                    <p class="text-teal-700 font-bold text-center mt-3 text-xs bg-teal-50 py-2 rounded-lg border border-teal-100 leading-relaxed break-keep">
+                        가지 위의 숫자는 <b>그 간선을 지나는 비용</b>이고, g(n)은 여기까지 든 비용의 합입니다.
+                        트리는 어느 노드로 가는 길이 하나뿐이라 <b>네 방법이 모두 같은 길</b>을 찾습니다 —
+                        다른 것은 <b>거기까지 몇 개를 열어 보았는가</b>입니다.<br>
+                        h(n)은 목표까지 남은 칸 수입니다. 노드를 클릭하면 목표가 바뀌고 h(n)도 다시 계산됩니다.
                     </p>
                 </div>
 
@@ -276,6 +278,8 @@
                             class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold bg-white mb-4">
                         <option value="astar">A* Search (g + h)</option>
                         <option value="greedy">Greedy Best-First (h)</option>
+                        <option value="bfs">너비 우선 탐색 (h 안 씀)</option>
+                        <option value="dfs">깊이 우선 탐색 (h 안 씀)</option>
                     </select>
 
                     <label class="block font-bold text-gray-700 mb-2 text-sm">탐색 속도</label>
@@ -482,8 +486,17 @@
 
 <script>
     /* ==============================================================
-       1. 공통 탐색 알고리즘 엔진 (Heuristic Search Engine)
+       1. 공통 탐색 알고리즘 엔진
        ============================================================== */
+    // 네 알고리즘이 **꺼내는 순서만 다르고 나머지는 같다.** 그래서 한 엔진에 담는다.
+    //  - bfs   : 먼저 넣은 것부터 (칸 수가 적은 것부터)
+    //  - dfs   : 나중에 넣은 것부터 (한 갈래를 끝까지)
+    //  - greedy: h 가 작은 것부터
+    //  - astar : f = g + h 가 작은 것부터
+    //
+    // **BFS 와 DFS 는 h 를 쓰지 않는다.** 여기 함께 둔 이유는 「h 를 안 쓰면 어떻게 되는지」를
+    // 같은 트리에서 견주어 보라는 것이다 — 간선 비용이 제각각일 때 칸 수만 세는 BFS 가
+    // 가장 싼 길을 놓치는 장면이 이 시뮬레이터의 요점이다.
     class HeuristicSearch {
         constructor(startId, goalId, algoType, getNeighborsCallback, hCallback, gCallback) {
             this.startId = startId;
@@ -509,9 +522,32 @@
             this.isFinished = false;
         }
 
+        // h 를 보는 방법만 f 를 쓴다. BFS·DFS 는 꺼내는 순서가 f 와 무관하므로
+        // 화면에 보여 줄 값으로 g 를 그대로 둔다.
         calcF(nodeId, gVal) {
             let hVal = this.getH(nodeId);
-            return this.type === 'astar' ? (gVal + hVal) : hVal;
+            if (this.type === 'astar') return gVal + hVal;
+            if (this.type === 'greedy') return hVal;
+            return gVal;
+        }
+
+        /** h 를 보는 방법인가 — 라벨과 안내 문구가 이걸로 갈린다. */
+        usesH() {
+            return this.type === 'astar' || this.type === 'greedy';
+        }
+
+        /** 다음에 열어 볼 노드를 꺼낸다. **네 알고리즘의 차이는 여기 하나뿐이다.** */
+        pickNext() {
+            if (this.type === 'bfs') return this.openSet.shift();   // 먼저 넣은 것부터
+            if (this.type === 'dfs') return this.openSet.pop();     // 나중에 넣은 것부터
+
+            // f(n)이 같으면 h(n)이 작은 노드를 우선 선택한다.
+            this.openSet.sort((a, b) => {
+                let fDiff = this.fScore.get(a) - this.fScore.get(b);
+                if (fDiff === 0) return this.getH(a) - this.getH(b);
+                return fDiff;
+            });
+            return this.openSet.shift();
         }
 
         step() {
@@ -523,43 +559,60 @@
                     return {type: 'fail', msg: '❌ 목표까지의 경로를 찾을 수 없습니다 (막힘).'};
                 }
 
-                // [수정 핵심] Tie-breaking 로직 추가: f(n)이 같을 경우 h(n)이 작은 노드를 우선 선택
-                this.openSet.sort((a, b) => {
-                    let fDiff = this.fScore.get(a) - this.fScore.get(b);
-                    if (fDiff === 0) {
-                        return this.getH(a) - this.getH(b);
-                    }
-                    return fDiff;
-                });
-
-                this.currentNode = this.openSet.shift();
+                this.currentNode = this.pickNext();
 
                 if (this.currentNode === this.goalId) {
                     this.isFinished = true;
                     this.buildPath();
-                    // 최적성 보장은 A*에만 해당한다. 그리디는 h(n)만 보므로
-                    // 찾은 경로가 최단이라는 보장이 없다 — 무작위 장애물 배치에서 실제로 더 길게 나온다.
+
+                    // **칸 수·비용과 함께 「몇 개를 열어 보았는지」를 적는다.**
+                    //
+                    // 트리는 어느 노드로 가는 길이 하나뿐이라, 네 방법이 **모두 같은 길**을
+                    // 찾는다. 그러니 여기서 견줄 것은 찾은 길이 아니라 **거기까지 얼마나 헤맸는가**다.
+                    // 「비용이 다르면 너비 우선의 최단 보장이 깨진다」는 길이 여럿일 때의 이야기라
+                    // 이 화면에서 보여 줄 수 없다 — 없는 것을 있다고 적지 않는다.
+                    const 칸수 = this.path.length - 1;
+                    const 비용 = this.gScore.get(this.goalId);
+                    const 연노드 = this.closedSet.size;
+                    const 성적 = `거쳐 간 칸 <b>${칸수}칸</b>, 든 비용 <b>${비용}</b>, 열어 본 노드 <b>${연노드}개</b>`;
+                    const 견주기 = ' 알고리즘을 바꿔 <b>열어 본 노드 수</b>를 견주어 보세요.';
+
+                    const 말 = {
+                        astar: `🎉 목표 도달! (${성적}) A*는 g(n)+h(n)을 함께 보아 <b>목표 쪽으로 곧장</b> 갑니다.${견주기}`,
+                        greedy: `🎉 목표 도달! (${성적}) 그리디는 h(n)만 보고 목표 쪽으로 달립니다. 빠르지만 <b>비용은 따지지 않습니다.</b>${견주기}`,
+                        bfs: `🎉 목표 도달! (${성적}) 너비 우선은 목표가 어디인지 모른 채 <b>가까운 곳부터 전부</b> 열어 봅니다. 그래서 열어 본 노드가 가장 많습니다.${견주기}`,
+                        dfs: `🎉 목표 도달! (${성적}) 깊이 우선은 한 갈래를 <b>끝까지 파고듭니다.</b> 운이 좋으면 빨리 닿지만 엉뚱한 갈래로 빠지면 크게 돌아갑니다.${견주기}`,
+                    };
+
                     return {
                         type: 'success',
                         node: this.currentNode,
                         path: this.path,
-                        msg: this.type === 'astar'
-                            ? '🎉 목표 도달! A*는 g(n)+h(n)을 함께 봅니다. h(n)이 실제 남은 거리를 넘지 않는 한 이 경로가 <b>최단 경로임이 보장</b>됩니다.'
-                            : '🎉 목표 도달! 다만 그리디는 h(n)만 보고 달려왔기 때문에 이 경로가 <b>최단이라는 보장은 없습니다.</b>'
+                        cost: 비용,
+                        steps: 칸수,
+                        msg: 말[this.type] || 말.astar,
                     };
                 }
 
                 this.closedSet.add(this.currentNode);
                 this.state = 'SELECT';
+                const 고른이유 = {
+                    bfs: `Step 1: 먼저 넣어 둔 노드부터 꺼냅니다 — <b>노드 ${this.currentNode}</b> (h는 보지 않습니다)`,
+                    dfs: `Step 1: 가장 나중에 넣은 노드부터 꺼냅니다 — <b>노드 ${this.currentNode}</b> (h는 보지 않습니다)`,
+                    greedy: `Step 1: Open Set에서 <b>h(n)이 가장 낮은 노드(${this.currentNode})</b> 선택`,
+                    astar: `Step 1: Open Set에서 <b>f(n)=g+h가 가장 낮은 노드(${this.currentNode})</b> 선택`,
+                };
                 return {
                     type: 'select',
                     node: this.currentNode,
-                    msg: `Step 1: Open Set에서 <b>f(n)이 가장 낮은 노드(${this.currentNode})</b> 선택`
+                    msg: 고른이유[this.type] || 고른이유.astar
                 };
             }
 
             if (this.state === 'SELECT') {
                 let neighbors = this.getNeighbors(this.currentNode);
+                // DFS는 나중에 넣은 것부터 꺼내므로, 첫째 자식을 먼저 보려면 거꾸로 넣어야 한다.
+                if (this.type === 'dfs') neighbors = [...neighbors].reverse();
                 let expanded = [];
 
                 for (let neighbor of neighbors) {
@@ -584,7 +637,9 @@
                     type: 'expand',
                     node: this.currentNode,
                     expanded: expanded,
-                    msg: `Step 2: 이웃 노드 탐색 및 <b>g(n), h(n), f(n)</b> 값 갱신 (Open Set 추가)`
+                    msg: this.usesH()
+                        ? `Step 2: 이웃 노드를 열고 <b>g(n), h(n), f(n)</b>을 갱신합니다 (Open Set 추가)`
+                        : `Step 2: 이웃 노드를 열고 <b>g(n)</b>만 갱신합니다 — h(n)은 쓰지 않습니다`
                 };
             }
         }
@@ -638,6 +693,10 @@
                     {text: d.baseLabel, bold: true},
                     ...d.valueLines.map(t => ({text: t, bold: false})),
                 ],
+                // 간선 비용을 가지 위에 적는다. 이것을 보아야 왜 칸 수와 비용이 어긋나는지 안다.
+                edgeLabel: (target) => String(target.edgeCost || ''),
+                edgeLabelColor: '#0f766e',
+                edgeLabelSize: 13,
                 nodeStyle: (d) => {
                     const c = TreeSearchSimulator.COLORS[d.state] || TreeSearchSimulator.COLORS.default;
                     return {fill: c.bg, stroke: c.border, strokeWidth: 2, textColor: c.font};
@@ -722,6 +781,10 @@
                     for (let i = 0; i < childrenCount; i++) {
                         idCounter++;
                         const child = this.addNode(idCounter);
+                        // **간선마다 비용을 다르게 준다.** 이것이 이 화면의 핵심 장치다 —
+                        // 비용이 모두 같으면 칸 수가 곧 비용이라 네 알고리즘이 갈릴 데가 없다.
+                        // 최소가 1이므로 「남은 칸 수」인 h가 남은 비용을 넘지 않는다(admissible).
+                        child.edgeCost = 1 + Math.floor(Math.random() * 3);   // 1 ~ 3
                         this.nodeMap.get(parent).children.push(child);
                         this.childrenOf.get(parent).push(idCounter);
                         nextLevel.push(idCounter);
@@ -798,7 +861,10 @@
 
         // 노드 하나를 만든다. 렌더러가 읽는 것은 baseLabel · valueLines · state 셋뿐이다.
         addNode(id) {
-            const node = {id: id, baseLabel: `Node ${id}`, valueLines: [], state: 'default', children: []};
+            // edgeCost 는 **부모에서 이 노드로 오는 간선의 비용**이다. 트리라서 부모가
+            // 하나뿐이므로 간선 값을 자식이 들고 있으면 된다. 뿌리는 들어오는 간선이 없다.
+            const node = {id: id, baseLabel: `Node ${id}`, valueLines: [], state: 'default',
+                edgeCost: 0, children: []};
             this.nodeMap.set(id, node);
             this.childrenOf.set(id, []);
             return node;
@@ -806,6 +872,12 @@
 
         paint(duration = 250) {
             if (this.view && this.root) this.view.update(duration);
+        }
+
+        /** 지금 고른 알고리즘이 h 를 보는가. 라벨과 안내 문구가 이걸로 갈린다. */
+        usesH() {
+            const algo = document.getElementById('tree-algo').value;
+            return algo === 'astar' || algo === 'greedy';
         }
 
         // 노드 하나를 고치고 곧바로 다시 그린다. 한두 개를 만질 때 쓴다.
@@ -828,9 +900,15 @@
             let baseLabel = id === this.startNode ? 'Start' : (id === this.goalNode ? 'Goal' : `Node ${id}`);
 
             n.baseLabel = baseLabel;
-            n.valueLines = (extraInfo && extraInfo.g !== undefined)
-                ? [`f: ${extraInfo.f}`, `g: ${extraInfo.g} | h: ${h}`]
-                : [`h: ${h}`];
+            if (extraInfo && extraInfo.g !== undefined) {
+                // **h 를 쓰지 않는 방법은 f 를 적지 않는다.** 안 보는 값을 적어 두면
+                // 학생이 그 값으로 고르는 줄 안다. 대신 h 옆에 「안 씀」이라 밝힌다.
+                n.valueLines = this.usesH()
+                    ? [`f: ${extraInfo.f}`, `g: ${extraInfo.g} | h: ${h}`]
+                    : [`비용 g: ${extraInfo.g}`, `h: ${h} (안 씀)`];
+            } else {
+                n.valueLines = [`h: ${h}`];
+            }
             n.state = state;
         }
 
@@ -840,7 +918,7 @@
                 this.startNode, this.goalNode, algo,
                 (id) => this.childrenOf.get(id) || [],
                 (id) => this.nodeDataMap.get(id).h,
-                (from, to) => 1
+                (from, to) => this.nodeMap.get(to).edgeCost || 1
             );
         }
 

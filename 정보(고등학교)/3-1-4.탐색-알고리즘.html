@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>탐색 알고리즘</title>
+    <link rel="stylesheet" href="/src/styles/informatics.css">
+    <style>
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        /* 책장에 꽂힌 책 한 권이 칸 하나다. */
+        .cell {
+            width: 2.25rem;
+            height: 2.5rem;
+            display: grid;
+            place-items: center;
+            border-radius: 0.375rem;
+            border: 1px solid;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .cell-plain {
+            background: #f1f5f9;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+
+        .cell-out {
+            background: #ffffff;
+            color: #cbd5e1;
+            border-color: #e2e8f0;
+        }
+
+        .cell-seen {
+            background: #e2e8f0;
+            color: #94a3b8;
+            border-color: #cbd5e1;
+        }
+
+        .cell-cmp {
+            background: #ffe4e6;
+            color: #9f1239;
+            border-color: #fb7185;
+        }
+
+        .cell-mid {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #fcd34d;
+        }
+
+        .cell-hit {
+            background: #ccfbf1;
+            color: #115e59;
+            border-color: #5eead4;
+        }
+
+        .pos {
+            width: 2.25rem;
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+
+        .row-cells {
+            display: flex;
+            gap: 0.25rem;
+            width: max-content;
+        }
+
+        .step-label {
+            font-weight: 700;
+            color: #64748b;
+            font-size: 1rem;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-magnifying-glass absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-book-open absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            탐색 알고리즘
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            사전에서 낱말을 찾을 때 <strong>1쪽부터 넘기는 사람</strong>은 없습니다.<br>
+            우리는 가운데를 펴고, 앞뒤 어느 쪽인지 보고, 또 가운데를 폅니다.<br>
+            그 습관에 <strong>이름이 붙어 있습니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>탐색의 뜻을 설명하고, 일상에서 탐색에 해당하는 일을 찾아 말할 수 있다.</li>
+                    <li>순차 탐색과 이진 탐색이 각각 어떤 규칙으로 찾아 나가는지 과정을 따라갈 수 있다.</li>
+                    <li>두 방법이 값을 확인한 횟수를 세어 보고, 이진 탐색을 쓰려면 무엇이 갖추어져 있어야 하는지 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-magnifying-glass text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">탐색 알고리즘</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#search" class="hover:text-teal-600 transition">탐색이란</a>
+            <a href="#sequential" class="hover:text-teal-600 transition">순차 탐색</a>
+            <a href="#binary" class="hover:text-teal-600 transition">이진 탐색</a>
+            <a href="#compare" class="hover:text-teal-600 transition">두 방법 나란히</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 탐색이란 ===== -->
+    <section id="search" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">컴퓨터는 &lsquo;어디 있나&rsquo;를 한눈에 알지 못한다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">한 자리씩 &lsquo;여기인가?&rsquo;를 물어볼 수 있을 뿐입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                책상 위에 흩어진 열쇠 꾸러미에서 내 사물함 열쇠를 고르는 일,
+                연락처에서 친구 이름을 찾는 일, 사전에서 모르는 낱말을 찾는 일.
+                모두 <strong>여럿 가운데 원하는 하나를 골라내는 일</strong>입니다.
+            </p>
+
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-teal-900">탐색(search)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여러 데이터 가운데 <strong>내가 찾는 것 하나를 집어내는 일</strong>입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                우리가 책장을 볼 때는 눈이 여러 권을 동시에 훑기 때문에
+                &lsquo;저기쯤 있겠다&rsquo;는 짐작이 먼저 섭니다.
+                컴퓨터에게는 그런 짐작이 없습니다.
+                컴퓨터가 할 수 있는 것은 <strong>어느 한 자리를 콕 집어 &lsquo;여기 있는 것이 찾는 값인가?&rsquo;라고 묻는 일</strong>뿐입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>그래서 탐색 알고리즘은 &lsquo;묻는 차례&rsquo;를 정하는 일입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 번 물을 때마다 알 수 있는 것은 <strong>&lsquo;맞다&rsquo; 또는 &lsquo;아니다&rsquo;</strong>뿐입니다.
+                    그렇다면 <strong>어느 자리를 먼저 물을 것인가</strong>가 전부입니다.
+                    잘 고르면 몇 번 만에 끝나고, 잘못 고르면 끝까지 물어야 합니다.
+                    아래에서 볼 두 방법은 <strong>바로 이 &lsquo;묻는 차례&rsquo;가 다를 뿐</strong>입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">오늘 찾을 책장</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    책 열다섯 권이 <strong>번호가 작은 것부터</strong> 꽂혀 있습니다.
+                    왼쪽부터 <strong>1번 자리, 2번 자리 &hellip;</strong> 로 세겠습니다.
+                    이 책장에서 <strong>번호 73인 책</strong>을 찾는 것이 오늘의 문제입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <div class="overflow-x-auto">
+                    <div class="row-cells"><span class="pos">1</span><span class="pos">2</span><span class="pos">3</span><span class="pos">4</span><span class="pos">5</span><span class="pos">6</span><span class="pos">7</span><span class="pos">8</span><span class="pos">9</span><span class="pos">10</span><span class="pos">11</span><span class="pos">12</span><span class="pos">13</span><span class="pos">14</span><span class="pos">15</span></div>
+                    <div class="row-cells"><span class="cell cell-plain">4</span><span class="cell cell-plain">9</span><span class="cell cell-plain">13</span><span class="cell cell-plain">18</span><span class="cell cell-plain">25</span><span class="cell cell-plain">31</span><span class="cell cell-plain">36</span><span class="cell cell-plain">42</span><span class="cell cell-plain">47</span><span class="cell cell-plain">55</span><span class="cell cell-plain">60</span><span class="cell cell-plain">68</span><span class="cell cell-plain">73</span><span class="cell cell-plain">81</span><span class="cell cell-plain">90</span></div>
+                </div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-teal-500 mr-1"></i>
+                    위 칸의 회색 숫자는 <strong>자리 번호</strong>, 아래 칸의 검은 숫자는 <strong>그 자리에 꽂힌 책의 번호</strong>입니다.
+                    둘을 헷갈리지 않도록 조심하세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                오늘 하루 동안 <strong>무언가를 찾은 일</strong>을 두 가지 떠올려 보세요.
+                그중 하나는 <strong>순서대로 정리되어 있는 곳</strong>에서 찾았고, 다른 하나는 그렇지 않았을 것입니다.
+                어느 쪽이 더 빨랐나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 순차 탐색 ===== -->
+    <section id="sequential" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">순차 탐색 &mdash; 맨 앞부터 하나씩 물어본다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">가장 단순하고, 어떤 책장에서도 통합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                가장 먼저 떠오르는 방법은 <strong>맨 앞 자리부터 차례로 물어보는 것</strong>입니다.
+                &lsquo;1번 자리가 73인가? 아니네. 2번 자리는? 아니네&hellip;&rsquo;
+                이렇게 앞에서부터 하나씩 확인해 나가는 방법을
+                <strong>순차 탐색(sequential search)</strong>이라고 합니다.
+            </p>
+
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-teal-900">순차 탐색의 규칙</p>
+                <ol class="space-y-1 text-base text-slate-700 list-decimal list-outside pl-5">
+                    <li><strong>1번 자리</strong>부터 시작한다.</li>
+                    <li>그 자리의 값이 찾는 값과 <strong>같으면 멈춘다.</strong> 찾은 것이다.</li>
+                    <li>다르면 <strong>한 자리 오른쪽</strong>으로 옮겨 2를 되풀이한다.</li>
+                    <li>마지막 자리까지 갔는데도 없으면 <strong>&lsquo;없다&rsquo;로 끝낸다.</strong></li>
+                </ol>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">73을 찾아보면</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    분홍색이 <strong>지금 물어보고 있는 자리</strong>, 회색이 <strong>이미 물어본 자리</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div class="space-y-1">
+    <p class="step-label">1번째 확인 &mdash; 1번 자리는 4. 73이 아니다</p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-cmp">4</span><span class="cell cell-plain">9</span><span class="cell cell-plain">13</span><span class="cell cell-plain">18</span><span class="cell cell-plain">25</span><span class="cell cell-plain">31</span><span class="cell cell-plain">36</span><span class="cell cell-plain">42</span><span class="cell cell-plain">47</span><span class="cell cell-plain">55</span><span class="cell cell-plain">60</span><span class="cell cell-plain">68</span><span class="cell cell-plain">73</span><span class="cell cell-plain">81</span><span class="cell cell-plain">90</span></div></div>
+</div>
+                <div class="space-y-1">
+    <p class="step-label">2번째 확인 &mdash; 2번 자리는 9. 역시 아니다</p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-seen">4</span><span class="cell cell-cmp">9</span><span class="cell cell-plain">13</span><span class="cell cell-plain">18</span><span class="cell cell-plain">25</span><span class="cell cell-plain">31</span><span class="cell cell-plain">36</span><span class="cell cell-plain">42</span><span class="cell cell-plain">47</span><span class="cell cell-plain">55</span><span class="cell cell-plain">60</span><span class="cell cell-plain">68</span><span class="cell cell-plain">73</span><span class="cell cell-plain">81</span><span class="cell cell-plain">90</span></div></div>
+</div>
+                <p class="text-base text-slate-600 leading-relaxed">이렇게 한 자리씩 오른쪽으로 옮겨 가며 열두 번째까지 묻습니다.</p>
+                <div class="space-y-1">
+    <p class="step-label">13번째 확인 &mdash; 13번 자리가 73. 찾았다</p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-seen">4</span><span class="cell cell-seen">9</span><span class="cell cell-seen">13</span><span class="cell cell-seen">18</span><span class="cell cell-seen">25</span><span class="cell cell-seen">31</span><span class="cell cell-seen">36</span><span class="cell cell-seen">42</span><span class="cell cell-seen">47</span><span class="cell cell-seen">55</span><span class="cell cell-seen">60</span><span class="cell cell-seen">68</span><span class="cell cell-hit">73</span><span class="cell cell-plain">81</span><span class="cell cell-plain">90</span></div></div>
+</div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    73은 13번 자리에 있었으므로 <strong>값을 열세 번 확인</strong>하고 나서야 찾았습니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    순차 탐색은 <strong>운에 크게 좌우됩니다.</strong>
+                    찾는 값이 1번 자리에 있으면 <strong>한 번</strong>이면 끝나지만,
+                    마지막 자리에 있거나 <strong>아예 없으면 열다섯 번</strong>을 모두 물어야 합니다.
+                    &lsquo;없다&rsquo;는 답을 내려면 <strong>빠짐없이 다 봐야</strong> 하기 때문입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-emerald-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-emerald-900">
+                        <i class="fa-solid fa-thumbs-up mr-1"></i>좋은 점
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                        <li><strong>순서가 뒤섞여 있어도 됩니다.</strong> 뒤죽박죽인 책장에서도 그대로 통합니다.</li>
+                        <li>규칙이 단순해 <strong>실수할 여지가 적습니다.</strong></li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-rose-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-rose-900">
+                        <i class="fa-solid fa-hand mr-1"></i>걸리는 점
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                        <li>데이터가 많아지면 <strong>확인할 자리도 그만큼 많아집니다.</strong></li>
+                        <li>한 번 물어 알아낸 것이 <strong>다음 물음을 좁혀 주지 못합니다.</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 책장에서 순차 탐색으로 <strong>번호 90</strong>을 찾을 때와
+                책장에 없는 <strong>번호 50</strong>을 찾을 때, 확인 횟수는 <strong>둘 다 열다섯 번</strong>입니다.
+                횟수가 같은데도 <strong>두 경우가 다른 점</strong>은 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 이진 탐색 ===== -->
+    <section id="binary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이진 탐색 &mdash; 한 번 물을 때마다 절반을 버린다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">사전을 찾을 때 우리가 이미 쓰고 있는 방법입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                사전에서 &lsquo;소나기&rsquo;라는 낱말을 찾는다고 해 봅시다.
+                <strong>1쪽부터 넘기는 사람은 없습니다.</strong>
+                가운데쯤을 펴 보고, 거기가 &lsquo;ㅈ&rsquo;이면 &lsquo;소나기&rsquo;는 앞쪽이니
+                <strong>뒤쪽 절반은 통째로 버립니다.</strong>
+                그리고 남은 앞쪽 절반에서 다시 가운데를 폅니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이렇게 <strong>가운데 값과 비교해 범위를 절반씩 줄여 가며</strong> 찾는 방법을
+                <strong>이진 탐색(binary search)</strong>이라고 합니다.
+                &lsquo;이진&rsquo;은 <strong>둘로 나눈다</strong>는 뜻입니다.
+            </p>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900">
+                    <i class="fa-solid fa-key mr-1"></i>먼저 못 박아 둘 것 &mdash; 정렬되어 있어야 합니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사전이 가나다순이 아니라면 가운데를 펴 봐야 아무것도 알 수 없습니다.
+                    &lsquo;여기가 ㅈ이니 앞쪽에 있겠다&rsquo;는 판단은
+                    <strong>순서대로 놓여 있다는 것을 알기 때문에</strong> 할 수 있는 것입니다.
+                    <strong>이진 탐색은 순서가 뒤섞인 데이터에는 아예 쓸 수 없습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-teal-900">이진 탐색의 규칙</p>
+                <ol class="space-y-1 text-base text-slate-700 list-decimal list-outside pl-5">
+                    <li>찾을 범위를 <strong>책장 전체</strong>로 잡는다.</li>
+                    <li>범위의 <strong>가운데 자리</strong>를 정해 그 값을 확인한다.</li>
+                    <li>찾는 값과 <strong>같으면 멈춘다.</strong> 찾은 것이다.</li>
+                    <li>찾는 값이 <strong>더 작으면 가운데의 왼쪽</strong>만, <strong>더 크면 오른쪽</strong>만 남기고 2로 돌아간다.</li>
+                    <li>남은 범위가 없어지면 <strong>&lsquo;없다&rsquo;로 끝낸다.</strong></li>
+                </ol>
+            </div>
+
+            <div class="bg-violet-50 border-2 border-violet-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-violet-900">가운데 자리는 이렇게 정합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>(앞 자리 번호 + 뒤 자리 번호) &divide; 2</strong>, 나누어떨어지지 않으면 <strong>소수점 아래를 버립니다.</strong>
+                    예를 들어 범위가 9번부터 15번까지라면 (9 + 15) &divide; 2 = 12이므로 <strong>12번 자리</strong>가 가운데입니다.
+                    범위가 13번부터 15번까지라면 (13 + 15) &divide; 2 = 14이므로 <strong>14번 자리</strong>입니다.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">같은 73을 이진 탐색으로</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    노란색이 <strong>가운데 자리</strong>, 흐린 칸이 <strong>범위에서 빠진 자리</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div class="space-y-1">
+    <p class="step-label">1~15번 자리 &mdash; 가운데는 8번 자리의 42. 42 &lt; 73 이므로 <strong>오른쪽만</strong> 남긴다</p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-plain">4</span><span class="cell cell-plain">9</span><span class="cell cell-plain">13</span><span class="cell cell-plain">18</span><span class="cell cell-plain">25</span><span class="cell cell-plain">31</span><span class="cell cell-plain">36</span><span class="cell cell-mid">42</span><span class="cell cell-plain">47</span><span class="cell cell-plain">55</span><span class="cell cell-plain">60</span><span class="cell cell-plain">68</span><span class="cell cell-plain">73</span><span class="cell cell-plain">81</span><span class="cell cell-plain">90</span></div></div>
+</div>
+                <div class="space-y-1">
+    <p class="step-label">9~15번 자리 &mdash; 가운데는 12번 자리의 68. 68 &lt; 73 이므로 <strong>오른쪽만</strong> 남긴다</p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-out">4</span><span class="cell cell-out">9</span><span class="cell cell-out">13</span><span class="cell cell-out">18</span><span class="cell cell-out">25</span><span class="cell cell-out">31</span><span class="cell cell-out">36</span><span class="cell cell-out">42</span><span class="cell cell-plain">47</span><span class="cell cell-plain">55</span><span class="cell cell-plain">60</span><span class="cell cell-mid">68</span><span class="cell cell-plain">73</span><span class="cell cell-plain">81</span><span class="cell cell-plain">90</span></div></div>
+</div>
+                <div class="space-y-1">
+    <p class="step-label">13~15번 자리 &mdash; 가운데는 14번 자리의 81. 81 &gt; 73 이므로 <strong>왼쪽만</strong> 남긴다</p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-out">4</span><span class="cell cell-out">9</span><span class="cell cell-out">13</span><span class="cell cell-out">18</span><span class="cell cell-out">25</span><span class="cell cell-out">31</span><span class="cell cell-out">36</span><span class="cell cell-out">42</span><span class="cell cell-out">47</span><span class="cell cell-out">55</span><span class="cell cell-out">60</span><span class="cell cell-out">68</span><span class="cell cell-plain">73</span><span class="cell cell-mid">81</span><span class="cell cell-plain">90</span></div></div>
+</div>
+                <div class="space-y-1">
+    <p class="step-label">13~13번 자리 &mdash; 가운데는 13번 자리의 73. <strong>찾았다</strong></p>
+    <div class="overflow-x-auto"><div class="row-cells"><span class="cell cell-out">4</span><span class="cell cell-out">9</span><span class="cell cell-out">13</span><span class="cell cell-out">18</span><span class="cell cell-out">25</span><span class="cell cell-out">31</span><span class="cell cell-out">36</span><span class="cell cell-out">42</span><span class="cell cell-out">47</span><span class="cell cell-out">55</span><span class="cell cell-out">60</span><span class="cell cell-out">68</span><span class="cell cell-hit">73</span><span class="cell cell-out">81</span><span class="cell cell-out">90</span></div></div>
+</div>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    <strong>값을 네 번 확인</strong>하고 찾았습니다. 순차 탐색으로는 열세 번이 걸리던 자리입니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    왜 이렇게 줄어들까요?
+                    한 번 물을 때마다 <strong>남은 범위가 절반이 되기</strong> 때문입니다.
+                    실제로 범위가 <strong>15칸 &rarr; 7칸 &rarr; 3칸 &rarr; 1칸</strong>으로 줄었습니다.
+                    순차 탐색이 한 번에 <strong>한 칸씩</strong> 지워 나가는 것과 대조됩니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-emerald-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-emerald-900">
+                        <i class="fa-solid fa-thumbs-up mr-1"></i>좋은 점
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                        <li>데이터가 많아져도 <strong>확인 횟수가 천천히 늘어납니다.</strong></li>
+                        <li>찾는 값이 <strong>없을 때도 빨리 끝납니다.</strong> 범위가 금방 사라지기 때문입니다.</li>
+                    </ul>
+                </div>
+                <div class="bg-white border-2 border-rose-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-rose-900">
+                        <i class="fa-solid fa-hand mr-1"></i>걸리는 점
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                        <li><strong>정렬되어 있어야만</strong> 쓸 수 있습니다.</li>
+                        <li>중간에 책을 <strong>끼워 넣거나 빼면</strong> 다시 순서를 맞춰 두어야 합니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 책장에서 이진 탐색으로 <strong>번호 42</strong>를 찾으면 몇 번 확인할까요?
+                답이 왜 그렇게 작은지, <strong>가운데 자리를 계산해</strong> 확인해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 두 방법 나란히 ===== -->
+    <section id="compare" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">그래서 늘 이진 탐색을 쓰면 될까</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">숫자를 몇 개 더 세어 보면 답이 그렇게 간단하지 않습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                73을 찾을 때는 열세 번과 네 번, 차이가 컸습니다.
+                그런데 <strong>찾는 값을 바꾸어 보면</strong> 이야기가 달라집니다.
+                같은 책장에서 세 가지 값을 찾아 확인한 횟수를 세어 보았습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">같은 책장에서 찾는 값에 따라 달라지는 순차 탐색과 이진 탐색의 확인 횟수</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">찾는 값</th>
+                        <th class="w-28">순차 탐색</th>
+                        <th class="w-28">이진 탐색</th>
+                        <th>어떻게 된 것인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>73</strong> (13번 자리)</td>
+                        <td>13번</td>
+                        <td><strong>4번</strong></td>
+                        <td>뒤쪽에 있을수록 순차 탐색이 불리합니다.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4</strong> (1번 자리)</td>
+                        <td><strong>1번</strong></td>
+                        <td>4번</td>
+                        <td>맨 앞에 있으면 순차 탐색이 한 번에 끝납니다. <strong>이쪽은 순차 탐색이 빠릅니다.</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>50</strong> (책장에 없음)</td>
+                        <td>15번</td>
+                        <td><strong>4번</strong></td>
+                        <td>없다는 답을 내려면 순차 탐색은 전부 봐야 합니다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>&lsquo;이진 탐색이 더 빠르다&rsquo;고 잘라 말할 수 없습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    번호 4를 찾을 때는 <strong>순차 탐색이 한 번, 이진 탐색이 네 번</strong>이었습니다.
+                    이진 탐색은 언제나 가운데부터 묻기 때문에, <strong>찾는 값이 맨 앞에 있어도 가운데를 먼저 거쳐야</strong> 합니다.
+                    이진 탐색이 힘을 내는 것은 <strong>데이터가 많고, 찾는 값이 어디 있을지 모를 때</strong>입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">정렬은 공짜가 아니다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    더 중요한 것이 있습니다.
+                    이진 탐색을 쓰려면 <strong>먼저 책을 번호순으로 꽂아 두어야</strong> 합니다.
+                    그 정리하는 일에도 품이 듭니다.
+                    그래서 &lsquo;어느 탐색이 빠른가&rsquo;만 따져서는 답이 나오지 않고,
+                    <strong>몇 번이나 찾을 것인가</strong>를 함께 봐야 합니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border-2 border-sky-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-sky-900">딱 한 번만 찾을 것이라면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        정리하는 품이 아깝습니다.
+                        <strong>그냥 순차 탐색으로 한 번 훑는 편</strong>이 나을 수 있습니다.
+                    </p>
+                </div>
+                <div class="bg-white border-2 border-violet-200 rounded-2xl p-6 space-y-3">
+                    <p class="font-black text-lg text-violet-900">앞으로 여러 번 찾을 것이라면</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 번 정리해 두면 <strong>그 뒤로 찾을 때마다 계속 이득</strong>입니다.
+                        정리하는 품을 여러 번의 탐색이 나누어 갚는 셈입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-scale-balanced text-teal-500 mr-1"></i>
+                    도서관이 책을 번호순으로 꽂아 두는 이유가 여기 있습니다.
+                    한 번 꽂아 두는 수고는 크지만, <strong>그 뒤로 수많은 사람이 빠르게 찾아갑니다.</strong>
+                    반대로 오늘 하루만 쓰고 버릴 종이 목록이라면 굳이 정리할 이유가 없습니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">순차 탐색과 이진 탐색을 고르는 기준</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">이런 상황이면</th>
+                        <th class="w-32">고를 만한 것</th>
+                        <th>왜</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>데이터의 <strong>순서가 뒤섞여 있다</strong></td>
+                        <td><strong>순차 탐색</strong></td>
+                        <td>이진 탐색은 아예 쓸 수 없습니다.</td>
+                    </tr>
+                    <tr>
+                        <td>데이터가 <strong>몇 개 되지 않는다</strong></td>
+                        <td><strong>순차 탐색</strong></td>
+                        <td>차이가 나지 않는데 규칙이 단순한 쪽이 낫습니다.</td>
+                    </tr>
+                    <tr>
+                        <td>데이터가 <strong>아주 많고 정렬되어 있다</strong></td>
+                        <td><strong>이진 탐색</strong></td>
+                        <td>확인 횟수가 눈에 띄게 줄어듭니다.</td>
+                    </tr>
+                    <tr>
+                        <td>데이터가 <strong>자주 들어오고 빠진다</strong></td>
+                        <td>따져 봐야 합니다</td>
+                        <td>바뀔 때마다 순서를 다시 맞추는 품이 계속 듭니다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-lightbulb text-teal-500 mr-1"></i>
+                    여기서는 <strong>열다섯 권을 놓고 손으로 세어 보는 것까지만</strong> 합니다.
+                    책이 열다섯 권이 아니라 수십만 권이라면 두 방법의 차이가 어디까지 벌어지는지 궁금해질 텐데,
+                    그것은 <strong>세는 잣대를 따로 마련해야</strong> 답할 수 있는 물음입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                교실 뒤 게시판에 <strong>이름이 뒤섞인 명단</strong>이 붙어 있습니다.
+                오늘 딱 한 사람을 찾으면 되는 상황과, 앞으로 한 달 동안 매일 여러 사람을 찾아야 하는 상황.
+                두 경우에 <strong>같은 선택을 하겠습니까?</strong>
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">탐색</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">search</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>여러 데이터 가운데 <strong>내가 찾는 것 하나를 집어내는 일</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>컴퓨터는 <strong>한 자리씩 묻는 일</strong>만 할 수 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>탐색 알고리즘은 결국 <strong>묻는 차례를 정하는 일</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">순차 탐색</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">sequential search</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>맨 앞부터 <strong>하나씩 차례로</strong> 확인한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>순서가 뒤섞여 있어도</strong> 쓸 수 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>없는 값을 찾을 때는 <strong>전부 확인해야</strong> 한다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">이진 탐색</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">binary search</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>가운데 값과 비교해 <strong>범위를 절반씩 줄인다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>가운데 자리 = <strong>(앞 + 뒤) &divide; 2</strong>, 소수점 아래는 버린다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>정렬되어 있어야만</strong> 쓸 수 있다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">고르는 기준</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">언제 무엇을 쓸까</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>이진 탐색이 <strong>언제나 빠른 것은 아니다</strong> &mdash; 맨 앞의 값은 순차 탐색이 더 빠르다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>정렬에도 품이 든다</strong> &mdash; 탐색 횟수만 따져서는 답이 나오지 않는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>여러 번 찾을수록</strong> 정렬해 두는 편이 이득이다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>이진 탐색</strong>을 쓰기 위해 반드시 갖추어져 있어야 하는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '데이터 개수가 짝수일 필요는 없습니다. 홀수여도 가운데 자리를 정할 수 있습니다.')">
+                    ① 데이터의 개수가 짝수여야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 순서대로 놓여 있어야 「가운데보다 작으니 앞쪽에 있겠다」는 판단을 할 수 있습니다.')">
+                    ② 데이터가 순서대로 정렬되어 있어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '찾는 값이 반드시 있어야 하는 것은 아닙니다. 없으면 범위가 사라지면서 「없다」로 끝납니다.')">
+                    ③ 찾는 값이 반드시 데이터 안에 있어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 서로 달라야 한다는 조건은 없습니다. 정렬되어 있는지가 관건입니다.')">
+                    ④ 모든 값이 서로 달라야 한다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    정렬된 <strong>열다섯 칸</strong>에서 이진 탐색을 할 때, 범위가 줄어드는 모습으로 옳은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 칸씩 지워 나가는 것은 순차 탐색입니다. 이진 탐색은 절반을 한꺼번에 버립니다.')">
+                    ① 15칸 &rarr; 14칸 &rarr; 13칸 &rarr; 12칸
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 가운데 한 칸을 확인하고 나머지 절반을 버리므로 범위가 대략 절반씩 줄어듭니다.')">
+                    ② 15칸 &rarr; 7칸 &rarr; 3칸 &rarr; 1칸
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '범위가 늘어나는 일은 없습니다. 이진 탐색은 확인할 때마다 범위를 좁힙니다.')">
+                    ③ 15칸 &rarr; 30칸 &rarr; 60칸
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 번에 끝난다면 이진 탐색이라는 이름이 필요 없습니다. 가운데가 찾는 값일 때만 한 번에 끝납니다.')">
+                    ④ 15칸 &rarr; 1칸
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    탐색 방법을 고르는 일에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 찾는 값이 맨 앞에 있으면 순차 탐색은 한 번에 끝나지만 이진 탐색은 가운데부터 거쳐야 합니다.')">
+                    ① 찾는 값이 맨 앞에 있으면 순차 탐색이 더 빠를 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 정렬하는 데도 품이 듭니다. 딱 한 번만 찾을 것이라면 정렬하지 않고 그냥 훑는 편이 나을 수 있습니다.')">
+                    ② 정렬은 품이 들지 않으므로 언제나 먼저 정렬해 두면 이득이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 여러 번 찾을수록 한 번 정렬해 둔 수고를 나누어 갚는 셈이 됩니다.')">
+                    ③ 여러 번 찾을 예정이라면 정렬해 두는 편이 이득이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 데이터가 몇 개 되지 않으면 차이가 나지 않으므로 규칙이 단순한 쪽이 낫습니다.')">
+                    ④ 데이터가 몇 개 되지 않으면 굳이 이진 탐색을 쓸 이유가 적다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -534,8 +534,8 @@
                     <label class="fs-hide flex items-start gap-3 mt-2 bg-white border-2 border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:border-teal-300 transition-colors">
                         <input class="mt-1 w-4 h-4 accent-teal-600 shrink-0" id="graph-opt-edit" type="checkbox">
                         <span class="min-w-0">
-                            <span class="block font-bold text-slate-800 text-sm">지도 고치기</span>
-                            <span class="opt-hint block text-xs text-slate-500 leading-snug break-keep">켜면 간선을 눌러 끊고, 노드 둘을 차례로 눌러 잇습니다.</span>
+                            <span class="block font-bold text-slate-800 text-sm">그래프 고치기</span>
+                            <span class="opt-hint block text-xs text-slate-500 leading-snug break-keep">켜면 노드를 끌어 옮기고, 간선을 눌러 끊고, 노드 둘을 차례로 눌러 잇습니다. 켜는 동안에는 화면이 끌리지 않습니다.</span>
                         </span>
                     </label>
                     <button class="fs-hide w-full mt-2 bg-white hover:bg-slate-100 text-slate-600 border-2 border-slate-200 py-2 rounded-xl font-bold text-sm transition flex justify-center items-center gap-2"
@@ -1530,11 +1530,10 @@
             document.getElementById('btn-graph-new').onclick = () => this.newMap();
             document.getElementById('btn-graph-restore').onclick = () => this.restore();
             document.getElementById('graph-opt-edit').addEventListener('change', () => {
-                this.linkFrom = null;
-                this.paint(0);
+                this.setEditing(this.editing());
                 this.setStatus(this.editing()
-                    ? '지도 고치기를 켰습니다. 간선을 누르면 끊고, 노드 둘을 차례로 누르면 잇습니다.'
-                    : '지도 고치기를 껐습니다. 이제 노드를 누르면 목표가 바뀝니다.');
+                    ? '그래프 고치기를 켰습니다. 노드를 끌어 옮기고, 간선을 누르면 끊고, 노드 둘을 차례로 누르면 잇습니다.'
+                    : '그래프 고치기를 껐습니다. 이제 노드를 누르면 목표가 바뀌고, 화면을 끌어 옮길 수 있습니다.');
             });
             document.getElementById('btn-graph-play').onclick = () => this.togglePlay();
             document.getElementById('btn-graph-step').onclick = () => this.stepManually();
@@ -1568,6 +1567,9 @@
             const preset = window.GraphModel.pickPreset(
                 window.GRAPH_PRESETS, this.options(), this.graph && this.graph.presetId);
             this.loadPreset(preset);
+            // 새 지도를 폈으면 고치기는 끈다. 켠 채로 두면 목표를 바꾸려고 누른 노드가
+            // 간선 잇기로 잡혀 무엇이 일어났는지 알기 어렵다.
+            this.setEditing(false);
             this.setStatus(`<b>${this.graph.presetName}</b>을 폈습니다. 노드 ${this.graph.nodes.length}개, 간선 ${this.graph.edges.length}개.
                 시작은 <b>${this.graph.start}</b>, 목표는 <b>${this.graph.goal}</b>입니다.`);
         }
@@ -1616,7 +1618,6 @@
             if (this.view) return;
             this.view = window.createGraphView('#graph-canvas', {
                 fontSize: 14,
-                draggable: true,
                 edgeLabelColor: '#0f766e',
                 label: (n) => this.labelOf(n),
                 nodeStyle: (n) => {
@@ -1633,9 +1634,10 @@
             this.view.on('nodeclick', (id) => this.onNodeClick(id));
             this.view.on('edgeclick', (id) => this.onEdgeClick(id));
 
-            // 노드는 **고치기를 켜지 않아도** 끌어 옮길 수 있다. 옮기면 거리가 바뀌고,
-            // 거리가 곧 비용이자 h(n)이라 값이 함께 따라 움직인다 — 지도를 고친 셈이므로
-            // 자취는 지운다. 끄는 동안 화면 맞추기를 멈추지 않으면 지도가 계속 튄다.
+            // 노드 끌기는 **그래프 고치기를 켰을 때만** 듣는다. 켜지 않았을 때도 끌리게
+            // 두었더니 화면을 옮기려는 손짓과 구별되지 않았다. 옮기면 거리가 바뀌고,
+            // 거리가 곧 비용이자 h(n)이라 값이 함께 따라 움직인다 — 그래프를 고친
+            // 셈이므로 자취는 지운다. 끄는 동안 화면 맞추기를 멈추지 않으면 계속 튄다.
             this.view.on('nodedrag', (id, x, y) => {
                 this.beginEdit();
                 if (this.view.viewMode !== 'free') this.view.setViewMode('free', 0);
@@ -1877,10 +1879,22 @@
             document.getElementById('graph-canvas').scrollIntoView({behavior: 'smooth', block: 'center'});
         }
 
-        /* --- 지도 고치기 --- */
+        /* --- 그래프 고치기 --- */
 
         editing() {
             return document.getElementById('graph-opt-edit').checked;
+        }
+
+        /**
+         * 고치기를 켜고 끈다. **렌더러에도 알려야 한다** — 노드를 끌 수 있는지와
+         * 화면을 끌어 옮길 수 있는지가 그 한 마디로 함께 뒤바뀐다.
+         */
+        setEditing(on) {
+            const box = document.getElementById('graph-opt-edit');
+            box.checked = on;
+            this.linkFrom = null;
+            if (this.view) this.view.setEditing(on);
+            this.paint(0);
         }
 
         /**
@@ -1890,7 +1904,8 @@
          * 지나는 길이 「찾은 길」이라고 굵게 칠해져 있게 된다.
          */
         beginEdit() {
-            this.linkFrom = null;
+            // **여기서 `linkFrom` 을 비우면 안 된다.** `onNodeClick` 이 이것을 먼저 부르므로,
+            // 비우면 첫째 노드를 고른 것이 둘째 클릭에서 매번 지워져 간선이 영영 안 생긴다.
             if (!this.engine) return;
             this.stopPlay();
             this.engine = null;

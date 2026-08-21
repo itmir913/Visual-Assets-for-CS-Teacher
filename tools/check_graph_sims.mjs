@@ -95,6 +95,9 @@ function makeSandbox() {
         setActive() {
             return this;
         },
+        setEditing() {
+            return this;
+        },
         focus() {
             return this;
         },
@@ -223,7 +226,64 @@ function checkBlind() {
         }
     }
 
+    checkEditing(sim, el, '맹목');
+
     return runs;
+}
+
+/**
+ * 그래프 고치기 — **노드 둘을 차례로 눌러 간선을 잇는 흐름**을 그대로 밟아 본다.
+ *
+ * 한 번 이렇게 깨졌다. 손대기 전에 자취를 지우는 `beginEdit()` 이 첫째 노드 선택까지
+ * 함께 비워, **둘째 클릭이 늘 「첫째 노드를 골랐다」로 되돌아갔다.** 화면에서는 선택이
+ * 옮겨 다니기만 하고 간선은 영영 생기지 않는다. 값만 보아서는 드러나지 않고 **클릭을
+ * 순서대로 밟아 보아야** 잡힌다.
+ */
+function checkEditing(sim, el, 이름) {
+    el('graph-opt-edit').checked = true;
+    sim.setEditing(true);
+
+    const 이을것 = (() => {
+        for (const a of sim.graph.nodes.map(n => n.id)) {
+            const b = sim.graph.nodes.map(n => n.id)
+                .find(x => x !== a && !M.neighborsOf(sim.graph, a).includes(x));
+            if (b) return [a, b];
+        }
+        return null;
+    })();
+    if (!이을것) return;
+    const [a, b] = 이을것;
+
+    sim.onNodeClick(a);
+    if (sim.linkFrom !== a) bad(`${이름} 고치기: ${a}를 눌렀는데 고른 것으로 남지 않았다`);
+
+    sim.onNodeClick(b);
+    if (sim.linkFrom !== null) bad(`${이름} 고치기: 둘째 노드를 눌렀는데 고른 것이 남아 있다`);
+    if (!M.neighborsOf(sim.graph, a).includes(b)) {
+        bad(`${이름} 고치기: ${a}와 ${b}를 차례로 눌렀는데 간선이 생기지 않았다`);
+    }
+
+    // 같은 노드를 두 번 누르면 그만둔다
+    sim.onNodeClick(a);
+    sim.onNodeClick(a);
+    if (sim.linkFrom !== null) bad(`${이름} 고치기: 같은 노드를 두 번 눌렀는데 그만두지 않았다`);
+
+    // 간선을 끊으면 정말로 끊긴다
+    const 끊을것 = sim.graph.edges[0];
+    sim.onEdgeClick(끊을것.id);
+    if (sim.graph.edges.some(e => e.id === 끊을것.id)) {
+        bad(`${이름} 고치기: 간선을 눌렀는데 끊기지 않았다`);
+    }
+
+    // 새 지도를 뽑으면 고치기가 꺼진다 — 켠 채로 두면 목표를 바꾸려던 클릭이 잇기로 잡힌다
+    sim.newMap();
+    if (el('graph-opt-edit').checked) bad(`${이름} 고치기: 새 지도를 폈는데 고치기가 켜진 채다`);
+
+    // 고치기를 끄면 노드 클릭은 목표 지정으로 돌아간다
+    sim.setEditing(false);
+    const 딴노드 = sim.graph.nodes.map(n => n.id).find(id => id !== sim.graph.start && id !== sim.graph.goal);
+    sim.onNodeClick(딴노드);
+    if (sim.graph.goal !== 딴노드) bad(`${이름} 고치기를 껐는데 노드 클릭이 목표를 바꾸지 않았다`);
 }
 
 /* ================================================================
@@ -342,6 +402,8 @@ function checkHeuristic() {
         bad(`정보: 최상 우선이 손해 보는 지도가 하나도 없다(${그리디판}판) — 화면에서 볼 것이 사라졌다`);
     }
     console.log(`  최상 우선이 A*보다 비싼 길을 찾은 판: ${그리디판}판 중 ${그리디손해}판`);
+
+    checkEditing(sim, el, '정보');
 
     return runs;
 }

@@ -84,6 +84,8 @@ export class GraphView {
         this._sizes = new Map();
         this._drag = null;
         this._draggedAt = 0;
+        // 고치는 중인가. 노드를 끌 수 있는지와 화면을 끌 수 있는지를 함께 정한다.
+        this.editing = !!this.opt.draggable;
 
         // SVG는 컨테이너를 꽉 채운다. 컨테이너에 position 이 없으면 여기서 준다 —
         // 없으면 absolute 인 SVG 가 엉뚱한 조상에 붙는다.
@@ -126,6 +128,16 @@ export class GraphView {
 
         this.zoom = d3zoom()
             .scaleExtent([this.opt.minScale, this.opt.maxScale])
+            // **고치는 동안에는 화면을 끌어 옮기지 않는다.** 노드를 끌려는 손짓이
+            // 캔버스 이동으로 새어 나가, 노드가 제자리에 붙어 있는 것처럼 보인다.
+            // 휠 확대는 그대로 둔다 — 그것 때문에 헷갈리는 일은 없다.
+            //
+            // 뒤의 한 줄은 d3-zoom 의 기본 거르개와 같다. **거르개를 주는 순간 기본값이
+            // 통째로 밀려나므로 함께 적어 두어야 한다.**
+            .filter((event) => {
+                if (this.editing && (event.type === 'mousedown' || event.type === 'touchstart')) return false;
+                return (!event.ctrlKey || event.type === 'wheel') && !event.button;
+            })
             .on('zoom', (event) => {
                 this.g.attr('transform', event.transform);
                 // 사람이 직접 끌거나 굴리면 '자유 이동'으로 넘긴다.
@@ -232,6 +244,20 @@ export class GraphView {
         this.viewMode = mode;
         if (mode === 'fit') this.fit(duration);
         else if (mode === 'track' && this.activeId != null) this.focus(this.activeId, duration);
+        return this;
+    }
+
+    /**
+     * 고치는 중인지 알린다. **노드 끌기와 화면 끌기는 함께 갈 수 없다.**
+     *
+     * 둘 다 켜 두면 노드를 끌려는 손짓이 캔버스 이동으로 새어 나간다. 그래서 하나를
+     * 켜면 다른 하나를 끈다 — 고치는 중이면 노드가 끌리고 화면은 가만히 있는다.
+     */
+    setEditing(on) {
+        this.editing = !!on;
+        this.opt.draggable = !!on;
+        this.svg.style('cursor', on ? 'default' : 'grab');
+        this.layerNodes.selectAll('g.gv-node').style('cursor', on ? 'move' : 'pointer');
         return this;
     }
 
@@ -626,7 +652,6 @@ export class GraphView {
         const enter = sel.enter().append('g')
             .attr('class', 'gv-node')
             .attr('transform', d => `translate(${d.x},${d.y})`)
-            .style('cursor', this._handlers.nodeclick.length || this.opt.draggable ? 'pointer' : null)
             .on('click', (event, d) => {
                 event.stopPropagation();
                 // 방금 끌어 놓은 것이라면 클릭으로 치지 않는다. 노드를 옮길 때마다
@@ -645,6 +670,10 @@ export class GraphView {
         this._enableDrag(enter);
 
         const all = enter.merge(sel);
+
+        // 커서는 갱신할 때마다 지금 상태에 맞춘다. 들어올 때만 정하면 고치기를 켠 뒤에
+        // 새로 그려진 노드와 이미 있던 노드의 커서가 서로 달라진다.
+        all.style('cursor', this.opt.draggable ? 'move' : 'pointer');
 
         // **움직임만 트랜지션에 싣는다.** 크기와 색은 아래에서 곧바로 넣는다.
         this._move(all, 'transform', d => `translate(${d.x},${d.y})`, duration);
@@ -703,6 +732,12 @@ export class GraphView {
      */
     _enableDrag(sel) {
         const self = this;
+        // **`mousedown`·`touchstart` 도 함께 막는다.** d3-zoom 이 듣는 것은 `pointerdown`이
+        // 아니라 이 둘이라, `pointerdown` 만 막아서는 노드를 끌어도 캔버스가 따라 움직인다.
+        sel.on('mousedown touchstart', function (event) {
+            if (self.opt.draggable) event.stopPropagation();
+        });
+
         sel.on('pointerdown', function (event, d) {
             if (!self.opt.draggable) return;
             event.stopPropagation();

@@ -275,11 +275,11 @@
                         <i class="fa-solid fa-microchip text-teal-600"></i> 알고리즘 선택
                     </div>
                     <select id="tree-algo"
-                            class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold bg-white mb-4">
-                        <option value="astar">A* Search (g + h)</option>
-                        <option value="greedy">Greedy Best-First (h)</option>
-                        <option value="bfs">너비 우선 탐색 (h 안 씀)</option>
-                        <option value="dfs">깊이 우선 탐색 (h 안 씀)</option>
+                            class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold text-sm bg-white mb-4">
+                        <option value="astar">A* 탐색 (평가 함수 g + h 사용)</option>
+                        <option value="greedy">그리디 탐색 (평가 함수 h 사용)</option>
+                        <option value="bfs">너비 우선 탐색 (평가 함수 사용 안 함)</option>
+                        <option value="dfs">깊이 우선 탐색 (평가 함수 사용 안 함)</option>
                     </select>
 
                     <label class="block font-bold text-gray-700 mb-2 text-sm">탐색 속도</label>
@@ -377,8 +377,8 @@
                 </div>
                 <select id="grid-algo"
                         class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold bg-white">
-                    <option value="astar">A* Search (g + h)</option>
-                    <option value="greedy">Greedy Best-First (h)</option>
+                    <option value="astar">A* 탐색 (평가 함수 g + h 사용)</option>
+                    <option value="greedy">그리디 탐색 (평가 함수 h 사용)</option>
                 </select>
                 <div class="flex items-center gap-2 mt-2 text-slate-800 font-black text-sm">
                     <i class="fa-solid fa-gauge text-teal-600"></i> 자동 실행 속도
@@ -531,9 +531,21 @@
             return gVal;
         }
 
-        /** h 를 보는 방법인가 — 라벨과 안내 문구가 이걸로 갈린다. */
+        /** h 를 보는 방법인가. 안내 문구와 「보여 줄 값」이 이걸로 갈린다. */
         usesH() {
             return this.type === 'astar' || this.type === 'greedy';
+        }
+
+        /**
+         * 노드 하나에 대해 **화면에 보여 줄 값**을 돌려준다.
+         *
+         * f 는 그것으로 고르는 방법에서만 넣는다. 너비·깊이 우선은 f 를 보지 않으므로
+         * 넣지 않고, 받는 쪽은 f 가 없으면 그 줄을 그리지 않는다. 이렇게 두면
+         * **그리는 쪽이 어떤 알고리즘인지 알 필요가 없다.**
+         */
+        scoresOf(id) {
+            const g = this.gScore.get(id);
+            return this.usesH() ? {g: g, f: this.fScore.get(id)} : {g: g};
         }
 
         /** 다음에 열어 볼 노드를 꺼낸다. **네 알고리즘의 차이는 여기 하나뿐이다.** */
@@ -629,7 +641,10 @@
                         this.fScore.set(neighbor, fVal);
 
                         if (isNew) this.openSet.push(neighbor);
-                        expanded.push({id: neighbor, g: tentativeG, h: this.getH(neighbor), f: fVal});
+                        // f 는 그것으로 고르는 방법에서만 넣는다 — scoresOf 와 같은 규칙이다.
+                        const 보여줄값 = {id: neighbor, g: tentativeG, h: this.getH(neighbor)};
+                        if (this.usesH()) 보여줄값.f = fVal;
+                        expanded.push(보여줄값);
                     }
                 }
                 this.state = 'EXPAND';
@@ -874,12 +889,6 @@
             if (this.view && this.root) this.view.update(duration);
         }
 
-        /** 지금 고른 알고리즘이 h 를 보는가. 라벨과 안내 문구가 이걸로 갈린다. */
-        usesH() {
-            const algo = document.getElementById('tree-algo').value;
-            return algo === 'astar' || algo === 'greedy';
-        }
-
         // 노드 하나를 고치고 곧바로 다시 그린다. 한두 개를 만질 때 쓴다.
         updateNodeStyle(id, state, extraInfo = null) {
             this.setNodeStyle(id, state, extraInfo);
@@ -899,13 +908,14 @@
             let h = data.h;
             let baseLabel = id === this.startNode ? 'Start' : (id === this.goalNode ? 'Goal' : `Node ${id}`);
 
+            // **받은 값만 그린다.** 어떤 알고리즘을 골랐는지 여기서 묻지 않는다 —
+            // 그리는 쪽이 조작 UI에 매이면 나중에 어느 하나를 못 고친다.
+            // f 를 넣을지 말지는 값을 건네주는 탐색 엔진이 정한다.
             n.baseLabel = baseLabel;
             if (extraInfo && extraInfo.g !== undefined) {
-                // **h 를 쓰지 않는 방법은 f 를 적지 않는다.** 안 보는 값을 적어 두면
-                // 학생이 그 값으로 고르는 줄 안다. 대신 h 옆에 「안 씀」이라 밝힌다.
-                n.valueLines = this.usesH()
+                n.valueLines = extraInfo.f !== undefined
                     ? [`f: ${extraInfo.f}`, `g: ${extraInfo.g} | h: ${h}`]
-                    : [`비용 g: ${extraInfo.g}`, `h: ${h} (안 씀)`];
+                    : [`g: ${extraInfo.g} | h: ${h}`];
             } else {
                 n.valueLines = [`h: ${h}`];
             }
@@ -936,26 +946,18 @@
             }
 
             if (res.type === 'select') {
-                this.updateNodeStyle(res.node, 'current', {
-                    g: this.searchEngine.gScore.get(res.node),
-                    f: this.searchEngine.fScore.get(res.node)
-                });
+                this.updateNodeStyle(res.node, 'current', this.searchEngine.scoresOf(res.node));
                 this.setStatus(res.msg);
             } else if (res.type === 'expand') {
                 res.expanded.forEach(item => {
                     this.updateNodeStyle(item.id, 'open', {g: item.g, f: item.f});
                 });
                 if (res.node !== this.startNode && res.node !== this.goalNode) {
-                    this.updateNodeStyle(res.node, 'closed', {
-                        g: this.searchEngine.gScore.get(res.node),
-                        f: this.searchEngine.fScore.get(res.node)
-                    });
+                    this.updateNodeStyle(res.node, 'closed', this.searchEngine.scoresOf(res.node));
                 }
                 this.setStatus(res.msg);
             } else if (res.type === 'success') {
-                res.path.forEach(id => this.updateNodeStyle(id, 'path', {
-                    g: this.searchEngine.gScore.get(id), f: this.searchEngine.fScore.get(id)
-                }));
+                res.path.forEach(id => this.updateNodeStyle(id, 'path', this.searchEngine.scoresOf(id)));
                 this.setStatus(res.msg);
                 this.stopPlay();
             } else if (res.type === 'fail') {

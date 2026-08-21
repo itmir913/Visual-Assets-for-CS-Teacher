@@ -18,6 +18,7 @@
 | `check_graph_presets.mjs` | **그래프 탐색 시뮬레이터의 지도**가 여덟 조합 전부에서 성립하는지 — 도달 가능 · h가 실제 비용을 넘지 않음 · 사이클 끔이 정말 무사이클 · 간선과 비용 글자가 노드 상자에 물리지 않음 | 지도나 그래프 렌더러를 고친 뒤. `npm run ci`가 부른다 |
 | `check_graph_sims.mjs` | **두 탐색 시뮬레이터의 그래프 탭을 페이지 원문 그대로 돌려** 결과를 대조 — 너비 우선은 최소 칸 수, 균일 비용·A*는 최소 비용을 찾는가, 찾았다는 길이 실제로 이어져 있는가 | 그래프 탭이나 탐색 엔진을 고친 뒤. `npm run ci`가 부른다 |
 | `check_puzzle_heuristic.mjs` | **8-퍼즐의 평가 함수를 페이지 원문 그대로 돌려** 값을 대조 — A*가 정말 최소 수를 찾는가, 두 어림값이 실제보다 크지 않은가, 판 위 뱃지의 합이 맨해튼 거리와 같은가 | 8-퍼즐을 고친 뒤. `npm run ci`가 부른다 |
+| `check_deep_learning.mjs` | **딥러닝 시뮬레이터를 페이지 원문 그대로 돌려** 그린 좌표를 따진다 — 접선이 접점을 지나는가(기울기는 **그려진 곡선의 중앙차분**과 대조), 전체 화면을 드나든 뒤에도 캔버스가 부모와 같은 크기인가, 열 때마다 뽑는 자료가 그림 칸과 학습률 슬라이더 안에 드는가, 곡선이 그림 칸 세로를 충분히 쓰는가 | 딥러닝 시뮬레이터를 고친 뒤. `npm run ci`가 부른다 |
 | `gen_graph_presets.mjs` | 위 조건을 통과하는 **지도를 새로 뽑아** `graph-presets.js`에 적는다 (`_emit`이 글자로 바꾼다) | 지도를 갈아엎을 때만. 손으로 부른다 |
 | `check_stale_refs.py` | **지운 이름을 문서·주석이 아직 부르는지** | 이름·경로를 지우거나 옮긴 뒤 |
 | `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
@@ -55,7 +56,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | | |
 |---|---|
 | `build`가 부르는 것 | `vite build` → 배부 문서 생성 |
-| `check:classes` · `check:code` · `check:graph` · `check:graph-sim` · `check:puzzle` | `check`가 부른다 |
+| `check:classes` · `check:code` · `check:graph` · `check:graph-sim` · `check:puzzle` · `check:deep-learning` | `check`가 부른다 |
 | `check:dist` | 산출물 검사 |
 | `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
 | `audit:pre` · `audit:svg` | 가로 넘침 · SVG 글자 크기 감사 |

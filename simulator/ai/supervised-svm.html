@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서포트 벡터 머신 (SVM) 시뮬레이터</title>
+    <script type="module" src="/src/entries/simulator/ai/supervised-svm.js"></script>
+    <link rel="stylesheet" href="/src/styles/simulator.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
+        code, kbd, samp, pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(
+                    135deg,
+                    #65a30d 0%,
+                    #22c55e 40%,
+                    #10b981 100%
+            );
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.25s ease;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .tool-btn.active {
+            border-color: #334155 !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .math-font {
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: -0.5px;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* 전체 화면에서는 가로가 남는다. 양옆 조작 칸을 조금씩 넓혀 슬라이더 라벨과
+           단추 글자가 덜 접히게 한다. 평소 배치(`lg:grid-cols-[200px_1fr_240px]`)는
+           그대로 두고 전체 화면일 때만 바꾼다.
+           **가운데 그림은 좁아지지 않는다** — `.fs-fit` 이 전체 화면에서는 폭이 아니라
+           남는 높이로 크기를 정하기 때문이다.
+           격자가 세 열이 되는 것은 `lg` 부터이므로 같은 폭에서만 건다. 안 그러면
+           좁은 화면에서 전체 화면으로 갔을 때 한 열짜리 배치를 세 열로 되돌린다. */
+        @media (min-width: 1024px) {
+            #activity:fullscreen > .fs-fill {
+                grid-template-columns: 224px 1fr 264px;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header id="intro" class="hero-gradient text-white py-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">서포트 벡터 머신 (SVM) 시뮬레이터</h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            마진을 최대화하라 &mdash; 두 그룹을 가장 안전하게 나누는 '최적의 선'은 무엇일까요? 여백(Margin)을 가장 넓게 확보하는 선을 긋는 SVM의 원리를 시각적으로 체험해 봅니다.
+        </p>
+    </div>
+</header>
+
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center text-white">
+                <i class="fa-solid fa-vector-square"></i>
+            </div>
+            <span class="font-black text-2xl tracking-tight text-slate-800">서포트 벡터 머신</span>
+        </div>
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-sm">
+            <a href="#intro" class="hover:text-rose-600 transition">도입</a>
+            <a href="#concept" class="hover:text-rose-600 transition">핵심원리</a>
+            <a href="#activity" class="hover:text-rose-600 transition">시뮬레이터</a>
+            <a href="#advanced" class="hover:text-rose-600 transition">심화학습</a>
+            <a href="#deep-dive" class="hover:text-rose-600 transition">수식표기법</a>
+            <a href="#quiz" class="hover:text-rose-600 transition">자가진단</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <section id="concept" class="scroll-mt-24 space-y-12 mx-auto">
+        <div class="text-center space-y-4">
+            <span class="text-rose-600 font-bold tracking-widest uppercase text-base">Core Mechanism</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">SVM은 어떻게 최적의 선을 찾을까요?</h2>
+            <p class="text-slate-600 text-lg font-medium">SVM은 경계선과 데이터 사이의 '여백(Margin)'을 최대한 넓게 만드는 것을 목표로 합니다.</p>
+        </div>
+
+        <div class="relative grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner text-4xl">
+                    <i class="fa-solid fa-slash"></i></div>
+                <span class="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-full text-base mb-4">Step 1</span>
+                <h3 class="text-2xl font-black mb-3 text-slate-800">결정 경계 (Decision Boundary)</h3>
+                <p class="text-slate-600 text-lg leading-relaxed break-keep">두 그룹(클래스) 사이를 가르는 기준선(Hyperplane)을 찾습니다.
+                    무리의 평균 위치가 아니라 <strong>서로 맞닿은 쪽의 데이터</strong>를 보고 자리를 잡습니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner text-4xl">
+                    <i class="fa-solid fa-arrows-left-right-to-line"></i></div>
+                <span class="px-4 py-1.5 bg-rose-50 text-rose-600 font-bold rounded-full text-base mb-4">Step 2</span>
+                <h3 class="text-2xl font-black mb-3 text-slate-800">마진 최대화 (Maximize Margin)</h3>
+                <p class="text-slate-600 text-lg leading-relaxed break-keep">기준선 양쪽으로 선을 평행하게 확장하여 만들어지는 빈 공간인 <strong>'마진(Margin)'</strong>이
+                    가장 넓어지도록 선의 각도를 조정합니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner text-4xl">
+                    <i class="fa-solid fa-bullseye"></i></div>
+                <span class="px-4 py-1.5 bg-emerald-50 text-emerald-600 font-bold rounded-full text-base mb-4">Step 3</span>
+                <h3 class="text-2xl font-black mb-3 text-slate-800">서포트 벡터 (Support Vectors)</h3>
+                <p class="text-slate-600 text-lg leading-relaxed break-keep">이때 마진의 끝(경계)에 닿거나 그 안쪽으로 들어와서 선의 위치를 떠받치는
+                    데이터 포인트들을 <strong>서포트 벡터</strong>라고 부릅니다.
+                    마진 바깥에 여유 있게 떨어진 점은 아무리 많아도 선을 움직이지 못합니다.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="activity"
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+        <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추. -->
+        <button type="button" class="fs-btn" data-fullscreen="activity"
+                title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+        <div class="mb-6 space-y-2 text-center md:text-left">
+            <span class="text-rose-600 font-bold tracking-widest uppercase text-base fs-hide">Interactive Simulator</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">SVM 시각화 시뮬레이터</h2>
+            <p class="text-slate-600 text-lg fs-hide">데이터를 배치하고 'Train(학습)' 버튼을 눌러보세요. SVM이 선을 움직이며 마진을 찾아가는 과정을 볼 수 있습니다.</p>
+        </div>
+
+        <div class="fs-fill grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
+
+            <!-- Col 1: 데이터 입력 도구 -->
+            <div class="flex flex-col gap-4">
+                <div class="bg-white p-3 rounded-2xl border-2 border-slate-200 flex flex-col gap-3 shadow-sm">
+                    <p class="text-sm font-bold text-slate-500 text-center uppercase tracking-wide">클래스 선택</p>
+                    <button class="tool-btn active px-4 py-3 text-lg bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-all border-2 border-rose-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            data-tool="1">
+                        <i class="fa-solid fa-circle mr-2"></i>Class A
+                    </button>
+                    <button class="tool-btn px-4 py-3 text-lg bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border-2 border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            data-tool="-1">
+                        <i class="fa-solid fa-square mr-2"></i>Class B
+                    </button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col gap-3">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="font-bold text-slate-600 text-sm flex items-center">
+                            <i class="fa-solid fa-up-right-and-down-left-from-center mr-2 text-slate-400"></i>데이터 퍼짐 정도
+                        </label>
+                        <span class="text-xs font-bold text-slate-400"><span id="spreadLabel"
+                                                                             class="text-rose-600">적당함</span> (응집 ↔ 분산)</span>
+                        <input type="range" id="spreadSlider" min="50" max="450" value="250"
+                               class="w-full accent-rose-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    </div>
+                    <button id="btnRandomData"
+                            class="w-full px-4 py-2.5 text-base bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl transition-all border-2 border-rose-200 shadow-sm flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
+                    </button>
+                    <button id="btnClearData"
+                            class="w-full px-4 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-eraser mr-2"></i>지우기
+                    </button>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white">
+                    <p class="font-black text-slate-300 text-sm flex items-center uppercase tracking-widest mb-3">
+                        <i class="fa-solid fa-calculator mr-2"></i>Decision Boundary
+                    </p>
+                    <div class="bg-slate-900 rounded-xl py-5 px-3 flex items-center justify-center border border-slate-600 shadow-inner">
+                        <span id="equationDisplay"
+                              class="math-font text-lg font-black text-emerald-400 text-center break-all">w₁x₁ + w₂x₂ + b = 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Col 2: 캔버스 + 상태 메시지 -->
+            <div class="flex flex-col gap-4">
+                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner aspect-square">
+                    <canvas id="svmCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                </div>
+                <!-- 캔버스에 그려지는 표시의 뜻. 없으면 노란 테두리와 점선이 무엇인지 알 길이 없다. -->
+                <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-bold text-slate-600 px-1">
+                    <span class="flex items-center gap-1.5"><span class="inline-block w-6 h-0.5 bg-slate-800"></span>결정 경계</span>
+                    <span class="flex items-center gap-1.5"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span>마진 (w&middot;x + b = &plusmn;1)</span>
+                    <span class="flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 rounded-full border-2 border-amber-400"></span>서포트 벡터</span>
+                    <span class="flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-red-500"></span>마진 안으로 들어온 데이터</span>
+                </div>
+                <div class="bg-slate-100 border-2 border-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 min-h-[72px]"
+                     id="statusMessageBar">
+                    <i id="statusMessageIcon" class="fa-solid fa-pen-nib mr-3 text-xl"></i>
+                    <span id="statusMessageText" class="text-base">배치할 데이터의 클래스를 선택하고 캔버스를 클릭하세요.</span>
+                </div>
+            </div>
+
+            <!-- Col 3: 학습 조절 + 결과 -->
+            <div class="flex flex-col gap-4">
+                <div class="bg-rose-50/80 p-4 rounded-2xl border-2 border-rose-100 shadow-sm flex flex-col gap-3">
+                    <div class="bg-white p-3 rounded-xl border border-rose-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="font-bold text-slate-700 text-sm break-keep">C (규제 파라미터)</label>
+                            <span id="cValueDisplay" class="font-black text-rose-600 text-xl leading-none">1.0</span>
+                        </div>
+                        <div class="text-right mb-1.5">
+                            <span id="cMarginLabel" class="text-xs font-bold text-rose-400 break-keep">표준 마진</span>
+                        </div>
+                        <!-- 학습부에서 C < 0.01 을 0.01 로 잘라내므로, 슬라이더 하한도 C=0.01 에 맞춘다.
+                             (min=0 이면 0~10 구간이 전부 같은 C 로 동작하는 '먹통 구간'이 되고,
+                              표시값은 0.00 인데 실제로는 0.01 이 쓰여 값이 어긋난다.) -->
+                        <input type="range" id="cSlider" min="10" max="100" step="1" value="50"
+                               class="w-full accent-rose-600 mb-1.5 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                        <p class="text-xs font-bold text-rose-500 text-center bg-rose-50 py-1.5 rounded break-keep">
+                            ※ 작은 C = 너그러운 벌점 😌<br>큰 C = 엄격한 벌점 😡
+                        </p>
+                    </div>
+                    <button id="btnTrain" disabled
+                            class="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white font-black text-xl rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-play text-2xl"></i>
+                        <span>SVM 학습 (Train)</span>
+                    </button>
+                    <button id="btnResetAlg" disabled
+                            class="w-full py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-base rounded-xl transition-all border-2 border-slate-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-xl"></i>
+                        <span>학습 결과 초기화</span>
+                    </button>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col">
+                    <h3 class="font-black text-slate-800 mb-3 flex items-center text-base shrink-0">
+                        <i class="fa-solid fa-list-check text-rose-600 mr-2"></i>학습 진행 과정
+                    </h3>
+                    <div class="flex flex-col gap-3 relative">
+                        <div class="absolute left-5 top-6 bottom-6 w-0.5 bg-slate-200 z-0 rounded"></div>
+
+                        <div id="flow-IDLE"
+                             class="flow-box relative z-10 bg-white border-2 border-slate-300 rounded-xl p-3 shadow-sm transition-all duration-300 transform scale-[1.02]">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-black mb-1 bg-slate-100 text-slate-600">Step 0</span>
+                            <div class="step-title font-bold text-slate-800 text-base flex items-center break-keep">
+                                <i class="fa-solid fa-pen-nib w-5 shrink-0"></i>데이터 입력 대기 중
+                            </div>
+                        </div>
+
+                        <div id="flow-TRAIN"
+                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 1 & 2</span>
+                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
+                                <i class="fa-solid fa-arrows-left-right-to-line w-6"></i> 마진 최대화 훈련
+                            </div>
+                        </div>
+
+                        <div id="flow-DONE"
+                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 3</span>
+                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
+                                <i class="fa-solid fa-bullseye w-5 shrink-0"></i>서포트 벡터 추출 완료
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <section id="advanced" class="scroll-mt-24 space-y-12 mx-auto">
+        <div class="text-center space-y-4">
+            <span class="text-rose-600 font-bold tracking-widest uppercase text-base">Advanced Theory</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">SVM의 숨겨진 기하학적 원리</h2>
+            <p class="text-slate-600 text-lg font-medium">수식과 파라미터가 실제로 어떤 의미를 가지는지 조금 더 깊이 알아볼까요?</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg flex flex-col h-full transform transition-transform">
+                <div class="flex items-center mb-6">
+                    <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl mr-4 shadow-inner">
+                        <i class="fa-solid fa-ruler-combined"></i></div>
+                    <h3 class="text-2xl font-black text-slate-800">결정 경계와 마진의 크기</h3>
+                </div>
+                <div class="space-y-4 text-slate-600 text-lg leading-relaxed flex-grow">
+                    <p>우측 시뮬레이터에서 보았던 방정식 <span class="font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded">w₁x₁ + w₂x₂ + b = 0</span>
+                        은 두 클래스를 가르는 <strong>결정 경계선(실선)</strong>입니다.</p>
+                    <p>SVM은 이 선을 기준으로 양쪽에 <span class="font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded">w·x + b = ±1</span>
+                        이라는 <strong>마진(점선)</strong>을 만듭니다.</p>
+                    <div class="bg-indigo-50 border border-indigo-100 p-5 rounded-xl my-4 text-center">
+                        <p class="font-black text-indigo-800 mb-2 text-xl">마진의 폭(Width) = 2 / ||w||</p>
+                        <p class="text-base text-indigo-600 font-bold break-keep">즉, <strong>모든 데이터가 마진 밖에 놓인다는 조건 아래에서</strong>
+                            여백을 최대화(Maximize Margin)한다는 것은
+                            가중치 벡터인 <strong>w의 크기를 최소화</strong>하는 것과 같습니다.
+                            조건을 빼고 w만 줄이면 w = 0 이 되어 선 자체가 사라집니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg flex flex-col h-full transform transition-transform">
+                <div class="flex items-center mb-6">
+                    <div class="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-2xl mr-4 shadow-inner">
+                        <i class="fa-solid fa-sliders"></i></div>
+                    <h3 class="text-2xl font-black text-slate-800">규제 파라미터 C (Cost)</h3>
+                </div>
+                <div class="space-y-4 text-slate-600 text-lg leading-relaxed flex-grow">
+                    <p>현실의 데이터는 완벽하게 나누어지지 않습니다. 이때 <strong>마진 안으로 들어오거나 아예 반대편으로 넘어간 데이터</strong>를
+                        얼마나 봐줄지 조절하는 것이 <strong>규제 파라미터 C</strong>입니다.</p>
+
+                    <div class="bg-rose-50 border border-rose-100 p-4 rounded-xl my-3">
+                        <p class="font-bold text-rose-800 mb-1"><i class="fa-solid fa-tag mr-2"></i>C는 무엇의 약자일까요?</p>
+                        <p class="text-base text-rose-700">주로 <strong>Cost(비용/벌점)</strong>를 의미합니다. 모델이 오차를 냈을 때 치러야 하는
+                            '벌점'의 크기라고 생각하면 이해하기 쉽습니다!</p>
+                    </div>
+
+                    <ul class="space-y-4 mt-5">
+                        <li class="flex items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <i class="fa-solid fa-shield-halved text-rose-500 mt-1 mr-3 text-xl"></i>
+                            <div>
+                                <strong class="text-slate-800 block mb-1">C가 클 때 (High Cost):</strong>
+                                <p class="text-base break-keep">"오차 하나당 벌점 10,000점!" 😡<br>벌점이 너무 무서워서 모델이 에러를 절대 안 내려고
+                                    깐깐하게 선을 긋습니다. 그 결과 여유 공간인 마진의 폭이 아주 좁아지지요 (Hard Margin).</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <i class="fa-solid fa-handshake-angle text-blue-500 mt-1 mr-3 text-xl"></i>
+                            <div>
+                                <strong class="text-slate-800 block mb-1">C가 작을 때 (Low Cost):</strong>
+                                <p class="text-base break-keep">"오차 하나당 벌점 0.1점~" 😌<br>모델이 "뭐 현실 데이터에 노이즈가 좀 있을 수도 있지~"
+                                    하고 에러를 너그럽게 봐주면서 마진을 넓고 여유롭게 가져갑니다 (Soft Margin).</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="deep-dive" class="scroll-mt-24 space-y-12 mx-auto mt-24">
+        <div class="text-center space-y-4">
+            <span class="text-indigo-600 font-bold tracking-widest uppercase text-base">Mathematical Notation</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">왜 수식에서 y 대신 x₂를 쓸까요?</h2>
+            <p class="text-slate-600 text-lg font-medium">수학 시간에 배운 일차함수(y = ax + b)와 머신러닝의 수식 표기법은 조금 다릅니다. 그 이유를
+                알아볼까요?</p>
+        </div>
+
+        <div class="relative grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col h-full transform transition-transform">
+                <div class="flex items-center mb-5">
+                    <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shadow-inner text-xl mr-4 shrink-0">
+                        <i class="fa-solid fa-tag"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800 leading-tight">y는 이미 '정답지'로 예약됨!</h3>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed break-keep">
+                    머신러닝에서 알파벳 <strong class="text-rose-600">y</strong>는 데이터가 속한 클래스(예: +1 또는 -1, 개 또는 고양이)를 의미하는
+                    <strong>'정답 라벨'</strong>로 고정되어 쓰입니다. 세로축을 y라고 부르면 좌표와 정답이 혼동될 수 있습니다.
+                </p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col h-full transform transition-transform">
+                <div class="flex items-center mb-5">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner text-xl mr-4 shrink-0">
+                        <i class="fa-solid fa-list-ul"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800 leading-tight">x는 '데이터의 특징'</h3>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed break-keep">
+                    데이터가 가진 속성들을 묶어 <strong class="text-blue-600">x</strong>라고 부릅니다. 2차원 화면에서 첫 번째 특징(가로 위치)은
+                    <strong>x₁</strong>, 두 번째 특징(세로 위치)은 <strong>x₂</strong>가 됩니다. 즉, 전통적인 x, y축이 이름만 바뀐 것입니다.
+                </p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col h-full transform transition-transform">
+                <div class="flex items-center mb-5">
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-inner text-xl mr-4 shrink-0">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800 leading-tight">무한한 차원 확장성</h3>
+                </div>
+                <p class="text-slate-600 text-base leading-relaxed break-keep">
+                    실제 인공지능이 다루는 데이터는 특징이 수백 개입니다. x, y, z를 쓰면 알파벳이 부족해지지만, <strong class="text-emerald-600">x₁, x₂, ...
+                    x₁₀₀</strong> 방식의 아래첨자를 쓰면 특징이 몇 개든 하나의 규칙적인 수식으로 표현할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-indigo-50 border-2 border-indigo-100 p-6 rounded-2xl flex items-start sm:items-center gap-5 shadow-sm">
+            <div class="w-14 h-14 bg-white text-indigo-600 rounded-full flex items-center justify-center text-2xl shadow-sm shrink-0">
+                <i class="fa-solid fa-lightbulb"></i>
+            </div>
+            <div>
+                <p class="font-black text-indigo-900 text-lg mb-1">방정식 요약 정리!</p>
+                <p class="text-indigo-700 font-medium break-keep">
+                    수식 <span class="font-bold bg-white px-2 py-0.5 rounded text-indigo-900 border border-indigo-200">-2.20x₁ + 1.52x₂ + 0.15 = 0</span>
+                    에서
+                    <strong>x₁</strong>은 캔버스의 가로 좌표를, <strong>x₂</strong>는 캔버스의 세로 좌표를 의미합니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="quiz" class="scroll-mt-24 space-y-12 mx-auto">
+        <div class="text-center">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">학습 내용 확인하기</h2>
+            <div class="w-20 h-1.5 bg-rose-500 mx-auto rounded-full mt-4"></div>
+        </div>
+        <div class="space-y-8">
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                <p class="text-xl md:text-2xl font-bold mb-6 text-slate-800 leading-snug">Q1. 서포트 벡터 머신(SVM)에서 '서포트 벡터'가
+                    의미하는 것은 무엇인가요?</p>
+                <div class="grid grid-cols-1 gap-4">
+                    <button onclick="checkAnswer(this, false, '중앙이 아니라 경계선(마진) 쪽에 있는 데이터입니다.')"
+                            class="quiz-btn text-lg">A. 각 데이터 무리의 가장 중앙에 위치한 평균 데이터
+                    </button>
+                    <button onclick="checkAnswer(this, true, '정답입니다! 마진 끝에 걸쳐서 결정 경계를 직접적으로 떠받치는 핵심 데이터입니다.')"
+                            class="quiz-btn text-lg">B. 결정 경계를 정의하고 마진의 폭을 결정하는 가장 가까운 핵심 데이터
+                    </button>
+                    <button onclick="checkAnswer(this, false, '멀리 떨어진 데이터는 결정 경계에 영향을 주지 못합니다.')"
+                            class="quiz-btn text-lg">C. 결정 경계선에서 가장 멀리 떨어져서 이상치로 판별된 데이터
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="자료 목록" aria-label="자료 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    const CLASS_A = 1;
+    const CLASS_B = -1;
+
+    // 개선사항 1: 정규화 좌표 저장 로직 도입 (-1.0 ~ 1.0)
+    class DataManager {
+        constructor() {
+            this.points = [];
+        }
+
+        addPoint(nx, ny, cls) {
+            this.points.push({nx, ny, cls});
+        }
+
+        clear() {
+            this.points = [];
+        }
+
+        generateRandom(width, height, spreadRadius = 250) {
+            this.clear();
+            const cx1 = width * 0.3, cy1 = height * 0.3;
+            const cx2 = width * 0.7, cy2 = height * 0.7;
+            for (let i = 0; i < 30; i++) {
+                let px1 = Math.max(20, Math.min(width - 20, cx1 + (Math.random() - 0.5) * spreadRadius));
+                let py1 = Math.max(20, Math.min(height - 20, cy1 + (Math.random() - 0.5) * spreadRadius));
+                this.addPoint((px1 - width / 2) / (width / 2), (height / 2 - py1) / (height / 2), CLASS_A);
+
+                let px2 = Math.max(20, Math.min(width - 20, cx2 + (Math.random() - 0.5) * spreadRadius));
+                let py2 = Math.max(20, Math.min(height - 20, cy2 + (Math.random() - 0.5) * spreadRadius));
+                this.addPoint((px2 - width / 2) / (width / 2), (height / 2 - py2) / (height / 2), CLASS_B);
+            }
+        }
+    }
+
+    class SVMAlgorithm {
+        constructor() {
+            this.w = [0, 0];
+            this.b = 0;
+            this.supportVectors = [];
+            this.abortFlag = false;
+        }
+
+        // 갱신 한 걸음. Train 버튼과 C 슬라이더가 반드시 같은 규칙을 쓰도록 한 곳에 둔다.
+        // 절편 b 를 '값이 1 인 상수 특성의 가중치'로 보아 w 와 똑같이 줄이고 함께 투영한다.
+        // b 만 규제 밖에 두면 첫 걸음의 학습률(1/λ = C·n, C 가 크면 수천)이 그대로 b 에 실려
+        // 경계가 캔버스 밖으로 날아간 채 돌아오지 못한다.
+        stepOnce(p, eta, lambda) {
+            const shrink = 1 - eta * lambda;
+            const margin = p.y * (this.w[0] * p.x1 + this.w[1] * p.x2 + this.b);
+
+            if (margin < 1) {
+                this.w[0] = shrink * this.w[0] + eta * p.y * p.x1;
+                this.w[1] = shrink * this.w[1] + eta * p.y * p.x2;
+                this.b = shrink * this.b + eta * p.y;
+            } else {
+                this.w[0] = shrink * this.w[0];
+                this.w[1] = shrink * this.w[1];
+                this.b = shrink * this.b;
+            }
+
+            // Pegasos projection
+            const norm = Math.sqrt(this.w[0] * this.w[0] + this.w[1] * this.w[1] + this.b * this.b);
+            const limit = 1 / Math.sqrt(lambda);
+
+            if (norm > limit) {
+                this.w[0] *= limit / norm;
+                this.w[1] *= limit / norm;
+                this.b *= limit / norm;
+            }
+        }
+
+        // 갱신 횟수를 데이터 수와 무관하게 약 60만 번으로 맞춘다(계산은 25ms 안쪽이다).
+        // epoch 400 회로는 C 가 큰 쪽(하드 마진)에서 수렴하지 못해 마진이 최적의 80% 에 그치고,
+        // 마진 위에 놓이는 점이 하나도 없어 서포트 벡터가 0개로 표시된다.
+        epochBudget(n) {
+            return Math.max(400, Math.ceil(600000 / Math.max(1, n)));
+        }
+
+        async trainAnimated(points, C, onFrameUpdate) {
+            this.abortFlag = false;
+            if (C < 0.01) C = 0.01;
+
+            let normPoints = points.map(p => ({
+                x1: p.nx,
+                x2: p.ny,
+                y: p.cls,
+                original: p
+            }));
+
+            this.w = [0.0, 0.0];
+            this.b = 0.0;
+            let lambda = 1.0 / (C * normPoints.length);
+            let epochs = this.epochBudget(normPoints.length);
+            let t = 0;
+
+            // 프레임은 80장으로 고정하되 간격을 로그로 벌린다.
+            // 선이 크게 움직이는 것은 초반이므로, 균등 간격으로 뽑으면 그 구간이 통째로 건너뛰어진다.
+            let nextFrame = 0;
+            const frameGrowth = Math.pow(epochs, 1 / 80);
+
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                if (this.abortFlag) return;
+
+                for (let i = normPoints.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [normPoints[i], normPoints[j]] = [normPoints[j], normPoints[i]];
+                }
+
+                for (let p of normPoints) {
+                    t++;
+                    this.stepOnce(p, 1.0 / (lambda * t), lambda);
+                }
+
+                if (epoch >= nextFrame) {
+                    nextFrame = Math.max(epoch + 1, Math.ceil((epoch + 1) * frameGrowth));
+                    this.identifySupportVectors(normPoints);
+                    onFrameUpdate();
+                    await new Promise(r => setTimeout(r, 30));
+                }
+            }
+
+            if (!this.abortFlag) {
+                this.identifySupportVectors(normPoints);
+                onFrameUpdate();
+            }
+        }
+
+        trainInstant(points, C) {
+            if (C < 0.01) C = 0.01;
+
+            let normPoints = points.map(p => ({
+                x1: p.nx,
+                x2: p.ny,
+                y: p.cls,
+                original: p
+            }));
+
+            this.w = [0.0, 0.0];
+            this.b = 0.0;
+            let lambda = 1.0 / (C * normPoints.length);
+            let epochs = this.epochBudget(normPoints.length);
+            let t = 0;
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                for (let i = normPoints.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [normPoints[i], normPoints[j]] = [normPoints[j], normPoints[i]];
+                }
+                for (let p of normPoints) {
+                    t++;
+                    this.stepOnce(p, 1.0 / (lambda * t), lambda);
+                }
+            }
+            this.identifySupportVectors(normPoints);
+        }
+
+        identifySupportVectors(normPoints) {
+            // 서포트 벡터는 '마진 경계 위에 있거나 그 안쪽으로 들어온' 점, 즉 y·f(x) <= 1 인 점이다.
+            // 하한(margin >= -0.05)을 두면 경계 반대편으로 깊이 넘어간 오분류 점이 빠지는데,
+            // 소프트 마진 SVM에서 그런 점들도 엄연히 서포트 벡터(벌점을 무는 점)이므로 하한을 두지 않는다.
+            this.supportVectors = [];
+            for (let p of normPoints) {
+                let margin = p.y * (this.w[0] * p.x1 + this.w[1] * p.x2 + this.b);
+                if (margin <= 1.05) this.supportVectors.push(p.original);
+            }
+        }
+    }
+
+    class CanvasRenderer {
+        constructor(canvas, data, svm) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.data = data;
+            this.svm = svm;
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+            this.animate = this.animate.bind(this);
+            requestAnimationFrame(this.animate);
+        }
+
+        resize() {
+            const rect = this.canvas.parentElement.getBoundingClientRect();
+            this.canvas.width = rect.width;
+            this.canvas.height = rect.height;
+        }
+
+        animate() {
+            this.draw(window.phase); // 개선사항 4: 전역변수 의존성을 끊고 파라미터로 주입받음
+            requestAnimationFrame(this.animate);
+        }
+
+        drawLine(w0, w1, b, offset, color, isDashed, lineWidth) {
+            if (w0 === 0 && w1 === 0) return;
+
+            const cw = this.canvas.width;
+            const ch = this.canvas.height;
+            const drawCtx = this.ctx;
+
+            function toCanvasX(x) {
+                return (x + 1) * cw / 2;
+            }
+
+            function toCanvasY(y) {
+                return (1 - y) * ch / 2;
+            } // 수정됨
+
+            drawCtx.beginPath();
+            if (isDashed) drawCtx.setLineDash([10, 10]);
+            else drawCtx.setLineDash([]);
+
+            drawCtx.lineWidth = lineWidth;
+            drawCtx.strokeStyle = color;
+
+            let x1, y1, x2, y2;
+            if (Math.abs(w1) > Math.abs(w0)) {
+                x1 = -1;
+                x2 = 1;
+                y1 = (offset - b - w0 * x1) / w1;
+                y2 = (offset - b - w0 * x2) / w1;
+            } else {
+                y1 = -1;
+                y2 = 1;
+                x1 = (offset - b - w1 * y1) / w0;
+                x2 = (offset - b - w1 * y2) / w0;
+            }
+
+            drawCtx.moveTo(toCanvasX(x1), toCanvasY(y1));
+            drawCtx.lineTo(toCanvasX(x2), toCanvasY(y2));
+            drawCtx.stroke();
+            drawCtx.setLineDash([]);
+        }
+
+        drawRegionsAndBoundary(currentPhase) {
+            if (this.svm.w[0] === 0 && this.svm.w[1] === 0) return;
+
+            let cw = this.canvas.width;
+            let ch = this.canvas.height;
+            let w0 = this.svm.w[0], w1 = this.svm.w[1], b = this.svm.b;
+
+            let A = w0 / (cw / 2);
+            let B = -w1 / (ch / 2);
+            let C_term = b - w0 + w1;
+
+            let pt1, pt2;
+            if (Math.abs(A) > Math.abs(B)) {
+                pt1 = {y: -1000, x: -(B * -1000 + C_term) / A};
+                pt2 = {y: ch + 1000, x: -(B * (ch + 1000) + C_term) / A};
+            } else {
+                pt1 = {x: -1000, y: -(A * -1000 + C_term) / B};
+                pt2 = {x: cw + 1000, y: -(A * (cw + 1000) + C_term) / B};
+            }
+
+            let mag = Math.sqrt(A * A + B * B);
+            let nx = -A / mag * 3000;
+            let ny = -B / mag * 3000;
+
+            this.ctx.fillStyle = 'rgba(244, 63, 94, 0.08)';
+            this.ctx.fillRect(0, 0, cw, ch);
+
+            this.ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(pt1.x, pt1.y);
+            this.ctx.lineTo(pt2.x, pt2.y);
+            this.ctx.lineTo(pt2.x + nx, pt2.y + ny);
+            this.ctx.lineTo(pt1.x + nx, pt1.y + ny);
+            this.ctx.closePath();
+            this.ctx.fill();
+
+            this.drawLine(w0, w1, b, 0, '#1e293b', false, 3);
+
+            let marginAlpha = currentPhase === 'TRAIN' ? 'rgba(148, 163, 184, 0.4)' : 'rgba(100, 116, 139, 0.8)';
+
+            // 마진 경계는 w·x + b = ±1 인 선이다. drawLine 의 offset 이 곧 이 우변이므로 ±1 을 넘긴다.
+            // (±1/||w|| 를 넘기면 실선에서 1/||w||² 만큼 떨어진 자리에 그려져,
+            //  서포트 벡터가 점선 밖에 남고 마진 폭도 실제보다 좁게 보인다.)
+            this.drawLine(w0, w1, b, 1, marginAlpha, true, 2);
+            this.drawLine(w0, w1, b, -1, marginAlpha, true, 2);
+        }
+
+        draw(currentPhase) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            if (currentPhase === 'DONE' || currentPhase === 'TRAIN') {
+                this.drawRegionsAndBoundary(currentPhase);
+
+                this.svm.supportVectors.forEach(p => {
+                    let cx = (p.nx + 1) * this.canvas.width / 2;
+                    let cy = (1 - p.ny) * this.canvas.height / 2;
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+                    this.ctx.strokeStyle = '#fbbf24';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.stroke();
+                });
+            }
+
+            this.data.points.forEach(p => {
+                let cx = (p.nx + 1) * this.canvas.width / 2;
+                let cy = (1 - p.ny) * this.canvas.height / 2;
+
+                // 개선사항 5: 교육적 피드백 시각화 강화 (마진 침범 데이터 붉은 강조)
+                let marginCheck = p.cls * (this.svm.w[0] * p.nx + this.svm.w[1] * p.ny + this.svm.b);
+                let isMarginViolation = (currentPhase === 'DONE' && marginCheck < 1);
+
+                this.ctx.beginPath();
+                if (p.cls === CLASS_A) {
+                    this.ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#f43f5e';
+                } else {
+                    this.ctx.rect(cx - 6, cy - 6, 12, 12);
+                    this.ctx.fillStyle = '#3b82f6';
+                }
+                this.ctx.fill();
+
+                if (isMarginViolation) {
+                    this.ctx.strokeStyle = '#ef4444'; // 에러 허용(Penalty) 데이터 강조
+                    this.ctx.lineWidth = 3.5;
+                } else {
+                    this.ctx.strokeStyle = '#ffffff';
+                    this.ctx.lineWidth = 1.5;
+                }
+                this.ctx.stroke();
+            });
+        }
+    }
+
+    const dataManager = new DataManager();
+    const svm = new SVMAlgorithm();
+    const canvas = document.getElementById('svmCanvas');
+    const renderer = new CanvasRenderer(canvas, dataManager, svm);
+
+    const btnRandom = document.getElementById('btnRandomData');
+    const btnClear = document.getElementById('btnClearData');
+    const btnTrain = document.getElementById('btnTrain');
+    const btnResetAlg = document.getElementById('btnResetAlg');
+
+    const sliderC = document.getElementById('cSlider');
+    const labelC = document.getElementById('cValueDisplay');
+    const labelCMargin = document.getElementById('cMarginLabel');
+
+    const spreadSlider = document.getElementById('spreadSlider');
+    const spreadLabel = document.getElementById('spreadLabel');
+    const eqDisplay = document.getElementById('equationDisplay');
+    const toolBtns = document.querySelectorAll('.tool-btn');
+
+    let activeTool = CLASS_A;
+    window.phase = 'IDLE'; // 전역 관리
+
+    const THEMES = {
+        IDLE: {boxBg: 'bg-white', boxBorder: 'border-slate-400', text: 'text-slate-800', badgeBg: 'bg-slate-200'},
+        TRAIN: {boxBg: 'bg-rose-50', boxBorder: 'border-rose-500', text: 'text-rose-800', badgeBg: 'bg-rose-200'},
+        DONE: {
+            boxBg: 'bg-emerald-50',
+            boxBorder: 'border-emerald-500',
+            text: 'text-emerald-800',
+            badgeBg: 'bg-emerald-200'
+        }
+    };
+
+    function updateFlowUI(activePhase, message, icon, barBg = 'bg-slate-100', barText = 'text-slate-700') {
+        window.phase = activePhase;
+        const msgBar = document.getElementById('statusMessageBar');
+        document.getElementById('statusMessageText').innerText = message;
+        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} mr-3 text-2xl`;
+        msgBar.className = `w-full px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 border-2 min-h-[72px] ${barBg} border-slate-200 ${barText}`;
+
+        ['IDLE', 'TRAIN', 'DONE'].forEach(p => {
+            const box = document.getElementById(`flow-${p}`);
+            if (p === activePhase) {
+                box.className = `flow-box relative z-10 opacity-100 shadow-md scale-[1.03] border-2 rounded-xl p-4 transition-all duration-300 ${THEMES[p].boxBg} ${THEMES[p].boxBorder}`;
+                box.querySelector('.step-badge').className = `step-badge inline-block px-2.5 py-1 rounded-md text-base font-black mb-1 text-slate-800 ${THEMES[p].badgeBg}`;
+                box.querySelector('.step-title').className = `step-title font-bold text-base flex items-center break-keep ${THEMES[p].text}`;
+            } else {
+                box.className = `flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-4 transition-all duration-300 transform scale-100`;
+                box.querySelector('.step-badge').className = `step-badge inline-block px-2.5 py-1 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500`;
+                box.querySelector('.step-title').className = `step-title font-bold text-slate-500 text-base flex items-center break-keep`;
+            }
+        });
+
+        const hasA = dataManager.points.some(p => p.cls === CLASS_A);
+        const hasB = dataManager.points.some(p => p.cls === CLASS_B);
+
+        // 개선사항 2: 상태에 따른 UI 엄격 잠금
+        const isTraining = (activePhase === 'TRAIN');
+        btnTrain.disabled = !(hasA && hasB) || isTraining;
+        btnResetAlg.disabled = (activePhase === 'IDLE' || isTraining);
+        btnRandom.disabled = isTraining;
+        btnClear.disabled = isTraining;
+        spreadSlider.disabled = isTraining;
+        sliderC.disabled = isTraining;
+        toolBtns.forEach(btn => btn.disabled = isTraining);
+    }
+
+    function updateEquationText() {
+        if (svm.w[0] === 0 && svm.w[1] === 0) {
+            eqDisplay.innerText = "w₁x₁ + w₂x₂ + b = 0";
+            return;
+        }
+        let w1 = svm.w[0].toFixed(2);
+        let w2 = svm.w[1];
+        let signW2 = w2 >= 0 ? "+" : "-";
+        let absW2 = Math.abs(w2).toFixed(2);
+        let b = svm.b;
+        let signB = b >= 0 ? "+" : "-";
+        let absB = Math.abs(b).toFixed(2);
+
+        eqDisplay.innerText = `${w1}x₁ ${signW2} ${absW2}x₂ ${signB} ${absB} = 0`;
+    }
+
+    toolBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (window.phase === 'TRAIN') return;
+            toolBtns.forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            activeTool = parseInt(e.currentTarget.dataset.tool);
+            if (window.phase === 'DONE') resetSimulation();
+            updateFlowUI('IDLE', `클래스 ${activeTool === 1 ? 'A(원형)' : 'B(사각형)'} 데이터를 캔버스에 추가하세요.`, "fa-pen-nib");
+        });
+    });
+
+    canvas.addEventListener('click', (e) => {
+        if (window.phase === 'TRAIN') return; // 학습 중 클릭 차단
+        if (window.phase === 'DONE') resetSimulation();
+
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX - rect.left;
+        const clientY = e.clientY - rect.top;
+
+        const nx = (clientX - canvas.width / 2) / (canvas.width / 2);
+        const ny = (canvas.height / 2 - clientY) / (canvas.height / 2);
+
+        dataManager.addPoint(nx, ny, activeTool);
+        updateFlowUI('IDLE', '데이터가 추가되었습니다. 두 클래스 데이터가 모두 있다면 Train을 누르세요.', 'fa-check');
+    });
+
+    function calculateActualC(sliderVal) {
+        return Math.pow(10, (sliderVal - 50) / 20);
+    }
+
+    // 개선사항 3: 메인스레드 부하방지를 위한 디바운스 적용
+    let cDebounceTimer;
+    sliderC.addEventListener('input', (e) => {
+        let sliderVal = parseInt(e.target.value);
+        let actualC = calculateActualC(sliderVal);
+        // C는 0.01~316 로그 스케일이라 toFixed(2) 하나로는 작은 쪽 자릿수가 다 사라진다.
+        labelC.innerText = actualC < 1 ? actualC.toFixed(3) : actualC.toFixed(1);
+
+        if (sliderVal < 40) {
+            labelCMargin.innerText = "소프트 마진 (벌점 낮음 😌)";
+            labelCMargin.className = "text-base font-bold text-blue-500";
+        } else if (sliderVal > 65) {
+            labelCMargin.innerText = "하드 마진 (벌점 높음 😡)";
+            labelCMargin.className = "text-base font-bold text-rose-500";
+        } else {
+            labelCMargin.innerText = "표준 마진";
+            labelCMargin.className = "text-base font-bold text-rose-400";
+        }
+
+        if (window.phase === 'DONE') {
+            clearTimeout(cDebounceTimer);
+            cDebounceTimer = setTimeout(() => {
+                svm.trainInstant(dataManager.points, actualC);
+                updateEquationText();
+                updateFlowUI('DONE', 'C값이 변경되어 마진이 실시간 갱신되었습니다.', 'fa-bolt', 'bg-emerald-50', 'text-emerald-800');
+            }, 60);
+        }
+    });
+
+    spreadSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        if (val < 150) spreadLabel.innerText = "조밀함";
+        else if (val < 280) spreadLabel.innerText = "적당함";
+        else if (val < 380) spreadLabel.innerText = "넓게 흩어짐";
+        else spreadLabel.innerText = "매우 넓게 흩어짐 (혼합됨)";
+    });
+
+    btnRandom.addEventListener('click', () => {
+        const spreadValue = parseInt(spreadSlider.value);
+        dataManager.generateRandom(canvas.width, canvas.height, spreadValue);
+        resetSimulation();
+        updateFlowUI('IDLE', '무작위 데이터가 생성되었습니다. Train 버튼을 눌러 학습을 시작하세요.', 'fa-bullseye');
+    });
+
+    btnClear.addEventListener('click', () => {
+        dataManager.clear();
+        resetSimulation();
+        updateFlowUI('IDLE', '캔버스가 초기화되었습니다. 데이터를 다시 찍어보세요.', 'fa-eraser');
+    });
+
+    function resetSimulation() {
+        svm.abortFlag = true;
+        svm.w = [0, 0];
+        svm.b = 0;
+        svm.supportVectors = [];
+        updateEquationText();
+        updateFlowUI('IDLE', '데이터 입력 대기 중입니다.', 'fa-pen-nib');
+    }
+
+    btnResetAlg.addEventListener('click', resetSimulation);
+
+    btnTrain.addEventListener('click', async () => {
+        updateFlowUI('TRAIN', '최적의 마진을 찾는 중... 선이 이동하는 과정을 지켜보세요.', 'fa-spinner fa-spin', 'bg-rose-50', 'text-rose-800');
+
+        let sliderVal = parseInt(sliderC.value);
+        let actualC = calculateActualC(sliderVal);
+
+        await svm.trainAnimated(
+            dataManager.points,
+            actualC,
+            () => {
+                updateEquationText();
+            }
+        );
+
+        if (svm.abortFlag) return;
+
+        // 두 클래스가 같은 자리에 완전히 겹쳐 있으면 w 가 0 이 되어 선이 아예 그려지지 않는다.
+        // 그때 '학습 완료'라고만 하면 화면이 왜 비었는지 알 길이 없다.
+        if (svm.w[0] === 0 && svm.w[1] === 0) {
+            updateFlowUI('DONE', '두 클래스가 같은 자리에 겹쳐 있어 나눌 선을 찾지 못했습니다. 데이터를 떨어뜨려 다시 찍어 보세요.', 'fa-triangle-exclamation', 'bg-amber-50', 'text-amber-800');
+            return;
+        }
+
+        updateFlowUI('DONE', '학습 완료! 점선 사이의 마진 폭과, 그 마진을 떠받치는 노란 테두리(서포트 벡터)를 확인하세요.', 'fa-check-double', 'bg-emerald-50', 'text-emerald-800');
+    });
+
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.parentElement;
+        const buttons = container.querySelectorAll('.quiz-btn');
+        buttons.forEach(b => {
+            if (!b.dataset.label) b.dataset.label = b.textContent;
+            b.classList.remove('correct', 'wrong');
+            b.classList.add('disabled');
+        });
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = `<i class=\"fa-solid fa-circle-check mr-2\"></i>${btn.dataset.label}`;
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = `<i class=\"fa-solid fa-circle-xmark mr-2\"></i>${btn.dataset.label}`;
+        }
+        showToast(message, isCorrect ? 'success' : 'error');
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('correct', 'wrong', 'disabled');
+                b.innerHTML = b.dataset.label;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 z-[1000] text-lg ${type === 'success' ? 'bg-indigo-600' : 'bg-rose-500'}`;
+        toast.innerText = message;
+        window.fsOverlayHost().appendChild(toast);
+        setTimeout(() => toast.classList.remove('translate-y-20'), 10);
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-5');
+            setTimeout(() => toast.remove(), 500);
+        }, 2500);
+    }
+</script>
+<script>
+/* ============================================================
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
+            [['#btnTrain'], '#svmCanvas']
+    ]);
+});
+</script>
+
+</body>
+</html>

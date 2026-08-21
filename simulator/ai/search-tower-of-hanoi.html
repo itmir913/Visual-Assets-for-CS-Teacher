@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>하노이의 탑 시뮬레이터</title>
+    <script type="module" src="/src/entries/simulator/ai/search-tower-of-hanoi.js"></script>
+    <link rel="stylesheet" href="/src/styles/simulator.css">
+
+    <style>
+        code, kbd, samp, pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 50%, #f97316 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background-color: white;
+            border-radius: 1.5rem;
+            padding: 3rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border: 1px solid #f1f5f9;
+        }
+
+        @media (max-width: 768px) {
+            .section-card { padding: 1.5rem; border-radius: 1rem; }
+        }
+
+        /* ── 하노이 타워 시각화 ── */
+        .hanoi-scene {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 1rem 0.5rem 0;
+            background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 1rem;
+            border: 2px solid #fcd34d;
+            position: relative;
+        }
+
+        .peg-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            padding-bottom: 0.5rem;
+            min-width: 0;
+            border-radius: 0.75rem;
+            transition: background 0.2s;
+        }
+
+        .peg-col:hover { background: rgba(234, 88, 12, 0.07); }
+        .peg-col.selected { background: rgba(234, 88, 12, 0.15); outline: 2px solid #ea580c; outline-offset: 2px; }
+
+        .peg-label {
+            font-weight: 900;
+            font-size: 1.125rem;
+            color: #92400e;
+            margin-bottom: 0.5rem;
+        }
+
+        .peg-disks {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            width: 100%;
+            min-height: 160px;
+        }
+
+        @media (max-width: 480px) {
+            .peg-disks { min-height: 120px; }
+        }
+
+        /* 기둥 막대 */
+        .peg-rod {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            background: #a16207;
+            border-radius: 5px 5px 0 0;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* 바닥 판 */
+        .peg-base {
+            width: 100%;
+            height: 14px;
+            background: #a16207;
+            border-radius: 0.4rem;
+            z-index: 2;
+            position: relative;
+        }
+
+        .disk {
+            position: relative;
+            z-index: 1;
+            border-radius: 6px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 900;
+            color: white;
+            margin: 2px 0;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 480px) {
+            .disk { height: 22px; font-size: 1rem; }
+        }
+
+        .disk.lifting {
+            opacity: 0.7;
+            transform: translateY(-8px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        /* ── 상태 그래프 (n=3, 삼각형 배치) ── */
+        .graph-svg {
+            width: 100%;
+            max-width: 700px;
+            /* `margin: 0 auto` 로 쓰면 세로 여백까지 0으로 못박아,
+               HTML 이 붙인 `mb-*` 가 조용히 지워진다(특정도가 같아 나중에 온 이쪽이 이긴다).
+               가운데 정렬만 하려는 것이므로 가로만 건드린다. */
+            margin-inline: auto;
+            display: block;
+            overflow: visible;
+        }
+
+        /* ── 코드 블록 ── */
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .btn-disabled { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active {
+            background: #ea580c;
+            color: white;
+            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+    
+        /* 코드 블록이 좁은 화면에서 화면 밖으로 넘치는 것을 막는다.
+           white-space:pre 를 유지해 들여쓰기 원형을 보존하고, 넘치는 줄은
+           코드 블록 안에서만 가로로 스크롤된다. flex 자식일 때 정상적으로
+           줄어들도록 min-width:0 을 함께 준다. */
+        body pre {
+            overflow-x: auto;
+            max-width: 100%;
+            min-width: 0;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+<!-- ══════════════════ HERO ══════════════════ -->
+<header class="hero-gradient text-white py-20 px-6" id="intro">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">하노이의 탑 시뮬레이터</h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            원판을 하나씩 옮기며 목표 기둥으로 이동하는 퍼즐을 통해<br class="hidden md:block">
+            상태 공간의 기하급수적 증가와 인공지능 탐색을 경험해 봅시다.
+        </p>
+    </div>
+</header>
+
+<!-- ══════════════════ STICKY NAV ══════════════════ -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center text-white">
+                <i class="fa-solid fa-layer-group text-sm"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">하노이의 탑</span>
+        </div>
+        <div class="hidden md:flex space-x-6 font-bold text-slate-500 text-base">
+            <a class="hover:text-amber-600 transition" href="#concept">개념 이해</a>
+            <a class="hover:text-amber-600 transition" href="#rules">문제 규칙</a>
+            <a class="hover:text-amber-600 transition" href="#simulation">직접 해보기</a>
+            <a class="hover:text-amber-600 transition" href="#summary">핵심 정리</a>
+            <a class="hover:text-amber-600 transition" href="#misconception">오해와 진실</a>
+            <a class="hover:text-amber-600 transition" href="#quiz">확인 퀴즈</a>
+        </div>
+        <button class="md:hidden text-slate-500 hover:text-amber-600">
+            <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-6 py-12 space-y-24">
+
+<!-- ══════════════════ #concept ══════════════════ -->
+<section class="scroll-mt-24 mx-auto" id="concept">
+    <div class="text-center space-y-4 mb-10">
+        <h2 class="text-3xl font-black text-slate-900">준비 단계: 탐색과 상태 공간</h2>
+        <div class="w-16 h-1.5 bg-amber-500 mx-auto rounded-full"></div>
+    </div>
+    <div class="section-card space-y-8">
+        <p class="text-lg text-slate-700 leading-relaxed">
+            하노이의 탑은 단순해 보이지만, 원판 수가 늘어날수록 가능한 상태 수가 <strong>폭발적으로</strong> 증가합니다.
+            인공지능은 이 광대한 상태 공간을 <strong>체계적으로 탐색</strong>해 해를 찾습니다.
+            다만 하노이의 탑처럼 <strong>규칙에서 최적 해를 곧바로 만들어 내는 방법</strong>이 알려진 문제라면,
+            상태 공간을 뒤지지 않고 그 방법을 쓰는 편이 훨씬 빠릅니다. 아래 'AI 자동 풀이'가 그 방법입니다.
+        </p>
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-xl">
+            <h3 class="font-bold text-amber-800 text-lg mb-2">💡 상태 공간이란?</h3>
+            <p class="text-amber-900 leading-relaxed">
+                문제에서 나타날 수 있는 모든 <strong>상태(State)</strong>의 집합입니다.
+                하노이 n=3일 때 상태는 <strong>3³ = 27가지</strong>이며, 초기 상태에서 목표 상태까지의 경로가 곧 '풀이'입니다.
+                연산자(이동)를 적용해 한 상태에서 다른 상태로 이동하며 탐색이 진행됩니다.
+            </p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                    <i class="fa-solid fa-circle-dot"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 mb-2">상태 (State)</h4>
+                <p class="text-slate-600">각 원판이 어느 기둥(A·B·C)에 있는지를 나타내는 배치. n=3이면 <strong>(A,A,A)</strong> 형태</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                    <i class="fa-solid fa-right-left"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 mb-2">연산자 (Operator)</h4>
+                <p class="text-slate-600">한 기둥의 <strong>맨 위 원판 하나</strong>를 다른 기둥의 맨 위로 옮긴다. 단, 큰 원판이 작은 원판 위에 올 수 없음</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                    <i class="fa-solid fa-flag-checkered"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 mb-2">목표 (Goal)</h4>
+                <p class="text-slate-600">모든 원판이 A기둥에서 C기둥으로 이동한 상태. n=3이면 <strong>(C,C,C)</strong></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════ #rules ══════════════════ -->
+<section class="scroll-mt-24 mx-auto" id="rules">
+    <div class="text-center space-y-4 mb-10">
+        <h2 class="text-3xl font-black text-slate-900">1단계: 문제 규칙 알아보기</h2>
+        <div class="w-16 h-1.5 bg-amber-500 mx-auto rounded-full"></div>
+    </div>
+    <div class="section-card space-y-8">
+        <p class="text-lg text-slate-700 leading-relaxed text-center">
+            기둥 A에 쌓인 원판을 기둥 C로 <strong>모두</strong> 옮기면 성공입니다.<br>
+            기둥 B는 보조 기둥으로 사용할 수 있습니다.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden hover:shadow-md transition-transform">
+                <div class="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
+                <div class="w-14 h-14 bg-white shadow-sm text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 mb-2 text-lg">1. 한 번에 한 장</h4>
+                <p class="text-slate-600 leading-relaxed">한 번에 <strong>맨 위 원판 하나만</strong> 집어서 다른 기둥으로 옮길 수 있습니다.</p>
+            </div>
+            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden hover:shadow-md transition-transform">
+                <div class="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
+                <div class="w-14 h-14 bg-white shadow-sm text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-ban"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 mb-2 text-lg">2. 순서 규칙</h4>
+                <p class="text-slate-600 leading-relaxed"><strong>큰 원판이 작은 원판 위</strong>에 올 수 없습니다. 항상 작은 것이 위에 있어야 합니다.</p>
+            </div>
+            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden hover:shadow-md transition-transform">
+                <div class="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                <div class="w-14 h-14 bg-white shadow-sm text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h4 class="font-bold text-slate-800 mb-2 text-lg">3. 최소 이동</h4>
+                <p class="text-slate-600 leading-relaxed">n개 원판의 최소 이동 횟수는 <strong>2ⁿ − 1</strong>번. n=3이면 7번.</p>
+            </div>
+        </div>
+
+        <!-- 상태 모델 표 -->
+        <div>
+            <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-table text-amber-500"></i> 상태 공간 모델
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-[480px] w-full text-base border-collapse">
+                    <thead>
+                        <tr class="bg-amber-50 text-amber-900">
+                            <th class="border border-amber-200 px-4 py-3 text-left font-bold">구성 요소</th>
+                            <th class="border border-amber-200 px-4 py-3 font-bold">설명</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="hover:bg-slate-50">
+                            <td class="border border-slate-200 px-4 py-3 font-bold">상태 표현</td>
+                            <td class="border border-slate-200 px-4 py-3">작은 원판부터 순서대로 어느 기둥에 있는지. n=3이면 <code>(원판1, 원판2, 원판3)</code> 각각 A·B·C</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="border border-slate-200 px-4 py-3 font-bold">초기 상태</td>
+                            <td class="border border-slate-200 px-4 py-3"><code>(A, A, A)</code> — 모두 A기둥 (가장 큰 원판이 맨 아래)</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="border border-slate-200 px-4 py-3 font-bold">목표 상태</td>
+                            <td class="border border-slate-200 px-4 py-3"><code>(C, C, C)</code> — 모두 C기둥으로 이동</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="border border-slate-200 px-4 py-3 font-bold">상태 공간 크기</td>
+                            <td class="border border-slate-200 px-4 py-3">3ⁿ (n=3이면 27개)</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="border border-slate-200 px-4 py-3 font-bold">연산자 조건</td>
+                            <td class="border border-slate-200 px-4 py-3">출발 기둥에 원판이 있어야 하고, 도착 기둥의 맨 위보다 작아야 함</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="border border-slate-200 px-4 py-3 font-bold">최소 이동 횟수</td>
+                            <td class="border border-slate-200 px-4 py-3"><strong>2ⁿ − 1</strong> (n=3이면 7번)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════ #simulation ══════════════════ -->
+<section class="scroll-mt-24 mx-auto fs-stage" id="simulation">
+    <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추. -->
+    <button type="button" class="fs-btn" data-fullscreen="simulation"
+            title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+        <i class="fa-solid fa-expand"></i>
+    </button>
+    <div class="text-center space-y-4 mb-10 fs-hide">
+        <h2 class="text-3xl font-black text-slate-900">2단계: 직접 해보기</h2>
+        <div class="w-16 h-1.5 bg-amber-500 mx-auto rounded-full"></div>
+    </div>
+
+    <!-- 탭 버튼 -->
+    <div class="flex gap-3 mb-6 flex-wrap justify-center">
+        <button class="tab-btn active px-6 py-2.5 rounded-xl font-bold border-2 border-amber-200 text-amber-700 text-base" data-tab="manual" onclick="switchTab('manual')">
+            <i class="fa-solid fa-hand-pointer mr-2"></i>직접 풀기
+        </button>
+        <button class="tab-btn px-6 py-2.5 rounded-xl font-bold border-2 border-slate-200 text-slate-600 text-base" data-tab="auto" onclick="switchTab('auto')">
+            <i class="fa-solid fa-robot mr-2"></i>AI 자동 풀이
+        </button>
+        <button class="tab-btn px-6 py-2.5 rounded-xl font-bold border-2 border-slate-200 text-slate-600 text-base" data-tab="graph" onclick="switchTab('graph')">
+            <i class="fa-solid fa-diagram-project mr-2"></i>상태 공간 그래프
+        </button>
+    </div>
+
+    <!-- ── 탭 1: 직접 풀기 ── -->
+    <div class="tab-panel active section-card" id="tab-manual">
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+            <div class="flex-1 w-full">
+                <!-- 원판 수 선택 -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <span class="font-bold text-slate-600 text-base">원판 수:</span>
+                    <div class="flex gap-2">
+                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-amber-400 bg-amber-100 text-amber-800 transition hover:bg-amber-200" onclick="setDiskCount(3)">3</button>
+                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setDiskCount(4)">4</button>
+                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setDiskCount(5)">5</button>
+                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setDiskCount(6)">6</button>
+                    </div>
+                    <div class="text-slate-500 text-base font-medium ml-2">
+                        이동: <span class="text-amber-600 font-black text-xl" id="manualMoves">0</span>
+                        <span class="text-slate-400 mx-1">/</span>최소: <span class="text-slate-600 font-black text-xl" id="manualMinMoves">7</span>
+                    </div>
+                </div>
+
+                <!-- 타워 시각화 -->
+                <div class="hanoi-scene mb-4" id="manualScene" style="touch-action: none;"></div>
+
+                <p class="text-slate-500 text-base text-center mb-4" id="manualHint">
+                    <i class="fa-solid fa-hand-pointer text-amber-500 mr-1"></i>기둥을 탭해 원판을 집고, 다른 기둥을 탭해 놓으세요
+                </p>
+
+                <!-- 성공 메시지 -->
+                <div class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-base font-bold text-emerald-800 text-center" id="manualSuccess">
+                    🎉 <span id="manualSuccessDetail"></span>
+                </div>
+            </div>
+
+            <div class="lg:w-72 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base border-b-2 border-slate-100 pb-2">
+                    <i class="fa-solid fa-circle-info text-amber-500 mr-2"></i>조작 방법
+                </h3>
+                <ul class="space-y-3 text-slate-600 text-base">
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-1 text-amber-500 mt-1 shrink-0"></i>
+                        <span>기둥을 탭하면 <strong>맨 위 원판을 집습니다</strong> (기둥 하이라이트)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-2 text-amber-500 mt-1 shrink-0"></i>
+                        <span>다른 기둥을 탭하면 <strong>원판을 내려놓습니다</strong></span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-3 text-amber-500 mt-1 shrink-0"></i>
+                        <span>같은 기둥 다시 탭 → <strong>선택 취소</strong></span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-4 text-amber-500 mt-1 shrink-0"></i>
+                        <span>규칙 위반(큰 원판 → 작은 원판 위)이면 이유를 알려드립니다</span>
+                    </li>
+                </ul>
+                <div class="bg-amber-50 text-amber-800 p-4 rounded-xl text-base font-medium">
+                    💡 최소 이동 횟수 <strong>2ⁿ − 1</strong>번으로 성공하면 최적 해!
+                </div>
+                <button class="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-base transition" onclick="resetManual()">
+                    <i class="fa-solid fa-rotate-left mr-2"></i>처음부터
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 탭 2: AI 자동 풀이 ── -->
+    <div class="tab-panel section-card" id="tab-auto">
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+            <div class="flex-1 w-full">
+                <!-- 원판 수 선택 (AI) -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <span class="font-bold text-slate-600 text-base">원판 수:</span>
+                    <div class="flex gap-2">
+                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-amber-400 bg-amber-100 text-amber-800 transition hover:bg-amber-200" onclick="setAiDiskCount(3)">3</button>
+                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setAiDiskCount(4)">4</button>
+                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setAiDiskCount(5)">5</button>
+                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setAiDiskCount(6)">6</button>
+                    </div>
+                    <div class="text-slate-500 text-base font-medium ml-2">
+                        단계: <span class="text-amber-600 font-black text-xl" id="aiStepNum">0</span>
+                        / <span id="aiMaxSteps">7</span>
+                    </div>
+                </div>
+
+                <!-- 타워 시각화 (AI) -->
+                <div class="hanoi-scene mb-4" id="aiScene" style="pointer-events:none;"></div>
+
+                <!-- 이동 기록 -->
+                <div class="bg-slate-50 rounded-xl p-4 mb-4 min-h-18 overflow-x-auto" id="aiMoveLog">
+                    <p class="text-slate-400 text-base text-center">버튼을 눌러 AI 풀이를 시작하세요</p>
+                </div>
+            </div>
+
+            <div class="lg:w-72 space-y-3">
+                <!-- 컨트롤 버튼 -->
+                <div class="flex flex-col gap-3">
+                    <div class="flex gap-3">
+                        <button class="flex-1 px-3 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-base rounded-xl shadow transition" id="aiStepBtn" onclick="doAiStep()">
+                            <i class="fa-solid fa-forward-step mr-1"></i>한 단계
+                        </button>
+                        <button class="flex-1 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-base rounded-xl shadow transition" id="aiPlayBtn" onclick="toggleAiPlay()">
+                            <i class="fa-solid fa-play mr-1"></i>자동 재생
+                        </button>
+                    </div>
+                    <button class="w-full px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-base rounded-xl transition" onclick="resetAI()">
+                        <i class="fa-solid fa-rotate-left mr-2"></i>처음부터
+                    </button>
+                </div>
+
+                <!-- 속도 -->
+                <div class="flex flex-wrap items-center gap-3 pt-1">
+                    <span class="font-bold text-slate-600 text-base">속도:</span>
+                    <select class="border-2 border-slate-200 rounded-xl px-3 py-2 text-base font-bold bg-white focus:border-amber-400 focus:outline-none" id="speedSelect">
+                        <option value="1200">느리게</option>
+                        <option value="700" selected>보통</option>
+                        <option value="350">빠르게</option>
+                        <option value="100">매우 빠르게</option>
+                    </select>
+                </div>
+
+                <h3 class="font-bold text-slate-800 text-base border-b-2 border-slate-100 pb-2 pt-2">
+                    <i class="fa-solid fa-code-branch text-amber-500 mr-2"></i>재귀 분할 원리
+                </h3>
+                <ul class="space-y-3 text-slate-600 text-base">
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-check text-amber-500 mt-1 shrink-0"></i>
+                        <span>n개를 C로 옮기려면: <strong>n-1개를 B로 → 큰 원판을 C로 → n-1개를 B에서 C로</strong></span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-check text-amber-500 mt-1 shrink-0"></i>
+                        <span>재귀 호출이 반복되며 최적 이동 수열을 생성</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-check text-amber-500 mt-1 shrink-0"></i>
+                        <span>총 <strong>2ⁿ − 1</strong>번의 이동으로 완료 보장</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 탭 3: 상태 공간 그래프 ── -->
+    <div class="tab-panel section-card fs-fill fs-col" id="tab-graph">
+        <div class="fs-grow" id="graphPanel">
+            <!-- n에 따라 JS로 채움 -->
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════ #summary ══════════════════ -->
+<section class="scroll-mt-24 mx-auto" id="summary">
+    <div class="text-center space-y-4 mb-10">
+        <h2 class="text-3xl font-black text-slate-900">3단계: 핵심 원리 및 코드</h2>
+        <div class="w-16 h-1.5 bg-amber-500 mx-auto rounded-full"></div>
+    </div>
+    <div class="section-card space-y-6">
+        <p class="text-slate-700 text-base leading-relaxed">
+            하노이의 탑은 <strong>재귀(Recursion)</strong>로 표현하면 매우 간결합니다.
+            단, 연산자를 적용하려면 반드시 <strong>조건(전제)</strong>이 충족되어야 합니다 —
+            이것이 단순 반복과 다른 점이자, 탐색 문제의 핵심입니다.
+        </p>
+
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-xl text-base">
+            <p class="text-amber-900 font-medium">
+                <strong>연산자에 붙는 조건(전제):</strong><br>
+                원판을 기둥 X → 기둥 Y로 이동하려면,
+                ① X의 맨 위에 원판이 있어야 하고,
+                ② Y의 맨 위 원판보다 <strong>작아야</strong> 합니다.
+                이 조건이 없으면 연산자를 적용할 수 없습니다.
+                탐색에서는 이 조건을 검사해 <strong>유효한 이동만</strong> 후보로 넣습니다.
+            </p>
+        </div>
+
+        <div class="relative">
+            <div class="absolute top-0 right-0 bg-slate-700 text-slate-300 px-3 py-1 rounded-bl-lg rounded-tr-lg font-bold text-base">Python (재귀 의사코드)</div>
+            <pre><code class="language-python" data-src="code/search-tower-of-hanoi.py"></code></pre>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <h4 class="font-bold text-slate-800 mb-3 text-base"><i class="fa-solid fa-sitemap text-amber-500 mr-2"></i>재귀 호출 구조</h4>
+                <ul class="space-y-2 text-slate-600 text-base">
+                    <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>문제를 <strong>같은 형태의 더 작은 문제</strong>로 분해</li>
+                    <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>기저 사례(n=0)에서 재귀가 멈춤</li>
+                    <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>이동을 만드는 호출(n ≥ 1) 횟수 = 이동 횟수 = 2ⁿ − 1</li>
+                </ul>
+            </div>
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <h4 class="font-bold text-slate-800 mb-3 text-base"><i class="fa-solid fa-shield-halved text-rose-500 mr-2"></i>연산자 조건(전제)</h4>
+                <ul class="space-y-2 text-slate-600 text-base">
+                    <li><i class="fa-solid fa-xmark text-rose-400 mr-2"></i>빈 기둥에서 원판 집기 → 불가</li>
+                    <li><i class="fa-solid fa-xmark text-rose-400 mr-2"></i>더 큰 원판을 위에 올리기 → 불가</li>
+                    <li><i class="fa-solid fa-check text-amber-500 mr-2"></i>재귀 해법은 이 조건을 항상 자동 충족</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════ #misconception ══════════════════ -->
+<section class="scroll-mt-24 mx-auto" id="misconception">
+    <div class="text-center space-y-4 mb-10">
+        <h2 class="text-3xl font-black text-slate-900">4단계: 오해와 진실</h2>
+        <div class="w-16 h-1.5 bg-amber-500 mx-auto rounded-full"></div>
+    </div>
+    <div class="section-card space-y-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+            <div class="space-y-4 flex flex-col">
+                <div class="flex items-center text-rose-500 font-black text-lg">
+                    <i class="fa-solid fa-xmark text-2xl mr-3"></i>흔한 오해
+                </div>
+                <div class="bg-rose-50 p-6 rounded-2xl border border-rose-100 flex-1">
+                    <p class="text-slate-800 font-medium text-base">
+                        "원판이 한 개 늘어봤자 조금 더 어려운 거 아닌가요?<br>
+                        원판 10개도 적당히 시간을 들이면 풀 수 있지 않을까요?"
+                    </p>
+                </div>
+            </div>
+            <div class="space-y-4 flex flex-col">
+                <div class="flex items-center text-amber-600 font-black text-lg">
+                    <i class="fa-regular fa-lightbulb text-2xl mr-3"></i>올바른 개념
+                </div>
+                <div class="bg-amber-50 p-6 rounded-2xl border border-amber-100 flex-1">
+                    <p class="text-slate-800 font-medium mb-3 text-base">전혀 그렇지 않습니다. <strong>기하급수적 증가</strong>입니다.</p>
+                    <p class="text-slate-600 leading-relaxed text-base">
+                        원판 수 n이 하나 늘 때마다 상태 수는 <strong>3배</strong>, 최소 이동 횟수는 <strong>2배 + 1</strong>이 됩니다.
+                        n=20이 되면 최소 이동 횟수가 백만을 훌쩍 넘어, 1초에 한 번씩 옮겨도 <strong>약 12일</strong>이 걸립니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 폭발적 증가 표 -->
+        <div>
+            <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-amber-500"></i> 원판 수에 따른 복잡도
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-[520px] w-full text-base border-collapse">
+                    <thead>
+                        <tr class="bg-amber-50 text-amber-900">
+                            <th class="border border-amber-200 px-4 py-3 font-bold">원판 수 (n)</th>
+                            <th class="border border-amber-200 px-4 py-3 font-bold">상태 수 (3ⁿ)</th>
+                            <th class="border border-amber-200 px-4 py-3 font-bold">최소 이동 (2ⁿ−1)</th>
+                            <th class="border border-amber-200 px-4 py-3 font-bold">1초 1번 기준 소요 시간</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="hover:bg-amber-50">
+                            <td class="border border-slate-200 px-4 py-3 text-center font-bold text-amber-700">3</td>
+                            <td class="border border-slate-200 px-4 py-3 text-center">27</td>
+                            <td class="border border-slate-200 px-4 py-3 text-center">7</td>
+                            <td class="border border-slate-200 px-4 py-3 text-center">7초</td>
+                        </tr>
+                        <tr class="hover:bg-amber-50">
+                            <td class="border border-slate-200 px-4 py-3 text-center font-bold text-amber-700">5</td>
+                            <td class="border border-slate-200 px-4 py-3 text-center">243</td>
+                            <td class="border border-slate-200 px-4 py-3 text-center">31</td>
+                            <td class="border border-slate-200 px-4 py-3 text-center">31초</td>
+                        </tr>
+                        <tr class="hover:bg-orange-50 bg-orange-50">
+                            <td class="border border-orange-200 px-4 py-3 text-center font-bold text-orange-700">10</td>
+                            <td class="border border-orange-200 px-4 py-3 text-center">59,049</td>
+                            <td class="border border-orange-200 px-4 py-3 text-center">1,023</td>
+                            <td class="border border-orange-200 px-4 py-3 text-center font-bold text-orange-700">약 17분</td>
+                        </tr>
+                        <tr class="hover:bg-rose-50 bg-rose-50">
+                            <td class="border border-rose-200 px-4 py-3 text-center font-bold text-rose-700">20</td>
+                            <td class="border border-rose-200 px-4 py-3 text-center">3,486,784,401</td>
+                            <td class="border border-rose-200 px-4 py-3 text-center">1,048,575</td>
+                            <td class="border border-rose-200 px-4 py-3 text-center font-bold text-rose-700">약 12일</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-slate-500 text-base mt-3">
+                n=64(하노이 전설의 원판 수)에서 최소 이동 횟수는 약 1.8 × 10¹⁹번 — 1초에 10억 번 옮겨도 약 <strong>585년</strong>이 걸립니다.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════ #quiz ══════════════════ -->
+<section class="scroll-mt-24 mx-auto" id="quiz">
+    <div class="text-center space-y-4 mb-10">
+        <h2 class="text-3xl font-black text-slate-900">마무리: 확인 퀴즈</h2>
+        <div class="w-16 h-1.5 bg-amber-500 mx-auto rounded-full"></div>
+        <p class="text-slate-600 text-base">오늘 배운 핵심 개념을 확인해 봅시다.</p>
+    </div>
+
+    <div class="space-y-6">
+        <div class="section-card">
+            <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                <span class="bg-amber-100 text-amber-700 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3 font-black">Q1</span>
+                <span>원판이 n개일 때 하노이의 탑의 상태 수는 몇 개인가요?</span>
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '2ⁿ은 강 건너기처럼 위치가 2가지일 때의 수식입니다.')">
+                    1. 2ⁿ
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, true, '정답! 원판 하나당 3가지 기둥 선택이 가능하므로 3ⁿ개입니다.')">
+                    2. 3ⁿ
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '이것은 최소 이동 횟수(2ⁿ−1)이지 상태 수가 아닙니다.')">
+                    3. 2ⁿ − 1
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, 'n×3은 각 원판이 독립적으로 조합된다는 점을 무시한 값입니다.')">
+                    4. n × 3
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                <span class="bg-amber-100 text-amber-700 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3 font-black">Q2</span>
+                <span>하노이의 탑에서 연산자(이동)를 적용하기 위해 필요한 조건은?</span>
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '이동 횟수 제한은 규칙에 없습니다.')">
+                    1. 이동 횟수가 2ⁿ−1 이하여야 한다
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '어떤 기둥에서 출발해도 됩니다.')">
+                    2. 반드시 A기둥에서 출발해야 한다
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, true, '정답! 출발 기둥에 원판이 있어야 하고, 도착 기둥의 맨 위 원판보다 작아야 합니다.')">
+                    3. 출발 기둥에 원판이 있고 도착 기둥의 맨 위보다 작아야 한다
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '원판 수의 홀짝과는 무관합니다.')">
+                    4. 이동하는 원판 번호가 홀수여야 한다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                <span class="bg-amber-100 text-amber-700 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3 font-black">Q3</span>
+                <span>원판이 5개일 때 하노이의 탑을 최소 몇 번 만에 풀 수 있나요?</span>
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '25는 5²이지 2⁵−1이 아닙니다.')">
+                    1. 25번
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, true, '정답! 2⁵ − 1 = 32 − 1 = 31번입니다.')">
+                    2. 31번
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '63은 n=6일 때의 값(2⁶−1)입니다.')">
+                    3. 63번
+                </button>
+                <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all font-medium text-slate-700 text-base"
+                        onclick="checkAnswer(this, false, '15는 n=4일 때의 값(2⁴−1)입니다.')">
+                    4. 15번
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="자료 목록" aria-label="자료 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+
+<script>
+/* ============================================================
+   공통 토스트
+============================================================ */
+let _toast = null, _t1, _t2;
+function showToast(msg, type) {
+    if (_toast) _toast.remove();
+    clearTimeout(_t1); clearTimeout(_t2);
+    const t = document.createElement('div');
+    const bg = type === 'success' ? 'bg-amber-600' : type === 'error' ? 'bg-rose-500' : 'bg-slate-800';
+    const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info';
+    t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 translate-y-20 opacity-0 z-[1000] flex items-center gap-3 ${bg} max-w-xs sm:max-w-md w-full`;
+    t.innerHTML = `<i class="fa-solid ${icon} text-xl shrink-0"></i><span class="text-base leading-snug">${msg}</span>`;
+    window.fsOverlayHost().appendChild(t);
+    _toast = t;
+    _t1 = setTimeout(() => t.classList.remove('translate-y-20', 'opacity-0'), 10);
+    _t2 = setTimeout(() => { t.classList.add('translate-y-20', 'opacity-0'); setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+/* ============================================================
+   퀴즈
+============================================================ */
+function checkAnswer(btn, isCorrect, msg) {
+    if (btn.classList.contains('disabled')) return;
+    const btns = btn.parentElement.querySelectorAll('button');
+    btns.forEach(b => {
+        if (!b.dataset.orig) b.dataset.orig = b.innerHTML;
+        b.style.pointerEvents = 'none';
+        b.classList.add('opacity-50', 'disabled');
+    });
+    btn.classList.remove('opacity-50');
+    if (isCorrect) {
+        btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+        btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i>${btn.dataset.orig}`;
+    } else {
+        btn.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
+        btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-rose-600"></i>${btn.dataset.orig}`;
+    }
+    showToast(msg, isCorrect ? 'success' : 'error');
+    setTimeout(() => {
+        btns.forEach(b => {
+            b.style.pointerEvents = 'auto';
+            b.classList.remove('opacity-50', 'disabled', 'border-green-500', 'bg-green-50', 'text-green-700', 'border-rose-500', 'bg-rose-50', 'text-rose-700');
+            b.innerHTML = b.dataset.orig;
+        });
+    }, 3000);
+}
+
+/* ============================================================
+   탭 전환
+============================================================ */
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    // 탭이 보인 뒤 실제 clientWidth로 다시 렌더
+    requestAnimationFrame(() => {
+        // renderTower가 기둥 DOM을 새로 만들므로 클릭 핸들러를 다시 붙여야 한다
+        if (name === 'manual') { renderTower('manualScene', manualPegs, manualN, manualSelected); bindManualClicks(); }
+        if (name === 'auto')   renderTower('aiScene', aiPegs, aiN, -1);
+        if (name === 'graph')  buildGraphPanel();
+    });
+}
+
+/* ============================================================
+   하노이 핵심 로직
+============================================================ */
+// 원판 색상 팔레트 (6개)
+const DISK_COLORS = [
+    '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'
+];
+
+// 상태: pegs[i] = 기둥 i의 원판 배열 (bottom to top, 값이 클수록 큰 원판)
+function makeInitialPegs(n) {
+    const pegs = [[], [], []];
+    for (let i = n; i >= 1; i--) pegs[0].push(i); // A에 n,n-1,...,1 순서로 쌓임
+    return pegs;
+}
+
+// 재귀로 이동 수열 생성
+function generateMoves(n, src, aux, dst, moves) {
+    if (n === 0) return;
+    generateMoves(n - 1, src, dst, aux, moves);
+    moves.push([src, dst]);
+    generateMoves(n - 1, aux, src, dst, moves);
+}
+
+function getHanoiSolution(n) {
+    const moves = [];
+    generateMoves(n, 0, 1, 2, moves);
+    return moves;
+}
+
+// 이동 유효성 검사
+function canMove(pegs, from, to) {
+    if (pegs[from].length === 0) return { ok: false, reason: `기둥 ${pegName(from)}에 원판이 없습니다.` };
+    const top = pegs[from][pegs[from].length - 1];
+    if (pegs[to].length > 0 && pegs[to][pegs[to].length - 1] < top) {
+        return { ok: false, reason: `기둥 ${pegName(to)}의 맨 위 원판보다 큰 원판을 올릴 수 없습니다.` };
+    }
+    return { ok: true };
+}
+
+function applyMove(pegs, from, to) {
+    const disk = pegs[from].pop();
+    pegs[to].push(disk);
+}
+
+function pegName(i) { return ['A', 'B', 'C'][i]; }
+
+/* ── 타워 렌더링 ── */
+function renderTower(sceneId, pegs, n, selectedPeg) {
+    const scene = document.getElementById(sceneId);
+    scene.innerHTML = '';
+
+    pegs.forEach((diskStack, pi) => {
+        const col = document.createElement('div');
+        col.className = 'peg-col' + (selectedPeg === pi ? ' selected' : '');
+        col.setAttribute('data-peg', pi);
+
+        const label = document.createElement('div');
+        label.className = 'peg-label';
+        label.textContent = pegName(pi);
+        col.appendChild(label);
+
+        const diskArea = document.createElement('div');
+        diskArea.className = 'peg-disks';
+
+        // 기둥 막대 (position:absolute, flex 흐름 밖)
+        const rod = document.createElement('div');
+        rod.className = 'peg-rod';
+        diskArea.appendChild(rod);
+
+        // spacer: flex:1로 위쪽 빈 공간을 채워 디스크를 아래로 밀어냄
+        const spacer = document.createElement('div');
+        spacer.style.flex = '1';
+        diskArea.appendChild(spacer);
+
+        // diskStack[0]=가장 큰 원판(맨 아래), [length-1]=가장 작은 원판(맨 위)
+        // 위→아래 순서: 작은(상단) → 큰(하단) → 역순으로 append
+        // 90px 기준 고정 픽셀: % 단위는 flex-column에서 신뢰할 수 없음
+        const BASE_W = 90;
+        for (let i = diskStack.length - 1; i >= 0; i--) {
+            const diskNum = diskStack[i];
+            const isTopDisk = (i === diskStack.length - 1);
+            const ratio = diskNum / n;
+            const w = Math.round(BASE_W * (0.35 + 0.65 * ratio));
+            const d = document.createElement('div');
+            d.className = 'disk' + (selectedPeg === pi && isTopDisk ? ' lifting' : '');
+            d.style.width = w + 'px';
+            d.style.background = DISK_COLORS[diskNum - 1] || '#94a3b8';
+            d.textContent = diskNum;
+            diskArea.appendChild(d);
+        }
+
+        col.appendChild(diskArea);
+
+        const base = document.createElement('div');
+        base.className = 'peg-base';
+        col.appendChild(base);
+
+        scene.appendChild(col);
+    });
+}
+
+/* ============================================================
+   직접 풀기 (manual)
+============================================================ */
+let manualN = 3;
+let manualPegs = makeInitialPegs(3);
+let manualMovesCount = 0;
+let manualSelected = -1; // 선택된 기둥 인덱스
+
+function setDiskCount(n) {
+    manualN = n;
+    document.querySelectorAll('.disk-count-btn').forEach((b, i) => {
+        const val = [3, 4, 5, 6][i];
+        b.classList.toggle('border-amber-400', val === n);
+        b.classList.toggle('bg-amber-100', val === n);
+        b.classList.toggle('text-amber-800', val === n);
+        b.classList.toggle('border-slate-200', val !== n);
+        b.classList.toggle('bg-white', val !== n);
+        b.classList.toggle('text-slate-600', val !== n);
+    });
+    resetManual();
+}
+
+function resetManual() {
+    manualPegs = makeInitialPegs(manualN);
+    manualMovesCount = 0;
+    manualSelected = -1;
+    document.getElementById('manualMoves').textContent = 0;
+    document.getElementById('manualMinMoves').textContent = (1 << manualN) - 1;
+    document.getElementById('manualSuccess').classList.add('hidden');
+    document.getElementById('manualHint').classList.remove('hidden');
+    renderTower('manualScene', manualPegs, manualN, -1);
+    bindManualClicks();
+}
+
+function bindManualClicks() {
+    const cols = document.querySelectorAll('#manualScene .peg-col');
+    cols.forEach(col => {
+        col.addEventListener('pointerdown', e => {
+            e.preventDefault();
+            const pi = parseInt(col.getAttribute('data-peg'));
+            handleManualTap(pi);
+        });
+    });
+}
+
+function handleManualTap(pi) {
+    if (manualSelected === -1) {
+        // 기둥 선택
+        if (manualPegs[pi].length === 0) {
+            showToast(`기둥 ${pegName(pi)}에 원판이 없습니다.`, 'error');
+            return;
+        }
+        manualSelected = pi;
+        renderTower('manualScene', manualPegs, manualN, manualSelected);
+        bindManualClicks();
+    } else if (manualSelected === pi) {
+        // 같은 기둥 → 취소
+        manualSelected = -1;
+        renderTower('manualScene', manualPegs, manualN, -1);
+        bindManualClicks();
+    } else {
+        // 이동 시도
+        const result = canMove(manualPegs, manualSelected, pi);
+        if (!result.ok) {
+            showToast(result.reason, 'error');
+            manualSelected = -1;
+            renderTower('manualScene', manualPegs, manualN, -1);
+            bindManualClicks();
+            return;
+        }
+        applyMove(manualPegs, manualSelected, pi);
+        manualMovesCount++;
+        manualSelected = -1;
+        document.getElementById('manualMoves').textContent = manualMovesCount;
+        renderTower('manualScene', manualPegs, manualN, -1);
+        bindManualClicks();
+
+        // 완성 확인 (모든 원판이 C 기둥에)
+        if (manualPegs[2].length === manualN) {
+            const minM = (1 << manualN) - 1;
+            const detail = manualMovesCount <= minM
+                ? `최적 해 달성! (${manualMovesCount}번, 최소 ${minM}번)`
+                : `성공! (${manualMovesCount}번, 최적은 ${minM}번)`;
+            document.getElementById('manualSuccessDetail').textContent = detail;
+            document.getElementById('manualSuccess').classList.remove('hidden');
+            document.getElementById('manualHint').classList.add('hidden');
+            showToast('🎉 ' + detail, 'success');
+        }
+    }
+}
+
+/* ============================================================
+   AI 자동 풀이
+============================================================ */
+let aiN = 3;
+let aiPegs = makeInitialPegs(3);
+let aiSolution = getHanoiSolution(3);
+let aiStep = 0;
+let aiPlaying = false;
+let aiTimer = null;
+
+function setAiDiskCount(n) {
+    aiN = n;
+    document.querySelectorAll('.ai-count-btn').forEach((b, i) => {
+        const val = [3, 4, 5, 6][i];
+        b.classList.toggle('border-amber-400', val === n);
+        b.classList.toggle('bg-amber-100', val === n);
+        b.classList.toggle('text-amber-800', val === n);
+        b.classList.toggle('border-slate-200', val !== n);
+        b.classList.toggle('bg-white', val !== n);
+        b.classList.toggle('text-slate-600', val !== n);
+    });
+    resetAI();
+}
+
+function resetAI() {
+    clearInterval(aiTimer);
+    aiPlaying = false;
+    aiPegs = makeInitialPegs(aiN);
+    aiSolution = getHanoiSolution(aiN);
+    aiStep = 0;
+    document.getElementById('aiStepNum').textContent = 0;
+    document.getElementById('aiMaxSteps').textContent = aiSolution.length;
+    document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+    document.getElementById('aiMoveLog').innerHTML = '<p class="text-slate-400 text-base text-center">버튼을 눌러 AI 풀이를 시작하세요</p>';
+    renderTower('aiScene', aiPegs, aiN, -1);
+}
+
+function doAiStep() {
+    if (aiStep >= aiSolution.length) { showToast('이미 완료되었습니다.', 'info'); return; }
+    const [from, to] = aiSolution[aiStep];
+    applyMove(aiPegs, from, to);
+    aiStep++;
+    renderTower('aiScene', aiPegs, aiN, -1);
+    document.getElementById('aiStepNum').textContent = aiStep;
+    updateAiLog(from, to, aiStep);
+    if (aiStep === aiSolution.length) {
+        showToast(`🎉 재귀 해법으로 ${aiSolution.length}번 만에 완성!`, 'success');
+    }
+}
+
+function updateAiLog(from, to, step) {
+    const log = document.getElementById('aiMoveLog');
+    if (step === 1) log.innerHTML = '';
+    const badge = document.createElement('span');
+    badge.className = 'inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full font-bold text-base mr-2';
+    badge.innerHTML = `<span class="bg-amber-500 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-base font-black">${step}</span> ${pegName(from)}→${pegName(to)}`;
+    log.appendChild(badge);
+    if (step === aiSolution.length) {
+        const fin = document.createElement('span');
+        fin.className = 'inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-full font-bold text-base mr-2';
+        fin.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> 완성!';
+        log.appendChild(fin);
+    }
+}
+
+function toggleAiPlay() {
+    if (aiPlaying) {
+        clearInterval(aiTimer);
+        aiPlaying = false;
+        document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+        return;
+    }
+    if (aiStep >= aiSolution.length) { showToast('이미 완료되었습니다.', 'info'); return; }
+    aiPlaying = true;
+    document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-pause mr-2"></i>일시 정지';
+    const speed = parseInt(document.getElementById('speedSelect').value);
+    aiTimer = setInterval(() => {
+        if (aiStep >= aiSolution.length) {
+            clearInterval(aiTimer);
+            aiPlaying = false;
+            document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+            return;
+        }
+        doAiStep();
+    }, speed);
+}
+
+/* ============================================================
+   상태 공간 그래프 (n=3 → 27개 노드 삼각형 배치)
+============================================================ */
+function buildGraphPanel() {
+    const panel = document.getElementById('graphPanel');
+    panel.innerHTML = '';
+
+    const n = manualN; // 현재 직접 풀기 원판 수와 연동
+
+    if (n > 3) {
+        panel.innerHTML = `
+            <div class="text-center py-12">
+                <div class="text-6xl mb-4">📊</div>
+                <p class="text-slate-700 font-bold text-lg mb-2">원판이 ${n}개일 때 상태 수: <span class="text-orange-600">3^${n} = ${Math.pow(3,n).toLocaleString()}개</span></p>
+                <p class="text-slate-500 text-base">상태가 너무 많아 그래프로 그리지 않습니다. n=3(27개)일 때 그래프를 확인하려면 왼쪽 직접 풀기 탭에서 원판 수를 3으로 설정하세요.</p>
+            </div>`;
+        return;
+    }
+
+    // n=3, 27개 상태를 시에르핀스키 삼각형 배치로 그리기
+    // 상태: 각 원판이 A(0), B(1), C(2) 중 어디 있는지 → [d1, d2, d3] (d1=가장 작은 원판)
+    // 좌표: 표준 하노이 삼각형 배치 (재귀적 삼각형)
+    // 간단히: 27개 상태를 3단계 삼각형으로 표현
+
+    const INIT_KEY = '000';
+    const GOAL_KEY = '222';
+
+    // 최적 경로 (7수) 키 목록
+    const solution3 = getHanoiSolution(3);
+    const pathKeys = new Set();
+    pathKeys.add(INIT_KEY);
+    let cur = [0, 0, 0];
+    solution3.forEach(([from, to]) => {
+        // 적용: cur에서 가장 위에 있는 원판 이동
+        // cur = [d1위치, d2위치, d3위치] (d1=작은=index 0)
+        const pegs = [[], [], []];
+        for (let i = 2; i >= 0; i--) pegs[cur[i]].push(i); // 큰 원판부터 쌓기
+        const top = pegs[from][pegs[from].length - 1]; // 가장 작은(위) 원판 인덱스
+        cur[top] = to;
+        pathKeys.add(cur.join(''));
+    });
+
+    // 27개 상태 좌표 (삼각형 배치)
+    // 전통적인 하노이 상태 그래프: 3진수 표현을 삼각형 프랙탈 좌표로 변환
+    const W = 700, H = 580;
+    const coords = {}; // key → {x, y}
+
+    // 가장 큰 원판이 어느 기둥에 있는지로 먼저 세 덩어리를 나누고, 그 안에서 다음 원판으로 또 나눈다.
+    // 재귀 분할과 같은 순서이므로 삼각형이 삼각형을 품는 모양이 된다.
+    // order[0]=왼쪽 아래, order[1]=오른쪽 아래, order[2]=위 에 놓을 기둥.
+    // 하위 삼각형에서는 자기 기둥은 제자리에 두고 나머지 두 기둥의 자리를 맞바꾼다
+    // (그래야 이웃한 삼각형끼리 마주 보는 꼭짓점에서 이어진다).
+    function triCoord(diskIdx, fixed, x0, y0, size, order) {
+        if (diskIdx < 0) {
+            coords[fixed.join('')] = { x: x0, y: y0 };
+            return;
+        }
+        const hs = size / 2;
+        const spot = [
+            [x0 - hs * 0.6, y0 + size * 0.35],
+            [x0 + hs * 0.6, y0 + size * 0.35],
+            [x0,            y0 - size * 0.35],
+        ];
+        for (let s = 0; s < 3; s++) {
+            const nextFixed = fixed.slice();
+            nextFixed[diskIdx] = order[s];
+            const nextOrder = order.slice();
+            const other = [0, 1, 2].filter(i => i !== s);
+            [nextOrder[other[0]], nextOrder[other[1]]] = [nextOrder[other[1]], nextOrder[other[0]]];
+            triCoord(diskIdx - 1, nextFixed, spot[s][0], spot[s][1], hs, nextOrder);
+        }
+    }
+
+    // 27개 상태 (키는 작은 원판부터: d1d2d3)
+    const allStates = [];
+    for (let a = 0; a <= 2; a++)
+        for (let b = 0; b <= 2; b++)
+            for (let c = 0; c <= 2; c++)
+                allStates.push(`${a}${b}${c}`);
+
+    // 노드 반지름(14)·범례·하단 안내 글자가 잘리지 않도록 뷰박스 안에 여백을 두고 앉힌다
+    triCoord(2, [0, 0, 0], W / 2, 286, 424, [0, 1, 2]);
+
+    // 엣지 생성: 인접한 상태(원판 하나 이동)
+    const edges = [];
+    allStates.forEach(key => {
+        const s = key.split('').map(Number);
+        for (let d = 0; d < 3; d++) { // 각 원판
+            for (let to = 0; to <= 2; to++) {
+                if (to === s[d]) continue;
+                // 유효성: d보다 작은 원판이 s[d]나 to에 있으면 안 됨
+                let valid = true;
+                for (let smaller = 0; smaller < d; smaller++) {
+                    if (s[smaller] === s[d] || s[smaller] === to) { valid = false; break; }
+                }
+                if (!valid) continue;
+                const ns = [...s]; ns[d] = to;
+                const nk = ns.join('');
+                if (nk > key) edges.push([key, nk]); // 중복 방지
+            }
+        }
+    });
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('class', 'graph-svg');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', '하노이의 탑 n=3 상태 공간 그래프');
+
+    // 엣지
+    edges.forEach(([a, b]) => {
+        const ca = coords[a], cb = coords[b];
+        const isPath = pathKeys.has(a) && pathKeys.has(b);
+        const line = document.createElementNS(svgNS, 'line');
+        line.setAttribute('x1', ca.x); line.setAttribute('y1', ca.y);
+        line.setAttribute('x2', cb.x); line.setAttribute('y2', cb.y);
+        line.setAttribute('stroke', isPath ? '#f59e0b' : '#e2e8f0');
+        line.setAttribute('stroke-width', isPath ? '3' : '1.5');
+        svg.appendChild(line);
+    });
+
+    // 노드
+    allStates.forEach(key => {
+        const { x, y } = coords[key];
+        const isPath   = pathKeys.has(key);
+        const isInit   = key === INIT_KEY;
+        const isGoal   = key === GOAL_KEY;
+        const r = isInit || isGoal ? 14 : 10;
+
+        const circle = document.createElementNS(svgNS, 'circle');
+        circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', r);
+        circle.setAttribute('fill', isGoal ? '#d1fae5' : isInit ? '#fef3c7' : isPath ? '#fde68a' : '#f8fafc');
+        circle.setAttribute('stroke', isGoal ? '#10b981' : isInit ? '#f59e0b' : isPath ? '#f59e0b' : '#cbd5e1');
+        circle.setAttribute('stroke-width', isPath ? '2.5' : '1.5');
+        svg.appendChild(circle);
+
+        // 라벨 (A/B/C 표기로 변환)
+        const label = key.split('').map(c => ['A','B','C'][+c]).join('');
+        const txt = document.createElementNS(svgNS, 'text');
+        txt.setAttribute('x', x); txt.setAttribute('y', y + 5);
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('font-size', '11');
+        txt.setAttribute('font-weight', '700');
+        txt.setAttribute('fill', isGoal ? '#065f46' : isPath ? '#92400e' : '#64748b');
+        txt.setAttribute('font-family', 'Pretendard Variable, Pretendard, sans-serif');
+        txt.textContent = label;
+        svg.appendChild(txt);
+    });
+
+    // 범례
+    const legend = [
+        { color: '#fef3c7', stroke: '#f59e0b', label: '초기(AAA)' },
+        { color: '#d1fae5', stroke: '#10b981', label: '목표(CCC)' },
+        { color: '#fde68a', stroke: '#f59e0b', label: '최적 경로' },
+        { color: '#f8fafc', stroke: '#cbd5e1', label: '나머지 상태' },
+    ];
+    legend.forEach(({ color, stroke, label }, i) => {
+        const gx = 20, gy = 20 + i * 26;
+        const r = document.createElementNS(svgNS, 'rect');
+        r.setAttribute('x', gx); r.setAttribute('y', gy - 8); r.setAttribute('width', 16); r.setAttribute('height', 16);
+        r.setAttribute('rx', '4'); r.setAttribute('fill', color); r.setAttribute('stroke', stroke); r.setAttribute('stroke-width', '2');
+        svg.appendChild(r);
+        const t = document.createElementNS(svgNS, 'text');
+        t.setAttribute('x', gx + 22); t.setAttribute('y', gy + 4);
+        t.setAttribute('font-size', '13'); t.setAttribute('fill', '#475569');
+        t.setAttribute('font-family', 'Pretendard Variable, Pretendard, sans-serif');
+        t.textContent = label;
+        svg.appendChild(t);
+    });
+
+    // 경로 정보 텍스트
+    const info = document.createElementNS(svgNS, 'text');
+    info.setAttribute('x', W / 2); info.setAttribute('y', H - 8);
+    info.setAttribute('text-anchor', 'middle'); info.setAttribute('font-size', '13');
+    info.setAttribute('fill', '#64748b');
+    info.setAttribute('font-family', 'Pretendard Variable, Pretendard, sans-serif');
+    info.textContent = `n=3: 상태 ${allStates.length}개, 엣지 ${edges.length}개, 최적 경로 7수`;
+    svg.appendChild(info);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'overflow-x-auto';
+    wrapper.appendChild(svg);
+    panel.appendChild(wrapper);
+}
+
+/* ============================================================
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
+        [['#aiStepBtn', '#aiPlayBtn'], '#aiScene'],
+        [['[data-tab="graph"]'], '#graphPanel']
+    ]);
+});
+
+/* ============================================================
+   초기화
+============================================================ */
+window.addEventListener('DOMContentLoaded', () => {
+    resetManual();
+    resetAI();
+});
+</script>
+</body>
+</html>

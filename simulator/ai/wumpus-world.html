@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Wumpus World 시뮬레이터</title>
+    <script type="module" src="/src/entries/simulator/ai/wumpus-world.js"></script>
+    <link rel="stylesheet" href="/src/styles/simulator.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
+        code, kbd, samp, pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(
+                    135deg,
+                    #e11d48 0%,
+                    #ec4899 45%,
+                    #a855f7 100%
+            );
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            /* 모바일에서는 좌우 여백을 줄인다. main 의 px-6 와 겹쳐 2.5rem 을 그대로 두면
+               375px 화면에서 좌우로 128px을 잃어 격자가 246px까지 쪼그라든다. */
+            padding: 1.25rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        @media (min-width: 640px) {
+            .section-card {
+                padding: 2.5rem;
+            }
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.25s ease;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5 !important;
+            color: white !important;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e !important;
+            color: white !important;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .not-symbol {
+            font-size: 2.5rem;
+            font-weight: 900;
+            vertical-align: middle;
+            line-height: 0;
+            margin-right: 2px;
+            display: inline-block;
+        }
+
+        .cell-transition {
+            transition: all 0.3s ease;
+            aspect-ratio: 1 / 1;
+        }
+
+        .sensor-icon {
+            margin-top: 2px;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+<body class="text-xl text-slate-900">
+
+<header class="hero-gradient text-white py-20 px-6" id="intro">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">Wumpus World 시뮬레이터</h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            인공지능은 '아님'을 뜻하는 기호 <span class="not-symbol">¬</span>(not)를 사용하여 위험이 없는 안전한 길을 논리적으로 찾아냅니다.
+        </p>
+    </div>
+</header>
+
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <span class="font-black text-2xl tracking-tight text-slate-800">Wumpus World</span>
+        </div>
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-sm">
+            <a class="hover:text-indigo-600 transition" href="#intro">도입</a>
+            <a class="hover:text-indigo-600 transition" href="#wumpus-guide">핵심개념</a>
+            <a class="hover:text-indigo-600 transition" href="#activity">시뮬레이터</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <section id="wumpus-guide" class="mb-8">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-black">Wumpus World (웜퍼스 월드)<br>추론 에이전트</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full mt-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-md border border-slate-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-rose-500 p-6 text-center">
+                <h2 class="text-2xl font-black text-white mb-2 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-brain"></i> 논리 추론 관찰 가이드
+                </h2>
+                <p class="text-indigo-50 text-lg">
+                    <strong>"에이전트는 보이지 않는 위험을 주변 단서를 통해 논리적으로 추론해야 합니다."</strong>
+                </p>
+            </div>
+
+            <div class="p-6 md:p-8 space-y-8">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2"><i
+                            class="fa-solid fa-book-journal-whills text-indigo-500 mr-2"></i> 1. 환경 단서(Percept)와 추론 규칙
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-slate-50 border border-slate-300 p-4 rounded-xl flex items-start gap-3">
+                            <div class="text-3xl mt-1">💨</div>
+                            <div>
+                                <span class="font-bold text-blue-600">바람 (Breeze)</span>
+                                <p class="text-base text-slate-600 mt-1">바람이 불면 주변 상하좌우 칸 중 어딘가에 함정(🕳️)이 존재합니다.</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-300 p-4 rounded-xl flex items-start gap-3">
+                            <div class="text-3xl mt-1">🤢</div>
+                            <div>
+                                <span class="font-bold text-rose-600">냄새 (Stench)</span>
+                                <p class="text-base text-slate-600 mt-1">악취가 나면 주변 상하좌우 칸 중 어딘가에 몬스터(👹)가 존재합니다.</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-300 p-4 rounded-xl flex items-start gap-3">
+                            <div class="text-3xl mt-1">💰</div>
+                            <div>
+                                <span class="font-bold text-amber-500">반짝임 (Glitter)</span>
+                                <p class="text-base text-slate-600 mt-1">현재 칸에 목표물인 금(Gold)이 있습니다. 주워야(Grab) 합니다!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-300 p-5 rounded-2xl">
+                    <h3 class="text-lg font-bold text-indigo-800 mb-3"><i
+                            class="fa-solid fa-lightbulb text-amber-500 mr-2"></i> 2. 논리 추론 예시 (에이전트의 생각 흐름)</h3>
+                    <ul class="space-y-2 text-slate-700 text-base md:text-base list-none pl-0">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-2"></i>
+                            <span><strong>(0,0) 시작 지점:</strong> 바람과 냄새가 없다. <i
+                                    class="fa-solid fa-arrow-right mx-1 text-slate-400"></i> 인접한 (1,0)과 (0,1)은 100% <strong>안전(Safe)</strong>하다!</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-2"></i>
+                            <span><strong>(1,0) 이동 후:</strong> 바람(💨)을 감지했다. <i
+                                    class="fa-solid fa-arrow-right mx-1 text-slate-400"></i> 방금 온 (0,0)은 안전하므로, 나머지 인접 칸인 <strong>(2,0)과 (1,1) 가운데 적어도 한 곳에는 함정(Pit)이 있다!</strong> 둘 다 함정일 수도 있으니, 어느 쪽도 안전하다고 말할 수 없다.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2"><i
+                            class="fa-solid fa-eye text-indigo-500 mr-2"></i> 3. 시뮬레이터 화면 보는 법 (에이전트의 지식베이스)</h3>
+                    <p class="text-base text-slate-600 mb-4">그리드의 색상은 정답이 아니라, <strong>에이전트가 현재까지 추론해낸 '생각(지식)'</strong>을
+                        시각화한 것입니다.</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-base">
+                        <div class="bg-white border-2 border-indigo-500 p-3 rounded-xl shadow-sm">
+                            <span class="block font-bold text-slate-800 mb-1">방문 완료</span>
+                            <span class="text-base text-slate-500">이미 지나온 길</span>
+                        </div>
+                        <div class="bg-green-50 border-2 border-green-400 p-3 rounded-xl shadow-sm">
+                            <span class="block font-bold text-green-700 mb-1">안전 지대</span>
+                            <span class="text-base text-green-600">논리적으로 100% 안전함</span>
+                        </div>
+                        <div class="bg-yellow-50 border-2 border-yellow-300 p-3 rounded-xl shadow-sm">
+                            <span class="block font-bold text-yellow-700 mb-1">위험 의심</span>
+                            <span class="text-base text-yellow-600">위험할 가능성이 있음</span>
+                        </div>
+                        <div class="bg-rose-300 border-2 border-rose-500 p-3 rounded-xl shadow-sm">
+                            <span class="block font-bold text-rose-700 mb-1">사망</span>
+                            <span class="text-base text-rose-600">안전을 확정하지 못한 칸에 들어갔다</span>
+                        </div>
+                    </div>
+                    <p class="text-base text-slate-600 mt-4">에이전트는 안전이 확정된 칸을 먼저 밟고, 그런 칸이 더 남아 있지 않을 때에만 위험이 가장
+                        낮아 보이는 칸을 골라 들어갑니다. 사망은 이때 일어납니다.</p>
+                </div>
+
+                <div class="text-center pt-2">
+                    <p class="font-bold text-slate-800">이제 <span
+                            class="bg-slate-200 px-2 py-1 rounded text-base">Next</span> 버튼을 하나씩 누르며 에이전트의 추론 과정을 관찰해
+                        보세요!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 section-card overflow-hidden fs-stage" id="activity">
+        <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추. -->
+        <button type="button" class="fs-btn" data-fullscreen="activity"
+                title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+        <div class="mb-8 flex flex-col gap-6">
+            <div>
+                <h2 class="text-3xl font-black mb-4">실시간 논리 추론 시뮬레이터</h2>
+                <p class="text-slate-500 text-xl fs-hide">에이전트가 단서를 바탕으로 지도를 넓혀갑니다. 멈추지 않고 스스로 답을 찾습니다.</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch gap-4 w-full">
+                <div class="flex-1 w-full flex items-center justify-between bg-white border border-slate-400 px-5 py-4 rounded-2xl shadow-sm">
+                    <label for="grid-size" class="font-bold text-slate-700 whitespace-nowrap">
+                        <i class="fa-solid fa-table-cells mr-2"></i>격자 크기
+                    </label>
+                    <select id="grid-size"
+                            class="w-full max-w-xs h-10 text-center bg-slate-50 border border-slate-400 text-slate-800 font-bold rounded-xl px-3 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                            onchange="changeSize()">
+                        <option value="4" selected>4 x 4</option>
+                        <option value="5">5 x 5</option>
+                        <option value="6">6 x 6 (넓은 화면 권장)</option>
+                        <option value="7">7 x 7 (넓은 화면 권장)</option>
+                        <option value="8">8 x 8 (넓은 화면 권장)</option>
+                    </select>
+                </div>
+
+                <label class="flex-1 w-full flex items-center justify-between cursor-pointer bg-slate-50 border border-slate-400 px-5 py-4 rounded-2xl shadow-sm hover:bg-slate-100 transition">
+                    <span class="font-bold text-slate-700">정답 미리보기</span>
+                    <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="toggle-vision"
+                               class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                               onchange="renderGrid()"/>
+                        <label for="toggle-vision"
+                               class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="fs-fill grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+            <div class="flex flex-col gap-6">
+                <div id="grid-container"
+                     class="fs-fit grid gap-2 aspect-square bg-slate-300 p-3 rounded-3xl border-4 border-slate-400"></div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <button id="btn-step"
+                            class="h-20 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl text-2xl flex items-center justify-center gap-3 active:scale-95">
+                        <i class="fa-solid fa-forward-step"></i> Next
+                    </button>
+                    <button id="btn-run"
+                            class="h-20 bg-slate-800 text-white font-bold rounded-2xl shadow-xl text-2xl flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-play"></i> Run
+                    </button>
+                    <button id="btn-reset"
+                            class="h-20 col-span-2 md:col-span-1 bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-2xl text-xl font-bold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-rotate-right"></i> Reset
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-6 h-[500px] md:h-[600px] lg:h-[550px]">
+
+                <div class="bg-indigo-50 border-2 border-indigo-400 p-6 rounded-3xl flex-shrink-0">
+                    <h3 class="font-bold text-indigo-800 mb-2 flex items-center text-xl"><i
+                            class="fa-solid fa-satellite-dish mr-3"></i>현재 지각 정보</h3>
+                    <div id="percept-panel" class="text-indigo-900 font-black text-xl min-h-[1.5rem]">대기 중...</div>
+                </div>
+
+                <div class="bg-white border-2 border-slate-400 shadow-inner p-6 rounded-3xl flex flex-col flex-1 min-h-0">
+                    <h3 class="font-bold text-slate-800 mb-3 text-xl flex-shrink-0">
+                        <i class="fa-solid fa-list-check text-indigo-500 mr-3"></i>추론 과정 로그
+                    </h3>
+                    <div id="log-panel"
+                         class="flex-1 overflow-y-auto pr-2 custom-scrollbar text-lg space-y-3 text-slate-600 min-h-0">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl flex flex-col h-[150px] flex-shrink-0">
+                    <h3 class="font-bold text-white mb-3 text-xl flex-shrink-0"><i
+                            class="fa-solid fa-database text-teal-400 mr-3"></i>지식 베이스 (KB)</h3>
+                    <div id="kb-panel" class="flex-1 overflow-y-auto text-xl font-mono text-teal-300 pr-2"></div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="자료 목록" aria-label="자료 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function formatLogic(text) {
+        return text.replace(/¬/g, '<span class="not-symbol">¬</span>');
+    }
+
+    let SIZE = 4;
+
+    const key = (x, y) => `${x},${y}`;
+    const parseKey = (k) => {
+        const [x, y] = k.split(',').map(Number);
+        return {x, y};
+    };
+
+    const getAdj = (x, y) => {
+        const adjs = [];
+        if (x > 0) adjs.push({x: x - 1, y});
+        if (x < SIZE - 1) adjs.push({x: x + 1, y});
+        if (y > 0) adjs.push({x, y: y - 1});
+        if (y < SIZE - 1) adjs.push({x, y: y + 1});
+        return adjs;
+    };
+
+    class WumpusWorld {
+        constructor() {
+            this.init();
+        }
+
+        init() {
+            const rand = () => {
+                let rx, ry;
+                do {
+                    rx = Math.floor(Math.random() * SIZE);
+                    ry = Math.floor(Math.random() * SIZE);
+                }
+                while (rx === 0 && ry === 0);
+                return {x: rx, y: ry};
+            };
+            this.gold = rand();
+            do {
+                this.wumpus = rand();
+            } while (this.wumpus.x === this.gold.x && this.wumpus.y === this.gold.y);
+
+            this.pits = new Set();
+            for (let x = 0; x < SIZE; x++) {
+                for (let y = 0; y < SIZE; y++) {
+                    if ((x === 0 && y === 0) || (x === this.gold.x && y === this.gold.y) || (x === this.wumpus.x && y === this.wumpus.y)) continue;
+                    if (Math.random() < 0.15) this.pits.add(key(x, y));
+                }
+            }
+        }
+
+        getPercepts(x, y) {
+            let stench = false, breeze = false, glitter = false;
+            if (this.gold.x === x && this.gold.y === y) glitter = true;
+            getAdj(x, y).forEach(adj => {
+                if (adj.x === this.wumpus.x && adj.y === this.wumpus.y) stench = true;
+                if (this.pits.has(key(adj.x, adj.y))) breeze = true;
+            });
+            return {stench, breeze, glitter};
+        }
+    }
+
+    class Agent {
+        constructor() {
+            this.x = 0;
+            this.y = 0;
+            this.visited = new Set([key(0, 0)]);
+            this.safe = new Set([key(0, 0)]);
+            this.pitSafe = new Set([key(0, 0)]);
+            this.wumpusSafe = new Set([key(0, 0)]);
+            this.possiblePit = new Set();
+            this.possibleWumpus = new Set();
+            this.hasGold = false;
+            this.isDead = false;
+            this.state = 'SENSE';
+        }
+    }
+
+    let env, agent, runInterval = null;
+
+    function changeSize() {
+        SIZE = parseInt(document.getElementById('grid-size').value);
+        initGame();
+    }
+
+    function initGame() {
+        env = new WumpusWorld();
+        agent = new Agent();
+        document.getElementById('log-panel').innerHTML = '';
+        document.getElementById('percept-panel').innerText = '대기 중...';
+        stopAutoRun();
+        renderGrid();
+        updateKBUI();
+        logMessage(`[시스템] ${SIZE}x${SIZE} 환경으로 탐험을 시작합니다.`, 'success');
+    }
+
+    function renderGrid() {
+        const container = document.getElementById('grid-container');
+        const showHidden = document.getElementById('toggle-vision').checked;
+
+        container.style.gridTemplateColumns = `repeat(${SIZE}, minmax(0, 1fr))`;
+        container.style.gridTemplateRows = `repeat(${SIZE}, minmax(0, 1fr))`;
+        container.innerHTML = '';
+
+        const iconSizeClass = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
+        // 좌표 라벨이 0.5rem(8px)이면 사실상 읽을 수 없다. 판이 커질수록 작아지되 하한을 둔다.
+        const coordTextSize = SIZE <= 5 ? 'text-xs' : 'text-[0.625rem]';
+
+        for (let y = SIZE - 1; y >= 0; y--) {
+            for (let x = 0; x < SIZE; x++) {
+                const k = key(x, y);
+                const isVisited = agent.visited.has(k);
+                const isSafe = agent.safe.has(k) && !isVisited;
+                const isRisk = (agent.possiblePit.has(k) || agent.possibleWumpus.has(k)) && !isVisited;
+
+                let bg = 'bg-slate-200';
+                let border = 'border-slate-300';
+                let shadow = '';
+
+                if (agent.x === x && agent.y === y) {
+                    if (agent.isDead) {
+                        bg = 'bg-rose-300';
+                        border = 'border-rose-500';
+                        shadow = 'shadow-lg z-20 scale-105';
+                    } else if (agent.hasGold) {
+                        bg = 'bg-amber-300';
+                        border = 'border-amber-500';
+                        shadow = 'shadow-lg shadow-amber-200 z-20 scale-105';
+                    } else {
+                        bg = 'bg-white';
+                        border = 'border-indigo-500';
+                        shadow = 'shadow-md z-10 scale-105';
+                    }
+                } else if (isVisited) {
+                    bg = 'bg-white';
+                    border = 'border-indigo-500';
+                    shadow = 'shadow-md z-10';
+                } else if (isSafe) {
+                    bg = 'bg-green-50';
+                    border = 'border-green-400';
+                } else if (isRisk) {
+                    bg = 'bg-yellow-50';
+                    border = 'border-yellow-300';
+                }
+
+                const cell = document.createElement('div');
+                cell.className = `cell-transition rounded-2xl flex items-center justify-center border-2 ${iconSizeClass} leading-none relative ${bg} ${border} ${shadow}`;
+                cell.innerHTML = `<span class="absolute top-1 left-2 font-bold text-slate-400 ${coordTextSize}">${x},${y}</span>`;
+
+                let contentHTML = '';
+
+                if (agent.x === x && agent.y === y) {
+                    if (agent.isDead) contentHTML = '💀';
+                    else if (agent.hasGold) contentHTML = '💰';
+                    else contentHTML = '🤖';
+                } else if (isVisited) {
+                    if (env.pits.has(k)) contentHTML = '🕳️';
+                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '👹';
+                    else if (env.gold.x === x && env.gold.y === y && !agent.hasGold) contentHTML = '💰';
+                    else {
+                        const p = env.getPercepts(x, y);
+                        let s = '';
+                        if (p.breeze) s += '💨';
+                        if (p.stench) s += '🤢';
+                        let multiClass = (p.breeze && p.stench) ? 'scale-90 tracking-tighter' : '';
+                        contentHTML = `<div class="${multiClass} flex items-center justify-center">${s}</div>`;
+                    }
+                } else if (showHidden) {
+                    if (env.pits.has(k)) contentHTML = '<span class="opacity-30">🕳️</span>';
+                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '<span class="opacity-30">👹</span>';
+                    else if (env.gold.x === x && env.gold.y === y) contentHTML = '<span class="opacity-30">💰</span>';
+                }
+
+                const contentSpan = document.createElement('span');
+                contentSpan.className = "flex items-center justify-center";
+                contentSpan.innerHTML = contentHTML;
+                cell.appendChild(contentSpan);
+                container.appendChild(cell);
+            }
+        }
+    }
+
+    function logMessage(msg, type = 'default') {
+        const panel = document.getElementById('log-panel');
+        const entry = document.createElement('div');
+
+        let colorClass = 'text-slate-600';
+        let bgClass = '';
+        let borderClass = 'border-b border-slate-50';
+
+        if (type === 'sense') {
+            colorClass = 'text-blue-700 font-medium';
+            bgClass = 'bg-blue-50/50 rounded-lg px-2';
+        } else if (type === 'infer') {
+            colorClass = 'text-emerald-700 font-medium';
+            bgClass = 'bg-emerald-50/50 rounded-lg px-2';
+        } else if (type === 'move') {
+            colorClass = 'text-purple-700 font-bold';
+            bgClass = 'bg-purple-50/50 rounded-lg px-2';
+            borderClass = 'border-b-2 border-dashed border-slate-300 mb-2 pb-3';
+        } else if (type === 'death' || type === 'error') {
+            colorClass = 'text-rose-600 font-bold';
+            bgClass = 'bg-rose-50/50 rounded-lg px-2';
+            borderClass = 'border-b-2 border-solid border-rose-300 mb-2 pb-3';
+        } else if (type === 'success') {
+            colorClass = 'text-amber-600 font-black';
+            bgClass = 'bg-amber-50/50 rounded-lg px-2';
+            borderClass = 'border-b-2 border-solid border-amber-300 mb-2 pb-3';
+        }
+
+        entry.className = `py-2 transition-colors ${colorClass} ${bgClass} ${borderClass}`;
+        entry.innerHTML = formatLogic(msg);
+        panel.appendChild(entry);
+
+        if (panel.children.length > 50) panel.removeChild(panel.firstChild);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function updateKBUI() {
+        const kbPanel = document.getElementById('kb-panel');
+        const safeArr = Array.from(agent.safe).map(k => `Safe(${k})`);
+        /* **잘라서 그리면 쌓인 지식이 사라진 것처럼 보인다.**
+           예전에는 마지막 6개만 그려서, 그 앞에 알아낸 것은 스크롤해도 나오지 않았다 —
+           상자에 스크롤이 걸려 있어도 아예 안 그린 것은 찾을 수 없다.
+           전부 그리고 새로 붙은 쪽으로 내려 준다. 추론 과정 로그와 같은 방식이다. */
+        kbPanel.innerHTML = formatLogic(safeArr.join(', '));
+        kbPanel.scrollTop = kbPanel.scrollHeight;
+    }
+
+    function getPathToTarget(tx, ty) {
+        const queue = [{x: agent.x, y: agent.y, path: []}];
+        const visited = new Set([key(agent.x, agent.y)]);
+
+        while (queue.length > 0) {
+            const curr = queue.shift();
+            if (curr.x === tx && curr.y === ty) return curr.path;
+
+            for (let adj of getAdj(curr.x, curr.y)) {
+                const ak = key(adj.x, adj.y);
+                const isTarget = (adj.x === tx && adj.y === ty);
+                if (!visited.has(ak) && (agent.visited.has(ak) || isTarget)) {
+                    visited.add(ak);
+                    queue.push({x: adj.x, y: adj.y, path: [...curr.path, adj]});
+                }
+            }
+        }
+        return null;
+    }
+
+    function chooseBestTarget() {
+        let bestTarget = null;
+        let minRisk = Infinity;
+        let minDistance = Infinity;
+
+        const candidates = [];
+        for (let x = 0; x < SIZE; x++) {
+            for (let y = 0; y < SIZE; y++) {
+                const k = key(x, y);
+                if (agent.visited.has(k)) continue;
+
+                const adjs = getAdj(x, y);
+                if (adjs.some(adj => agent.visited.has(key(adj.x, adj.y)))) {
+                    candidates.push({x, y, k});
+                }
+            }
+        }
+
+        // sort(() => Math.random() - 0.5) 는 비교 함수 규약을 어겨 한쪽으로 치우친 순서를 만든다.
+        // 위험도·거리가 모두 같을 때만 쓰이는 무작위 순서이므로 제대로 섞어 준다.
+        for (let i = candidates.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+
+        candidates.forEach(cand => {
+            let risk = 0.2;
+
+            if (agent.safe.has(cand.k)) risk = 0;
+            else {
+                if (agent.possiblePit.has(cand.k)) risk += 0.4;
+                if (agent.possibleWumpus.has(cand.k)) risk += 0.6;
+            }
+
+            const path = getPathToTarget(cand.x, cand.y);
+            if (!path) return;
+
+            const dist = path.length;
+            if (risk < minRisk || (risk === minRisk && dist < minDistance)) {
+                minRisk = risk;
+                minDistance = dist;
+                bestTarget = cand;
+            }
+        });
+
+        return bestTarget;
+    }
+
+    function stepSimulation() {
+        if (agent.hasGold || agent.isDead) return;
+
+        if (agent.state === 'SENSE') {
+            const p = env.getPercepts(agent.x, agent.y);
+            let s = [];
+            if (p.breeze) s.push("💨 Breeze");
+            if (p.stench) s.push("🤢 Stench");
+            if (p.glitter) s.push("✨ Glitter");
+
+            const txt = s.length > 0 ? s.join(', ') : "None (평온함)";
+            document.getElementById('percept-panel').innerHTML = formatLogic(txt);
+            logMessage(`[1. 지각] (${agent.x},${agent.y}): ${txt}`, 'sense');
+
+            // 반짝임이 보이는 칸이 곧 금이 있는 칸이다. 지각한 뒤에 줍는다.
+            if (p.glitter) {
+                agent.hasGold = true;
+                logMessage(`[3. 행동] 💰 반짝임을 보고 금을 주웠습니다(Grab).`, 'success');
+                stopAutoRun();
+                renderGrid();
+                return;
+            }
+
+            agent.lastPercept = p;
+            agent.state = 'INFER';
+            renderGrid();
+        } else if (agent.state === 'INFER') {
+            const p = agent.lastPercept;
+            const adjs = getAdj(agent.x, agent.y);
+
+            if (!p.breeze) {
+                logMessage(`[2. 추론] ¬Breeze → 인접 칸 함정 없음`, 'infer');
+                adjs.forEach(adj => {
+                    const k = key(adj.x, adj.y);
+                    agent.pitSafe.add(k);
+                    agent.possiblePit.delete(k);
+                });
+            } else {
+                adjs.forEach(adj => {
+                    const k = key(adj.x, adj.y);
+                    if (!agent.visited.has(k) && !agent.pitSafe.has(k)) agent.possiblePit.add(k);
+                });
+            }
+
+            if (!p.stench) {
+                logMessage(`[2. 추론] ¬Stench → 인접 칸 괴물 없음`, 'infer');
+                adjs.forEach(adj => {
+                    const k = key(adj.x, adj.y);
+                    agent.wumpusSafe.add(k);
+                    agent.possibleWumpus.delete(k);
+                });
+            } else {
+                adjs.forEach(adj => {
+                    const k = key(adj.x, adj.y);
+                    if (!agent.visited.has(k) && !agent.wumpusSafe.has(k)) agent.possibleWumpus.add(k);
+                });
+            }
+
+            for (let x = 0; x < SIZE; x++) {
+                for (let y = 0; y < SIZE; y++) {
+                    const k = key(x, y);
+                    if (agent.pitSafe.has(k) && agent.wumpusSafe.has(k) && !agent.safe.has(k)) {
+                        agent.safe.add(k);
+                        agent.possiblePit.delete(k);
+                        agent.possibleWumpus.delete(k);
+                        if (x !== agent.x || y !== agent.y) logMessage(`[2. 추론] 교차 검증: (${x},${y}) 안전함 확정`, 'infer');
+                    }
+                }
+            }
+
+            updateKBUI();
+            renderGrid();
+            agent.state = 'MOVE';
+        } else if (agent.state === 'MOVE') {
+            const target = chooseBestTarget();
+
+            if (target) {
+                const path = getPathToTarget(target.x, target.y);
+                const nextStep = path[0];
+                const isFrontierStep = !agent.visited.has(key(nextStep.x, nextStep.y));
+
+                agent.x = nextStep.x;
+                agent.y = nextStep.y;
+                agent.visited.add(key(agent.x, agent.y));
+
+                if (isFrontierStep) {
+                    if (agent.safe.has(key(agent.x, agent.y))) {
+                        logMessage(`[3. 행동] 안전 구역 (${agent.x}, ${agent.y}) 탐색 전진`, 'move');
+                    } else {
+                        logMessage(`[3. 행동] 확실한 길이 없어 위험 감수하고 (${agent.x}, ${agent.y}) 탐색`, 'move');
+                    }
+                } else {
+                    logMessage(`[3. 행동] 다른 목적지를 향해 (${agent.x}, ${agent.y}) 밟고 우회 중`, 'move');
+                }
+
+                if (env.pits.has(key(agent.x, agent.y))) {
+                    agent.isDead = true;
+                    logMessage(`[사망] 🕳️ 함정에 빠졌습니다!`, 'death');
+                    stopAutoRun();
+                } else if (env.wumpus.x === agent.x && env.wumpus.y === agent.y) {
+                    agent.isDead = true;
+                    logMessage(`[사망] 👹 괴물에게 당했습니다!`, 'death');
+                    stopAutoRun();
+                } else {
+                    // 밟고 살아남았으니 이 칸에는 함정도 괴물도 없다. 지식 베이스에 사실로 남긴다.
+                    const here = key(agent.x, agent.y);
+                    agent.pitSafe.add(here);
+                    agent.wumpusSafe.add(here);
+                    agent.possiblePit.delete(here);
+                    agent.possibleWumpus.delete(here);
+                    if (!agent.safe.has(here)) {
+                        agent.safe.add(here);
+                        logMessage(`[KB] 밟고 살아남음 → (${agent.x},${agent.y})에는 함정도 괴물도 없음`, 'infer');
+                    }
+                    updateKBUI();
+                }
+            } else {
+                // 수정: 타겟이 없을 때 루프를 빠져나가도록 강제 종료 상태 처리
+                logMessage(`[오류] 맵이 모두 위험 요소로 닫혀있어 더 이상 탐색할 수 없습니다.`, 'error');
+                agent.isDead = true;
+                stopAutoRun();
+            }
+
+            renderGrid();
+            if (!agent.isDead && !agent.hasGold) agent.state = 'SENSE';
+        }
+    }
+
+    document.getElementById('btn-step').addEventListener('click', stepSimulation);
+    document.getElementById('btn-reset').addEventListener('click', initGame);
+
+    document.getElementById('btn-run').addEventListener('click', () => {
+        if (runInterval) {
+            stopAutoRun();
+        } else {
+            // UI 변경: 버튼 제어 (Race Condition 방지)
+            document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+            document.getElementById('btn-step').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('grid-size').disabled = true;
+
+            runInterval = setInterval(() => {
+                if (agent.hasGold || agent.isDead) {
+                    stopAutoRun();
+                    return;
+                }
+
+                // 무한루프 방지용 Safety Counter
+                let safetyCounter = 0;
+                do {
+                    stepSimulation();
+                    safetyCounter++;
+                    if (safetyCounter > 10) break; // 에지 케이스에서의 브라우저 다운 방지
+                } while (agent.state !== 'SENSE' && !agent.hasGold && !agent.isDead);
+            }, 600);
+        }
+    });
+
+    function stopAutoRun() {
+        if (runInterval) clearInterval(runInterval);
+        runInterval = null;
+
+        // UI 원복
+        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play"></i> Run';
+        document.getElementById('btn-step').classList.remove('opacity-50', 'pointer-events-none');
+        document.getElementById('grid-size').disabled = false;
+    }
+
+    initGame();
+</script>
+<script>
+/* ============================================================
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
+            [['#btn-run', '#btn-step'], '#grid-container']
+    ]);
+});
+</script>
+
+</body>
+</html>

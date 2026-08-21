@@ -23,7 +23,7 @@ import {GRAPH_PRESETS} from '../src/entries/_lib/graph-presets.js';
 import * as M from '../src/entries/_lib/graph-model.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SIM = path.join(ROOT, '인공지능기초', 'simulator');
+const SIM = path.join(ROOT, 'simulator', 'ai');
 
 let fail = 0;
 const bad = (m) => {

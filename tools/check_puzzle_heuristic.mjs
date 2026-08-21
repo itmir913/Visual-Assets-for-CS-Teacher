@@ -12,7 +12,7 @@ import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FILE = path.join(ROOT, '인공지능기초', 'simulator', 'search-8-puzzle.html');
+const FILE = path.join(ROOT, 'simulator', 'ai', 'search-8-puzzle.html');
 const html = fs.readFileSync(FILE, 'utf8');
 
 /* ---------- 페이지에서 계산에 쓰는 것만 떼어 낸다 ---------- */

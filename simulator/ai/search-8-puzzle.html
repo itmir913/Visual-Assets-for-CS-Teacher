@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>8-퍼즐 시뮬레이터</title>
+    <script type="module" src="/src/entries/simulator/ai/search-8-puzzle.js"></script>
+    <link rel="stylesheet" href="/src/styles/simulator.css">
+
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
+        code, kbd, samp, pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        /* Hero 배경 그라데이션 */
+        .hero-gradient {
+            background: linear-gradient(
+                    135deg,
+                    #9333ea 0%,
+                    #c026d3 40%,
+                    #ec4899 100%
+            );
+        }
+
+        /* 스크롤 시 특정 위치부터 상단 고정되는 네비게이션 */
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 공통 섹션 카드 스타일 */
+        .section-card {
+            background-color: white;
+            border-radius: 1.5rem;
+            padding: 3rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border: 1px solid #f1f5f9;
+        }
+
+        @media (max-width: 768px) {
+            .section-card {
+                padding: 1.5rem;
+                border-radius: 1rem;
+            }
+        }
+
+        /* 8-퍼즐 실습용 특화 스타일 */
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            background-color: #cbd5e1;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            width: fit-content;
+            /* `margin: 0 auto` 로 쓰면 세로 여백까지 0으로 못박아,
+               HTML 이 붙인 `mb-*` 가 조용히 지워진다(특정도가 같아 나중에 온 이쪽이 이긴다).
+               가운데 정렬만 하려는 것이므로 가로만 건드린다. */
+            margin-inline: auto;
+            position: relative; /* 오버레이를 위해 추가 */
+        }
+
+        .puzzle-tile {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 900;
+            background-color: white;
+            color: #4f46e5;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            user-select: none;
+            position: relative;   /* 평가 함수 뱃지를 이 상자 안에 얹는다 */
+        }
+
+        @media (max-width: 640px) {
+            .puzzle-tile {
+                width: 65px;
+                height: 65px;
+                font-size: 1.5rem;
+            }
+        }
+
+        /* 평가 함수를 판 위에 겹쳐 보이는 뱃지.
+           **타일 안에 새 요소를 넣지 않는다** — 타일은 flex 로 숫자를 가운데 두고 있어서,
+           자식을 하나라도 넣으면 숫자가 밀린다. 가상 요소를 절대 배치로 얹는다. */
+        .puzzle-tile[data-away]::after {
+            content: attr(data-away);
+            position: absolute;
+            right: 5px;
+            bottom: 3px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            line-height: 1;
+            color: #b45309;
+        }
+
+        .puzzle-tile[data-away="0"]::after {
+            content: "¹3";
+            color: #059669;
+        }
+
+        .puzzle-tile[data-delta]::before {
+            content: attr(data-delta);
+            position: absolute;
+            left: 4px;
+            top: 3px;
+            padding: 1px 4px;
+            border-radius: 0.3rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .puzzle-tile[data-delta^="-"]::before {
+            color: #065f46;
+            background: #d1fae5;
+        }
+
+        .puzzle-tile[data-delta^="+"]::before {
+            color: #9f1239;
+            background: #ffe4e6;
+        }
+
+        .puzzle-tile:hover:not(.empty) {
+            transform: scale(0.95);
+            background-color: #e0e7ff;
+        }
+
+        .puzzle-tile.empty {
+            background-color: transparent;
+            box-shadow: none;
+            cursor: default;
+            color: transparent;
+        }
+
+        /* 코드 블록 스타일 */
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* 경로 뱃지 애니메이션용 */
+        .path-badge-enter {
+            opacity: 0;
+            transform: scale(0.8) translateY(10px);
+        }
+
+        .path-badge-enter-active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* 컨트롤 비활성화 스타일 */
+        .btn-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    
+        /* 코드 블록이 좁은 화면에서 화면 밖으로 넘치는 것을 막는다.
+           white-space:pre 를 유지해 들여쓰기 원형을 보존하고, 넘치는 줄은
+           코드 블록 안에서만 가로로 스크롤된다. flex 자식일 때 정상적으로
+           줄어들도록 min-width:0 을 함께 준다. */
+        body pre {
+            overflow-x: auto;
+            max-width: 100%;
+            min-width: 0;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+<header class="hero-gradient text-white py-20 px-6" id="intro">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">8-퍼즐 시뮬레이터</h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            우리가 머릿속으로 다음 수를 생각하듯, <br class="hidden md:block">인공지능이 정답을 찾아가는 '탐색' 과정을 8-퍼즐을 통해 경험해 봅시다.
+        </p>
+    </div>
+</header>
+
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                <i class="fa-solid fa-puzzle-piece"></i>
+            </div>
+            <span class="font-black text-2xl tracking-tight text-slate-800">8-퍼즐</span>
+        </div>
+
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-sm">
+            <a class="hover:text-indigo-600 transition" href="#concept">개념 이해</a>
+            <a class="hover:text-indigo-600 transition" href="#rules">퍼즐 규칙</a>
+            <a class="hover:text-indigo-600 transition" href="#simulation">8-퍼즐 실습</a>
+            <a class="hover:text-indigo-600 transition" href="#summary">핵심 정리</a>
+            <a class="hover:text-indigo-600 transition" href="#misconception">오해와 진실</a>
+            <a class="hover:text-indigo-600 transition" href="#quiz">확인 퀴즈</a>
+        </div>
+
+        <button class="md:hidden text-slate-500 hover:text-indigo-600">
+            <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-6 py-12 space-y-24">
+
+    <section class="scroll-mt-24 mx-auto" id="concept">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">준비 단계: 탐색이란 무엇일까?</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-8">
+            <p class="text-lg text-slate-700 leading-relaxed">
+                여러분, 미로 찾기를 하거나 복잡한 퍼즐을 맞출 때 머릿속으로 어떤 생각을 하나요? <br>
+                <strong>"이쪽으로 가면 막히려나? 저쪽으로 가면 정답이 나올까?"</strong> 하며 여러 가지 길을 미리 상상해 봅니다.
+            </p>
+
+            <div class="bg-indigo-50 border-l-4 border-indigo-500 p-6 rounded-r-xl">
+                <h3 class="font-bold text-indigo-800 text-lg mb-2">💡 컴퓨터 과학에서의 '탐색(Search)'</h3>
+                <p class="text-indigo-900 leading-relaxed">
+                    인공지능도 우리와 비슷합니다. 현재 상태에서 연산자를 적용해 다음 상태를 만들어 보며 <strong>목표 상태(정답)에 이르는 경로를 체계적으로 찾아 나가는 과정</strong>을 바로
+                    <strong>'탐색'</strong>이라고 부릅니다.
+                    경우의 수를 하나도 빠짐없이 펼쳐 보는 방법도 있고, 가망 있어 보이는 쪽부터 살펴서 펼쳐 볼 양을 줄이는 방법도 있습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-image"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2">상태 (State)</h4>
+                    <p class="text-slate-600">퍼즐의 현재 모습이나 미로에서의 현재 내 위치를 의미해요.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                    <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2">연산자 (Operator)</h4>
+                    <p class="text-slate-600">상태를 변화시키는 행동이에요. (예: 빈칸을 왼쪽으로 이동하기)</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border-2 border-slate-100 text-center">
+                    <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2">목표 (Goal)</h4>
+                    <p class="text-slate-600">우리가 최종적으로 도달하고자 하는 정답 상태를 말해요.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 mx-auto" id="rules">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">1단계: 8-퍼즐 규칙 알아보기</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-8">
+            <p class="text-lg text-slate-700 leading-relaxed text-center">
+                본격적인 탐색 실습을 시작하기 전에, 우리가 풀게 될 <strong>8-퍼즐</strong>이 어떤 게임인지 3가지 핵심 규칙을 알아볼까요?
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden transition-transform hover:shadow-md">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                    <div class="w-14 h-14 bg-white shadow-sm text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-border-all"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-lg">1. 기본 구성</h4>
+                    <p class="text-slate-600 leading-relaxed">
+                        가로 3칸, 세로 3칸의 게임판에 <strong>1부터 8까지의 숫자 타일</strong>과 <strong>1개의 빈칸</strong>이 있습니다.
+                    </p>
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden transition-transform hover:shadow-md">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
+                    <div class="w-14 h-14 bg-white shadow-sm text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-lg">2. 이동 방법</h4>
+                    <p class="text-slate-600 leading-relaxed">
+                        빈칸과 상하좌우로 <strong>맞닿아 있는 타일</strong>만 빈칸 쪽으로 밀어서 이동시킬 수 있습니다. 대각선 이동은 불가능해요!
+                    </p>
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center relative overflow-hidden transition-transform hover:shadow-md">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+                    <div class="w-14 h-14 bg-white shadow-sm text-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-lg">3. 최종 목표</h4>
+                    <p class="text-slate-600 leading-relaxed">
+                        숫자를 <strong>1부터 8까지 순서대로</strong> 맞추고, 마지막 오른쪽 아래를 <strong>빈칸</strong>으로 만들면 퍼즐 완성입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 mx-auto" id="simulation">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">2단계: 8-퍼즐 직접 탐색해 보기</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card fs-stage" id="puzzleStage">
+            <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추. -->
+            <button type="button" class="fs-btn" data-fullscreen="puzzleStage"
+                    title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+                <i class="fa-solid fa-expand"></i>
+            </button>
+            <div class="flex flex-col md:flex-row gap-10 items-start">
+
+                <div class="flex-1 w-full text-center">
+                    <div class="mb-4 text-slate-600 font-bold">
+                        <i class="fa-solid fa-shoe-prints mr-2"></i>이동 횟수: <span class="text-indigo-600 text-2xl"
+                                                                                 id="moveCount">0</span>
+                    </div>
+
+                    <div class="puzzle-grid mb-6" id="puzzleBoard">
+                    </div>
+
+                    <div class="flex justify-center gap-4">
+                        <button id="shuffleBtn"
+                                class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all shadow-md"
+                                onclick="shufflePuzzle()">
+                            <i class="fa-solid fa-shuffle mr-2"></i>문제 섞기
+                        </button>
+                        <button class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-md"
+                                id="aiBtn"
+                                onclick="solvePuzzleAI()">
+                            <i class="fa-solid fa-robot mr-2"></i>AI가 풀기
+                        </button>
+                    </div>
+
+                    <label class="mt-5 inline-flex items-start gap-3 bg-white border-2 border-slate-200 rounded-xl px-4 py-3 cursor-pointer hover:border-indigo-300 transition-colors text-left">
+                        <input class="mt-1 w-4 h-4 accent-indigo-600 shrink-0" id="showHeuristicBox" type="checkbox">
+                        <span class="min-w-0">
+                            <span class="block font-bold text-slate-800">평가 함수 보기</span>
+                            <span class="block text-sm text-slate-500 leading-snug break-keep">
+                                타일마다 제자리까지 몇 칸인지, 이 타일을 옮기면 어림값이 어떻게 되는지를 판 위에 겹쳐 보여 줍니다.
+                            </span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="flex-1 space-y-6 md:sticky md:top-24">
+                    <div class="bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 space-y-4">
+                        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-ruler text-indigo-500"></i> 지금 이 배치의 어림값
+                        </h3>
+                        <p class="text-base text-slate-600 leading-relaxed break-keep">
+                            어림값은 <b>목표까지 얼마나 남았는지 짐작한 값</b>입니다.
+                            판을 한 번 움직일 때마다 어떻게 변하는지 보세요.
+                        </p>
+
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3">
+                                <span class="font-bold text-slate-700">제자리에 없는 타일 수</span>
+                                <span class="text-2xl font-black text-slate-800" id="hMisplaced">0</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 bg-white border-2 border-indigo-200 rounded-xl px-4 py-3">
+                                <span class="min-w-0">
+                                    <span class="block font-bold text-slate-700">맨해튼 거리 합</span>
+                                    <span class="block text-sm text-indigo-600 font-bold">AI가 쓰는 어림값</span>
+                                </span>
+                                <span class="text-2xl font-black text-indigo-600" id="hManhattan">0</span>
+                            </div>
+                        </div>
+
+                        <p class="text-base font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-4 py-3 leading-relaxed break-keep"
+                           id="hChange">
+                            타일을 옮기면 어림값이 어떻게 변하는지 여기에 적습니다.
+                        </p>
+
+                        <button class="w-full bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-xl font-bold transition shadow-sm flex justify-center items-center gap-2"
+                                id="trueCostBtn" onclick="showTrueRemaining()">
+                            <i class="fa-solid fa-magnifying-glass"></i> 실제로 몇 수 남았는지 확인하기
+                        </button>
+                        <div class="hidden text-base text-slate-700 leading-relaxed break-keep bg-white border border-slate-200 rounded-xl px-4 py-3 space-y-2"
+                             id="trueCostBox"></div>
+                    </div>
+
+                    <h3 class="text-xl font-bold text-slate-800 border-b-2 border-slate-100 pb-3">
+                        <i class="fa-solid fa-gamepad text-indigo-500 mr-2"></i>실습 방법
+                    </h3>
+                    <ul class="space-y-4 text-slate-600">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-3"></i>
+                            <span><strong>목표 상태:</strong> 숫자 1부터 8까지 순서대로 정렬하고, 마지막을 빈칸으로 만드는 것입니다.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-3"></i>
+                            <span><strong>직접 풀기:</strong> 빈칸 주변의 숫자를 클릭하여 상하좌우로 이동시켜 보세요. 인간의 탐색 과정을 경험할 수 있습니다.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check text-green-500 mt-1 mr-3"></i>
+                            <span><strong>AI가 풀기:</strong> 버튼을 누르면 인공지능이 <strong>A* 알고리즘</strong>(휴리스틱 탐색)을 사용하여 브라우저 멈춤 없이 순식간에 최단 경로를 계산해 냅니다.</span>
+                        </li>
+                    </ul>
+                    <div class="bg-indigo-50 text-indigo-700 p-4 rounded-xl mt-4 text-sm font-medium">
+                        💡 <strong>A*가 빠른 이유:</strong> 8-퍼즐에서 도달할 수 있는 배치는 181,440가지이지만, 아무리 여러 번 섞어도 목표까지는 최대 31수입니다.
+                        A*는 배치마다 <strong>남은 수를 미리 어림잡아</strong> 가망 있는 쪽부터 살펴보기 때문에, 배치를 전부 펼쳐 보지 않고도 답에 닿습니다.
+                        여기서 쓰는 어림값은 <strong>타일마다 제자리까지 몇 칸을 움직여야 하는지를 모두 더한 값</strong>(맨해튼 거리)이고, 빈칸은 세지 않습니다.
+                        이 어림값이 <strong>실제로 남은 수를 넘지 않을 때에만</strong> 최단 경로가 보장됩니다.
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="hidden opacity-0 transition-opacity duration-500 bg-indigo-50 rounded-xl p-5 border border-indigo-100 text-left mt-10"
+                 id="aiPathContainer">
+                <div class="flex items-center text-indigo-800 font-bold mb-3">
+                    <i class="fa-solid fa-route mr-2"></i> AI가 찾은 최적의 이동 경로
+                </div>
+                <div class="flex flex-wrap items-center gap-2" id="pathSteps">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 mx-auto" id="summary">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">3단계: 핵심 원리 및 코드로 이해하기</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-slate-700">
+                인공지능은 퍼즐의 타일을 직접 만질 수 없습니다. 대신 <strong>숫자 데이터</strong>를 사용하여 현재 퍼즐의 '상태'를 기억하고 연산합니다.
+                가장 대표적인 방법은 <strong>2차원 리스트(배열)</strong>를 사용하는 것입니다.
+            </p>
+
+            <div class="relative">
+                <div class="absolute top-0 right-0 bg-slate-800 text-slate-400 px-3 py-1 rounded-bl-lg rounded-tr-lg font-bold">
+                    Python
+                </div>
+                <pre><code class="language-python" data-src="code/search-8-puzzle.py"></code></pre>
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 mx-auto" id="misconception">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">4단계: 오해와 진실</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+
+                <div class="space-y-4 flex flex-col h-full">
+                    <div class="flex items-center text-rose-500 font-black text-lg">
+                        <i class="fa-solid fa-xmark text-2xl mr-3"></i> 학생들이 흔히 하는 오해
+                    </div>
+                    <div class="bg-rose-50 p-6 rounded-2xl border border-rose-100 flex-1">
+                        <p class="text-slate-800 font-medium">
+                            "인공지능은 퍼즐을 보면 직감적으로 한 번에 딱! 정답을 알아내는 거 아닌가요?"
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-4 flex flex-col h-full">
+                    <div class="flex items-center text-indigo-600 font-black text-lg">
+                        <i class="fa-regular fa-lightbulb text-2xl mr-3"></i> 올바른 개념
+                    </div>
+                    <div class="bg-indigo-50 p-6 rounded-2xl h-full border border-indigo-100">
+                        <p class="text-slate-800 font-medium mb-3">
+                            아닙니다! 인공지능에게 사람과 같은 '직감'은 없습니다.
+                        </p>
+                        <p class="text-slate-600 leading-relaxed">
+                            인공지능은 빈칸을 위로 움직였을 때의 상태, 아래로 움직였을 때의 상태를 마치 나뭇가지가 뻗어나가듯 <strong>'탐색 트리(Search
+                            Tree)'</strong>로 미리 그려보고, 그중 정답으로 가는 길을 찾는 매우 체계적인 연산을 수행합니다.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section class="scroll-mt-24 mx-auto" id="quiz">
+        <div class="text-center space-y-4 mb-10">
+            <h2 class="text-3xl font-black text-slate-900">마무리: 확인 퀴즈</h2>
+            <div class="w-16 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-slate-600">오늘 배운 핵심 개념을 확인해 봅시다.</p>
+        </div>
+
+        <div class="space-y-6">
+            <div class="section-card">
+                <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                    <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3">Q1</span>
+                    <span>8-퍼즐에서 빈칸을 움직여 퍼즐 타일의 배치가 바뀌는 것을 인공지능 분야에서는 무엇이 변화했다고 말하나요?</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, false, '퍼즐의 규칙을 의미합니다.')">
+                        1. 연산자 (Operator)
+                    </button>
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, true, '정답입니다! 타일의 현재 배치를 상태라고 합니다.')">
+                        2. 상태 (State)
+                    </button>
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, false, '최종적으로 도달해야 할 정답 모습입니다.')">
+                        3. 목표 (Goal)
+                    </button>
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, false, '이전 단계로 되돌아가는 것을 의미합니다.')">
+                        4. 백트래킹 (Backtracking)
+                    </button>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3 class="font-bold text-lg text-slate-800 mb-6 flex items-start">
+                    <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-3">Q2</span>
+                    <span>현재 상태에서 목표 상태(정답)로 가기 위해 연산자를 이용해 가능한 여러 경로를 체계적으로 찾아 나서는 과정을 무엇이라고 하나요?</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, false, '단순히 데이터를 보관하는 방법입니다.')">
+                        1. 저장 (Save)
+                    </button>
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, false, '결과를 화면에 보여주는 것입니다.')">
+                        2. 출력 (Output)
+                    </button>
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, true, '정답입니다! 인공지능 문제 해결의 핵심인 탐색입니다.')">
+                        3. 탐색 (Search)
+                    </button>
+                    <button class="w-full text-left px-6 py-4 rounded-xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700"
+                            onclick="checkAnswer(this, false, '새로운 규칙을 스스로 만들어내는 과정입니다.')">
+                        4. 학습 (Learning)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="자료 목록" aria-label="자료 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    /* =========================================
+       1. 상태 관리 (State)
+    ========================================= */
+    const GOAL_STATE = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+    let currentState = [...GOAL_STATE];
+    let moveCount = 0;
+    let isAnimating = false;
+    let tileElements = []; // DOM 재사용을 위한 배열
+
+    const boardEl = document.getElementById('puzzleBoard');
+    const countEl = document.getElementById('moveCount');
+    const pathContainer = document.getElementById('aiPathContainer');
+    const pathStepsEl = document.getElementById('pathSteps');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const aiBtn = document.getElementById('aiBtn');
+    const showHeuristicBox = document.getElementById('showHeuristicBox');
+    const misplacedEl = document.getElementById('hMisplaced');
+    const manhattanEl = document.getElementById('hManhattan');
+    const changeEl = document.getElementById('hChange');
+    const trueCostBox = document.getElementById('trueCostBox');
+
+    /* =========================================
+       2. 렌더링 최적화 (View)
+    ========================================= */
+    // DOM을 최초 1회만 생성 (성능 개선)
+    function initBoard() {
+        boardEl.innerHTML = '';
+        tileElements = [];
+        for (let i = 0; i < 9; i++) {
+            const tile = document.createElement('div');
+            tile.onclick = () => handleTileClick(i);
+            boardEl.appendChild(tile);
+            tileElements.push(tile);
+        }
+        updateBoardUI();
+    }
+
+    // 상태 변경 시 DOM 객체의 속성만 업데이트
+    function updateBoardUI() {
+        currentState.forEach((num, index) => {
+            const tile = tileElements[index];
+            tile.className = `puzzle-tile ${num === 0 ? 'empty' : ''}`;
+            tile.innerText = num === 0 ? '' : num;
+        });
+        countEl.innerText = moveCount;
+        updateHeuristicUI();
+
+        // 정답 확인 로직
+        if (moveCount > 0 && currentState.join('') === GOAL_STATE.join('') && !isAnimating) {
+            setTimeout(() => showToast('🎉 퍼즐을 완성했습니다!', 'success'), 100);
+        }
+    }
+
+    // 애니메이션 잠금/해제 관리 UI
+    function toggleControls(disable) {
+        boardEl.style.pointerEvents = disable ? 'none' : 'auto';
+        const trueCostBtn = document.getElementById('trueCostBtn');
+        if (disable) {
+            shuffleBtn.classList.add('btn-disabled');
+            aiBtn.classList.add('btn-disabled');
+            trueCostBtn.classList.add('btn-disabled');
+        } else {
+            shuffleBtn.classList.remove('btn-disabled');
+            aiBtn.classList.remove('btn-disabled');
+            trueCostBtn.classList.remove('btn-disabled');
+        }
+    }
+
+    // 페이드아웃이 끝나기 전에 다시 탐색을 시작하면, 남아 있던 이 타이머가
+    // 새로 그린 경로를 지우고 상자를 숨겨 버린다. 그래서 핸들을 들고 있다가 취소한다.
+    let pathHideTimer = null;
+
+    function hidePathUI() {
+        if (!pathContainer.classList.contains('hidden')) {
+            pathContainer.classList.add('opacity-0');
+            clearTimeout(pathHideTimer);
+            pathHideTimer = setTimeout(() => {
+                pathContainer.classList.add('hidden');
+                pathStepsEl.innerHTML = '';
+            }, 500);
+        }
+    }
+
+    /* =========================================
+       3. 컨트롤러 & 로직 (Controller)
+    ========================================= */
+    function handleTileClick(index) {
+        if (isAnimating) return;
+
+        const emptyIndex = currentState.indexOf(0);
+        const validMoves = getValidMoves(emptyIndex);
+
+        if (validMoves.includes(index)) {
+            hidePathUI();
+            swapTiles(emptyIndex, index);
+            moveCount++;
+            updateBoardUI();
+        }
+    }
+
+    function swapTiles(idx1, idx2) {
+        [currentState[idx1], currentState[idx2]] = [currentState[idx2], currentState[idx1]];
+    }
+
+    function getValidMoves(emptyIndex) {
+        const moves = [];
+        const row = Math.floor(emptyIndex / 3);
+        const col = emptyIndex % 3;
+
+        if (row > 0) moves.push(emptyIndex - 3); // 상
+        if (row < 2) moves.push(emptyIndex + 3); // 하
+        if (col > 0) moves.push(emptyIndex - 1); // 좌
+        if (col < 2) moves.push(emptyIndex + 1); // 우
+
+        return moves;
+    }
+
+    // 셔플 알고리즘 최적화 (왔던 길 되돌아가기 방지)
+    function shufflePuzzle() {
+        if (isAnimating) return;
+        hidePathUI();
+
+        let prevEmptyIndex = -1;
+        let shuffleSteps = 20; // 난이도를 위해 20회로 조정
+
+        for (let i = 0; i < shuffleSteps; i++) {
+            const emptyIndex = currentState.indexOf(0);
+            let validMoves = getValidMoves(emptyIndex);
+
+            // 바로 직전 상태로 돌아가는 무의미한 이동 제거
+            if (prevEmptyIndex !== -1 && validMoves.length > 1) {
+                validMoves = validMoves.filter(move => move !== prevEmptyIndex);
+            }
+
+            const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+            swapTiles(emptyIndex, randomMove);
+            prevEmptyIndex = emptyIndex;
+        }
+
+        moveCount = 0;
+        // 새 배치이므로 「직전 값보다 좋아졌다」를 말할 근거가 없다. 비우고 시작한다.
+        prevManhattan = null;
+        trueCostBox.classList.add('hidden');
+        updateBoardUI();
+        showToast('퍼즐이 섞였습니다. 직접 탐색해 보세요!', 'info');
+    }
+
+    /* =========================================
+       4. A* 알고리즘 탐색 (최적화된 AI)
+    ========================================= */
+    // A* 알고리즘용 휴리스틱 함수 (맨해튼 거리)
+    function getManhattanDistance(state) {
+        let distance = 0;
+        for (let i = 0; i < 9; i++) {
+            if (state[i] === 0) continue; // 빈칸은 무시
+            const targetX = (state[i] - 1) % 3;
+            const targetY = Math.floor((state[i] - 1) / 3);
+            const currentX = i % 3;
+            const currentY = Math.floor(i / 3);
+            distance += Math.abs(targetX - currentX) + Math.abs(targetY - currentY);
+        }
+        return distance;
+    }
+
+    // A* 알고리즘을 위한 최소 힙(Min-Heap) 큐 객체
+    // 삽입할 때마다 배열 전체를 정렬하면 삽입 1만 회 수준에서 수 초간 화면이 멈춘다.
+    // (8-퍼즐은 최대 31수이고, 어려운 배치에서는 큐 삽입이 1만~2만 회에 이른다.)
+    // 부모-자식만 비교하며 올리고 내리는 이진 힙으로 처리해 삽입·삭제를 O(log N)로 만든다.
+    class PriorityQueue {
+        constructor() {
+            this.elements = [];
+        }
+
+        isEmpty() {
+            return this.elements.length === 0;
+        }
+
+        enqueue(element, priority) {
+            const a = this.elements;
+            a.push({element, priority});
+            let i = a.length - 1;
+            while (i > 0) {                                  // 위로 올리기(sift-up)
+                const parent = (i - 1) >> 1;
+                if (a[parent].priority <= a[i].priority) break;
+                [a[parent], a[i]] = [a[i], a[parent]];
+                i = parent;
+            }
+        }
+
+        dequeue() {
+            const a = this.elements;
+            const top = a[0];
+            const last = a.pop();
+            if (a.length) {
+                a[0] = last;
+                let i = 0;
+                for (; ;) {                                  // 아래로 내리기(sift-down)
+                    const l = 2 * i + 1, r = l + 1;
+                    let small = i;
+                    if (l < a.length && a[l].priority < a[small].priority) small = l;
+                    if (r < a.length && a[r].priority < a[small].priority) small = r;
+                    if (small === i) break;
+                    [a[small], a[i]] = [a[i], a[small]];
+                    i = small;
+                }
+            }
+            return top.element;
+        }
+    }
+
+    /**
+     * A*로 **가장 적은 수의 길**을 찾는다. 못 찾으면 null.
+     *
+     * 화면에 그리는 일과 떼어 두었다. 「실제로 몇 수 남았는지」를 볼 때도 같은 것을
+     * 써야 하기 때문이다 — **어림값과 실제를 다른 코드로 구하면 둘을 비교할 수 없다.**
+     *
+     * @returns {number[]|null} 옮길 타일 자리의 차례
+     */
+    function findOptimalPath(startState) {
+        const pq = new PriorityQueue();
+        pq.enqueue({state: [...startState], path: [], g: 0}, getManhattanDistance(startState));
+
+        const visited = new Map();   // 상태 -> 그 상태까지의 최소 이동 횟수(g)
+        visited.set(startState.join(''), 0);
+
+        while (!pq.isEmpty()) {
+            const current = pq.dequeue();
+            const currentKey = current.state.join('');
+
+            // 같은 상태를 더 짧은 길로 다시 넣은 경우, 큐에 남아 있는 옛 항목은 건너뛴다.
+            if (current.g > visited.get(currentKey)) continue;
+            if (currentKey === GOAL_STATE.join('')) return current.path;
+
+            const emptyIdx = current.state.indexOf(0);
+            for (const nextIdx of getValidMoves(emptyIdx)) {
+                const newState = [...current.state];
+                [newState[emptyIdx], newState[nextIdx]] = [newState[nextIdx], newState[emptyIdx]];
+                const stateStr = newState.join('');
+                const newG = current.g + 1;
+
+                if (!visited.has(stateStr) || newG < visited.get(stateStr)) {
+                    visited.set(stateStr, newG);
+                    pq.enqueue({state: newState, path: [...current.path, nextIdx], g: newG},
+                        newG + getManhattanDistance(newState));   // f(n) = g(n) + h(n)
+                }
+            }
+        }
+        return null;
+    }
+
+    async function solvePuzzleAI() {
+        if (isAnimating) return;
+        if (currentState.join('') === GOAL_STATE.join('')) {
+            showToast('이미 정답 상태입니다.', 'info');
+            return;
+        }
+
+        isAnimating = true;
+        toggleControls(true);
+        aiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>탐색 중...';
+
+        // UI 초기화 (숨기던 중이었다면 그 타이머를 먼저 취소한다)
+        clearTimeout(pathHideTimer);
+        pathStepsEl.innerHTML = '';
+        pathContainer.classList.remove('hidden');
+        setTimeout(() => pathContainer.classList.remove('opacity-0'), 50);
+
+        // 렌더링 큐를 비워 UI가 업데이트되도록 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const solutionPath = findOptimalPath(currentState);
+
+        if (solutionPath) {
+            aiBtn.innerHTML = '<i class="fa-solid fa-robot mr-2"></i>길 찾기 완료!';
+            showToast(`인공지능이 A* 알고리즘으로 ${solutionPath.length}수 만에 도착하는 최단 경로를 찾았습니다.`, 'success');
+
+            moveCount = 0; // AI가 움직일 때는 이동 카운트를 초기화 후 시작
+
+            // 애니메이션 진행
+            for (let i = 0; i < solutionPath.length; i++) {
+                const targetIdx = solutionPath[i];
+                const movingTileNumber = currentState[targetIdx];
+
+                if (i > 0) {
+                    const arrow = document.createElement('i');
+                    arrow.className = 'fa-solid fa-angle-right text-indigo-300 path-badge-enter';
+                    pathStepsEl.appendChild(arrow);
+                    requestAnimationFrame(() => arrow.classList.add('path-badge-enter-active'));
+                }
+
+                const stepBadge = document.createElement('span');
+                stepBadge.className = 'px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg font-bold shadow-sm flex items-center path-badge-enter';
+                stepBadge.innerHTML = `<span class="bg-indigo-100 text-indigo-500 w-5 h-5 rounded-full inline-flex items-center justify-center text-base mr-2">${i + 1}</span> 타일 ${movingTileNumber}`;
+
+                pathStepsEl.appendChild(stepBadge);
+                requestAnimationFrame(() => stepBadge.classList.add('path-badge-enter-active'));
+
+                await new Promise(resolve => setTimeout(resolve, 400));
+
+                // 타일 이동 처리
+                const emptyIndex = currentState.indexOf(0);
+                swapTiles(emptyIndex, targetIdx);
+                moveCount++; // AI의 이동도 명시적으로 카운트 (원치 않을 경우 이 줄 제거)
+                updateBoardUI();
+            }
+
+            // 도착 완료 뱃지 표시
+            setTimeout(() => {
+                const finalArrow = document.createElement('i');
+                finalArrow.className = 'fa-solid fa-angle-right text-indigo-300 path-badge-enter';
+                pathStepsEl.appendChild(finalArrow);
+
+                const finishBadge = document.createElement('span');
+                finishBadge.className = 'px-3 py-1.5 bg-green-500 text-white border border-green-600 rounded-lg font-bold shadow-sm path-badge-enter';
+                finishBadge.innerHTML = `<i class="fa-solid fa-flag-checkered mr-1"></i> 완성`;
+                pathStepsEl.appendChild(finishBadge);
+
+                requestAnimationFrame(() => {
+                    finalArrow.classList.add('path-badge-enter-active');
+                    finishBadge.classList.add('path-badge-enter-active');
+                });
+            }, 300);
+
+        } else {
+            // A* 알고리즘에서는 정상적인 8-퍼즐이라면 무조건 길을 찾지만, 만약을 위한 예외 처리
+            showToast('경로를 찾는 데 실패했습니다. 오류가 발생했습니다.', 'error');
+            hidePathUI();
+        }
+
+        isAnimating = false;
+        toggleControls(false);
+        aiBtn.innerHTML = '<i class="fa-solid fa-robot mr-2"></i>AI가 풀기';
+    }
+
+
+    /* =========================================
+       평가 함수를 판 위에 실시간으로 보이기
+
+       이 페이지는 「어림값이 실제로 남은 수를 넘지 않을 때에만 최단 경로가 보장된다」고
+       **글로만** 적어 두고 있었다. 값이 화면에 없으니 학생이 확인할 방법이 없었다.
+       여기서 그 값을 판 위에 얹고, 실제와 나란히 놓아 직접 보게 한다.
+    ========================================= */
+
+    /** 타일 하나가 제자리까지 떨어진 칸 수. 이것을 다 더한 것이 맨해튼 거리 합이다. */
+    function tileDistance(state, index) {
+        const num = state[index];
+        if (num === 0) return 0;                      // 빈칸은 세지 않는다
+        const targetX = (num - 1) % 3, targetY = Math.floor((num - 1) / 3);
+        return Math.abs(targetX - index % 3) + Math.abs(targetY - Math.floor(index / 3));
+    }
+
+    /** 제자리에 없는 타일 수. 맨해튼 거리보다 성기지만 더 세기 쉬운 어림값이다. */
+    function getMisplacedCount(state) {
+        let count = 0;
+        for (let i = 0; i < 9; i++) {
+            if (state[i] !== 0 && state[i] !== GOAL_STATE[i]) count++;
+        }
+        return count;
+    }
+
+    // 직전 배치의 맨해튼 거리. 「좋아졌다 / 나빠졌다」를 말하려면 앞의 값을 들고 있어야 한다.
+    let prevManhattan = null;
+
+    function heuristicsVisible() {
+        return showHeuristicBox.checked;
+    }
+
+    /**
+     * 판과 카드를 지금 배치에 맞춘다. `updateBoardUI()` 가 그릴 때마다 함께 부른다.
+     *
+     * 판 위 뱃지는 둘이다.
+     *   - 오른쪽 아래: 그 타일이 **제자리까지 몇 칸** 떨어졌는가(제자리면 체크)
+     *   - 왼쪽 위: 그 타일을 옮기면 **어림값이 1 줄어드는가 늘어나는가**
+     *
+     * **8-퍼즐에서는 한 수가 맨해튼 거리를 정확히 1 늘리거나 1 줄인다.** 타일 하나가
+     * 한 칸 움직이기 때문이다. 그래서 뱃지가 늘 -1 아니면 +1이다.
+     */
+    function updateHeuristicUI() {
+        const manhattan = getManhattanDistance(currentState);
+        const misplaced = getMisplacedCount(currentState);
+
+        misplacedEl.innerText = misplaced;
+        manhattanEl.innerText = manhattan;
+
+        const movable = getValidMoves(currentState.indexOf(0));
+        tileElements.forEach((tile, index) => {
+            tile.removeAttribute('data-away');
+            tile.removeAttribute('data-delta');
+            if (!heuristicsVisible() || currentState[index] === 0) return;
+
+            tile.setAttribute('data-away', String(tileDistance(currentState, index)));
+
+            if (movable.includes(index)) {
+                // 이 타일이 빈칸 쪽으로 가면 제자리에 가까워지는가 멀어지는가.
+                const after = [...currentState];
+                const emptyIdx = after.indexOf(0);
+                [after[emptyIdx], after[index]] = [after[index], after[emptyIdx]];
+                const diff = getManhattanDistance(after) - manhattan;
+                tile.setAttribute('data-delta', diff > 0 ? `+${diff}` : String(diff));
+            }
+        });
+
+        if (!heuristicsVisible()) {
+            changeEl.innerText = '「평가 함수 보기」를 켜면 판 위에 값이 함께 보입니다.';
+        } else if (prevManhattan === null) {
+            changeEl.innerText = '타일을 하나 옮겨 보세요. 어림값이 어떻게 변하는지 여기에 적습니다.';
+        } else if (manhattan < prevManhattan) {
+            changeEl.innerHTML = `맨해튼 거리가 <b>${prevManhattan} → ${manhattan}</b>으로 <b class="text-emerald-600">줄었습니다.</b> 목표에 가까워졌다는 뜻입니다.`;
+        } else if (manhattan > prevManhattan) {
+            changeEl.innerHTML = `맨해튼 거리가 <b>${prevManhattan} → ${manhattan}</b>으로 <b class="text-rose-600">늘었습니다.</b> 목표에서 멀어졌다는 뜻입니다.`;
+        }
+        prevManhattan = manhattan;
+    }
+
+    /**
+     * 어림값과 **실제로 남은 수**를 나란히 놓는다.
+     *
+     * 여기가 이 화면의 요점이다. 두 어림값은 실제보다 크지 않고, 그래서 A*가 최단을
+     * 놓치지 않는다. **다만 어림값을 줄이는 수가 늘 최선인 것은 아니다** — 그것도
+     * 실제 값을 후보마다 구해서 보여 준다. 말로만 하면 믿을 근거가 없다.
+     */
+    function showTrueRemaining() {
+        if (isAnimating) return;
+
+        const path = findOptimalPath(currentState);
+        if (!path) {
+            trueCostBox.classList.remove('hidden');
+            trueCostBox.innerHTML = '이 배치에서는 목표까지 갈 수 없습니다.';
+            return;
+        }
+
+        const 실제 = path.length;
+        const manhattan = getManhattanDistance(currentState);
+        const misplaced = getMisplacedCount(currentState);
+
+        // 후보마다 「그 수를 두면 실제로 몇 수가 남는가」를 따로 구한다.
+        const movable = getValidMoves(currentState.indexOf(0));
+        const 후보 = movable.map(index => {
+            const after = [...currentState];
+            const emptyIdx = after.indexOf(0);
+            [after[emptyIdx], after[index]] = [after[index], after[emptyIdx]];
+            const 뒤길 = findOptimalPath(after);
+            return {
+                타일: currentState[index],
+                어림변화: getManhattanDistance(after) - manhattan,
+                실제변화: 뒤길 ? 뒤길.length - 실제 : null,
+            };
+        });
+
+        const 줄지만나쁜수 = 후보.filter(c => c.어림변화 < 0 && c.실제변화 > 0);
+
+        const 줄 = 후보.map(c => {
+            const 어림 = c.어림변화 < 0 ? '어림값 1 줄어듦' : '어림값 1 늘어남';
+            const 실제말 = c.실제변화 === null ? '알 수 없음'
+                : (c.실제변화 < 0 ? '<b class="text-emerald-600">실제로도 1 줄어듦</b>'
+                    : '<b class="text-rose-600">실제로는 1 늘어남</b>');
+            return `<li><b>타일 ${c.타일}</b>을 옮기면 — ${어림}, ${실제말}</li>`;
+        }).join('');
+
+        trueCostBox.classList.remove('hidden');
+        trueCostBox.innerHTML = `
+            <p><b>실제로 남은 최소 수는 ${실제}수</b>입니다.
+               제자리에 없는 타일 수는 <b>${misplaced}</b>, 맨해튼 거리 합은 <b>${manhattan}</b> —
+               <b>둘 다 실제보다 크지 않습니다.</b> 어림값이 실제를 넘지 않아야 A*가 최단 경로를 놓치지 않습니다.</p>
+            <p class="font-bold text-slate-800">지금 둘 수 있는 수</p>
+            <ul class="list-disc list-outside pl-5 space-y-1">${줄}</ul>
+            ${줄지만나쁜수.length
+            ? '<p><b>어림값이 줄어드는데도 실제로는 멀어지는 수가 있습니다.</b> 어림값만 보고 고르는 최상 우선 탐색이 헤매는 것이 이 때문입니다.</p>'
+            : '<p>지금은 어림값이 줄어드는 수가 실제로도 좋은 수입니다. 늘 그런 것은 아니니 다른 배치에서도 확인해 보세요.</p>'}`;
+    }
+
+    // 페이지 로드 시 최초 초기화
+    window.onload = () => {
+        initBoard();
+        showHeuristicBox.addEventListener('change', () => {
+            trueCostBox.classList.add('hidden');
+            updateHeuristicUI();
+        });
+        updateHeuristicUI();
+    };
+
+    /* =========================================
+       5. 공통 UI (퀴즈 및 토스트)
+    ========================================= */
+    let toastTimeout1, toastTimeout2;
+    let currentToast = null;
+
+    function checkAnswer(btn, isCorrect, message) {
+        if (btn.classList.contains('disabled')) return;
+
+        const container = btn.parentElement;
+        const buttons = container.querySelectorAll('button');
+
+        buttons.forEach(b => {
+            b.style.pointerEvents = 'none';
+            // innerHTML을 백업하여 태그가 깨지는 현상(버그) 수정
+            if (!b.dataset.originalHtml) {
+                b.dataset.originalHtml = b.innerHTML;
+            }
+            b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-700');
+            b.classList.add('opacity-50', 'disabled');
+        });
+
+        btn.classList.remove('opacity-50');
+        btn.classList.add('opacity-100');
+
+        if (isCorrect) {
+            btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+            btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i>${btn.dataset.originalHtml.trim()}`;
+        } else {
+            btn.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
+            btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-rose-600"></i>${btn.dataset.originalHtml.trim()}`;
+        }
+
+        showToast(message, isCorrect ? 'success' : 'error');
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.style.pointerEvents = 'auto';
+                b.classList.remove('border-green-500', 'bg-green-50', 'text-green-700', 'border-rose-500', 'bg-rose-50', 'text-rose-700', 'opacity-50', 'opacity-100', 'disabled');
+                b.innerHTML = b.dataset.originalHtml; // 원본 HTML(텍스트) 완벽 복원
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        // 기존 토스트 및 타이머 정리 (메모리 누수 방지)
+        if (currentToast) currentToast.remove();
+        clearTimeout(toastTimeout1);
+        clearTimeout(toastTimeout2);
+
+        const toast = document.createElement('div');
+        let icon = '';
+        let bgColor = '';
+
+        if (type === 'success') {
+            icon = '<i class="fa-solid fa-face-smile-wink mr-3 text-2xl"></i>';
+            bgColor = 'bg-indigo-600';
+        } else if (type === 'error') {
+            icon = '<i class="fa-solid fa-face-frown mr-3 text-2xl"></i>';
+            bgColor = 'bg-rose-500';
+        } else {
+            icon = '<i class="fa-solid fa-circle-info mr-3 text-2xl"></i>';
+            bgColor = 'bg-slate-800';
+        }
+
+        /* **`whitespace-nowrap` 을 쓰지 않는다.** 문장이 길어지면 줄을 못 바꿔
+           화면 밖으로 나가 잘린다. 폭도 화면에서 좌우 1rem 을 뺀 만큼으로 묶어
+           가장자리에 붙지 않게 한다(`max-w-sm` 은 24rem 이라 좁은 폰보다 넓다). */
+        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-[1000] flex items-center gap-3 ${bgColor} w-[calc(100%-2rem)] max-w-sm sm:max-w-lg`;
+        toast.innerHTML = `<div class="shrink-0 flex items-center">${icon}</div><div class="min-w-0 md:text-base leading-snug break-keep">${message}</div>`;
+
+        window.fsOverlayHost().appendChild(toast);
+        currentToast = toast;
+
+        toastTimeout1 = setTimeout(() => {
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-20', 'opacity-0');
+            });
+        }, 10);
+
+        toastTimeout2 = setTimeout(() => {
+            if (toast.parentNode) {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 3000);
+    }
+</script>
+
+<script>
+/* ============================================================
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
+            [['#aiBtn'], '#puzzleBoard']
+    ]);
+});
+</script>
+
+</body>
+</html>

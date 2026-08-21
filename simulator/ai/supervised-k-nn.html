@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>k-최근접 이웃 (K-NN) 시뮬레이터</title>
+    <script type="module" src="/src/entries/simulator/ai/supervised-k-nn.js"></script>
+    <link rel="stylesheet" href="/src/styles/simulator.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다. */
+        code, kbd, samp, pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(
+                    135deg,
+                    #db2777 0%,
+                    #ec4899 40%,
+                    #f43f5e 100%
+            );
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.25s ease;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Tool active state */
+        .tool-btn.active {
+            border-color: #334155 !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        /* 전체 화면에서는 가로가 남는다. 양옆 조작 칸을 조금씩 넓혀 슬라이더 라벨과
+           단추 글자가 덜 접히게 한다. 평소 배치(`lg:grid-cols-[200px_1fr_260px]`)는
+           그대로 두고 전체 화면일 때만 바꾼다.
+           **가운데 그림은 좁아지지 않는다** — `.fs-fit` 이 전체 화면에서는 폭이 아니라
+           남는 높이로 크기를 정하기 때문이다.
+           격자가 세 열이 되는 것은 `lg` 부터이므로 같은 폭에서만 건다. 안 그러면
+           좁은 화면에서 전체 화면으로 갔을 때 한 열짜리 배치를 세 열로 되돌린다. */
+        @media (min-width: 1024px) {
+            #activity:fullscreen > .fs-fill {
+                grid-template-columns: 224px 1fr 284px;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<header id="intro" class="hero-gradient text-white py-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">k-최근접 이웃 (K-NN) 시뮬레이터</h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            유유상종의 법칙 &mdash; 새로운 데이터가 들어왔을 때, 주변에 있는 가장 가까운 이웃들에게 물어보고 정체를 파악하는 직관적인 분류 알고리즘을 체험해 봅니다.
+        </p>
+    </div>
+</header>
+
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center text-white">
+                <i class="fa-solid fa-people-group"></i>
+            </div>
+            <span class="font-black text-2xl tracking-tight text-slate-800">K-최근접 이웃</span>
+        </div>
+        <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-sm">
+            <a href="#intro" class="hover:text-purple-600 transition">도입</a>
+            <a href="#concept" class="hover:text-purple-600 transition">핵심원리</a>
+            <a href="#activity" class="hover:text-purple-600 transition">시뮬레이터</a>
+            <a href="#advanced" class="hover:text-purple-600 transition">심화학습</a>
+            <a href="#quiz" class="hover:text-purple-600 transition">자가진단</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <section id="concept" class="scroll-mt-24 space-y-12 mx-auto">
+        <div class="text-center space-y-4">
+            <span class="text-purple-600 font-bold tracking-widest uppercase text-base">Core Mechanism</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">K-NN은 어떻게 정답을 맞힐까요?</h2>
+            <p class="text-slate-600 text-lg font-medium">새로운 질문(Query)이 주어지면, 가장 가까운 K명의 이웃을 찾아 다수결로 결정합니다.</p>
+        </div>
+
+        <div class="relative grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner text-4xl">
+                    <i class="fa-solid fa-ruler"></i></div>
+                <span class="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-full text-base mb-4">Step 1</span>
+                <h3 class="text-2xl font-black mb-3 text-slate-800">모든 이웃과의 거리 측정</h3>
+                <p class="text-slate-600 text-lg leading-relaxed break-keep">새로운 데이터(Query Point)가 주어지면, 주변의 모든 기존
+                    데이터들과의 <strong>직선 거리(유클리드 거리)</strong>를 하나씩 전부 계산합니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner text-4xl">
+                    <i class="fa-solid fa-magnifying-glass-location"></i></div>
+                <span class="px-4 py-1.5 bg-indigo-50 text-indigo-600 font-bold rounded-full text-base mb-4">Step 2</span>
+                <h3 class="text-2xl font-black mb-3 text-slate-800">K명의 가까운 이웃 선정</h3>
+                <p class="text-slate-600 text-lg leading-relaxed break-keep">거리가 가까운 순서대로 정렬한 뒤, 우리가 미리 설정해둔 <strong>K개
+                    만큼의 가장 가까운 이웃</strong> 데이터만 추려냅니다.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
+                <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner text-4xl">
+                    <i class="fa-solid fa-check-to-slot"></i></div>
+                <span class="px-4 py-1.5 bg-purple-50 text-purple-600 font-bold rounded-full text-base mb-4">Step 3</span>
+                <h3 class="text-2xl font-black mb-3 text-slate-800">다수결 투표 및 분류</h3>
+                <p class="text-slate-600 text-lg leading-relaxed break-keep">가장 가까운 K명의 이웃들이 속한 소속(Class)을 확인하고,
+                    <strong>가장 많은 표를 얻은 그룹</strong>으로 새로운 데이터의 소속을 최종 결정합니다.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="activity"
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+        <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추. -->
+        <button type="button" class="fs-btn" data-fullscreen="activity"
+                title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+        <div class="mb-6 space-y-2 text-center md:text-left">
+            <span class="text-purple-600 font-bold tracking-widest uppercase text-base fs-hide">Interactive Simulator</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">K-NN 분류 시뮬레이터</h2>
+            <p class="text-slate-600 text-lg fs-hide">데이터를 배치하고 분류할 'Query Point(새로운 점)'를 찍어보세요. 이웃들이 어떻게 뭉치는지 확인할 수 있습니다.</p>
+        </div>
+
+        <div class="fs-fill grid grid-cols-1 lg:grid-cols-[200px_1fr_260px] gap-4 items-start">
+
+            <!-- Col 1: 데이터 입력 도구 -->
+            <div class="flex flex-col gap-4">
+                <div class="bg-white p-3 rounded-2xl border-2 border-slate-200 flex flex-col gap-2 shadow-sm">
+                    <p class="text-sm font-bold text-slate-500 text-center uppercase tracking-wide">클래스 선택</p>
+                    <button class="tool-btn active px-4 py-2.5 text-base bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-all border-2 border-rose-200 flex items-center justify-center"
+                            data-tool="A">
+                        <div class="w-3.5 h-3.5 rounded-full bg-rose-500 mr-2 shrink-0"></div>
+                        Class A
+                    </button>
+                    <button class="tool-btn px-4 py-2.5 text-base bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border-2 border-blue-200 flex items-center justify-center"
+                            data-tool="B">
+                        <div class="w-3.5 h-3.5 bg-blue-500 mr-2 shrink-0"></div>
+                        Class B
+                    </button>
+                    <button class="tool-btn px-4 py-2.5 text-base bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg font-bold transition-all border-2 border-emerald-200 flex items-center justify-center"
+                            data-tool="C">
+                        <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[12px] border-b-emerald-500 mr-2 shrink-0"></div>
+                        Class C
+                    </button>
+                    <button class="tool-btn px-4 py-2.5 text-base bg-slate-800 text-white hover:bg-slate-700 rounded-lg font-black transition-all border-2 border-slate-900 shadow-md flex items-center justify-center"
+                            data-tool="QUERY">
+                        <div class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-sm font-black mr-2 shrink-0">
+                            ?
+                        </div>
+                        Query
+                    </button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col gap-3">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="font-bold text-slate-600 text-sm flex items-center">
+                            <i class="fa-solid fa-up-right-and-down-left-from-center mr-2 text-slate-400"></i>데이터 퍼짐 정도
+                        </label>
+                        <span class="text-xs font-bold text-slate-400"><span id="spreadLabel" class="text-purple-600">적당함</span> (응집 ↔ 분산)</span>
+                        <input type="range" id="spreadSlider" min="50" max="450" value="250"
+                               class="w-full accent-purple-500 cursor-pointer">
+                    </div>
+                    <button id="btnRandomData"
+                            class="w-full px-4 py-2.5 text-base bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl transition-all border-2 border-purple-200 shadow-sm flex items-center justify-center whitespace-nowrap">
+                        <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
+                    </button>
+                    <button id="btnClearData"
+                            class="w-full px-4 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm flex items-center justify-center whitespace-nowrap">
+                        <i class="fa-solid fa-eraser mr-2"></i>지우기
+                    </button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col">
+                    <h4 class="font-black text-slate-700 mb-3 flex items-center text-base">
+                        <i class="fa-solid fa-chart-simple text-slate-400 mr-2"></i>다수결 투표 현황
+                    </h4>
+                    <div class="flex flex-col gap-1.5 mb-3">
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                            <div class="flex items-center">
+                                <div class="w-3.5 h-3.5 rounded-full bg-rose-500 mr-2.5 shrink-0"></div>
+                                <span class="font-bold text-slate-600 text-base">Class A</span>
+                            </div>
+                            <span id="voteA" class="font-black text-xl text-rose-600">0</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                            <div class="flex items-center">
+                                <div class="w-3.5 h-3.5 bg-blue-500 mr-2.5 shrink-0"></div>
+                                <span class="font-bold text-slate-600 text-base">Class B</span>
+                            </div>
+                            <span id="voteB" class="font-black text-xl text-blue-600">0</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                            <div class="flex items-center">
+                                <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[12px] border-b-emerald-500 mr-2.5 shrink-0"></div>
+                                <span class="font-bold text-slate-600 text-base">Class C</span>
+                            </div>
+                            <span id="voteC" class="font-black text-xl text-emerald-600">0</span>
+                        </div>
+                    </div>
+                    <div class="pt-2.5 border-t border-slate-200 flex flex-col gap-1">
+                        <span class="font-bold text-slate-500 text-sm">최종 분류 결과</span>
+                        <span id="finalResultText"
+                              class="font-black text-base text-slate-800 bg-slate-100 px-3 py-1.5 rounded-md text-center">
+                            대기 중
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Col 2: 캔버스 + 상태 메시지 -->
+            <div class="flex flex-col gap-4">
+                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner aspect-square">
+                    <canvas id="knnCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                </div>
+                <div class="bg-slate-100 border-2 border-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 min-h-[72px]"
+                     id="statusMessageBar">
+                    <i id="statusMessageIcon" class="fa-solid fa-pen-nib mr-3 text-xl"></i>
+                    <span id="statusMessageText" class="text-base">배치할 데이터의 클래스를 선택하고 캔버스를 클릭하세요.</span>
+                </div>
+            </div>
+
+            <!-- Col 3: 알고리즘 조절 + 결과 -->
+            <div class="flex flex-col gap-4">
+                <div class="bg-purple-50/80 p-4 rounded-2xl border-2 border-purple-100 shadow-sm flex flex-col gap-3">
+                    <div class="bg-white p-3 rounded-xl border border-purple-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="font-bold text-slate-700 text-sm">K (탐색할 이웃 수)</label>
+                            <span id="kValueDisplay" class="font-black text-purple-600 text-2xl leading-none">3</span>
+                        </div>
+                        <input type="range" id="kSlider" min="1" max="29" value="3" step="2"
+                               class="w-full accent-purple-600 mb-1.5 cursor-pointer">
+                        <p class="text-base font-bold text-purple-500 text-center bg-purple-50 py-1.5 rounded break-keep leading-snug">
+                            ※ K는 홀수(1~29)만 고를 수 있습니다. 슬라이더를 움직이면 즉시 재분류됩니다.</p>
+                    </div>
+                    <button id="btnStep" disabled
+                            class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex items-center justify-center whitespace-nowrap">
+                        <i class="fa-solid fa-shoe-prints mr-2"></i>Step
+                    </button>
+                    <button id="btnRun" disabled
+                            class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-base rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex items-center justify-center whitespace-nowrap">
+                        <i class="fa-solid fa-play mr-2"></i>자동 실행
+                    </button>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col">
+                    <h3 class="font-black text-slate-800 mb-3 flex items-center text-base shrink-0">
+                        <i class="fa-solid fa-list-check text-purple-600 mr-2"></i>알고리즘 진행 과정
+                    </h3>
+                    <div class="flex flex-col gap-2.5 relative">
+                        <div class="absolute left-5 top-6 bottom-6 w-0.5 bg-slate-200 z-0 rounded"></div>
+
+                        <div id="flow-IDLE"
+                             class="flow-box relative z-10 bg-white border-2 border-slate-300 rounded-xl p-3 shadow-sm transition-all duration-300 transform scale-[1.02]">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-black mb-1 bg-slate-100 text-slate-600">Step 0</span>
+                            <div class="step-title font-bold text-slate-800 text-base flex items-center break-keep">
+                                <i class="fa-regular fa-circle-question w-5 shrink-0"></i>Query Point 대기
+                            </div>
+                        </div>
+                        <div id="flow-CALC"
+                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 1</span>
+                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
+                                <i class="fa-solid fa-ruler w-5 shrink-0"></i>모든 점들과의 거리 계산
+                            </div>
+                        </div>
+                        <div id="flow-SELECT"
+                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 2</span>
+                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
+                                <i class="fa-solid fa-magnifying-glass-location w-5 shrink-0"></i>가까운 K개 이웃 선택
+                            </div>
+                        </div>
+                        <div id="flow-DONE"
+                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
+                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500">Step 3</span>
+                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
+                                <i class="fa-solid fa-check-to-slot w-5 shrink-0"></i>다수결 투표 및 분류 완료
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <section id="advanced" class="scroll-mt-24 mx-auto">
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-8 md:p-12 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mt-12 -mr-12 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-[80px] opacity-40"></div>
+            <div class="absolute bottom-0 left-0 -mb-12 -ml-12 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-[80px] opacity-30"></div>
+
+            <div class="relative z-10">
+                <div class="flex flex-col items-center md:items-start text-center md:text-left mb-8">
+                    <span class="inline-block px-4 py-1.5 bg-purple-500/20 text-purple-300 font-bold rounded-full text-base border border-purple-500/30 mb-4">
+                        <i class="fa-solid fa-bolt text-yellow-400 mr-1.5"></i>Deep Dive
+                    </span>
+                    <h2 class="text-3xl md:text-4xl font-black text-white leading-snug">
+                        동점(Tie)이 발생하면 어떻게 될까?
+                    </h2>
+                </div>
+
+                <p class="text-slate-300 text-xl mb-10 leading-relaxed font-medium break-keep text-center md:text-left">
+                    시뮬레이터에서 득표수가 똑같이 나왔을 때 <span class="text-yellow-400 font-black tracking-wide">"(동점: 거리 우선)"</span>
+                    이라는 메시지를 보셨나요?<br class="hidden md:block">
+                    다수결이 승부를 가리지 못했을 때 무엇을 고를지는 K-NN이 정해 주지 않습니다. 만드는 사람이 규칙을 하나 정해야 하고,
+                    구현마다 그 규칙이 다릅니다. 이 시뮬레이터는 아래 규칙을 씁니다.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white/10 backdrop-blur-md border border-white/10 p-7 rounded-2xl text-white shadow-lg">
+                        <div class="w-14 h-14 bg-purple-500/30 rounded-xl flex items-center justify-center text-3xl mb-5 text-purple-300 border border-purple-400/20">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3 text-white">동점인 그룹 중 가장 가까운 이웃을 따른다</h3>
+                        <p class="text-slate-300 text-lg leading-relaxed break-keep">
+                            득표수가 똑같다면, <strong>동점인 그룹들 안에서</strong> 나와 가장 가까운 이웃 한 명을 찾아 그 그룹의 손을 들어줍니다.
+                            동점에 끼지 못한 그룹은 그 그룹의 이웃이 아무리 가까이 있어도 이 판단에 끼어들지 않습니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-white/10 backdrop-blur-md border border-white/10 p-7 rounded-2xl text-white shadow-lg">
+                        <div class="w-14 h-14 bg-blue-500/30 rounded-xl flex items-center justify-center text-3xl mb-5 text-blue-300 border border-blue-400/20">
+                            <i class="fa-regular fa-comments"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-4 text-white">🤔 친구들과 토론해볼까요?</h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start text-lg text-slate-300 leading-relaxed">
+                                <div class="shrink-0 mt-0.5 mr-3 w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-black">
+                                    Q
+                                </div>
+                                <span>K-NN에서 K값을 짝수(2, 4)가 아닌 <strong>홀수(3, 5, 7)</strong>로 설정하라고 권장하는 이유는 무엇일까요?</span>
+                            </li>
+                            <li class="flex items-start text-lg text-slate-300 leading-relaxed">
+                                <div class="shrink-0 mt-0.5 mr-3 w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-black">
+                                    Q
+                                </div>
+                                <span>K값을 홀수로 설정하더라도 무승부가 발생할 수 있을까요? <br><span class="text-slate-400 text-base">(힌트: 그룹이 3개 이상일 때를 상상해보세요!)</span></span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="quiz" class="scroll-mt-24 space-y-12 mx-auto">
+        <div class="text-center">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900">학습 내용 확인하기</h2>
+            <div class="w-20 h-1.5 bg-purple-500 mx-auto rounded-full mt-4"></div>
+        </div>
+        <div class="space-y-8">
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                <p class="text-xl md:text-2xl font-bold mb-6 text-slate-800 leading-snug">Q1. K-NN 알고리즘에서 K값을 3으로 설정했을
+                    때, 새로운 데이터의 분류 기준은 무엇인가요?</p>
+                <div class="grid grid-cols-1 gap-4">
+                    <button onclick="checkAnswer(this, false, '데이터를 3개의 그룹으로 나누는 것은 K-Means 알고리즘입니다.')"
+                            class="quiz-btn text-lg">A. 전체 데이터를 3개의 그룹으로 쪼갠다.
+                    </button>
+                    <button onclick="checkAnswer(this, true, '정답입니다! 거리가 가까운 상위 3개의 이웃을 확인하고 다수결로 결정합니다.')"
+                            class="quiz-btn text-lg">B. 가장 거리가 가까운 3개의 데이터(이웃)를 확인하여 다수결로 결정한다.
+                    </button>
+                    <button onclick="checkAnswer(this, false, '거리가 중요합니다.')" class="quiz-btn text-lg">C. 3번째로 생성된 데이터와
+                        같은 클래스로 분류한다.
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                <p class="text-xl md:text-2xl font-bold mb-6 text-slate-800 leading-snug">Q2. 시뮬레이터에서 K값을 변경(예: 3 → 7)하면
+                    분류 결과가 달라질 수 있습니다. 그 이유는 무엇인가요?</p>
+                <div class="grid grid-cols-1 gap-4">
+                    <button onclick="checkAnswer(this, true, '정답입니다! 다수결에 참여하는 이웃의 범위(개수)가 넓어지면서 표의 비율이 역전될 수 있습니다.')"
+                            class="quiz-btn text-lg">A. 다수결에 참여하는 이웃의 수가 늘어나면서 비율이 바뀔 수 있기 때문이다.
+                    </button>
+                    <button onclick="checkAnswer(this, false, '새로운 데이터의 위치는 바뀌지 않습니다.')" class="quiz-btn text-lg">B. 새로운
+                        데이터(Query Point)의 위치가 이동하기 때문이다.
+                    </button>
+                    <button onclick="checkAnswer(this, false, 'K-NN은 기존 데이터의 소속을 바꾸지 않습니다.')" class="quiz-btn text-lg">
+                        C. 주변에 있던 데이터들의 소속(클래스)이 강제로 바뀌기 때문이다.
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="자료 목록" aria-label="자료 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    // --- 설정 및 유틸리티 ---
+    const CLASS_COLORS = {
+        'A': '#f43f5e', // Rose
+        'B': '#3b82f6', // Blue
+        'C': '#10b981', // Emerald
+        'QUERY': '#1e293b' // Slate (Black)
+    };
+
+    class DataManager {
+        constructor() {
+            this.points = [];
+            this.queryPoint = null;
+        }
+
+        addPoint(x, y, cls) {
+            this.points.push({x, y, cls});
+        }
+
+        setQueryPoint(x, y) {
+            this.queryPoint = {x, y, resultCls: null};
+        }
+
+        clear() {
+            this.points = [];
+            this.queryPoint = null;
+        }
+
+        generateRandom(width, height, spreadRadius = 60) {
+            this.points = [];
+            this.queryPoint = null;
+            const classes = ['A', 'B', 'C'];
+            classes.forEach(cls => {
+                let cx = Math.random() * (width - 150) + 75;
+                let cy = Math.random() * (height - 150) + 75;
+                for (let i = 0; i < 30; i++) {
+                    let angle = Math.random() * Math.PI * 2;
+                    let r = Math.random() * spreadRadius;
+                    let px = Math.max(10, Math.min(width - 10, cx + Math.cos(angle) * r));
+                    let py = Math.max(10, Math.min(height - 10, cy + Math.sin(angle) * r));
+                    this.addPoint(px, py, cls);
+                }
+            });
+        }
+    }
+
+    class KNNAlgorithm {
+        constructor(dataManager) {
+            this.data = dataManager;
+            this.distances = [];
+            this.kNeighbors = [];
+            this.voteCounts = {A: 0, B: 0, C: 0};
+        }
+
+        calcAllDistances() {
+            if (!this.data.queryPoint) return;
+            let q = this.data.queryPoint;
+            this.distances = this.data.points.map(p => {
+                let d = Math.sqrt(Math.pow(p.x - q.x, 2) + Math.pow(p.y - q.y, 2));
+                return {point: p, dist: d};
+            });
+            this.distances.sort((a, b) => a.dist - b.dist);
+        }
+
+        selectKNeighbors(k) {
+            this.kNeighbors = this.distances.slice(0, k);
+        }
+
+        doVoting() {
+            this.voteCounts = {A: 0, B: 0, C: 0};
+            this.kNeighbors.forEach(n => {
+                this.voteCounts[n.point.cls]++;
+            });
+            let maxVote = 0;
+            let tiedClasses = [];
+            for (let cls in this.voteCounts) {
+                if (this.voteCounts[cls] > maxVote) {
+                    maxVote = this.voteCounts[cls];
+                    tiedClasses = [cls];
+                } else if (this.voteCounts[cls] === maxVote && maxVote > 0) {
+                    tiedClasses.push(cls);
+                }
+            }
+            let finalClass = null;
+            this.isTie = tiedClasses.length > 1;
+            if (this.isTie) {
+                let closestTiedNeighbor = this.kNeighbors.find(n => tiedClasses.includes(n.point.cls));
+                finalClass = closestTiedNeighbor.point.cls;
+            } else {
+                finalClass = tiedClasses[0];
+            }
+            this.data.queryPoint.resultCls = finalClass;
+            return finalClass;
+        }
+    }
+
+    class CanvasRenderer {
+
+        constructor(canvas, data, knn) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.data = data;
+            this.knn = knn;
+
+            this.needsRedraw = true;
+            this.actualWidth = 0;
+            this.actualHeight = 0;
+
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+
+            this.animate = this.animate.bind(this);
+            requestAnimationFrame(this.animate);
+        }
+
+        resize() {
+
+            const rect = this.canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            this.canvas.style.width = `${rect.width}px`;
+            this.canvas.style.height = `${rect.height}px`;
+
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            this.ctx.scale(dpr, dpr);
+
+            this.actualWidth = rect.width;
+            this.actualHeight = rect.height;
+
+            this.requestDraw();
+        }
+
+        requestDraw() {
+            this.needsRedraw = true;
+        }
+
+        animate() {
+            if (this.needsRedraw) {
+                this.draw();
+                this.needsRedraw = false;
+            }
+            requestAnimationFrame(this.animate);
+        }
+
+        drawPointShape(x, y, cls, size = 6) {
+
+            const ctx = this.ctx;
+            ctx.beginPath();
+
+            if (cls === 'A') {              // ●
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+            } else if (cls === 'B') {         // ■
+                ctx.rect(x - size, y - size, size * 2, size * 2);
+            } else if (cls === 'C') {         // ▲
+                ctx.moveTo(x, y - size);
+                ctx.lineTo(x + size, y + size);
+                ctx.lineTo(x - size, y + size);
+                ctx.closePath();
+            }
+        }
+
+        draw() {
+
+            this.ctx.clearRect(0, 0, this.actualWidth, this.actualHeight);
+
+            // 거리 계산 단계
+            if (this.data.queryPoint && (phase === 'CALC' || phase === 'SELECT' || phase === 'DONE')) {
+
+                this.ctx.globalAlpha = phase === 'CALC' ? 0.3 : 0.05;
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeStyle = '#94a3b8';
+
+                this.knn.distances.forEach(d => {
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.data.queryPoint.x, this.data.queryPoint.y);
+                    this.ctx.lineTo(d.point.x, d.point.y);
+                    this.ctx.stroke();
+
+                });
+
+                this.ctx.globalAlpha = 1.0;
+            }
+
+            // 선택된 k 이웃
+            if (this.data.queryPoint && (phase === 'SELECT' || phase === 'DONE')) {
+
+                this.ctx.lineWidth = 3;
+
+                this.knn.kNeighbors.forEach(n => {
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.data.queryPoint.x, this.data.queryPoint.y);
+                    this.ctx.lineTo(n.point.x, n.point.y);
+
+                    this.ctx.strokeStyle = CLASS_COLORS[n.point.cls];
+                    this.ctx.globalAlpha = 0.6;
+                    this.ctx.stroke();
+                    this.ctx.globalAlpha = 1.0;
+
+                    // 이웃 강조 표시
+                    this.drawPointShape(n.point.x, n.point.y, n.point.cls, 10);
+
+                    this.ctx.strokeStyle = '#334155';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                });
+            }
+
+            // 데이터 포인트
+            this.data.points.forEach(p => {
+
+                this.drawPointShape(p.x, p.y, p.cls, 6);
+
+                this.ctx.fillStyle = CLASS_COLORS[p.cls];
+                this.ctx.fill();
+
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 1.5;
+                this.ctx.stroke();
+            });
+
+            // Query Point
+            if (this.data.queryPoint) {
+
+                let q = this.data.queryPoint;
+
+                this.ctx.beginPath();
+                this.ctx.arc(q.x, q.y, 12, 0, Math.PI * 2);
+
+                this.ctx.fillStyle =
+                    (phase === 'DONE' && q.resultCls)
+                        ? CLASS_COLORS[q.resultCls]
+                        : CLASS_COLORS['QUERY'];
+
+                this.ctx.fill();
+
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = "bold 14px 'Pretendard'";
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+
+                if (phase === 'DONE') {
+
+                    this.ctx.fillText("✓", q.x, q.y + 1);
+
+                    this.ctx.strokeStyle = '#1e293b';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.stroke();
+                } else {
+                    this.ctx.fillText("?", q.x, q.y + 1);
+                }
+            }
+        }
+    }
+
+    const dataManager = new DataManager();
+    const knn = new KNNAlgorithm(dataManager);
+    const canvas = document.getElementById('knnCanvas');
+    const renderer = new CanvasRenderer(canvas, dataManager, knn);
+    const btnRandom = document.getElementById('btnRandomData'), btnClear = document.getElementById('btnClearData');
+    const btnStep = document.getElementById('btnStep'), btnRun = document.getElementById('btnRun');
+    const sliderK = document.getElementById('kSlider'), labelK = document.getElementById('kValueDisplay');
+    const toolBtns = document.querySelectorAll('.tool-btn');
+
+    let activeTool = 'A';
+    let phase = 'IDLE';
+    let autoRunTimer = null; // [타이머 오류 수정] 변수명 및 관리 방식 변경
+
+    const THEMES = {
+        IDLE: {boxBg: 'bg-white', boxBorder: 'border-slate-400', text: 'text-slate-800', badgeBg: 'bg-slate-200'},
+        CALC: {boxBg: 'bg-blue-50', boxBorder: 'border-blue-500', text: 'text-blue-800', badgeBg: 'bg-blue-200'},
+        SELECT: {
+            boxBg: 'bg-indigo-50',
+            boxBorder: 'border-indigo-500',
+            text: 'text-indigo-800',
+            badgeBg: 'bg-indigo-200'
+        },
+        DONE: {boxBg: 'bg-purple-50', boxBorder: 'border-purple-500', text: 'text-purple-800', badgeBg: 'bg-purple-200'}
+    };
+
+    // [상태 오류 방지] 자동 실행 취소 공통 함수
+    function stopAutoRun() {
+        if (autoRunTimer) {
+            clearTimeout(autoRunTimer);
+            autoRunTimer = null;
+            btnRun.innerHTML = '<i class="fa-solid fa-play mr-2"></i> 자동 실행';
+            // 자동 실행을 멈추면 단계 실행을 다시 쓸 수 있어야 한다.
+            // (DONE에 도달해 멈춘 경우에는 호출한 쪽에서 곧바로 다시 잠근다.)
+            btnStep.disabled = false;
+        }
+    }
+
+    function updateFlowUI(activePhase, message, icon, barBg = 'bg-slate-100', barText = 'text-slate-700') {
+        const msgBar = document.getElementById('statusMessageBar');
+        document.getElementById('statusMessageText').innerText = message;
+        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} mr-3 text-xl`;
+        msgBar.className = `w-full px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 border-2 min-h-[72px] ${barBg} border-slate-200 ${barText}`;
+
+        ['IDLE', 'CALC', 'SELECT', 'DONE'].forEach(p => {
+            const box = document.getElementById(`flow-${p}`);
+            if (p === activePhase) {
+                box.className = `flow-box relative z-10 opacity-100 shadow-md scale-[1.03] border-2 rounded-xl p-3 transition-all duration-300 ${THEMES[p].boxBg} ${THEMES[p].boxBorder}`;
+                box.querySelector('.step-badge').className = `step-badge inline-block px-2 py-0.5 rounded-md text-sm font-black mb-1 text-slate-800 ${THEMES[p].badgeBg}`;
+                box.querySelector('.step-title').className = `step-title font-bold text-base flex items-center break-keep ${THEMES[p].text}`;
+            } else {
+                box.className = `flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300 transform scale-100`;
+                box.querySelector('.step-badge').className = `step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500`;
+                box.querySelector('.step-title').className = `step-title font-bold text-slate-500 text-base flex items-center break-keep`;
+            }
+        });
+    }
+
+    function updateVotingUI() {
+        document.getElementById('voteA').innerText = knn.voteCounts.A;
+        document.getElementById('voteB').innerText = knn.voteCounts.B;
+        document.getElementById('voteC').innerText = knn.voteCounts.C;
+        const resultEl = document.getElementById('finalResultText');
+        if (phase === 'DONE' && dataManager.queryPoint && dataManager.queryPoint.resultCls) {
+            let cls = dataManager.queryPoint.resultCls;
+            let resultText = `Class ${cls}`;
+            if (knn.isTie) resultText += ` (동점: 거리 우선)`;
+            resultEl.innerText = resultText;
+            resultEl.className = `font-black text-xl text-white px-4 py-1.5 rounded-md shadow-sm whitespace-nowrap ${cls === 'A' ? 'bg-rose-500' : cls === 'B' ? 'bg-blue-500' : 'bg-emerald-500'}`;
+        } else {
+            resultEl.innerText = "대기 중";
+            resultEl.className = "font-black text-xl text-slate-800 bg-slate-100 px-4 py-1.5 rounded-md";
+        }
+    }
+
+    function toggleAlgControls(enable) {
+        btnStep.disabled = !enable;
+        btnRun.disabled = !enable;
+    }
+
+    function step() {
+        if (!dataManager.queryPoint) return;
+        if (phase === 'IDLE') {
+            knn.calcAllDistances();
+            phase = 'CALC';
+            updateFlowUI('CALC', 'Step 1: 모든 데이터 포인트와의 거리를 계산했습니다.', 'fa-ruler', 'bg-blue-50', 'text-blue-800');
+        } else if (phase === 'CALC') {
+            knn.selectKNeighbors(parseInt(sliderK.value));
+            phase = 'SELECT';
+            updateFlowUI('SELECT', `Step 2: 거리가 가장 가까운 ${sliderK.value}개의 이웃을 찾았습니다.`, 'fa-magnifying-glass-location', 'bg-indigo-50', 'text-indigo-800');
+        } else if (phase === 'SELECT') {
+            knn.doVoting();
+            phase = 'DONE';
+            updateVotingUI();
+            updateFlowUI('DONE', 'Step 3: 다수결 투표가 완료되어 그룹이 분류되었습니다!', 'fa-check-to-slot', 'bg-purple-50', 'text-purple-800');
+            stopAutoRun();
+            btnStep.disabled = true;
+            btnRun.disabled = true;
+        }
+        renderer.requestDraw();
+    }
+
+    function runLoop() {
+        if (!autoRunTimer) return;
+        if (phase === 'DONE') {
+            stopAutoRun();
+            return;
+        }
+        step();
+        if (phase !== 'DONE') {
+            autoRunTimer = setTimeout(runLoop, 1000);
+        }
+    }
+
+    function run() {
+        if (autoRunTimer) {
+            stopAutoRun();
+        } else {
+            if (phase === 'DONE') return;
+            btnRun.innerHTML = '<i class="fa-solid fa-pause mr-2"></i> 정지';
+            btnStep.disabled = true;
+            autoRunTimer = setTimeout(runLoop, 100);
+        }
+    }
+
+    toolBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            toolBtns.forEach(b => b.classList.remove('active'));
+            const targetBtn = e.currentTarget;
+            targetBtn.classList.add('active');
+            activeTool = targetBtn.dataset.tool;
+            if (activeTool === 'QUERY') updateFlowUI('IDLE', "분류를 원하는 위치의 캔버스를 클릭하여 Query Point를 찍으세요.", "fa-crosshairs");
+            else updateFlowUI('IDLE', `선택한 Class ${activeTool} 데이터를 캔버스에 추가하세요.`, "fa-pen-nib");
+        });
+    });
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        if (activeTool === 'QUERY') {
+            if (dataManager.points.length === 0) {
+                alert("먼저 기존 데이터를 생성해주세요!");
+                return;
+            }
+            dataManager.setQueryPoint(x, y);
+            phase = 'IDLE';
+            knn.voteCounts = {A: 0, B: 0, C: 0};
+            updateVotingUI();
+            toggleAlgControls(true);
+            stopAutoRun(); // 타이머 안전 정지
+            updateFlowUI('IDLE', 'Query Point가 등록되었습니다! Step 버튼을 눌러 진행하세요.', 'fa-play-circle');
+        } else {
+            dataManager.addPoint(x, y, activeTool);
+
+            // [상태 불일치 오류 수정] 진행 중에 점이 추가되면 상태를 초기화하거나 즉시 재반영
+            if (phase === 'CALC' || phase === 'SELECT') {
+                phase = 'IDLE';
+                stopAutoRun();
+                updateFlowUI('IDLE', '데이터가 추가되어 진행이 취소되었습니다. 처음부터 다시 실행하세요.', 'fa-rotate-left');
+                toggleAlgControls(true);
+            } else if (phase === 'DONE' && dataManager.queryPoint) {
+                knn.calcAllDistances();
+                knn.selectKNeighbors(parseInt(sliderK.value));
+                knn.doVoting();
+                updateVotingUI();
+                updateFlowUI('DONE', '데이터가 추가되어 실시간으로 투표 현황이 재계산되었습니다.', 'fa-bolt', 'bg-purple-50', 'text-purple-800');
+            }
+        }
+        renderer.requestDraw();
+    });
+
+    sliderK.addEventListener('input', (e) => {
+        labelK.innerText = e.target.value;
+        if (phase === 'DONE' && dataManager.queryPoint) {
+            knn.selectKNeighbors(parseInt(e.target.value));
+            knn.doVoting();
+            updateVotingUI();
+            updateFlowUI('DONE', `K값이 ${e.target.value}(으)로 변경되어 분류 결과가 실시간 갱신되었습니다.`, 'fa-bolt', 'bg-purple-50', 'text-purple-800');
+            renderer.requestDraw();
+        } else if (phase === 'CALC' || phase === 'SELECT') {
+            // 진행 중 슬라이더 조작 시 꼬임을 방지하기 위해 강제 리셋
+            phase = 'IDLE';
+            stopAutoRun();
+            updateFlowUI('IDLE', `K값이 변경되어 진행이 취소되었습니다. 다시 실행하세요.`, 'fa-rotate-left');
+            toggleAlgControls(true);
+            renderer.requestDraw();
+        }
+    });
+
+    const spreadSlider = document.getElementById('spreadSlider');
+    const spreadLabel = document.getElementById('spreadLabel');
+
+    spreadSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        if (val < 150) spreadLabel.innerText = "조밀함";
+        else if (val < 280) spreadLabel.innerText = "적당함";
+        else if (val < 380) spreadLabel.innerText = "넓게 흩어짐";
+        else spreadLabel.innerText = "매우 넓게 흩어짐 (혼합됨)";
+    });
+
+    btnRandom.addEventListener('click', () => {
+        stopAutoRun(); // 타이머 누수 방지
+        const spreadValue = parseInt(spreadSlider.value);
+        // DPR 스케일링을 고려하여 CSS Width 크기를 넘겨줌
+        dataManager.generateRandom(renderer.actualWidth, renderer.actualHeight, spreadValue);
+
+        phase = 'IDLE';
+        knn.voteCounts = {A: 0, B: 0, C: 0};
+        updateVotingUI();
+        toggleAlgControls(false);
+        toolBtns.forEach(b => b.classList.remove('active'));
+        document.querySelector('[data-tool="QUERY"]').classList.add('active');
+        activeTool = 'QUERY';
+        updateFlowUI('IDLE', '무작위 데이터가 생성되었습니다. Query Point를 찍어보세요.', 'fa-crosshairs');
+        renderer.requestDraw();
+    });
+
+    btnClear.addEventListener('click', () => {
+        stopAutoRun(); // 타이머 누수 방지
+        dataManager.clear();
+        phase = 'IDLE';
+        knn.voteCounts = {A: 0, B: 0, C: 0};
+        updateVotingUI();
+        toggleAlgControls(false);
+        updateFlowUI('IDLE', '모든 데이터가 지워졌습니다. 데이터를 다시 생성하세요.', 'fa-eraser');
+        renderer.requestDraw();
+    });
+
+    btnStep.addEventListener('click', step);
+    btnRun.addEventListener('click', run);
+
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.parentElement;
+        const buttons = container.querySelectorAll('.quiz-btn');
+        buttons.forEach(b => {
+            if (!b.dataset.label) b.dataset.label = b.textContent;
+            b.classList.remove('correct', 'wrong');
+            b.classList.add('disabled');
+        });
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>${btn.dataset.label}`;
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2"></i>${btn.dataset.label}`;
+        }
+        showToast(message, isCorrect ? 'success' : 'error');
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('correct', 'wrong', 'disabled');
+                b.innerHTML = b.dataset.label;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 z-[1000] text-lg ${type === 'success' ? 'bg-indigo-600' : 'bg-rose-500'}`;
+        toast.innerText = message;
+        window.fsOverlayHost().appendChild(toast);
+        setTimeout(() => toast.classList.remove('translate-y-20'), 10);
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-5');
+            setTimeout(() => toast.remove(), 500);
+        }, 2500);
+    }
+</script>
+<script>
+/* ============================================================
+   실행 단추 -> 시각화 영역 자동 스크롤
+   **동작은 src/entries/_lib/sim-scroll.js 하나가 맡는다.**
+   여기에는 「어느 단추가 어느 그림을 보여 주는가」만 적는다.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function () {
+    window.bindSimScroll([
+            [['#btnRun', '#btnStep'], '#knnCanvas']
+    ]);
+});
+</script>
+
+</body>
+</html>

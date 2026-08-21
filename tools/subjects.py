@@ -47,9 +47,9 @@ def subject_of(rel_path: str | Path) -> dict | None:
 def html_files(root: Path | None = None) -> list[Path]:
     """DIRS + FILES에 해당하는 HTML 전부. 빌드와 검사가 같은 목록을 본다.
 
-    **단위는 겹칠 수 있으므로 중복을 없앤다.** `인공지능기초/simulator`처럼
-    standalone이 과목 폴더 **안에** 있으면 두 글롭이 같은 파일을 잡는다.
-    없애지 않으면 그 파일들만 두 번 검사되고 「몇 개 봤다」는 수도 틀린다.
+    **단위는 겹칠 수 있으므로 중복을 없앤다.** standalone이 과목 폴더 **안에**
+    있으면 두 글롭이 같은 파일을 잡는다. 예전에 `인공지능기초/simulator`가 그랬고,
+    없애지 않으면 그 파일들만 두 번 검사되고 「몇 개 봤다」는 수도 틀렸다.
     """
     root = root or REPO_ROOT
     out: list[Path] = []

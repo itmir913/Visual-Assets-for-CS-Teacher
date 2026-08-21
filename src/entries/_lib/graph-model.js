@@ -140,7 +140,7 @@ export function recompute(graph) {
     }
 
     // 인접 목록. **간선 방향을 여기서 한 번만 풀어 둔다.** 탐색 쪽이 방향을 다시
-    // 따지게 두면 알고리즘마다 같은 실수를 되풀이한다.
+    // 따지게 두면 알고리즘마다 같은 실수를 반복한다.
     const adj = new Map(graph.nodes.map(n => [n.id, []]));
     for (const e of graph.edges) {
         adj.get(e.a).push({to: e.b, cost: e.cost, edgeId: e.id});

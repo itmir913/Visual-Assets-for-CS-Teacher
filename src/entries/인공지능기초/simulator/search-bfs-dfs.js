@@ -7,5 +7,11 @@
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
 import {createTreeView} from '../../_lib/tree-view.js';
+import {createGraphView} from '../../_lib/graph-view.js';
+import * as graphModel from '../../_lib/graph-model.js';
+import {GRAPH_PRESETS} from '../../_lib/graph-presets.js';
 
 window.createTreeView = createTreeView;
+window.createGraphView = createGraphView;
+window.GraphModel = graphModel;
+window.GRAPH_PRESETS = GRAPH_PRESETS;

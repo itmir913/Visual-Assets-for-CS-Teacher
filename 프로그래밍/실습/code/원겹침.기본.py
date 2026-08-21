@@ -2,7 +2,7 @@
 x1, y1, r1 = map(int, input().split())
 x2, y2, r2 = map(int, input().split())
 
-# 제곱근을 구하지 않고 제곱한 채로 견준다
+# 제곱근을 구하지 않고 제곱한 채로 비교한다
 d2 = (x2 - x1) ** 2 + (y2 - y1) ** 2
 sum2 = (r1 + r2) ** 2
 diff2 = abs(r1 - r2) ** 2

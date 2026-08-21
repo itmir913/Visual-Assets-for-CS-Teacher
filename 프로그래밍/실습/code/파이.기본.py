@@ -4,7 +4,7 @@ n = int(input())
 inside = 0
 for _ in range(n):
     x, y = map(float, input().split())
-    # 제곱근을 구하지 않고 제곱한 채로 견준다
+    # 제곱근을 구하지 않고 제곱한 채로 비교한다
     if x ** 2 + y ** 2 <= 1:
         inside += 1
 

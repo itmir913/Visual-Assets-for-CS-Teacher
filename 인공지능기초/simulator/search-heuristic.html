@@ -215,7 +215,7 @@
         <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">정보 이용 탐색 (Greedy &amp; A*) 시뮬레이터</h1>
         <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            트리(Tree) 구조와 2차원 공간(Grid)에서 최상 우선 탐색(Greedy Best-First)과 A* 탐색이<br>
+            트리(Tree)와 그래프(Graph), 2차원 공간(Grid)에서 최상 우선 탐색(Greedy Best-First)과 A* 탐색이<br>
             휴리스틱 값(h, g, f)을 활용해 어떻게 동작하는지 직관적으로 비교해 보세요.
         </p>
     </div>
@@ -226,6 +226,11 @@
         <button class="px-8 py-4 font-bold text-teal-600 border-b-4 border-teal-600 transition-colors" id="tab-tree"
                 onclick="window.UIController.switchTab('tree')">
             <i class="fa-solid fa-network-wired mr-2"></i>트리 탐색 (Tree)
+        </button>
+        <button class="px-8 py-4 font-medium text-gray-500 hover:text-teal-600 border-b-4 border-transparent transition-colors"
+                id="tab-graph"
+                onclick="window.UIController.switchTab('graph')">
+            <i class="fa-solid fa-diagram-project mr-2"></i>그래프 탐색 (Graph)
         </button>
         <button class="px-8 py-4 font-medium text-gray-500 hover:text-teal-600 border-b-4 border-transparent transition-colors"
                 id="tab-grid"
@@ -471,6 +476,170 @@
         </div>
     </section>
 
+    <section class="space-y-6 hidden fs-stage" id="graph-search-section">
+        <div class="fs-fill grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
+            <div class="lg:col-span-1 control-panel flex flex-col gap-6 min-h-full bg-slate-50 border-2 border-slate-100">
+                <div>
+                    <div class="flex items-center gap-2 font-black text-slate-800 text-lg pb-3">
+                        <i class="fa-solid fa-sliders text-teal-600"></i> 지도 설정
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-start gap-3 bg-white border-2 border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:border-teal-300 transition-colors">
+                            <input class="mt-1 w-4 h-4 accent-teal-600 shrink-0" id="graph-opt-directed" type="checkbox">
+                            <span class="min-w-0">
+                                <span class="block font-bold text-slate-800 text-sm">방향 그래프</span>
+                                <span class="block text-xs text-slate-500 leading-snug break-keep">화살표가 가리키는 쪽으로만 갈 수 있습니다.</span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 bg-white border-2 border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:border-teal-300 transition-colors">
+                            <input checked class="mt-1 w-4 h-4 accent-teal-600 shrink-0" id="graph-opt-weighted" type="checkbox">
+                            <span class="min-w-0">
+                                <span class="block font-bold text-slate-800 text-sm">간선 비용</span>
+                                <span class="block text-xs text-slate-500 leading-snug break-keep">길마다 드는 비용이 다릅니다. 꺼 두면 모두 1입니다.</span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 bg-white border-2 border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:border-teal-300 transition-colors">
+                            <input checked class="mt-1 w-4 h-4 accent-teal-600 shrink-0" id="graph-opt-cyclic" type="checkbox">
+                            <span class="min-w-0">
+                                <span class="block font-bold text-slate-800 text-sm">사이클</span>
+                                <span class="block text-xs text-slate-500 leading-snug break-keep">빙 돌아 제자리로 오는 길이 있습니다. 끄면 트리가 됩니다.</span>
+                            </span>
+                        </label>
+                    </div>
+                    <button class="w-full mt-3 bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-xl font-bold transition shadow-sm flex justify-center items-center gap-2"
+                            id="btn-graph-new">
+                        <i class="fa-solid fa-shuffle"></i> 새 지도
+                    </button>
+                    <p class="text-teal-700 font-bold text-center mt-3 text-xs bg-teal-50 py-2 rounded-lg border border-teal-100 leading-relaxed break-keep">
+                        h(n)은 <b>지도에서 목표까지 자로 잰 직선거리</b>이고, 가지 위의 숫자는 <b>그 길을 지나는 비용</b>입니다.
+                        길이 여럿이라 <b>네 방법이 서로 다른 길</b>을 찾습니다.<br>
+                        설정을 바꾸면 같은 지도를 그 설정으로 다시 그립니다. 노드를 클릭하면 목표가 바뀝니다.
+                    </p>
+                </div>
+
+                <hr class="border-slate-200">
+
+                <div>
+                    <div class="flex items-center gap-2 font-black text-slate-800 text-lg pb-3">
+                        <i class="fa-solid fa-microchip text-teal-600"></i> 알고리즘 선택
+                    </div>
+                    <select class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold text-sm bg-white mb-4"
+                            id="graph-algo">
+                        <option value="astar">A* 탐색 (평가 함수 g + h 사용)</option>
+                        <option value="greedy">최상 우선 탐색 (평가 함수 h 사용)</option>
+                        <option value="bfs">너비 우선 탐색 (평가 함수 미사용)</option>
+                        <option value="dfs">깊이 우선 탐색 (평가 함수 미사용)</option>
+                    </select>
+
+                    <label class="block font-bold text-gray-700 mb-2 text-sm">탐색 속도</label>
+                    <input class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                           id="graph-speed" max="1000" min="50" type="range" value="500">
+                </div>
+
+                <hr class="border-slate-200">
+
+                <div class="flex-grow flex flex-col justify-end">
+                    <div class="flex items-center gap-2 font-black text-slate-800 text-lg pb-3">
+                        <i class="fa-solid fa-gamepad text-teal-600"></i> 실행 제어
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <button class="bg-teal-600 hover:bg-teal-700 text-white py-3 px-2 rounded-xl font-bold transition shadow-md flex justify-center items-center gap-1 whitespace-nowrap text-sm sm:text-base"
+                                id="btn-graph-play">
+                            <i class="fa-solid fa-play"></i> 자동 실행 (Run)
+                        </button>
+                        <button class="bg-indigo-500 hover:bg-indigo-600 text-white py-3 px-2 rounded-xl font-bold transition shadow-sm flex justify-center items-center gap-1 whitespace-nowrap text-sm sm:text-base"
+                                id="btn-graph-step">
+                            <i class="fa-solid fa-forward-step"></i> 다음 (Next)
+                        </button>
+                        <button class="bg-slate-500 hover:bg-slate-600 text-white py-3 px-2 rounded-xl font-bold transition shadow-sm flex justify-center items-center gap-1 whitespace-nowrap text-sm sm:text-base"
+                                id="btn-graph-reset">
+                            <i class="fa-solid fa-rotate-right"></i> 초기화
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3 control-panel flex flex-col p-0 overflow-hidden">
+                <div class="p-4 bg-slate-800 text-white flex justify-between items-center rounded-t-xl">
+                    <div class="font-bold flex items-center gap-3 w-full">
+                        <span class="bg-slate-700 px-4 py-2 rounded-lg text-base leading-relaxed break-keep border border-slate-600 w-full"
+                              id="graph-status">
+                            대기 중
+                        </span>
+                    </div>
+
+                    <!-- 교실 화면용 전체 화면 단추. 나올 때는 Esc 또는 같은 단추.
+                         모서리에 띄우면 이 상태 바를 덮으므로 바 안에 앉힌다. -->
+                    <button aria-label="전체 화면으로 보기"
+                            class="shrink-0 ml-3 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 border border-slate-600 font-bold text-base transition-colors"
+                            data-fullscreen="graph-search-section" title="전체 화면으로 보기" type="button">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                </div>
+                <div class="bg-slate-100 border-b border-slate-200 py-2 px-4 flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-bold text-slate-600">
+                    <span class="flex items-center gap-1"><div
+                            class="w-3 h-3 bg-emerald-500 border border-emerald-600 rounded"></div>시작점</span>
+                    <span class="flex items-center gap-1"><div
+                            class="w-3 h-3 bg-rose-500 border border-rose-600 rounded"></div>목표</span>
+                    <span class="flex items-center gap-1"><div
+                            class="w-3 h-3 bg-yellow-400 border border-yellow-500 rounded"></div>현재 선택</span>
+                    <span class="flex items-center gap-1"><div
+                            class="w-3 h-3 bg-lime-300 border border-lime-400 rounded"></div>Open Set</span>
+                    <span class="flex items-center gap-1"><div
+                            class="w-3 h-3 bg-sky-200 border border-sky-300 rounded"></div>Closed Set</span>
+                    <span class="flex items-center gap-1"><div
+                            class="w-3 h-3 bg-amber-500 border border-amber-600 rounded"></div>최종 경로</span>
+                </div>
+                <div class="flex-grow min-h-[40vh] md:min-h-[50vh] relative bg-slate-50 border-x border-b border-slate-200 rounded-b-xl"
+                     id="graph-canvas">
+                </div>
+            </div>
+        </div>
+
+        <div class="fs-hide bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h2 class="font-black text-slate-800 text-xl flex items-center gap-2">
+                <i class="fa-solid fa-code-compare text-teal-600"></i>
+                h(n)만 보면 어떻게 될까
+            </h2>
+            <p class="text-base text-slate-700 leading-relaxed break-keep">
+                이 지도에서 h(n)은 <b>목표까지 자로 잰 직선거리</b>입니다.
+                실제로 가야 하는 길은 굽어 있으니, h(n)은 <b>실제로 남은 비용보다 크지 않습니다.</b>
+                h(n)이 이렇게 실제보다 작거나 같으면 A*는 <b>가장 싼 길을 놓치지 않습니다.</b>
+            </p>
+            <p class="text-base text-slate-700 leading-relaxed break-keep">
+                최상 우선 탐색은 <b>h(n)만</b> 봅니다. 목표 쪽으로 곧장 달리지만
+                <b>여기까지 오는 데 든 비용은 따지지 않습니다.</b>
+                목표에 가까워 보이는 골목으로 들어섰다가 크게 돌아 나오는 일이 그래서 생깁니다.
+            </p>
+            <div class="flex items-start gap-3 bg-sky-50 border border-sky-200 text-sky-900 rounded-xl p-4">
+                <i class="fa-solid fa-lightbulb text-sky-500 mt-1 shrink-0"></i>
+                <p class="text-base font-medium leading-relaxed break-keep">
+                    <b>트리 탐색 탭에서는 이 차이가 보이지 않았습니다.</b>
+                    트리는 어느 노드로 가는 길이 하나뿐이라 네 방법이 모두 같은 길을 찾고,
+                    다른 것은 「몇 개를 열어 보았는가」뿐이었습니다.
+                    길이 여럿인 그래프에서야 <b>어느 길을 찾았는가</b>가 갈립니다.
+                </p>
+            </div>
+            <button class="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white py-3 px-5 rounded-xl font-bold transition shadow-md flex justify-center items-center gap-2"
+                    id="btn-graph-compare">
+                <i class="fa-solid fa-scale-balanced"></i> 지금 이 지도에서 최상 우선과 A*를 나란히 돌려 보기
+            </button>
+            <div class="hidden overflow-x-auto" id="graph-compare-box">
+                <table class="table-prose w-full text-base border-collapse">
+                    <thead>
+                    <tr class="bg-slate-100 text-slate-700">
+                        <th class="w-44 text-left font-black px-4 py-2 border border-slate-200">방법</th>
+                        <th class="text-left font-black px-4 py-2 border border-slate-200">찾은 길</th>
+                        <th class="text-left font-black px-4 py-2 border border-slate-200">든 비용</th>
+                        <th class="text-left font-black px-4 py-2 border border-slate-200">열어 본 노드</th>
+                    </tr>
+                    </thead>
+                    <tbody id="graph-compare-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
 </main>
 
 <footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
@@ -632,7 +801,17 @@
 
                     let tentativeG = this.gScore.get(this.currentNode) + this.getG(this.currentNode, neighbor);
                     let isNew = !this.openSet.includes(neighbor);
-                    let isBetter = isNew || tentativeG < this.gScore.get(neighbor);
+
+                    // **더 싼 길을 보고 부모를 갈아 끼우는 것은 A*뿐이다.**
+                    //
+                    // 너비·깊이 우선은 꺼내는 순서가 비용과 아무 상관이 없고, 최상 우선은
+                    // h만 본다. 그런데도 「이 길이 더 싸다」고 부모를 바꾸면, 화면에 그린 길이
+                    // **그 방법이 실제로 지나온 길이 아니게 된다** — 너비 우선이 찾았다는
+                    // 길의 칸 수가 최소가 아니게 되는 식이다.
+                    //
+                    // 트리에서는 어느 노드로 가는 길이 하나뿐이라 이 구멍이 드러나지 않았다.
+                    // 그래프 탭이 생기면서 곧바로 어긋났다.
+                    let isBetter = isNew || (this.type === 'astar' && tentativeG < this.gScore.get(neighbor));
 
                     if (isBetter) {
                         this.cameFrom.set(neighbor, this.currentNode);
@@ -1284,39 +1463,439 @@
 
 
     /* ==============================================================
-       4. Main UI Controller
+       3. Graph Search Simulator (그래프 탐색)
+
+       **트리 탭이 보여 주지 못하던 것을 이 탭이 보여 준다.**
+       트리는 어느 노드로 가는 길이 하나뿐이라 네 방법이 모두 같은 길을 찾는다.
+       그래서 트리에서 견줄 수 있는 것은 「몇 개를 열어 보았는가」뿐이었다.
+       길이 여럿인 그래프에서야 **어느 길을 찾았는가**가 갈리고, 최상 우선 탐색이
+       더 비싼 길을 물고 오는 장면이 나온다 — 그것이 A*가 있는 이유다.
+
+       탐색 엔진은 위의 `HeuristicSearch`를 그대로 쓴다. 그 클래스는 처음부터
+       이웃·비용·h를 콜백으로 받으므로 그래프에 그대로 얹힌다.
+       ============================================================== */
+    class GraphSearchSimulator {
+        // 노드 상태마다 색을 정해 둔다. 트리 탭과 같은 표를 쓴다 — 같은 뜻은 같은 색이어야 한다.
+        static COLORS = {
+            default: {bg: 'white', border: '#cbd5e1', font: '#1e293b'},
+            start: {bg: '#10b981', border: '#047857', font: 'white'},
+            goal: {bg: '#f43f5e', border: '#be123c', font: 'white'},
+            open: {bg: '#d9f99d', border: '#84cc16', font: '#1e293b'},
+            closed: {bg: '#bae6fd', border: '#0ea5e9', font: '#1e293b'},
+            current: {bg: '#fde047', border: '#eab308', font: '#1e293b'},
+            path: {bg: '#f59e0b', border: '#b45309', font: 'white'},
+        };
+
+        constructor() {
+            this.graph = null;
+            this.view = null;
+            this.engine = null;
+            this.playInterval = null;
+
+            document.getElementById('btn-graph-new').onclick = () => this.newMap();
+            document.getElementById('btn-graph-play').onclick = () => this.togglePlay();
+            document.getElementById('btn-graph-step').onclick = () => this.stepManually();
+            document.getElementById('btn-graph-reset').onclick = () => this.resetSearch();
+            document.getElementById('btn-graph-compare').onclick = () => this.compare();
+            document.getElementById('graph-algo').addEventListener('change', () => this.resetSearch());
+
+            for (const id of ['graph-opt-directed', 'graph-opt-weighted', 'graph-opt-cyclic']) {
+                document.getElementById(id).addEventListener('change', () => this.applyOptions());
+            }
+
+            document.getElementById('graph-speed').addEventListener('input', (e) => {
+                if (this.playInterval) {
+                    clearInterval(this.playInterval);
+                    this.playInterval = setInterval(() => this.step(), 1050 - parseInt(e.target.value));
+                }
+            });
+        }
+
+        /* --- 지도 --- */
+
+        options() {
+            return {
+                directed: document.getElementById('graph-opt-directed').checked,
+                weighted: document.getElementById('graph-opt-weighted').checked,
+                cyclic: document.getElementById('graph-opt-cyclic').checked,
+            };
+        }
+
+        newMap() {
+            const preset = window.GraphModel.pickPreset(
+                window.GRAPH_PRESETS, this.options(), this.graph && this.graph.presetId);
+            this.loadPreset(preset);
+            this.setStatus(`<b>${this.graph.presetName}</b>을 폈습니다. 노드 ${this.graph.nodes.length}개, 간선 ${this.graph.edges.length}개.
+                시작은 <b>${this.graph.start}</b>, 목표는 <b>${this.graph.goal}</b>입니다.`);
+        }
+
+        /**
+         * 토글이 바뀌었을 때. **지도는 그대로 두고 설정만 갈아 끼운다.**
+         * 설정을 바꿀 때마다 다른 지도가 나오면 무엇이 달라졌는지 견줄 수가 없다.
+         */
+        applyOptions() {
+            if (!this.graph) return this.newMap();
+
+            const preset = window.GRAPH_PRESETS.find(p => p.id === this.graph.presetId);
+            this.loadPreset(preset, this.graph.start, this.graph.goal);
+
+            const o = this.options();
+            const 말 = [
+                o.directed ? '화살표 방향으로만 갑니다' : '어느 쪽으로든 갑니다',
+                o.weighted ? '길마다 비용이 다릅니다' : '모든 길의 비용이 1입니다',
+                o.cyclic ? '사이클이 있습니다' : '사이클이 없어 트리가 되었습니다',
+            ];
+            this.setStatus(`설정을 바꾸었습니다 — ${말.join(', ')}. 같은 지도로 다시 돌려 견주어 보세요.`);
+        }
+
+        loadPreset(preset, keepStart, keepGoal) {
+            const M = window.GraphModel;
+            this.stopPlay();
+            this.graph = M.buildGraph(preset, this.options());
+            if (keepStart && this.graph.byId.has(keepStart)) M.setStart(this.graph, keepStart);
+            if (keepGoal && this.graph.byId.has(keepGoal)) M.setGoal(this.graph, keepGoal);
+
+            this.engine = null;
+            this.hideCompare();
+
+            this.initView();
+            this.view.setData(this.graph);
+            this.paint(0);
+            this.view.fit(300);
+        }
+
+        /* --- 그리기 --- */
+
+        initView() {
+            if (this.view) return;
+            this.view = window.createGraphView('#graph-canvas', {
+                fontSize: 14,
+                edgeLabelColor: '#0f766e',
+                label: (n) => this.labelOf(n),
+                nodeStyle: (n) => {
+                    const c = GraphSearchSimulator.COLORS[this.stateOf(n.id)];
+                    return {fill: c.bg, stroke: c.border, strokeWidth: 2.5, textColor: c.font};
+                },
+                // 비용을 끈 지도에서는 숫자를 적지 않는다. 전부 1인 숫자를 늘어놓으면
+                // **학생이 그 1을 무엇인가 뜻이 있는 값으로 읽는다.**
+                edgeLabel: (e) => (this.graph && this.graph.weighted ? String(e.cost) : null),
+                edgeStyle: (e) => (this.isPathEdge(e)
+                    ? {stroke: '#f59e0b', strokeWidth: 5}
+                    : {stroke: '#94a3b8', strokeWidth: 2.5}),
+            });
+            this.view.on('nodeclick', (id) => this.setGoalNode(id));
+        }
+
+        /**
+         * 노드에 적을 글자.
+         *
+         * **f는 그것으로 고르는 방법에서만 나온다.** 어떤 알고리즘인지 여기서 묻지 않고,
+         * 엔진이 건네주는 값만 그린다 — 그리는 쪽이 조작 UI에 매이지 않게 하려는 것이다.
+         * h는 늘 적는다. 목표까지 자로 잰 거리는 알고리즘과 무관한 지도의 성질이다.
+         */
+        labelOf(n) {
+            const h = window.GraphModel.hOf(this.graph, n.id);
+            const s = this.engine ? this.engine.scoresOf(n.id) : null;
+            const lines = [{text: n.id, bold: true}];
+
+            if (s && s.f !== undefined) lines.push({text: `f ${s.f}`, bold: false});
+            if (s && s.g !== undefined) lines.push({text: `g ${s.g} · h ${h}`, bold: false});
+            else lines.push({text: `h ${h}`, bold: false});
+
+            return lines;
+        }
+
+        /**
+         * 노드의 상태. **엔진이 들고 있는 것을 그대로 읽는다.**
+         * 상태를 따로 적어 두면 엔진과 화면이 어긋나는 자리가 하나 더 생긴다.
+         */
+        stateOf(id) {
+            const e = this.engine;
+            if (e && e.path.length && e.path.includes(id)) return 'path';
+            if (e && !e.isFinished && e.currentNode === id) return 'current';
+            if (id === this.graph.goal) return 'goal';
+            if (id === this.graph.start) return 'start';
+            if (e && e.closedSet.has(id)) return 'closed';
+            if (e && e.openSet.includes(id)) return 'open';
+            return 'default';
+        }
+
+        isPathEdge(e) {
+            const path = this.engine && this.engine.path;
+            if (!path || !path.length) return false;
+            for (let i = 0; i + 1 < path.length; i++) {
+                if ((e.a === path[i] && e.b === path[i + 1]) ||
+                    (e.directed !== true && e.a === path[i + 1] && e.b === path[i])) return true;
+            }
+            return false;
+        }
+
+        paint(duration = 300) {
+            if (this.view && this.graph) this.view.update(duration);
+        }
+
+        setStatus(msg) {
+            document.getElementById('graph-status').innerHTML = msg;
+        }
+
+        // 숨어 있던 동안에는 컨테이너 크기가 0이라 화면을 맞출 수 없었다. 탭을 켤 때 맞춘다.
+        onShown() {
+            if (!this.graph) this.newMap();
+            else if (this.view) this.view.resize(300);
+        }
+
+        setGoalNode(id) {
+            if (!this.graph || !this.graph.byId.has(id)) return;
+            if (this.engine && !this.engine.isFinished) {
+                this.setStatus('⚠️ 탐색이 도는 중에는 목표를 바꿀 수 없습니다. <b>초기화</b> 뒤에 골라 주세요.');
+                return;
+            }
+            if (id === this.graph.start) {
+                this.setStatus('⚠️ 시작점은 목표로 삼을 수 없습니다. 다른 노드를 눌러 주세요.');
+                return;
+            }
+            // h(n)은 목표까지의 거리이므로 목표가 바뀌면 전부 다시 매긴다.
+            window.GraphModel.setGoal(this.graph, id);
+            this.resetSearch(false);
+            this.setStatus(`목표를 <b>${id}</b>로 바꾸었습니다. h(n)을 다시 매겼습니다.`);
+        }
+
+        /* --- 탐색 --- */
+
+        makeEngine(algo) {
+            const M = window.GraphModel;
+            return new HeuristicSearch(
+                this.graph.start, this.graph.goal, algo,
+                (id) => M.neighborsOf(this.graph, id),
+                (id) => M.hOf(this.graph, id),
+                (from, to) => M.costOf(this.graph, from, to),
+            );
+        }
+
+        step() {
+            if (!this.graph) return;
+            if (!this.engine) {
+                this.engine = this.makeEngine(document.getElementById('graph-algo').value);
+                this.hideCompare();
+            }
+
+            const res = this.engine.step();
+            if (!res) return;
+
+            if (res.type === 'finished') {
+                this.stopPlay();
+                this.setStatus('탐색이 이미 끝났습니다. <b>초기화</b> 뒤에 다시 실행해 주세요.');
+                return;
+            }
+
+            this.paint(300);
+
+            if (res.type === 'success') {
+                this.setStatus(this.successMessage(res));
+                this.stopPlay();
+            } else if (res.type === 'fail') {
+                this.setStatus(this.failMessage());
+                this.stopPlay();
+            } else {
+                this.setStatus(res.msg);
+            }
+        }
+
+        failMessage() {
+            return '❌ 열어 볼 노드가 더 없습니다. ' + (this.graph.directed
+                ? '방향 그래프에서는 화살표를 거슬러 갈 수 없어, 시작점에서 <b>닿을 수 없는 노드</b>가 생깁니다.'
+                : '이 지도에서는 목표까지 가는 길이 없습니다.');
+        }
+
+        pathCost(path) {
+            const M = window.GraphModel;
+            let sum = 0;
+            for (let i = 0; i + 1 < path.length; i++) sum += M.costOf(this.graph, path[i], path[i + 1]);
+            return sum;
+        }
+
+        /**
+         * 다 찾은 뒤에 적을 말.
+         *
+         * **가장 싼 길은 따로 구해서 견준다.** 엔진이 내놓은 값만 적으면 그것이 최선인지
+         * 아닌지를 말할 수 없는데, 이 화면의 요점이 바로 그 차이다.
+         */
+        successMessage(res) {
+            const M = window.GraphModel;
+            const 칸수 = res.path.length - 1;
+            const 비용 = this.pathCost(res.path);
+            const 연노드 = this.engine.closedSet.size;
+            const 성적 = `거쳐 간 칸 <b>${칸수}칸</b>` +
+                (this.graph.weighted ? `, 든 비용 <b>${비용}</b>` : '') +
+                `, 열어 본 노드 <b>${연노드}개</b>`;
+
+            const 말 = {
+                astar: 'A*는 <b>여기까지 든 비용 g(n)</b>과 <b>남은 거리 h(n)</b>을 함께 봅니다.',
+                greedy: '최상 우선은 <b>h(n)만</b> 보고 목표 쪽으로 달립니다. 여기까지 든 비용은 따지지 않습니다.',
+                bfs: '너비 우선은 가까운 곳부터 차례로 엽니다. h(n)은 보지 않습니다.',
+                dfs: '깊이 우선은 한 갈래를 <b>끝까지 파고듭니다.</b> h(n)은 보지 않습니다.',
+            };
+
+            let 덧붙임 = '';
+            if (this.graph.weighted) {
+                const 최저 = M.cheapestCost(this.graph);
+                덧붙임 = (Number.isFinite(최저) && 비용 > 최저)
+                    ? ` 그런데 이 지도에서 <b>가장 싼 길은 비용 ${최저}</b>입니다 — <b>${비용 - 최저}만큼 손해</b>를 보았습니다.`
+                    : ' 이 길이 이 지도에서 <b>가장 싼 길</b>입니다.';
+            }
+
+            return `🎉 목표 <b>${this.graph.goal}</b>에 닿았습니다! (${성적}) ${말[this.engine.type]}${덧붙임}
+                아래 <b>나란히 돌려 보기</b>로 다른 방법과 견주어 보세요.`;
+        }
+
+        /* --- 나란히 돌려 보기 --- */
+
+        /** 화면에 그리지 않고 끝까지 돌린다. 견주기용 값을 얻는 자리다. */
+        runSilently(algo) {
+            const engine = this.makeEngine(algo);
+            let guard = 0;
+            while (!engine.isFinished && guard++ < 5000) engine.step();
+            if (!engine.path.length) return null;
+            return {
+                engine,
+                path: engine.path,
+                hops: engine.path.length - 1,
+                cost: this.pathCost(engine.path),
+                opened: engine.closedSet.size,
+            };
+        }
+
+        hideCompare() {
+            document.getElementById('graph-compare-box').classList.add('hidden');
+        }
+
+        /**
+         * 같은 지도에서 최상 우선과 A*를 차례로 돌려 나란히 놓는다.
+         *
+         * **이 표가 이 페이지의 결론이다.** 트리 탭에서는 두 방법이 같은 길을 찾아
+         * 견줄 것이 없었는데, 여기서는 「어느 길을 찾았는가」가 갈린다.
+         */
+        compare() {
+            if (!this.graph) this.newMap();
+            this.stopPlay();
+
+            const M = window.GraphModel;
+            const greedy = this.runSilently('greedy');
+            const astar = this.runSilently('astar');
+            if (!greedy || !astar) {
+                this.setStatus('이 지도에서는 목표까지 가는 길이 없어 견줄 수가 없습니다.');
+                return;
+            }
+
+            const 최저 = M.cheapestCost(this.graph);
+            const 줄 = (이름, r) => `
+                <tr class="align-top">
+                    <td class="px-4 py-2 border border-slate-200 font-bold text-slate-800">${이름}</td>
+                    <td class="px-4 py-2 border border-slate-200 font-mono text-slate-700">${r.path.join(' → ')}</td>
+                    <td class="px-4 py-2 border border-slate-200 font-bold ${r.cost > 최저 ? 'text-rose-600' : 'text-emerald-600'}">${r.cost}${r.cost > 최저 ? ` (${r.cost - 최저} 손해)` : ' (가장 쌈)'}</td>
+                    <td class="px-4 py-2 border border-slate-200 text-slate-700">${r.opened}개</td>
+                </tr>`;
+
+            document.getElementById('graph-compare-body').innerHTML =
+                줄('최상 우선 탐색', greedy) + 줄('A* 탐색', astar);
+            document.getElementById('graph-compare-box').classList.remove('hidden');
+
+            // 화면에는 A*의 자취를 남긴다. 표에서 「A*가 더 쌌다」를 읽고 나서
+            // 그 길이 어디였는지 지도에서 곧바로 볼 수 있어야 한다.
+            this.engine = astar.engine;
+            this.paint(300);
+
+            const 같은길 = greedy.path.join() === astar.path.join();
+            this.setStatus(같은길
+                ? `이 지도에서는 두 방법이 <b>같은 길</b>을 찾았습니다. 열어 본 노드 수는 최상 우선 ${greedy.opened}개, A* ${astar.opened}개입니다.
+                   <b>새 지도</b>를 눌러 다른 지도에서도 그런지 보세요.`
+                : `최상 우선은 비용 <b>${greedy.cost}</b>, A*는 비용 <b>${astar.cost}</b>인 길을 찾았습니다.
+                   지도에 그린 것은 <b>A*가 찾은 길</b>입니다.`);
+
+            document.getElementById('graph-canvas').scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+
+        /* --- 실행 제어 --- */
+
+        stepManually() {
+            if (this.playInterval) this.stopPlay();
+            this.step();
+        }
+
+        togglePlay() {
+            const btn = document.getElementById('btn-graph-play');
+            if (this.playInterval) {
+                this.stopPlay();
+                return;
+            }
+            if (this.engine && this.engine.isFinished) this.resetSearch(false);
+
+            btn.innerHTML = `<i class="fa-solid fa-pause"></i> 일시 정지`;
+            btn.classList.replace('bg-teal-600', 'bg-rose-500');
+
+            const speed = 1050 - parseInt(document.getElementById('graph-speed').value);
+            this.playInterval = setInterval(() => this.step(), speed);
+        }
+
+        stopPlay() {
+            if (this.playInterval) {
+                clearInterval(this.playInterval);
+                this.playInterval = null;
+            }
+            const btn = document.getElementById('btn-graph-play');
+            if (!btn) return;
+            btn.innerHTML = `<i class="fa-solid fa-play"></i> 자동 실행 (Run)`;
+            btn.classList.replace('bg-rose-500', 'bg-teal-600');
+        }
+
+        resetSearch(say = true) {
+            this.stopPlay();
+            this.engine = null;
+            this.hideCompare();
+            this.paint(300);
+            if (say) this.setStatus('탐색을 초기화했습니다. 알고리즘을 고르고 시작하세요.');
+        }
+    }
+
+    /* ==============================================================
+       5. Main UI Controller
        ============================================================== */
     window.UIController = {
         init() {
             window.TreeApp = new TreeSearchSimulator();
+            window.GraphApp = new GraphSearchSimulator();
             window.GridApp = new GridSearchSimulator();
         },
+
+        // 탭이 셋이 되면서 if 사슬을 표로 바꾸었다. 넷째가 생겨도 여기 한 줄만 는다.
+        TABS: {
+            tree: {button: 'tab-tree', section: 'tree-search-section', app: 'TreeApp'},
+            graph: {button: 'tab-graph', section: 'graph-search-section', app: 'GraphApp'},
+            grid: {button: 'tab-grid', section: 'grid-search-section', app: 'GridApp'},
+        },
+
         switchTab(tab) {
-            const tabTree = document.getElementById('tab-tree');
-            const tabGrid = document.getElementById('tab-grid');
-            const sectionTree = document.getElementById('tree-search-section');
-            const sectionGrid = document.getElementById('grid-search-section');
+            const on = ['text-teal-600', 'border-teal-600', 'font-bold'];
+            const off = ['text-gray-500', 'border-transparent', 'font-medium'];
 
-            if (tab === 'tree') {
-                sectionTree.classList.remove('hidden');
-                sectionGrid.classList.add('hidden');
+            // 탭을 옮기면 돌던 탐색을 세운다. 안 보이는 화면이 계속 도는 것을 막는다.
+            for (const t of Object.values(this.TABS)) {
+                const app = window[t.app];
+                if (app && app.stopPlay) app.stopPlay();
+            }
 
-                tabTree.classList.add('text-teal-600', 'border-teal-600', 'font-bold');
-                tabTree.classList.remove('text-gray-500', 'border-transparent', 'font-medium');
+            for (const [key, t] of Object.entries(this.TABS)) {
+                const active = (key === tab);
+                const btn = document.getElementById(t.button);
+                btn.classList.add(...(active ? on : off));
+                btn.classList.remove(...(active ? off : on));
+                document.getElementById(t.section).classList.toggle('hidden', !active);
 
-                tabGrid.classList.remove('text-teal-600', 'border-teal-600', 'font-bold');
-                tabGrid.classList.add('text-gray-500', 'border-transparent', 'font-medium');
-
-                if (window.TreeApp && window.TreeApp.view) window.TreeApp.view.resize(300);
-            } else {
-                sectionGrid.classList.remove('hidden');
-                sectionTree.classList.add('hidden');
-
-                tabGrid.classList.add('text-teal-600', 'border-teal-600', 'font-bold');
-                tabGrid.classList.remove('text-gray-500', 'border-transparent', 'font-medium');
-
-                tabTree.classList.remove('text-teal-600', 'border-teal-600', 'font-bold');
-                tabTree.classList.add('text-gray-500', 'border-transparent', 'font-medium');
+                // 숨어 있는 동안에는 상자 크기가 0이라 화면을 맞출 수 없다. 켤 때 알린다.
+                const app = window[t.app];
+                if (!active || !app) continue;
+                if (app.onShown) app.onShown();
+                else if (app.view) app.view.resize(300);
             }
         }
     };
@@ -1334,7 +1913,8 @@
 document.addEventListener('DOMContentLoaded', function () {
     window.bindSimScroll([
             [['#btn-grid-play', '#btn-grid-step'], '#grid-container'],
-            [['#btn-tree-play', '#btn-tree-step'], '#tree-network']
+            [['#btn-tree-play', '#btn-tree-step'], '#tree-network'],
+            [['#btn-graph-play', '#btn-graph-step'], '#graph-canvas']
     ]);
 });
 </script>

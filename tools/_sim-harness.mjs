@@ -297,6 +297,8 @@ export function loadSim(name, opts = {}) {
     sandbox.removeEventListener = () => {};
     sandbox.dispatchEvent = (e) => { (winListeners[e.type] || []).forEach((f) => f(e)); return true; };
     sandbox.Event = class { constructor(type) { this.type = type; } };
+    // 상자가 자라는 것을 지켜보는 쪽은 흉내 내지 않는다 — 이 받침대는 크기를 직접 흔든다.
+    sandbox.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
     sandbox.CustomEvent = sandbox.Event;
 
     vm.createContext(sandbox);

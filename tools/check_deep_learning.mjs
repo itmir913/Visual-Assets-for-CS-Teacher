@@ -182,10 +182,12 @@ sandbox.globalThis = sandbox;
 sandbox.devicePixelRatio = DPR;
 sandbox.scrollY = 0;
 sandbox.scrollTo = () => {};
-sandbox.matchMedia = () => ({matches: true});
+sandbox.matchMedia = () => ({matches: true, addEventListener() {}, addListener() {}});
 sandbox.addEventListener = (t, f) => { (winListeners[t] ||= []).push(f); };
 sandbox.dispatchEvent = (e) => { (winListeners[e.type] || []).forEach((f) => f(e)); };
 sandbox.Event = class { constructor(type) { this.type = type; } };
+// 상자가 자라는 것을 지켜보는 쪽은 흉내 내지 않는다 — 이 받침대는 크기를 직접 흔든다.
+sandbox.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 Object.defineProperty(sandbox, 'innerHeight', {get: () => innerH});
 
 // 캔버스 부모 — 가로는 고정, 세로는 스테이지 높이를 따른다(실제 CSS 관계와 같다)

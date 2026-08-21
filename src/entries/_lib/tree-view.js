@@ -13,6 +13,7 @@ import {select} from 'd3-selection';
 import {hierarchy, tree as treeLayout} from 'd3-hierarchy';
 import {zoom as d3zoom, zoomIdentity} from 'd3-zoom';
 import 'd3-transition';   // selection.transition() 을 쓰려면 곁불로 한 번 실어야 한다.
+import {TextMeasurer} from './text-measure.js';
 
 /**
  * 기본값. 부르는 쪽이 필요한 것만 덮어쓴다.
@@ -58,72 +59,7 @@ const DEFAULTS = {
     duration: 250,
 };
 
-/**
- * SVG 글자 폭을 재는 자.
- *
- * **상자 폭은 글자를 재서 정해야 한다.** `d3.tree()`의 `nodeSize`는 모든 노드에 같은
- * 간격을 주므로, 폭이 제각각인 상자를 그대로 두면 긴 라벨끼리 겹친다. 여기서 잰 폭을
- * `separation()`에 먹여 이웃 사이를 벌린다.
- *
- * 브라우저에서는 `getComputedTextLength()`로 정확히 재고, 그것이 없는 환경(테스트용
- * node 실행 등)에서는 글자 종류로 어림한다. **어림값은 실제보다 넉넉한 쪽으로** 잡는다 —
- * 모자라면 글자가 상자를 뚫지만 남으면 조금 헐거울 뿐이다.
- */
-class TextMeasurer {
-    constructor(svgNode) {
-        this.svg = svgNode;
-        this.cache = new Map();
-        this.probe = null;
-    }
-
-    /** @returns {number} px 단위 폭 */
-    width(text, fontSize, bold) {
-        const key = `${fontSize}|${bold ? 'b' : 'n'}|${text}`;
-        const hit = this.cache.get(key);
-        if (hit !== undefined) return hit;
-
-        let w = this._measure(text, fontSize, bold);
-        if (!(w > 0)) w = this._estimate(text, fontSize, bold);
-        this.cache.set(key, w);
-        return w;
-    }
-
-    _measure(text, fontSize, bold) {
-        if (!this.svg || typeof this.svg.appendChild !== 'function') return 0;
-        try {
-            if (!this.probe) {
-                const ns = 'http://www.w3.org/2000/svg';
-                this.probe = document.createElementNS(ns, 'text');
-                this.probe.setAttribute('visibility', 'hidden');
-                this.probe.setAttribute('aria-hidden', 'true');
-                this.svg.appendChild(this.probe);
-            }
-            this.probe.setAttribute('font-size', String(fontSize));
-            this.probe.setAttribute('font-weight', bold ? '700' : '400');
-            this.probe.textContent = text;
-            const len = this.probe.getComputedTextLength();
-            return Number.isFinite(len) ? len : 0;
-        } catch {
-            return 0;
-        }
-    }
-
-    /** 글자 종류로 어림한다. 한글·한자는 한 칸을 다 쓰고 로마자·숫자는 절반쯤 쓴다. */
-    _estimate(text, fontSize, bold) {
-        let em = 0;
-        for (const ch of String(text)) {
-            const code = ch.codePointAt(0);
-            if (code >= 0x1100 && code <= 0xd7ff) em += 1.0;        // 한글
-            else if (code >= 0x3000 && code <= 0x303f) em += 1.0;   // 한중일 문장 부호
-            else if (code >= 0x4e00 && code <= 0x9fff) em += 1.0;   // 한자
-            else if (ch === ' ') em += 0.3;
-            else if (/[iljt.,:;'!|]/.test(ch)) em += 0.32;
-            else if (/[A-Z]/.test(ch)) em += 0.68;
-            else em += 0.56;
-        }
-        return em * fontSize * (bold ? 1.06 : 1);
-    }
-}
+// **글자를 재는 자는 그래프 뷰와 함께 쓴다.** 상자 폭을 글자로 정하는 일은 두 뷰가 같다.
 
 /**
  * 트리 뷰 하나를 만든다.

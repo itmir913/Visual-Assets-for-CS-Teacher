@@ -15,6 +15,8 @@
 | `check_dist.py` | **산출물** 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 · 제3자 라이선스 고지 | 배포 전. `npm run ci`가 부른다 |
 | `audit_pre.py` | `<pre>` 가로 넘침 방어 여부 점검 | 코드 블록을 넣거나 고쳤을 때 |
 | `audit_svg_maxwidth.py` | 데스크톱에서 글자가 한없이 커지는 SVG 검출 | 도해를 넣거나 고쳤을 때 |
+| `check_graph_presets.mjs` | **그래프 탐색 시뮬레이터의 지도**가 여덟 조합 전부에서 성립하는지 — 도달 가능 · h가 실제 비용을 넘지 않음 · 사이클 끔이 정말 무사이클 · 간선과 비용 글자가 노드 상자에 물리지 않음 | 지도나 그래프 렌더러를 고친 뒤. `npm run ci`가 부른다 |
+| `gen_graph_presets.mjs` | 위 조건을 통과하는 **지도를 새로 뽑아** `graph-presets.js`에 적는다 (`_emit`이 글자로 바꾼다) | 지도를 갈아엎을 때만. 손으로 부른다 |
 | `check_stale_refs.py` | **지운 이름을 문서·주석이 아직 부르는지** | 이름·경로를 지우거나 옮긴 뒤 |
 | `extract_prose.py` | HTML에서 학생이 실제로 읽는 글자만 추출 | 서술을 통독·감사할 때 |
 | `subjects.py` | 루트 [`subjects.json`](../subjects.json)을 읽는 얇은 층 | 새 과목을 만들 때 |
@@ -40,11 +42,12 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | | |
 |---|---|
 | `build`가 부르는 것 | `vite build` → 배부 문서 생성 |
-| `check:classes` · `check:code` | `check`가 부른다 |
+| `check:classes` · `check:code` · `check:graph` | `check`가 부른다 |
 | `check:dist` | 산출물 검사 |
 | `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
 | `audit:pre` · `audit:svg` | 가로 넘침 · SVG 글자 크기 감사 |
 | `check:stale -- <범위>` | 지운 이름을 산문이 아직 부르는지 (아래 「문서·주석」) |
+| `gen:graph` | 그래프 시뮬레이터의 지도를 다시 뽑는다. **`check:graph`와 짝이다** |
 | `prose -- <글롭>` | 서술만 뽑기 |
 | `docx` | 배부 문서 생성 |
 

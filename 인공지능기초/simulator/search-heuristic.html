@@ -215,7 +215,7 @@
         <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">인공지능 실습</span>
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">정보 이용 탐색 (Greedy &amp; A*) 시뮬레이터</h1>
         <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
-            트리(Tree) 구조와 2차원 공간(Grid)에서 Greedy Best-First 탐색과 A* 탐색이<br>
+            트리(Tree) 구조와 2차원 공간(Grid)에서 최상 우선 탐색(Greedy Best-First)과 A* 탐색이<br>
             휴리스틱 값(h, g, f)을 활용해 어떻게 동작하는지 직관적으로 비교해 보세요.
         </p>
     </div>
@@ -277,9 +277,9 @@
                     <select id="tree-algo"
                             class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold text-sm bg-white mb-4">
                         <option value="astar">A* 탐색 (평가 함수 g + h 사용)</option>
-                        <option value="greedy">그리디 탐색 (평가 함수 h 사용)</option>
-                        <option value="bfs">너비 우선 탐색 (평가 함수 사용 안 함)</option>
-                        <option value="dfs">깊이 우선 탐색 (평가 함수 사용 안 함)</option>
+                        <option value="greedy">최상 우선 탐색 (평가 함수 h 사용)</option>
+                        <option value="bfs">너비 우선 탐색 (평가 함수 미사용)</option>
+                        <option value="dfs">깊이 우선 탐색 (평가 함수 미사용)</option>
                     </select>
 
                     <label class="block font-bold text-gray-700 mb-2 text-sm">탐색 속도</label>
@@ -378,7 +378,7 @@
                 <select id="grid-algo"
                         class="w-full border-2 border-slate-300 rounded-xl shadow-sm focus:border-teal-500 outline-none p-3 font-bold bg-white">
                     <option value="astar">A* 탐색 (평가 함수 g + h 사용)</option>
-                    <option value="greedy">그리디 탐색 (평가 함수 h 사용)</option>
+                    <option value="greedy">최상 우선 탐색 (평가 함수 h 사용)</option>
                 </select>
                 <div class="flex items-center gap-2 mt-2 text-slate-800 font-black text-sm">
                     <i class="fa-solid fa-gauge text-teal-600"></i> 자동 실행 속도
@@ -460,7 +460,7 @@
                         칸 안의 숫자는 <b>g</b>(시작점에서 그 칸까지 실제로 온 걸음 수),
                         <b>h</b>(그 칸에서 목표까지 남은 거리의 추정값), <b>f</b>(둘을 합쳐 판단에 쓰는 값)입니다.
                         여기서 h는 가로 걸음 수와 세로 걸음 수를 더한 <b>맨해튼 거리</b>로, 장애물을 무시하고 셉니다.
-                        A*는 f = g + h로, 그리디는 f = h로 다음 칸을 고릅니다.
+                        A*는 f = g + h로, 최상 우선 탐색은 f = h로 다음 칸을 고릅니다.
                     </p>
                     <div class="bg-slate-800 text-white font-bold px-4 py-3 rounded-xl text-base text-center shadow-inner min-h-14 flex items-center justify-center transition-colors">
                         <span class="break-keep leading-relaxed" id="grid-status">대기 중</span>
@@ -591,7 +591,7 @@
 
                     const 말 = {
                         astar: `🎉 목표 도달! (${성적}) A*는 g(n)+h(n)을 함께 보아 <b>목표 쪽으로 곧장</b> 갑니다.${비교안내}`,
-                        greedy: `🎉 목표 도달! (${성적}) 그리디는 h(n)만 보고 목표 쪽으로 달립니다. 빠르지만 <b>비용은 따지지 않습니다.</b>${비교안내}`,
+                        greedy: `🎉 목표 도달! (${성적}) 최상 우선 탐색은 h(n)만 보고 목표 쪽으로 달립니다. 빠르지만 <b>비용은 따지지 않습니다.</b>${비교안내}`,
                         bfs: `🎉 목표 도달! (${성적}) 너비 우선은 목표가 어디인지 모른 채 <b>가까운 곳부터 전부</b> 열어 봅니다. 그래서 열어 본 노드가 가장 많습니다.${비교안내}`,
                         dfs: `🎉 목표 도달! (${성적}) 깊이 우선은 한 갈래를 <b>끝까지 파고듭니다.</b> 운이 좋으면 빨리 닿지만 엉뚱한 갈래로 빠지면 크게 돌아갑니다.${비교안내}`,
                     };
@@ -830,11 +830,11 @@
         // 거리의 추정값」이라 적어 두었으니 화면에 적힌 그대로여야 한다는 뜻이다
         // (2026-08-21 사용자 확정).
         //
-        // 예전에는 길목이 아닌 노드의 값을 실제 거리의 20~70%로 깎았다. h만 보는 그리디가
+        // 예전에는 길목이 아닌 노드의 값을 실제 거리의 20~70%로 깎았다. h만 보는 최상 우선 탐색이
         // '가까워 보이는 함정 가지'에 속아 헛걸음하는 장면을 만들려는 장치였는데, 그 값이
         // 화면의 말과 어긋났다 — 두 칸 떨어진 노드에 h:1이 붙어 한 칸 남았다고 말하는 셈이다.
         //
-        // 값이 정확해진 대신 **그리디와 A*가 이 트리에서는 똑같이 움직인다.** 간선이 아래로만
+        // 값이 정확해진 대신 **최상 우선 탐색과 A*가 이 트리에서는 똑같이 움직인다.** 간선이 아래로만
         // 나 있어 두 알고리즘 모두 길목을 곧장 따라 내려가기 때문이다. 둘을 가르려면 값을
         // 흐리는 것이 아니라 간선에 서로 다른 비용을 주어야 한다 — g가 깊이와 달라져야
         // f = g + h가 h와 갈린다.

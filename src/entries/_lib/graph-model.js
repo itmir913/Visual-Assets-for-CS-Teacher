@@ -216,7 +216,7 @@ export function setStart(graph, id) {
  * 시작에서 목표까지 **갈 수 있는지** 본다.
  *
  * 방향 그래프에서는 지도를 그려 놓고도 길이 없을 수 있다. 프리셋을 뽑을 때 이것으로
- * 걸러 내고, 사람이 간선을 지웠을 때도 이것으로 알린다.
+ * 걸러 내고, 사람이 간선을 끊었을 때도 이것으로 알린다.
  */
 export function isReachable(graph, from = graph.start, to = graph.goal) {
     const seen = new Set([from]);
@@ -303,34 +303,27 @@ export function pickPreset(presets, opts, avoid) {
 }
 
 /* ================================================================
-   고치기 — 손대는 자리를 좁게 둔다
+   간선 끊기 — 손대는 자리를 좁게 둔다
 
-   **노드를 더하거나 지우거나 옮기는 것은 없다.** 그래프에서 배우는 것은 「어디에
-   있는가」가 아니라 「무엇과 이어져 있는가」이고, 좌표를 건드리면 간선이 교차하지
-   않도록 골라 둔 배치가 그대로 무너진다. 그래서 고치는 것은 **간선뿐**이다.
+   **끊는 것만 있다.** 노드를 더하거나 지우거나 옮기는 것도, 간선을 새로 놓는 것도 없다.
+   프리셋 좌표는 간선이 교차하지 않고 상관없는 노드를 관통하지 않도록 골라 둔 것이고
+   (`check:graph`가 그것을 지킨다), **새 간선에는 그 보증이 없다** — 학생이 놓은 선이
+   엉뚱한 노드를 뚫고 지나가면 지도를 읽을 수가 없다. 끊는 것은 선이 없어질 뿐이라
+   그 보증을 건드리지 않는다.
    ================================================================ */
 
-/** 간선을 놓는다. 방향 지도면 a에서 b로만 간다. 이미 있으면 아무것도 하지 않는다. */
-export function addEdge(graph, a, b) {
-    if (a === b || !graph.byId.has(a) || !graph.byId.has(b)) return false;
-    // 반대 방향으로 이미 다닐 수 있으면 새로 놓지 않는다. `directed`가 true 인 것만
-    // 한쪽으로만 가므로, 나머지(false·'both')는 반대쪽도 이미 이어져 있다.
-    const exists = graph.edges.some(e =>
-        (e.a === a && e.b === b) || (e.directed !== true && e.a === b && e.b === a));
-    if (exists) return false;
-
-    graph.edges.push({
-        id: graph.directed ? `${a}>${b}` : `${a}~${b}`,
-        a, b, directed: graph.directed, extra: true,
-    });
-    recompute(graph);
-    return true;
-}
-
+/**
+ * 간선을 끊는다.
+ *
+ * **배열을 갈아 끼우지 않고 제자리에서 뺀다.** `graph-view.js`의 `setData` 가
+ * `graph.edges` 를 **참조로** 붙들고 있어서, 새 배열로 바꾸면 그 뒤로 화면과 모델이
+ * 영영 갈라진다 — 끊은 간선이 계속 그려지고 그 뒤의 변화가 하나도 안 보인다.
+ * 한 번 그렇게 깨졌다.
+ */
 export function removeEdge(graph, edgeId) {
-    const before = graph.edges.length;
-    graph.edges = graph.edges.filter(e => e.id !== edgeId);
-    if (graph.edges.length === before) return false;
+    const i = graph.edges.findIndex(e => e.id === edgeId);
+    if (i < 0) return false;
+    graph.edges.splice(i, 1);
     recompute(graph);
     return true;
 }

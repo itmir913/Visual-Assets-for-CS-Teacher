@@ -149,6 +149,10 @@ export class GraphView {
      *   edges: `{id, a, b, directed}` — `directed`는 셋 중 하나다.
      *     `false`(방향 없음) · `true`(a에서 b로만) · `'both'`(양쪽 다, 화살촉이 양끝에).
      *     **양방향을 화살표 둘로 나눠 그리지 않는다** — 선이 배로 늘어 지도가 지저분해진다.
+     *
+     * **두 배열을 참조로 붙든다. 사본을 뜨지 않는다.** 그래서 부르는 쪽이 배열을
+     * 제자리에서 고치면 `update()` 만으로 화면에 반영되지만, **새 배열로 갈아 끼우면
+     * 화면과 모델이 영영 갈라진다** — `setData` 를 다시 부르지 않는 한.
      */
     setData(data) {
         this.nodes = (data && data.nodes) || [];

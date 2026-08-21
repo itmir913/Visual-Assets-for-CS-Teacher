@@ -542,13 +542,13 @@
                     <label class="fs-hide flex items-start gap-3 mt-2 bg-white border-2 border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:border-indigo-300 transition-colors">
                         <input class="mt-1 w-4 h-4 accent-indigo-600 shrink-0" id="graph-opt-edit" type="checkbox">
                         <span class="min-w-0">
-                            <span class="block font-bold text-slate-800 text-sm">그래프 고치기</span>
-                            <span class="opt-hint block text-xs text-slate-500 leading-snug break-keep">켜면 간선을 눌러 끊고, 노드 둘을 차례로 눌러 잇습니다.</span>
+                            <span class="block font-bold text-slate-800 text-sm">간선 끊기</span>
+                            <span class="opt-hint block text-xs text-slate-500 leading-snug break-keep">켜면 간선을 눌러 길을 막을 수 있습니다.</span>
                         </span>
                     </label>
                     <button class="fs-hide w-full mt-2 bg-white hover:bg-slate-100 text-slate-600 border-2 border-slate-200 py-2 rounded-xl font-bold text-sm transition flex justify-center items-center gap-2"
                             id="btn-graph-restore">
-                        <i class="fa-solid fa-rotate-left"></i> 고친 것 되돌리기
+                        <i class="fa-solid fa-rotate-left"></i> 끊은 것 되돌리기
                     </button>
                     <p class="fs-hide text-indigo-700 font-bold text-center mt-3 text-xs bg-indigo-50 py-2 rounded-lg border border-indigo-100 leading-relaxed break-keep">
                         설정을 바꾸면 <b>같은 지도</b>를 그 설정으로 다시 그립니다 — 무엇이 달라지는지 비교해 보세요.
@@ -1013,16 +1013,13 @@
             // 「참고」에서 균일 비용 탐색으로 돌릴 때만 값이 들어간다. 초기화하면 비운다.
             this.forcedAlgo = null;
 
-            // 고치기에서 「이을 첫 노드」를 담아 둔다.
-            this.linkFrom = null;
-
             document.getElementById('btn-graph-new').onclick = () => this.newMap();
             document.getElementById('btn-graph-restore').onclick = () => this.restore();
             document.getElementById('graph-opt-edit').addEventListener('change', () => {
                 this.setEditing(this.editing());
                 this.setStatus(this.editing()
-                    ? '그래프 고치기를 켰습니다. 간선을 누르면 끊고, 노드 둘을 차례로 누르면 잇습니다.'
-                    : '그래프 고치기를 껐습니다. 이제 노드를 누르면 목표가 바뀝니다.');
+                    ? '간선 끊기를 켰습니다. 간선을 누르면 그 길이 막힙니다. 노드를 누르면 목표가 바뀌는 것은 그대로입니다.'
+                    : '간선 끊기를 껐습니다. 이제 간선을 눌러도 끊기지 않습니다.');
             });
             document.getElementById('btn-graph-play').onclick = () => this.togglePlay();
             document.getElementById('btn-graph-step').onclick = () => this.stepManually();
@@ -1051,8 +1048,8 @@
             const preset = window.GraphModel.pickPreset(
                 window.GRAPH_PRESETS, this.options(), this.graph && this.graph.presetId);
             this.loadPreset(preset);
-            // 새 지도를 폈으면 고치기는 끈다. 켠 채로 두면 목표를 바꾸려고 누른 노드가
-            // 간선 잇기로 잡혀 무엇이 일어났는지 알기 어렵다.
+            // 새 지도를 폈으면 끊기는 끈다. 켠 채로 두면 새 지도를 살펴보려고 누른
+            // 간선이 그 자리에서 끊긴다.
             this.setEditing(false);
             this.setStatus(`<b>${this.graph.presetName}</b>을 폈습니다. 노드 ${this.graph.nodes.length}개, 간선 ${this.graph.edges.length}개.
                 시작은 <b>${this.graph.start}</b>, 목표는 <b>${this.graph.goal}</b>입니다.`);
@@ -1092,7 +1089,6 @@
             this.forcedAlgo = null;
             this.updateUcsBadge();
 
-            this.linkFrom = null;
             this.initView();
             this.view.setData(this.graph);
             this.paint(0);
@@ -1140,8 +1136,6 @@
         }
 
         stateOf(id) {
-            // 잇기로 고른 첫 노드는 눈에 띄어야 한다. 무엇을 고른 채인지 모르면 못 잇는다.
-            if (this.linkFrom === id) return 'current';
             const st = this.search;
             if (st && st.path && st.path.includes(id)) return 'path';
             if (st && st.current === id) return 'current';
@@ -1381,82 +1375,65 @@
             return `🎉 목표 <b>${this.graph.goal}</b>에 닿았습니다! (${성적}) ${말[st.algo]}${덧붙임}`;
         }
 
-        /* --- 그래프 고치기 --- */
+        /* --- 간선 끊기 --- */
 
         editing() {
             return document.getElementById('graph-opt-edit').checked;
         }
 
         /**
-         * 고치기를 켜고 끈다.
+         * 끊기를 켜고 끈다.
          *
-         * **노드는 끌어 옮기지 않는다.** 옮길 수 있게 두었더니 화면을 끌어 옮기려는
-         * 손짓과 구별되지 않았고, 무엇보다 **지도의 배치가 흐트러졌다** — 지금 좌표는
-         * 간선이 교차하지 않고 상관없는 노드를 관통하지 않도록 골라 둔 것이다.
-         * 그래서 고치는 것은 **무엇이 무엇과 이어져 있는가**뿐이다.
+         * **고칠 수 있는 것은 간선을 끊는 것뿐이다.** 노드를 옮기는 것도, 간선을 새로
+         * 놓는 것도 없다. 지금 좌표는 간선이 교차하지 않고 상관없는 노드를 관통하지
+         * 않도록 골라 둔 것이라, 선을 새로 놓으면 그 배치가 곧바로 무너진다 —
+         * 학생이 놓은 선이 엉뚱한 노드를 뚫고 지나가면 지도를 읽을 수가 없다.
+         * **끊는 것은 선이 없어질 뿐이라 그 보증을 건드리지 않는다.**
          */
         setEditing(on) {
             document.getElementById('graph-opt-edit').checked = on;
-            this.linkFrom = null;
             this.paint(0);
         }
 
         /**
-         * 손대기 전에 지나온 자취를 지운다.
+         * 끊기 전에 지나온 자취를 지운다.
          *
-         * **고친 지도 위에 옛 탐색 자취가 남아 있으면 거짓말이 된다** — 끊어 버린 간선을
+         * **끊은 지도 위에 옛 탐색 자취가 남아 있으면 거짓말이 된다** — 끊어 버린 간선을
          * 지나는 길이 「찾은 길」이라고 굵게 칠해져 있게 된다.
          */
         beginEdit() {
-            // **여기서 `linkFrom` 을 비우면 안 된다.** `onNodeClick` 이 이것을 먼저 부르므로,
-            // 비우면 첫째 노드를 고른 것이 둘째 클릭에서 매번 지워져 간선이 영영 안 생긴다.
             if (!this.search) return;
             this.stopPlay();
             this.search = null;
         }
 
-        /** 고친 뒤에 알린다. **길이 끊겼는지 그 자리에서 말해 준다.** */
+        /** 끊은 뒤에 알린다. **길이 막혔는지 그 자리에서 말해 준다.** */
         afterEdit(msg) {
+            // **그래프를 화면에 다시 건네준다.** 뷰는 `graph.edges` 를 참조로 붙들고
+            // 있어서, 모델이 배열을 갈아 끼우면 `update()` 만으로는 갈라진 것을 모른다.
+            // 그때 화면에는 끊은 간선이 그대로 남아 학생이 또 누르게 된다.
+            this.view.setData(this.graph);
             this.paint(200);
             const 갈수있나 = window.GraphModel.isReachable(this.graph);
             this.setStatus(msg + (갈수있나 ? '' :
-                ' <b>지금은 시작점에서 목표까지 가는 길이 없습니다.</b> 다시 이어 주거나 되돌리세요.'));
+                ' <b>지금은 시작점에서 목표까지 가는 길이 없습니다. 끊은 것 되돌리기</b>를 누르세요.'));
         }
 
+        /** 노드를 누르면 목표가 바뀐다. **끊기를 켜 두어도 마찬가지다.** */
         onNodeClick(id) {
-            if (!this.editing()) return this.setGoalNode(id);
-            this.beginEdit();
-
-            if (this.linkFrom === null) {
-                this.linkFrom = id;
-                this.paint(0);
-                this.setStatus(`<b>${id}</b>에서 이을 상대를 고르세요. 같은 노드를 다시 누르면 그만둡니다.`);
-                return;
-            }
-            if (this.linkFrom === id) {
-                this.linkFrom = null;
-                this.paint(0);
-                this.setStatus('잇기를 그만두었습니다.');
-                return;
-            }
-
-            const from = this.linkFrom;
-            this.linkFrom = null;
-            const 이었나 = window.GraphModel.addEdge(this.graph, from, id);
-            this.afterEdit(이었나
-                ? `<b>${from}</b>와 <b>${id}</b>를 이었습니다.` +
-                  (this.graph.directed ? ` 방향 지도라 <b>${from}에서 ${id}로만</b> 갑니다.` : '')
-                : `<b>${from}</b>와 <b>${id}</b>는 이미 이어져 있습니다.`);
+            this.setGoalNode(id);
         }
 
         onEdgeClick(edgeId) {
             if (!this.editing()) return;
             this.beginEdit();
-            window.GraphModel.removeEdge(this.graph, edgeId);
-            this.afterEdit('간선을 끊었습니다.');
+            // **정말 끊겼는지 보고 나서 말한다.** 지우지도 못하고 「끊었습니다」라고
+            // 알린 적이 있다 — 화면에 남아 있던 옛 간선을 누를 때 그랬다.
+            if (!window.GraphModel.removeEdge(this.graph, edgeId)) return;
+            this.afterEdit('간선을 끊었습니다. <b>다시 실행</b>해 어느 길로 도는지 보세요.');
         }
 
-        /** 고친 것을 전부 물리고 원래 지도로 돌아간다. */
+        /** 끊은 것을 전부 물리고 원래 지도로 돌아간다. */
         restore() {
             if (!this.graph) return this.newMap();
             const preset = window.GRAPH_PRESETS.find(p => p.id === this.graph.presetId);

@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>함수</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/09-함수.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-cubes absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-right-left absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            함수
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            줄 수를 줄이려고 쓰는 것이 아닙니다.<br>
+            <strong>일에 이름을 붙이려고 씁니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>여러 곳에 흩어진 같은 일을 함수 하나로 묶을 수 있다.</li>
+                    <li>돌려줄 종류·이름·받을 것을 갖추어 함수를 만들고 부를 수 있다.</li>
+                    <li>값을 받는 자리와 돌려주지 않는 함수를 가려 쓸 수 있다.</li>
+                    <li>함수에 넘어가는 것이 값의 사본이라는 것을 알고 그 결과를 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-cubes text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">함수</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-orange-600 transition">같은 일이 여러 곳에</a>
+            <a href="#make" class="hover:text-orange-600 transition">만들고 부르기</a>
+            <a href="#give" class="hover:text-orange-600 transition">주고받기</a>
+            <a href="#copy" class="hover:text-orange-600 transition">넘어가는 것은 사본</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 같은 일이 여러 곳에 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">같은 일이 여러 곳에</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">고쳐야 할 자리가 흩어지면 반드시 하나를 빠뜨립니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/09.같은일.c#세번"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>세 줄이 문제가 아닙니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li>원주율을 더 정밀하게 바꾸려면 <strong>세 곳을 모두</strong> 고쳐야 합니다.
+                        한 곳을 빠뜨리면 <strong>그 한 줄만 다른 답</strong>을 냅니다.</li>
+                    <li>읽는 사람이 <code>3.14159 * r * r</code>을 눈으로 뜯어봐야
+                        <strong>「아, 원의 넓이구나」</strong>를 알 수 있습니다.</li>
+                    <li>이 계산이 필요한 곳이 열 군데가 되면 <strong>같은 식이 열 번</strong> 적힙니다.</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">일에 이름을 붙여 한곳에 둡니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>함수(function)</strong>는 <strong>하나의 일을 묶어 이름을 붙여 둔 것</strong>입니다.
+                    묶어 두면 그 일이 필요한 곳에서 <strong>이름만 부르면</strong> 되고,
+                    고칠 일이 생기면 <strong>묶어 둔 한 곳만</strong> 고치면 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>줄 수를 줄이는 것이 함수의 요점이 아닙니다.</strong>
+                    한 번밖에 안 쓰는 일도 함수로 빼면 좋을 때가 있습니다 &mdash;
+                    <strong>이름이 「무엇을 하는 코드인지」를 대신 말해 주기</strong> 때문입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                사실 우리는 함수를 이미 쓰고 있었습니다.
+                <code>printf</code>도 <code>strlen</code>도 <strong>누군가 묶어 이름을 붙여 둔 함수</strong>입니다.
+                <code>#include</code>는 <strong>그 묶음을 가져다 쓰겠다는 표시</strong>였습니다.
+                이 차시에서는 <strong>가져다 쓰는 쪽에서 만드는 쪽으로</strong> 넘어갑니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">지금까지 쓴 코드 가운데 「같은 식이 두 번 이상 나온 자리」를 하나 떠올려 보세요. 그 일에 이름을 붙인다면 무엇이라 부르겠습니까?</p>
+        </div>
+    </section>
+
+    <!-- ===== 만들고 부르기 ===== -->
+    <section id="make" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">만들고 부르기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">앞의 세 줄을 그대로 함수로 옮겨 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/09.만들기.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>화면에 찍히는 것은 앞의 코드와 똑같습니다.</strong>
+                하는 일이 달라진 것이 아니라 <strong>같은 일을 다르게 정리했을 뿐</strong>입니다.
+                이제 원주율은 <strong>한 곳에만</strong> 있고, 부르는 쪽은 <code>area</code>라는 이름으로
+                <strong>무엇을 구하는지 말해 주고</strong> 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">자리</th>
+                        <th class="w-32">예시</th>
+                        <th>뜻</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>돌려줄 종류</td>
+                        <td><code>double</code></td>
+                        <td>부른 자리로 어떤 종류의 값을 넘겨줄지. 안 넘겨주면 <code>void</code>입니다.</td>
+                    </tr>
+                    <tr>
+                        <td>이름</td>
+                        <td><code>area</code></td>
+                        <td>부를 때 쓰는 말. <strong>무슨 일을 하는지 드러나게</strong> 짓습니다.</td>
+                    </tr>
+                    <tr>
+                        <td>받을 것</td>
+                        <td><code>double r</code></td>
+                        <td>일을 하려면 밖에서 무엇을 받아야 하는지. <strong>매개변수</strong>라고 합니다.</td>
+                    </tr>
+                    <tr>
+                        <td>중괄호 안</td>
+                        <td><code>return …;</code></td>
+                        <td>실제로 하는 일. <code>return</code>이 값을 부른 자리로 돌려보냅니다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900"><code>area(2.0)</code>은 결국 값 하나입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>printf("%.2f\n", area(2.0))</code>에서 <strong><code>area(2.0)</code>이 먼저 계산됩니다.</strong>
+                    함수가 돌면서 <code>return</code>이 값을 내놓으면, 그 자리에 <strong>값이 놓인 것처럼</strong> 이어집니다.
+                    <code>printf("%.2f\n", 12.57)</code>이라고 적은 것과 같아지는 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 함수를 부른 결과는 <strong>변수에 담을 수도 있고 계산에 섞을 수도</strong> 있습니다.
+                    <strong>값이 오는 자리라면 어디든 놓을 수 있습니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i><code>main</code>도 함수였습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int main(void)</code>를 다시 보면 방금 배운 세 자리가 그대로 있습니다 &mdash;
+                    <strong><code>int</code>를 돌려주고, 이름은 <code>main</code>이고, 받는 것은 없습니다.</strong>
+                    <code>void</code>가 「받을 것이 없다」는 뜻이었던 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    끝의 <code>return 0;</code>도 이제 읽힙니다.
+                    <strong>「잘 끝났다」는 뜻의 0을 컴퓨터에 돌려주는 것</strong>입니다.
+                    지금까지 뜻 모르고 적던 두 줄이 함수의 규칙을 따르고 있었습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                한 가지 지킬 것이 있습니다. <strong>부르기 전에 「이런 함수가 있다」고 알려 두어야</strong> 합니다.
+                <code>area</code>를 <code>main</code> <strong>위에</strong> 적은 것이 그래서입니다.
+                아래에 적고 싶다면 위에 <strong>한 줄로 미리 알려</strong> 둡니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/09.미리알리기.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>두 방법 다 맞습니다.</strong> 함수가 몇 개 안 되면 위에 적는 것이 간단하고,
+                여러 개가 서로를 부르기 시작하면 <strong>미리 알려 두는 줄만 위에 모으는 편</strong>이 정리됩니다.
+                미리 알리는 줄은 <strong>중괄호 없이 세미콜론으로 끝냅니다.</strong>
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">섭씨를 화씨로 바꾸는 함수를 만든다면 세 자리에 각각 무엇을 적어야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 주고받기 ===== -->
+    <section id="give" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">주고받기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">받는 것도 돌려주는 것도 없을 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/09.여럿.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">받을 것이 여럿이면 쉼표로 잇습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>종류를 하나마다 따로 적어야</strong> 합니다.
+                    <code>int a, b</code>가 아니라 <code>int a, int b</code>입니다.
+                    부를 때는 <strong>적어 둔 순서대로</strong> 값이 들어갑니다 &mdash;
+                    <code>bigger(7, 3)</code>이면 <code>a</code>에 7, <code>b</code>에 3입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    함수를 만들 때 적은 <code>a</code>·<code>b</code>를 <strong>매개변수(parameter)</strong>,
+                    부를 때 실제로 넣은 <code>7</code>·<code>3</code>을 <strong>인자(argument)</strong>라고 합니다.
+                    <strong>받을 자리와 실제로 들어간 값</strong>을 가리키는 말입니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900"><code>return</code>은 그 자리에서 함수를 끝냅니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>bigger</code>에는 <code>else</code>가 없습니다. 없어도 되는 까닭은
+                    <strong><code>return a;</code>를 만나면 아래 줄로 내려가지 않고 함수가 끝나기</strong> 때문입니다.
+                    아래 <code>return b;</code>에 닿았다는 것은 <strong>조건이 거짓이었다는 뜻</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <code>return</code>은 함수 안에 <strong>여러 개 있어도 됩니다.</strong>
+                    다만 <strong>한 번 부를 때 실제로 돌려주는 값은 하나뿐</strong>입니다 &mdash;
+                    처음 만나는 <code>return</code>에서 끝나기 때문입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                돌려줄 것이 없는 함수도 있습니다. 화면에 찍기만 하고 끝나는 일이 그렇습니다.
+                이때 <strong>돌려줄 종류 자리에 <code>void</code></strong>를 적습니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/09.void.c"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">모양</th>
+                        <th class="w-36">받는가</th>
+                        <th>돌려주는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>double area(double r)</code></td>
+                        <td>받는다</td>
+                        <td>돌려준다</td>
+                    </tr>
+                    <tr>
+                        <td><code>void star(int n)</code></td>
+                        <td>받는다</td>
+                        <td>돌려주지 않는다</td>
+                    </tr>
+                    <tr>
+                        <td><code>void line(void)</code></td>
+                        <td>받지 않는다</td>
+                        <td>돌려주지 않는다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>같은 <code>void</code>가 두 자리에 나옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>앞의 <code>void</code>는 「돌려줄 것이 없다」</strong>,
+                    <strong>괄호 안의 <code>void</code>는 「받을 것이 없다」</strong>입니다.
+                    <code>void line(void)</code>는 둘 다인 경우입니다.
+                    <strong>같은 낱말이 자리에 따라 다른 말을 하니 어디에 있는지를 봅니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    돌려주지 않는 함수는 <strong>값이 오는 자리에 놓을 수 없습니다.</strong>
+                    <code>printf("%d", line())</code>처럼 쓸 수 없고, <code>line();</code>처럼 <strong>한 줄로 부릅니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>bigger</code>에 셋 가운데 가장 큰 값을 묻고 싶다면 어떻게 하겠습니까? 함수를 고치는 방법과 두 번 부르는 방법을 둘 다 생각해 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 넘어가는 것은 사본 ===== -->
+    <section id="copy" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">넘어가는 것은 사본</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이 차시에서 가장 중요한 자리입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                함수에 변수를 넘겼습니다. 함수 안에서 그 값을 바꿨습니다.
+                <strong>부른 쪽의 변수는 어떻게 될까요?</strong>
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/09.사본.c"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>안에서는 100인데 밖에서는 7입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    함수를 부를 때 넘어가는 것은 <strong>변수 자체가 아니라 「그 안에 담긴 값을 베낀 것」</strong>입니다.
+                    <code>change(n)</code>은 <strong>7이라는 값만 건네줍니다.</strong>
+                    함수 안의 <code>n</code>은 <strong>그 값을 받아 새로 만든 다른 자리</strong>이고,
+                    그것을 100으로 바꿔도 <strong>원래 자리는 손대지 않은</strong> 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사물함으로 말하면 <strong>사물함을 통째로 넘긴 것이 아니라 안에 든 것을 복사해 건넨 것</strong>입니다.
+                    받은 쪽이 복사본을 찢어도 원본은 그대로입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">이름이 같아도 다른 자리입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    위 코드에는 <code>n</code>이 둘 있습니다. 이름이 같은데도 서로를 흔들지 않았습니다.
+                    <strong>함수 안에서 만든 변수는 그 함수의 것</strong>이라, 함수가 끝나면 사라지고
+                    <strong>다른 함수에서는 보이지도 않습니다.</strong> 이런 변수를 <strong>지역 변수</strong>라고 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    덕분에 함수를 만들 때 <strong>다른 데서 무슨 이름을 썼는지 걱정하지 않아도</strong> 됩니다.
+                    <code>i</code>든 <code>sum</code>이든 마음대로 쓸 수 있습니다.
+                    <strong>이름이 서로 부딪히지 않는 것이 함수로 나누는 큰 이득</strong> 가운데 하나입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 성질이 문제가 되는 대표적인 예가 <strong>두 값을 맞바꾸는 일</strong>입니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/09.맞바꾸기.c"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">함수 안에서는 분명히 바뀌었습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>swap</code>의 논리에는 잘못이 없습니다. 안에서 찍어 보면 <code>a=2 b=1</code>로 <strong>제대로 맞바뀌어</strong> 있습니다.
+                    그런데 <strong>바뀐 것은 사본</strong>이고, 함수가 끝나면 그 사본은 사라집니다.
+                    <code>x</code>와 <code>y</code>는 처음부터 끝까지 아무 일도 겪지 않았습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>값을 베껴 넘기는 이 방식으로는 함수가 부른 쪽의 변수를 바꿀 수 없습니다.</strong>
+                    돌려줄 수 있는 값이 하나뿐이니 <code>return</code>으로 둘을 한꺼번에 내보낼 수도 없습니다.
+                    <strong>지금 가진 도구로는 여기까지</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-slate-400 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">함수는 함수를 부를 수 있습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아래 프로그램에서 <code>show</code>가 <code>is_prime</code>을 부릅니다.
+                    <strong>일을 잘게 나누고 위에서 엮는 것</strong>이 함수를 쓰는 보람입니다.
+                    <code>is_prime</code>은 <strong>「소수인가」만</strong> 판단하고,
+                    <code>show</code>는 <strong>「찍을지 말지」만</strong> 정하고,
+                    <code>main</code>은 <strong>「어디까지 볼지」만</strong> 다룹니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/09.전체.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>is_prime</code>이 <strong>1과 0을 돌려주고</strong> 그것을 <code>if</code>가 그대로 조건으로 쓰는 것을 보세요.
+                「참이면 1, 거짓이면 0」이라는 규칙이 <strong>함수의 돌려주는 값과 그대로 맞물립니다.</strong>
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>is_prime</code>은 <code>n</code>보다 작은 수를 모두 나눠 봅니다. 굳이 다 볼 필요가 없다면 어디까지만 보면 될까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">일에 이름을 붙인다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    묶어 두면 <strong>고칠 자리가 한 곳</strong>이 되고 <strong>이름이 뜻을 말해 준다.</strong>
+                    줄 수를 줄이는 것이 요점이 아니다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">세 자리를 갖춘다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>돌려줄 종류 · 이름 · 받을 것</strong>을 적고 중괄호 안에 일을 쓴다.
+                    없으면 <code>void</code>를 적는다. <strong><code>main</code>도 같은 규칙을 따른다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">부른 자리에 값이 놓인다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>return</code>은 값을 돌려주며 <strong>그 자리에서 함수를 끝낸다.</strong>
+                    한 번 부를 때 <strong>돌려주는 값은 하나</strong>다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">넘어가는 것은 사본</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    함수 안의 변수는 <strong>이름이 같아도 다른 자리</strong>다.
+                    그래서 <strong>값을 베껴 넘기는 방식으로는 부른 쪽의 변수를 바꿀 수 없다.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>void line(void)</code>에서 두 <code>void</code>는 각각 무슨 뜻인가?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '앞은 돌려줄 종류 자리, 뒤는 받을 것 자리입니다. 자리가 뜻을 정합니다.')">
+                    ① 앞은 「돌려줄 것 없음」, 뒤는 「받을 것 없음」
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '순서가 뒤바뀌었습니다. 앞자리는 돌려줄 종류를 적는 곳입니다.')">
+                    ② 앞은 「받을 것 없음」, 뒤는 「돌려줄 것 없음」
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '같은 낱말이지만 자리가 달라 다른 말을 합니다.')">
+                    ③ 둘 다 같은 뜻이라 하나는 없어도 된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'void는 「비어 있다」는 뜻이지 값이 0이라는 뜻이 아닙니다.')">
+                    ④ 둘 다 「값이 0」이라는 뜻
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>int n = 7;</code>을 <code>change(n)</code>으로 넘겨 함수 안에서 <code>n = 100;</code>을 했다. 함수가 끝난 뒤 밖의 <code>n</code>은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '함수 안에서 바뀐 것은 사본입니다. 원래 자리는 손대지 않았습니다.')">
+                    ① 100
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '넘어간 것은 값을 베낀 사본이라 원래 변수는 그대로입니다.')">
+                    ② 7
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '함수가 끝나도 부른 쪽의 변수는 사라지지 않습니다.')">
+                    ③ 사라져서 쓸 수 없다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '결과는 정해져 있습니다. 언제나 7입니다.')">
+                    ④ 그때그때 다르다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 함수 안에 <code>return</code>이 두 개 있을 때 알맞은 설명은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'return이 여러 개인 것은 잘못이 아닙니다. 조건마다 다른 값을 돌려줄 때 흔히 씁니다.')">
+                    ① 문법에 어긋나므로 하나만 두어야 한다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '두 값이 함께 나가지 않습니다. 처음 만나는 곳에서 함수가 끝납니다.')">
+                    ② 두 값이 모두 돌아간다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '처음 만나는 return에서 함수가 끝나므로 실제로 돌아가는 값은 하나입니다.')">
+                    ③ 먼저 만나는 곳에서 끝나므로 돌아가는 값은 하나다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '아래 return은 위 조건이 거짓일 때 닿는 자리입니다. 쓸모없는 줄이 아닙니다.')">
+                    ④ 뒤에 있는 return은 절대 실행되지 않는다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

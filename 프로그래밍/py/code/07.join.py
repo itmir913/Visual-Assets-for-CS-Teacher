@@ -9,4 +9,8 @@ print("".join(fruits))      # 사과바나나포도
 
 scores = [90, 85, 72]
 # print(", ".join(scores))          # 오류. 재료가 전부 문자열이어야 한다
-print(", ".join(str(s) for s in scores))   # 90, 85, 72
+
+texts = []
+for s in scores:
+    texts.append(str(s))            # 하나씩 글자로 바꿔 담아 두고
+print(", ".join(texts))             # 90, 85, 72

@@ -14,6 +14,10 @@
 
 `---`를 그냥 첫 줄에 쓰면 `.c`가 컴파일되지 않으므로 주석 안에 넣는다.
 
+**`check: none`이어도 `.py`는 구문을 본다.** `gcc`는 컴파일하지만 `py_compile`은
+파싱만 하므로, 홀로 서지 않는 조각이라도 오타는 잡힌다. **일부러 깨뜨려 둔 파일**
+(들여쓰기 오류를 보여 주는 예제 따위)만 `check: broken`으로 아주 뺀다.
+
 **마커(`data-src`)가 가리키는 파일과 구역이 실제로 있는지는 빌드가 본다** —
 `tools/vite/inject-code.js`가 못 찾으면 빌드를 세운다. 같은 검사를 두 곳에 두면
 둘이 어긋나므로 여기서는 하지 않는다.
@@ -114,7 +118,12 @@ def check_syntax(files: list[Path], root: Path) -> tuple[list[str], int, int]:
         except ValueError as e:
             errs.append(f"{rel}: {e}")
             continue
-        if meta.get("check") == "none":
+        if meta.get("check") == "broken":
+            skipped += 1
+            continue
+        if meta.get("check") == "none" and p.suffix.lower() != ".py":
+            # .c 조각은 gcc가 «컴파일»하므로 홀로 서지 못하면 검사할 수 없다.
+            # .py는 py_compile이 «파싱만» 하므로 조각이어도 구문은 볼 수 있다.
             skipped += 1
             continue
 

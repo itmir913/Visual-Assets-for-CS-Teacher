@@ -1,5 +1,5 @@
 # ---
-# check: none
+# check: broken
 # ---
 score = 40
 

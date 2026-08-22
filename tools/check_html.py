@@ -330,9 +330,26 @@ BANNED_WORDS = [
 ]
 
 
+# 밝은 그러데이션 배경. `bg-gradient-*`는 background-image를 만들 뿐이라
+# **background-color가 투명으로 남는다.** 다크모드 확장은 background-color를 바꾸므로
+# 투명한 배경은 손대지 못한 채 어두운 «글자»만 밝게 바꾸고, 그래서 밝은 바탕에 밝은 글자가 된다.
+# 짙은 그러데이션은 흰 글자를 얹으므로 확장이 글자를 그대로 두어 문제가 없다.
+LIGHT_GRAD = re.compile(r"bg-gradient-to-\w+((?:\s+(?:from|via|to)-(?:[a-z]+-\d+|white))+)")
+GRAD_STOP = re.compile(r"(?:from|via|to)-([a-z]+-\d+|white)")
+
+
 def banned_rules(src: str):
     """소스만 보고 잡히는 금지 요소들. 전부 CLAUDE.md의 규칙이다."""
     bad = []
+
+    for m in LIGHT_GRAD.finditer(src):
+        stops = GRAD_STOP.findall(m.group(1))
+        tones = [0 if s == "white" else int(s.split("-")[1]) for s in stops]
+        if tones and all(t <= 100 for t in tones):
+            first = next((s for s in stops if s != "white"), stops[0])
+            bad.append(f"{_line_of(src, m.start())}행: 밝은 그러데이션 배경 "
+                       f"— background-color가 투명으로 남아 다크모드 확장에서 "
+                       f"글자만 밝아진다. 단색 <code>bg-{first}</code>로 준다")
 
     for pattern, 쓴말, 쓸말 in BANNED_WORDS:
         for m in re.finditer(pattern, src):

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>딕셔너리</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/py/11-딕셔너리.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-book absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-address-book absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            딕셔너리
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            번호를 세어 찾는 대신 <strong>이름을 부르면</strong> 됩니다.<br>
+            값에 <strong>이름표를 붙여</strong> 담아 두는 방법입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>딕셔너리를 만들고 키로 값을 꺼내고 담을 수 있다.</li>
+                    <li>리스트와 딕셔너리 중 어느 쪽이 맞는 자리인지 고를 수 있다.</li>
+                    <li>없는 키를 다루는 세 방법을 구별해 쓸 수 있다.</li>
+                    <li><code>.items()</code>로 훑으며 개수를 세어 담을 수 있다.</li>
+                    <li>키가 될 수 있는 값의 조건과 그 까닭을 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-book text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">딕셔너리</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-orange-600 transition">번호로 찾기의 한계</a>
+            <a href="#make" class="hover:text-orange-600 transition">이름표를 붙여 담기</a>
+            <a href="#miss" class="hover:text-orange-600 transition">없는 키</a>
+            <a href="#loop" class="hover:text-orange-600 transition">훑기와 세어 담기</a>
+            <a href="#key" class="hover:text-orange-600 transition">키가 될 수 있는 값</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">번호로 찾는 것의 한계</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">리스트로도 되기는 합니다. 되기만 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">학생마다 점수를 담아 두려면 지금까지 배운 것으로는 <strong>리스트 둘</strong>이 필요합니다.</p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 252" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="왼쪽은 이름 리스트와 점수 리스트를 위아래로 따로 둔 모습이고, 오른쪽은 이름과 점수가 한 칸에 붙어 있는 딕셔너리 모습이다">
+                    <text x="288" y="26" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">이름과 값을 «따로» 두면 어긋날 수 있다</text>
+                    <rect x="24" y="52" width="80" height="44" rx="6" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2"/>
+                    <text x="64" y="80" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle">학생 A</text>
+                    <rect x="112" y="52" width="80" height="44" rx="6" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2"/>
+                    <text x="152" y="80" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle">학생 B</text>
+                    <rect x="200" y="52" width="80" height="44" rx="6" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2"/>
+                    <text x="240" y="80" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle">학생 C</text>
+                    <rect x="24" y="102" width="80" height="44" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="64" y="130" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">90</text>
+                    <rect x="112" y="102" width="80" height="44" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="152" y="130" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">85</text>
+                    <rect x="200" y="102" width="80" height="44" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="240" y="130" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">72</text>
+                    <line x1="300" y1="40" x2="300" y2="250" stroke="#e2e8f0" stroke-width="2"/>
+                    <rect x="326" y="44" width="224" height="38" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+                    <line x1="440" y1="44" x2="440" y2="82" stroke="#f97316" stroke-width="2"/>
+                    <text x="383" y="69" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">학생 A</text>
+                    <text x="495" y="69" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">90</text>
+                    <rect x="326" y="88" width="224" height="38" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+                    <line x1="440" y1="88" x2="440" y2="126" stroke="#f97316" stroke-width="2"/>
+                    <text x="383" y="113" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">학생 B</text>
+                    <text x="495" y="113" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">85</text>
+                    <rect x="326" y="132" width="224" height="38" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+                    <line x1="440" y1="132" x2="440" y2="170" stroke="#f97316" stroke-width="2"/>
+                    <text x="383" y="157" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">학생 C</text>
+                    <text x="495" y="157" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">72</text>
+                    <text x="144" y="192" font-size="17" fill="#0369a1" font-weight="700" text-anchor="middle">리스트 둘</text>
+                    <text x="438" y="192" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle">딕셔너리</text>
+                    <text x="144" y="216" font-size="16" fill="#64748b" text-anchor="middle">번호로 맞춘다</text>
+                    <text x="438" y="216" font-size="16" fill="#64748b" text-anchor="middle">이름에 값이 붙어 있다</text>
+                    <text x="144" y="240" font-size="16" fill="#be123c" font-weight="700" text-anchor="middle">어긋나면 남의 점수가 나온다</text>
+                    <text x="438" y="240" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">어긋날 일이 없다</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/11.번호로.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed"><code>index</code>로 몇 번째인지 찾고, 그 번호로 다른 리스트를 꺼냅니다. <strong>두 리스트의 순서가 언제나 같아야</strong> 이 방법이 성립합니다.</p>
+            <div class="bg-white border-l-4 border-l-rose-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">어긋나도 오류가 나지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">한쪽만 정렬하거나 한쪽에만 값을 더하면 <strong>번호가 밀립니다.</strong> 그런데 프로그램은 멈추지 않고 <strong>남의 점수를 태연히 내놓습니다.</strong> 이런 오류가 가장 찾기 어렵습니다.</p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">두 리스트를 쓰는 방법에서, 학생 한 명을 <strong>가운데</strong> 끼워 넣으려면 무엇을 해 주어야 할까요?</p>
+        </div>
+    </section>
+
+
+    <section id="make" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이름표를 붙여 담기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">번호 대신 이름으로 꺼냅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">값에 <strong>이름표를 붙여</strong> 담아 두면 위 문제가 사라집니다.</p>
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">딕셔너리(dictionary)</p>
+                <p class="text-base text-slate-700 leading-relaxed"><strong>키(key)와 값(value)을 짝지어 담는 자료형</strong>입니다. 리스트가 <strong>자리 번호</strong>로 꺼낸다면, 딕셔너리는 <strong>키</strong>로 꺼냅니다. 그래서 순서가 바뀌어도 꺼내는 데 아무 영향이 없습니다.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 266" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="세 줄짜리 딕셔너리에서 가운데 학생 B 줄이 굵게 표시되어 있고, 왼쪽에서 키가, 오른쪽에서 값이 그 줄을 가리키는 그림">
+                    <defs><marker id="kk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c2410c"/></marker></defs>
+                    <text x="288" y="26" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">번호가 아니라 «이름»으로 꺼낸다</text>
+                    <text x="288" y="56" font-size="19" fill="#c2410c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">scores["학생 B"]</text>
+                    <rect x="150" y="82" width="276" height="48" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <line x1="300" y1="82" x2="300" y2="130" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="225" y="112" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">학생 A</text>
+                    <text x="363" y="112" font-size="19" fill="#0f172a" text-anchor="middle">90</text>
+                    <rect x="150" y="138" width="276" height="48" rx="8" fill="#fff7ed" stroke="#f97316" stroke-width="3"/>
+                    <line x1="300" y1="138" x2="300" y2="186" stroke="#f97316" stroke-width="2"/>
+                    <text x="225" y="168" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle">학생 B</text>
+                    <text x="363" y="168" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">85</text>
+                    <rect x="150" y="194" width="276" height="48" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <line x1="300" y1="194" x2="300" y2="242" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="225" y="224" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">학생 C</text>
+                    <text x="363" y="224" font-size="19" fill="#0f172a" text-anchor="middle">72</text>
+                    <text x="100" y="112" font-size="16" fill="#64748b" font-weight="700" text-anchor="middle">키</text>
+                    <text x="100" y="168" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">키</text>
+                    <text x="476" y="168" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">값</text>
+                    <line x1="120" y1="162" x2="144" y2="162" stroke="#c2410c" stroke-width="3" marker-end="url(#kk)"/>
+                    <line x1="456" y1="162" x2="432" y2="162" stroke="#c2410c" stroke-width="3" marker-end="url(#kk)"/>
+                    <text x="288" y="250" font-size="16" fill="#64748b" text-anchor="middle">찾아가는 것이 아니라 «곧바로» 닿는다</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/11.만들기.py"></code></pre>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40"></th>
+                        <th>리스트</th>
+                        <th>딕셔너리</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>만드는 법</strong></td>
+                        <td><code>[90, 85]</code></td>
+                        <td><code>{"A": 90, "B": 85}</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>꺼내기</strong></td>
+                        <td><code>a[0]</code> &mdash; 자리 번호</td>
+                        <td><code>d["A"]</code> &mdash; 키</td>
+                    </tr>
+                    <tr>
+                        <td><strong>넣기</strong></td>
+                        <td><code>append</code>로 끝에</td>
+                        <td><code>d["C"] = 72</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>없는 것을 꺼내면</strong></td>
+                        <td><code>IndexError</code></td>
+                        <td><code>KeyError</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>어울리는 것</strong></td>
+                        <td>차례가 뜻을 갖는 값</td>
+                        <td>이름으로 찾는 값</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">대괄호 한 줄이 두 가지 일을 합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed"><code>d["학생 D"] = 68</code>은 <strong>없던 키면 새로 만들고, 있던 키면 값을 바꿉니다.</strong> 리스트의 <code>append</code>와 <code>a[0] = …</code>이 딕셔너리에서는 <strong>한 문법</strong>입니다. 편한 만큼, <strong>키를 잘못 적으면 고치려던 것 대신 새 칸이 생깁니다.</strong></p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>scores["학생 A"] = 95</code>를 두 번 실행하면 값이 두 번 더해질까요, 그대로일까요?</p>
+        </div>
+    </section>
+
+
+    <section id="miss" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">없는 키를 꺼낼 때</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">멈출지, 물어볼지, 정해 둘지 고릅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">리스트에서 없는 번호를 꺼내면 멈추듯, 딕셔너리도 <strong>없는 키를 꺼내면 멈춥니다.</strong></p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 266" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="세 줄이 나란히 있다. 대괄호로 꺼내면 KeyError로 멈추고, in으로 물으면 False가 나오고, get에 기본값을 주면 그 값이 나온다">
+                    <defs><marker id="nk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/></marker></defs>
+                    <text x="288" y="26" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">없는 키를 꺼내는 세 가지 태도</text>
+                    <rect x="16" y="54" width="300" height="52" rx="8" fill="#fff1f2" stroke="#be123c" stroke-width="2"/>
+                    <text x="166" y="86" font-size="16" fill="#be123c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">scores["학생 Z"]</text>
+                    <line x1="322" y1="80" x2="344" y2="80" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#nk)"/>
+                    <rect x="350" y="62" width="88" height="36" rx="6" fill="#ffffff" stroke="#be123c" stroke-width="2"/>
+                    <text x="394" y="86" font-size="16" fill="#be123c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">KeyError</text>
+                    <text x="450" y="86" font-size="16" fill="#64748b" text-anchor="start">그대로 멈춘다</text>
+                    <rect x="16" y="120" width="300" height="52" rx="8" fill="#f0f9ff" stroke="#0369a1" stroke-width="2"/>
+                    <text x="166" y="152" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">"학생 Z" in scores</text>
+                    <line x1="322" y1="146" x2="344" y2="146" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#nk)"/>
+                    <rect x="350" y="128" width="88" height="36" rx="6" fill="#ffffff" stroke="#0369a1" stroke-width="2"/>
+                    <text x="394" y="152" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">False</text>
+                    <text x="450" y="152" font-size="16" fill="#64748b" text-anchor="start">먼저 물어본다</text>
+                    <rect x="16" y="186" width="300" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <text x="166" y="218" font-size="16" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">scores.get("학생 Z", 0)</text>
+                    <line x1="322" y1="212" x2="344" y2="212" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#nk)"/>
+                    <rect x="350" y="194" width="88" height="36" rx="6" fill="#ffffff" stroke="#047857" stroke-width="2"/>
+                    <text x="394" y="218" font-size="16" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">0</text>
+                    <text x="450" y="218" font-size="16" fill="#64748b" text-anchor="start">기본값을 준다</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/11.없는키.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed">세 가지 모두 쓰입니다. <strong>어느 하나가 옳은 것은 아니고</strong>, 없는 키가 <strong>있어서는 안 되는 일인지</strong> <strong>있을 수 있는 일인지</strong>에 따라 고릅니다.</p>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">쓰는 법</th>
+                        <th>없을 때</th>
+                        <th>이럴 때 쓴다</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>d[k]</code></td>
+                        <td><code>KeyError</code>로 멈춘다</td>
+                        <td>없으면 프로그램이 잘못된 것일 때</td>
+                    </tr>
+                    <tr>
+                        <td><code>k in d</code></td>
+                        <td><code>False</code></td>
+                        <td>있는지 없는지로 갈라야 할 때</td>
+                    </tr>
+                    <tr>
+                        <td><code>d.get(k)</code></td>
+                        <td><code>None</code></td>
+                        <td>없어도 그냥 넘어가도 될 때</td>
+                    </tr>
+                    <tr>
+                        <td><code>d.get(k, 0)</code></td>
+                        <td>정해 둔 값</td>
+                        <td>없으면 <strong>0부터 시작</strong>하고 싶을 때</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-white border-l-4 border-l-rose-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900"><code>get</code>이 늘 나은 것은 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed"><code>get</code>은 없어도 멈추지 않으므로 <strong>오타를 감춥니다.</strong> <code>d.get("학셍 A")</code>는 <code>None</code>을 조용히 내놓습니다. <strong>있어야 마땅한 키</strong>라면 오히려 멈추는 쪽이 낫습니다.</p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>d.get(k)</code>가 <code>None</code>을 돌려주었습니다. 키가 없는 것일까요, 값이 <code>None</code>인 것일까요? 어떻게 가릴 수 있을까요?</p>
+        </div>
+    </section>
+
+
+    <section id="loop" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">훑기와 세어 담기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">딕셔너리가 가장 자주 쓰이는 자리입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">딕셔너리도 반복으로 훑습니다. 다만 <strong>무엇이 나오는지</strong>를 알아야 합니다.</p>
+            <pre class="language-python"><code class="language-python" data-src="code/11.훑기.py"></code></pre>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">그냥 훑으면 키가 나옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed"><code>for name in scores:</code>는 <strong>값이 아니라 키</strong>를 하나씩 내놓습니다. 값까지 함께 쓰려면 <code>.items()</code>로 <strong>짝을 받습니다.</strong> 그 짝이 튜플이라서 <code>for name, score in …</code>처럼 <strong>받으면서 풀 수 있습니다.</strong></p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="">
+                    <thead>
+                    <tr>
+                        <th class="w-44">부르는 법</th>
+                        <th>나오는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>for k in d</code></td>
+                        <td>키</td>
+                    </tr>
+                    <tr>
+                        <td><code>d.keys()</code></td>
+                        <td>키 전부</td>
+                    </tr>
+                    <tr>
+                        <td><code>d.values()</code></td>
+                        <td>값 전부 &mdash; <code>sum</code>·<code>max</code>를 바로 쓸 수 있다</td>
+                    </tr>
+                    <tr>
+                        <td><code>d.items()</code></td>
+                        <td><strong>(키, 값)</strong> 짝</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">무엇이 몇 번 나왔는지 세는 일은 딕셔너리의 <strong>가장 흔한 쓰임</strong>입니다.</p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 358" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="위에 여섯 개의 투표 값이 늘어서 있고 다섯 번째 사과가 굵게 표시되어 있다. 아래에는 사과 포도 바나나의 개수가 전과 후로 나뉘어 있으며 사과만 2에서 3으로 늘어난다">
+                    <defs><marker id="cnt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c2410c"/></marker></defs>
+                    <text x="288" y="26" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">훑으면서 딕셔너리를 채워 나간다</text>
+                    <rect x="20" y="52" width="84" height="46" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="62" y="82" font-size="17" fill="#0f172a" text-anchor="middle">사과</text>
+                    <rect x="112" y="52" width="84" height="46" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="154" y="82" font-size="17" fill="#0f172a" text-anchor="middle">포도</text>
+                    <rect x="204" y="52" width="84" height="46" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="246" y="82" font-size="17" fill="#0f172a" text-anchor="middle">사과</text>
+                    <rect x="296" y="52" width="84" height="46" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="338" y="82" font-size="17" fill="#0f172a" text-anchor="middle">바나나</text>
+                    <rect x="388" y="52" width="84" height="46" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="3"/>
+                    <text x="430" y="82" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">사과</text>
+                    <rect x="480" y="52" width="84" height="46" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="522" y="82" font-size="17" fill="#0f172a" text-anchor="middle">포도</text>
+                    <line x1="390" y1="102" x2="390" y2="130" stroke="#c2410c" stroke-width="2.5" stroke-dasharray="4 3"/>
+                    <text x="288" y="150" font-size="16" fill="#64748b" text-anchor="middle">다섯 번째 「사과」를 만난 순간</text>
+                    <rect x="120" y="190" width="160" height="38" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+                    <text x="200" y="215" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle">사과</text>
+                    <rect x="300" y="190" width="60" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="330" y="215" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">2</text>
+                    <line x1="368" y1="209" x2="392" y2="209" stroke="#c2410c" stroke-width="2.5" marker-end="url(#cnt)"/>
+                    <rect x="400" y="190" width="60" height="38" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+                    <text x="430" y="215" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle">3</text>
+                    <rect x="120" y="234" width="160" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="200" y="259" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">포도</text>
+                    <rect x="300" y="234" width="60" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="330" y="259" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">2</text>
+                    <line x1="368" y1="253" x2="392" y2="253" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#cnt)"/>
+                    <rect x="400" y="234" width="60" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="430" y="259" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">2</text>
+                    <rect x="120" y="278" width="160" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="200" y="303" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">바나나</text>
+                    <rect x="300" y="278" width="60" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="330" y="303" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">1</text>
+                    <line x1="368" y1="297" x2="392" y2="297" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#cnt)"/>
+                    <rect x="400" y="278" width="60" height="38" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="430" y="303" font-size="17" fill="#64748b" font-weight="700" text-anchor="middle">1</text>
+                    <text x="46" y="215" font-size="16" fill="#64748b" font-weight="700" text-anchor="middle">키</text>
+                    <text x="330" y="180" font-size="16" fill="#64748b" text-anchor="middle">전</text>
+                    <text x="430" y="180" font-size="16" fill="#64748b" text-anchor="middle">후</text>
+                    <text x="288" y="344" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">count[fruit] = count.get(fruit, 0) + 1</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/11.세기.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed">처음 보는 것이면 <strong>칸을 만들어 1로 시작하고</strong>, 이미 있으면 하나 더합니다. <code>if</code>로 갈라 적은 이 코드는 <code>get</code>으로 <strong>한 줄이 됩니다.</strong></p>
+            <pre class="language-python"><code class="language-python" data-src="code/11.세기간단.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed"><code>count.get(fruit, 0)</code>은 <strong>「있으면 그 값, 없으면 0」</strong>입니다. 그래서 처음 본 것도 <code>0 + 1</code>이 되어 자연스럽게 1이 됩니다.</p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>count.get(fruit, 0)</code>에서 기본값을 <code>0</code>이 아니라 <code>1</code>로 두면 결과가 어떻게 달라질까요?</p>
+        </div>
+    </section>
+
+
+    <section id="key" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">키가 될 수 있는 값</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">아무 값이나 키가 되지는 않습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">키에는 조건이 하나 있습니다.</p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 300" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="글자와 수와 튜플에는 동그라미 체크가, 리스트에는 가위표가 붙어 있고 각각 그 까닭이 오른쪽에 적혀 있다">
+                    <text x="288" y="26" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">키는 «나중에 바뀌지 않는 값»이라야 한다</text>
+                    <rect x="20" y="56" width="250" height="44" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <text x="145" y="85" font-size="17" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">"학생 A"</text>
+                    <circle cx="300" cy="78" r="15" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <path d="M293 78 l5 6 l11 -13" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round"/>
+                    <text x="330" y="85" font-size="16" fill="#64748b" text-anchor="start">글자는 바뀌지 않는다</text>
+                    <rect x="20" y="114" width="250" height="44" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <text x="145" y="143" font-size="17" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">2024</text>
+                    <circle cx="300" cy="136" r="15" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <path d="M293 136 l5 6 l11 -13" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round"/>
+                    <text x="330" y="143" font-size="16" fill="#64748b" text-anchor="start">수는 바뀌지 않는다</text>
+                    <rect x="20" y="172" width="250" height="44" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <text x="145" y="201" font-size="17" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">("서울", "부산")</text>
+                    <circle cx="300" cy="194" r="15" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <path d="M293 194 l5 6 l11 -13" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round"/>
+                    <text x="330" y="201" font-size="16" fill="#64748b" text-anchor="start">튜플은 갈아 끼울 수 없다</text>
+                    <rect x="20" y="230" width="250" height="44" rx="8" fill="#fff1f2" stroke="#be123c" stroke-width="2"/>
+                    <text x="145" y="259" font-size="17" fill="#be123c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">["서울", "부산"]</text>
+                    <circle cx="300" cy="252" r="15" fill="#fff1f2" stroke="#be123c" stroke-width="2"/>
+                    <path d="M294 246 l12 12 M306 246 l-12 12" fill="none" stroke="#be123c" stroke-width="3" stroke-linecap="round"/>
+                    <text x="330" y="259" font-size="16" fill="#64748b" text-anchor="start">리스트는 나중에 바뀔 수 있다</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/11.키의조건.py"></code></pre>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">왜 바뀌면 안 되나</p>
+                <p class="text-base text-slate-700 leading-relaxed">딕셔너리는 키를 보고 <strong>값을 어디에 넣어 둘지</strong>를 정합니다. 넣어 둔 뒤에 키가 바뀌면 <strong>어디에 두었는지를 잃어버립니다.</strong> 그래서 파이썬은 <strong>바뀔 수 있는 값을 아예 키로 받지 않습니다.</strong></p>
+            </div>
+            <p class="text-base text-slate-700 leading-relaxed">리스트는 키가 될 수 없지만 <strong>튜플은 됩니다.</strong> 「서울에서 부산까지」처럼 <strong>값 두 개가 한 벌로 이름이 되는 자리</strong>에 씁니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">배운 것을 모으면 파일에서 읽어 딕셔너리로 담는 프로그램이 됩니다.</p>
+            <pre class="language-python"><code class="language-python" data-src="code/11.전체.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed">이름을 키로, <strong>점수 둘을 묶은 튜플</strong>을 값으로 담았습니다. <code>.items()</code>가 내놓는 짝을 <code>name, (kor, eng)</code>로 받아 <strong>안쪽 묶음까지 한 번에 풀었습니다.</strong></p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">값으로 튜플 대신 리스트를 담으면 무엇이 달라질까요? 키가 아니라 <strong>값</strong> 자리라는 점에 주의해 생각해 보세요.</p>
+        </div>
+    </section>
+
+
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">번호가 아니라 이름으로</h3>
+                <p class="text-base text-slate-700 leading-relaxed">리스트는 <strong>자리 번호</strong>로, 딕셔너리는 <strong>키</strong>로 꺼낸다. 그래서 순서가 바뀌어도 꺼내는 데 영향이 없다.</p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">대괄호 한 줄이 두 가지 일을 한다</h3>
+                <p class="text-base text-slate-700 leading-relaxed"><code>d[k] = v</code>는 <strong>없던 키면 만들고 있던 키면 바꾼다.</strong> 키를 잘못 적으면 고치는 대신 <strong>새 칸이 생긴다.</strong></p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">없는 키에는 세 가지 태도</h3>
+                <p class="text-base text-slate-700 leading-relaxed"><code>d[k]</code>는 멈추고, <code>k in d</code>는 물어보고, <code>d.get(k, 0)</code>은 정해 둔 값을 준다. <strong>있어야 마땅한 키</strong>라면 멈추는 쪽이 낫다.</p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">훑으면 키가 나온다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">값까지 쓰려면 <code>.items()</code>로 <strong>(키, 값) 짝</strong>을 받는다. 그 짝이 튜플이라서 받으면서 풀 수 있다.</p>
+            </div>
+            <div class="section-card space-y-2 md:col-span-2">
+                <h3 class="text-xl font-black text-slate-900">키는 바뀌지 않는 값이라야 한다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">글자 · 수 · 튜플은 키가 되고 <strong>리스트는 되지 않는다.</strong> 키가 바뀌면 값을 어디에 두었는지 잃어버리기 때문이다.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>d = {"A": 1}</code>일 때 <code>d["B"] = 2</code>를 실행하면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '꺼낼 때는 오류가 나지만 담을 때는 새로 만듭니다.')">
+                    ① <code>KeyError</code>가 난다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '없던 키에 담으면 새 칸이 생깁니다. 그래서 오타가 조용히 새 칸을 만듭니다.')">
+                    ② 키 <code>"B"</code>가 새로 생긴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '담는 일은 반드시 일어납니다.')">
+                    ③ 아무 일도 일어나지 않는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '적은 키가 "B"이므로 "A"는 그대로입니다.')">
+                    ④ <code>"A"</code>의 값이 2로 바뀐다
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>for x in scores:</code>에서 <code>x</code>에 들어오는 것은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '값이 아니라 키가 나옵니다. 값은 .values()나 .items()로 받습니다.')">
+                    ① 값
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '그냥 훑으면 키가 나옵니다. 값까지 쓰려면 .items()를 씁니다.')">
+                    ② 키
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '짝은 .items()를 불러야 나옵니다.')">
+                    ③ (키, 값) 짝
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '딕셔너리에는 자리 번호로 꺼내는 방식이 없습니다.')">
+                    ④ 번호
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 다음 중 딕셔너리의 키로 <strong>쓸 수 없는</strong> 것은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '튜플은 갈아 끼울 수 없으므로 키가 됩니다.')">
+                    ① <code>(1, 2)</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '리스트는 나중에 바뀔 수 있어 키가 되지 못합니다.')">
+                    ② <code>[1, 2]</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '글자는 바뀌지 않으므로 키가 됩니다.')">
+                    ③ <code>"1,2"</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '수는 바뀌지 않으므로 키가 됩니다.')">
+                    ④ <code>12</code>
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -107,6 +107,11 @@ export function makeElementClass(state) {
                 remove: (...x) => x.forEach((v) => c.delete(v)),
                 toggle: (v, on) => (on === undefined ? (c.has(v) ? c.delete(v) : c.add(v)) : (on ? c.add(v) : c.delete(v))),
                 contains: (v) => c.has(v),
+                /* 브라우저에 있는 것은 다 있어야 한다 — 없으면 **페이지가 멀쩡한데**
+                   검사가 죽는다. 실제로 `classList.replace` 가 없어 여섯 건이 헛나왔다. */
+                replace: (o, n) => (c.has(o) ? (c.delete(o), c.add(n), true) : false),
+                item: (i) => [...c][i] ?? null,
+                get length() { return c.size; },
             };
         }
 
@@ -308,9 +313,16 @@ export function loadSim(name, opts = {}) {
     for (const lib of libsOfEntry(name)) {
         const file = path.join(LIB_DIR, lib);
         const src = fs.readFileSync(file, 'utf8');
-        // ESM 문법이 있으면 `vm` 이 그대로 돌리지 못한다(`import` 도 `export` 도).
-        if (/^\s*(import|export)\s/m.test(src)) { stubbed.push(lib); continue; }
-        vm.runInContext(src, sandbox, {filename: lib});
+        /* **`import` 가 있으면 못 얹는다.** 바깥 꾸러미(d3·prismjs)를 이 받침대의 가짜
+           문서 위에 올릴 수 없기 때문이다. 반대로 `export` 만 있는 파일은 **바깥에 기대는
+           것이 없으므로** 내보내기 낱말만 걷어 내고 진짜로 돌린다 — 그래야 그래프 모델과
+           프리셋 같은 **계산 알맹이가 가짜가 아닌 진짜로** 검사에 걸린다. */
+        if (/^\s*import\s/m.test(src)) { stubbed.push(lib); continue; }
+        const code = src
+            .replace(/^\s*export\s+default\s+/m, 'var __default_' + lib.replace(/\W/g, '_') + ' = ')
+            .replace(/^\s*export\s+(?=(?:const|let|var|function|class|async)\b)/gm, '');
+        if (/^\s*export\b/m.test(code)) { stubbed.push(lib); continue; }
+        vm.runInContext(code, sandbox, {filename: lib});
     }
 
     const html = fs.readFileSync(path.join(SIM_DIR, name + '.html'), 'utf8');

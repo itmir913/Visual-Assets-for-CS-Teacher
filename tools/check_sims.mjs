@@ -127,6 +127,69 @@ function checkInlineHandlers(page, sim) {
     return n;
 }
 
+
+/* ================================================================
+   4. 단추를 눌러 보고, 화면에 뜬 숫자가 성한가
+   ================================================================
+   감사에서 되풀이해 나온 것이 **발산한 값이 그대로 화면에 뜨는 것**과
+   **자동 실행 중에 다른 단추를 누르면 죽는 것**이었다. 둘 다 「뜨는가」만 보는
+   검사로는 잡히지 않는다. 그래서 마크업에 있는 단추를 하나씩 눌러 보고,
+   그때마다 예외가 났는지와 **화면 글자에 `NaN`·`Infinity`·`undefined` 가 섞였는지**를 본다.
+
+   **타이머는 돌지 않는다.** 이 받침대는 예약된 콜백을 굳이 돌리지 않으므로
+   자동 실행 루프가 폭주하지 않는다 — 누르는 순간에 나는 잘못만 잡힌다. */
+
+const SICK = /\bNaN\b|\bInfinity\b|\bundefined\b/;
+
+function screenText(sim) {
+    const out = [];
+    for (const e of sim.byId.values()) {
+        for (const key of ['_text', '_html']) {
+            const v = e[key];
+            if (typeof v === 'string' && v) out.push([e.id, v]);
+        }
+        if (typeof e.value === 'string' && e.value) out.push([e.id, e.value]);
+    }
+    return out;
+}
+
+function checkButtons(page, sim) {
+    const html = fs.readFileSync(path.join(SIM_DIR, page + '.html'), 'utf8');
+    const ids = [];
+    for (const m of html.matchAll(/<button\b([^>]*)>/g)) {
+        const id = m[1].match(/\bid="([^"]*)"/)?.[1];
+        if (id) ids.push(id);
+    }
+
+    let told = false;              // 한 페이지에 한 번만 알린다 — 누를 때마다 같은 말이 나온다
+    const sick = (label) => {
+        if (told) return;
+        for (const [id, text] of screenText(sim)) {
+            const hit = text.match(SICK);
+            if (hit) {
+                bad(`${page} · ${label} — #${id} 에 \`${hit[0]}\` 가 떴다: ` +
+                    text.replace(/\s+/g, ' ').slice(0, 70));
+                told = true;
+                return;
+            }
+        }
+    };
+
+    sick('처음');
+    for (const id of ids) {
+        const before = sim.errors.length;
+        try {
+            sim.el(id).click();
+        } catch (e) {
+            bad(`${page} — #${id} 를 누르다가 죽었다: ${e.message}`);
+            continue;
+        }
+        for (const e of sim.errors.slice(before)) bad(`${page} — #${id} 를 누르니 ${e}`);
+        sick(`#${id} 누른 뒤`);
+    }
+    return ids.length;
+}
+
 /* ================================================================ */
 
 console.log(`시뮬레이터 ${PAGES.length}개를 페이지 원문 그대로 돌린다` +
@@ -147,7 +210,8 @@ for (const page of PAGES) {
 
     const canvases = checkCanvasResolution(page, sim);
     const handlers = checkInlineHandlers(page, sim);
-    rows.push({page, canvases: canvases.length, handlers, stubbed: sim.stubbed});
+    const buttons = checkButtons(page, sim);
+    rows.push({page, canvases: canvases.length, handlers, buttons, stubbed: sim.stubbed});
 }
 
 const width = Math.max(...rows.map((r) => r.page.length));
@@ -155,6 +219,7 @@ for (const r of rows) {
     console.log('  ' + r.page.padEnd(width) +
         '  캔버스 ' + String(r.canvases).padStart(2) +
         ' · 인라인 핸들러 ' + String(r.handlers).padStart(2) +
+        ' · 눌러 본 단추 ' + String(r.buttons).padStart(2) +
         (r.stubbed.length ? '   ← 가짜로 때운 것: ' + r.stubbed.join(', ') : ''));
 }
 

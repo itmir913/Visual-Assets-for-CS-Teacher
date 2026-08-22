@@ -252,6 +252,9 @@ table.table-prose { min-width: 32rem; }
 - **높이로 묶인 그림(`max-height`, 높이 고정 부모 + `h-full`)에는 정렬을 따로 주지 않는다.**
   `preserveAspectRatio` 기본값이 이미 가운데 놓는다.
 - `npm run audit:svg`가 둘 다 본다.
+- **메모리 도해처럼 새로 그리는 그림은 정해 둔 규격을 쓴다** &mdash; viewBox 576 ·
+  `max-w-xl` · `min-width:576px` · `font-size` 16 이상. 바닥과 천장이 같아 배율이 1이므로
+  **적은 수가 곧 화면 크기다** &rarr; [`docs/수정-레시피.md`](docs/수정-레시피.md)
 
 **바닥선도 함께 준다 — `min-width ≥ viewBox 폭 × 16 ÷ 가장 작은 font-size`.**
 SVG 글자는 그리는 폭에 비례해 줄어든다. `viewBox="0 0 560 200"`인 그림을 520px로 그리면

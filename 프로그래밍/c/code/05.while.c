@@ -1,9 +1,14 @@
-// ---
-// check: none
-// ---
-int i = 1;                    // ① 시작할 값
+#include <stdio.h>
 
-while (i <= 5) {              // ② 언제까지 돌 것인가
-    printf("%d번째 안녕하세요\n", i);
-    i = i + 1;                // ③ 다음 바퀴로 가려면 무엇이 달라져야 하는가
+int main(void) {
+    // region: 본문
+    int i = 1;                    // ① 시작할 값
+
+    while (i <= 5) {              // ② 언제까지 돌 것인가
+        printf("%d번째 안녕하세요\n", i);
+        i = i + 1;                // ③ 다음 바퀴로 가려면 무엇이 달라져야 하는가
+    }
+    // endregion
+
+    return 0;
 }

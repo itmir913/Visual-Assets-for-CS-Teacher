@@ -1,10 +1,15 @@
-// ---
-// check: none
-// ---
-int i = 1;
+#include <stdio.h>
 
-while (i <= 5) {
-    printf("%d\n", i);
-    // ③ 변화를 빠뜨렸다 → i가 영원히 1이라 조건이 영원히 참이다
+int main(void) {
+    // region: 본문
+    int i = 1;
+
+    while (i <= 5) {
+        printf("%d\n", i);
+        // ③ 변화를 빠뜨렸다 → i가 영원히 1이라 조건이 영원히 참이다
+    }
+    // 이 코드는 멈추지 않는다. 실행하면 Ctrl+C로 끊어야 한다
+    // endregion
+
+    return 0;
 }
-// 이 코드는 멈추지 않는다. 실행하면 Ctrl+C로 끊어야 한다

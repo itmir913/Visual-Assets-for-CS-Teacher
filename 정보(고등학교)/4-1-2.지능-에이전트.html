@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지능 에이전트</title>
+    <link rel="stylesheet" href="/src/styles/informatics.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-robot absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-tower-broadcast absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            지능 에이전트
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>알아서 해 주는 것</strong>은 예전에도 있었습니다.<br>
+            달라진 것은 <strong>겪어 보고 나아진다</strong>는 점입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>에이전트와 지능 에이전트를 <strong>학습과 추론이 있는지</strong>로 구별할 수 있다.</li>
+                    <li>지능 에이전트가 <strong>인식 &rarr; 학습 &rarr; 추론 &rarr; 행동</strong>의 차례로 동작함을 설명할 수 있다.</li>
+                    <li>지능 에이전트의 다섯 가지 특성을 예를 들어 설명할 수 있다.</li>
+                    <li>주변의 기기를 골라 그 동작을 네 단계로 나누어 분석할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-robot text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">지능 에이전트</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#agent" class="hover:text-teal-600 transition">에이전트</a>
+            <a href="#compare" class="hover:text-teal-600 transition">무엇이 다른가</a>
+            <a href="#how" class="hover:text-teal-600 transition">동작 원리</a>
+            <a href="#traits" class="hover:text-teal-600 transition">다섯 가지 특성</a>
+            <a href="#find" class="hover:text-teal-600 transition">가려내 보기</a>
+            <a href="#limits" class="hover:text-teal-600 transition">치러야 할 값</a>
+            <a href="#summary" class="hover:text-teal-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 에이전트 ══════════ -->
+    <section id="agent" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">대신 해 주는 것</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                횡단보도 신호등을 떠올려 봅시다. 아무도 지켜보고 있지 않아도
+                정해진 시간이 되면 초록불로 바뀌고, 또 정해진 시간이 지나면 빨간불로 돌아갑니다.
+                사람이 매번 눌러 주지 않아도 <strong>제 할 일을 대신 해 주고</strong> 있습니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">에이전트(agent)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    주어진 환경에서 <strong>특정한 일을 사람 대신 수행하는 것</strong>을 말합니다.
+                    빨래를 대신 하는 세탁기, 정해진 시각에 물을 주는 자동 급수기가 여기에 듭니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그런데 이 신호등에는 한계가 있습니다.
+                <strong>한밤중에 아무도 없는 길에서도 똑같이 초록불로 바뀌고</strong>,
+                등교 시간에 사람이 몰려도 <strong>주기는 그대로</strong>입니다.
+                <strong>미리 정해 둔 규칙 밖의 상황을 만나면 대응하지 못하기</strong> 때문입니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-teal-500 mr-1"></i>
+                    에이전트가 움직이는 방식은 <strong>&ldquo;이런 상태이면 이렇게 한다&rdquo;는 규칙의 목록</strong>입니다.
+                    규칙을 아무리 많이 적어 두어도 <strong>적어 두지 않은 상황</strong>은 남고,
+                    그 자리에서 에이전트는 멈추거나 엉뚱하게 움직입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 무엇이 다른가 ══════════ -->
+    <section id="compare" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">여기에 인공지능을 얹으면</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                같은 신호등에 카메라를 달고, 지나간 날들의 통행량을 쌓아
+                <strong>시간대마다 사람이 얼마나 건너는지 규칙을 스스로 찾게</strong> 했다고 해 봅시다.
+                이제 이 신호등은 등교 시간에는 초록불을 길게 주고, 한밤중에는 사람이 다가올 때만 바꿉니다.
+                <strong>겪은 것을 근거로 처음 만나는 상황에서도 판단</strong>합니다.
+            </p>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900">지능 에이전트(intelligent agent)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    에이전트에 인공지능을 결합해,
+                    <strong>주변을 인식하고 쌓인 데이터로 학습해 스스로 판단하며 행동하는 것</strong>을 말합니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">하는 일</th>
+                        <th>에이전트</th>
+                        <th>지능 에이전트</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">인식</td>
+                        <td>한다 &mdash; 시간이나 버튼을 읽는다</td>
+                        <td>한다 &mdash; 카메라 &middot; 센서로 주변을 읽는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">학습</td>
+                        <td class="text-rose-700 font-bold">하지 않는다</td>
+                        <td class="text-teal-700 font-bold">한다 &mdash; 쌓인 데이터에서 규칙을 찾는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">추론</td>
+                        <td class="text-rose-700 font-bold">하지 않는다</td>
+                        <td class="text-teal-700 font-bold">한다 &mdash; 배운 적 없는 상황도 비슷한 것에 비추어 판단한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">행동</td>
+                        <td>한다 &mdash; 정해진 대로 실행한다</td>
+                        <td>한다 &mdash; 판단한 대로 실행한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가르는 자리는 <strong>가운데 두 줄</strong>입니다.
+                <strong>겪은 것으로 나아지는가</strong>, 그리고
+                <strong>정해 두지 않은 상황을 넘길 수 있는가</strong> &mdash; 이 둘이 있으면 지능 에이전트입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                    실제 제품은 <strong>둘 중 하나로 딱 갈리지 않는 경우가 많습니다.</strong>
+                    대부분의 동작은 정해진 규칙으로 처리하고 <strong>일부만 학습에 맡기는</strong> 식으로 만들어집니다.
+                    그러니 &ldquo;이건 어느 쪽이냐&rdquo;보다 <strong>&ldquo;어느 대목에 학습이 들어가 있느냐&rdquo;</strong>로 보는 편이 낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                버튼을 누르면 초록불로 바꿔 주는 <strong>보행자 버튼식 신호등</strong>은 어느 쪽일까요?
+                &lsquo;주변을 읽는다&rsquo;는 것만으로 지능 에이전트가 되는지 <strong>표의 가운데 두 줄</strong>을 다시 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 동작 원리 ══════════ -->
+    <section id="how" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">네 단계로 돌아갑니다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지능 에이전트는 <strong>인식 &rarr; 학습 &rarr; 추론 &rarr; 행동</strong>의 차례로 움직이고,
+                행동한 결과가 다시 환경을 바꾸므로 <strong>이 네 단계를 목표에 이를 때까지 되돌아 반복</strong>합니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">① 인식</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>센서</strong>로 주변을 읽어 데이터를 모읍니다.
+                        센서는 빛 &middot; 소리 &middot; 온도 &middot; 움직임 같은 것을 재어
+                        컴퓨터가 다룰 수 있는 신호로 바꾸는 장치입니다.
+                        <span class="block mt-1 text-teal-700 font-bold">신호등 &mdash; 카메라로 건너려는 사람의 수를 읽는다</span>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">② 학습</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        모은 데이터에서 <strong>상황과 행동을 잇는 규칙</strong>을 찾습니다.
+                        <span class="block mt-1 text-teal-700 font-bold">신호등 &mdash; 요일 &middot; 시간대별로 사람이 얼마나 몰리는지 규칙을 얻는다</span>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">③ 추론</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        지금 상황에 <strong>배운 규칙을 비추어 무엇을 할지 정합니다.</strong>
+                        <span class="block mt-1 text-teal-700 font-bold">신호등 &mdash; 지금처럼 몰리는 때는 초록불을 더 길게 주기로 정한다</span>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">④ 행동</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        <strong>구동기</strong>를 움직여 정한 것을 실행합니다.
+                        구동기는 전기 신호를 받아 실제로 움직이거나 작동하는 장치입니다.
+                        <span class="block mt-1 text-teal-700 font-bold">신호등 &mdash; 초록불을 켜고 남은 시간을 표시한다</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-rotate text-teal-600 mr-1"></i>
+                    <strong>행동이 끝이 아닙니다.</strong> 초록불을 길게 준 결과로 사람들이 얼마나 건넜는지가
+                    <strong>다시 인식되어 데이터로 쌓입니다.</strong>
+                    이 되돌아오는 고리가 있어서 지능 에이전트는 <strong>쓸수록 그 자리에 맞게 다듬어집니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 신호등이 <strong>비 오는 날의 데이터를 한 번도 받지 못했다면</strong> 어떤 일이 생길까요?
+                네 단계 가운데 <strong>어느 단계에서 어긋나기</strong> 시작할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 다섯 가지 특성 ══════════ -->
+    <section id="traits" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다섯 가지 특성</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지능 에이전트가 갖는 성질을 다섯으로 나누어 부릅니다.
+                아래 예는 <strong>학교 실내 공기를 관리하는 환기 장치</strong>를 지능 에이전트로 만들었다고 보고 든 것입니다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">특성</th>
+                        <th>뜻</th>
+                        <th>환기 장치라면</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">자율성</td>
+                        <td>사람이 일일이 시키지 않아도 스스로 판단해 움직인다</td>
+                        <td>공기가 탁해지면 아무도 누르지 않아도 켜진다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">능동성</td>
+                        <td>반응만 하는 것이 아니라 <strong>목표를 이루려고 먼저 나선다</strong></td>
+                        <td>쉬는 시간이 다가오면 사람이 몰릴 것을 보고 미리 돌린다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">사회성</td>
+                        <td>사람이나 다른 기기와 <strong>주고받으며 함께 움직인다</strong></td>
+                        <td>창문 개폐 장치와 신호를 주고받아 함께 여닫는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">시간 연속성</td>
+                        <td>한 번 하고 끝나지 않고 <strong>계속 이어서 일한다</strong></td>
+                        <td>환기를 마친 뒤에도 공기 상태를 계속 지켜본다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">반응성</td>
+                        <td>환경이 달라지면 <strong>그에 맞게 대응한다</strong></td>
+                        <td>바깥 공기가 더 나쁜 날에는 창을 열지 않고 다르게 대응한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-600 leading-relaxed">
+                다섯 가지를 외우는 것이 목적이 아닙니다.
+                <strong>&lsquo;시키니까 한다&rsquo;와 &lsquo;알아서 한다&rsquo;가 어디에서 갈리는지</strong>를 보는 것이 목적입니다.
+                자율성과 능동성이 그 갈림을 가장 잘 보여 줍니다 &mdash;
+                <strong>시키지 않아도 하는 것</strong>과 <strong>먼저 나서는 것</strong>은 다릅니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 5. 가려내 보기 ══════════ -->
+    <section id="find" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">주변에서 가려내 봅시다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <p class="text-base text-slate-700 leading-relaxed">
+                기기 하나를 골라 <strong>네 단계로 쪼개어 적어 보면</strong> 어느 쪽인지 드러납니다.
+                <strong>학습 칸을 채울 수 없으면</strong> 그것은 규칙대로 움직이는 에이전트입니다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">고른 것</th>
+                        <th>인식</th>
+                        <th>학습</th>
+                        <th>행동</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">자동문</td>
+                        <td>앞에 사람이 있는지</td>
+                        <td class="text-rose-700 font-bold">없음</td>
+                        <td>문을 연다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">영상 추천</td>
+                        <td>무엇을 얼마나 보았는지</td>
+                        <td class="text-teal-700 font-bold">본 기록에서 취향의 규칙을 찾는다</td>
+                        <td>다음에 볼 것을 내놓는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">전기밥솥</td>
+                        <td>안쪽 온도</td>
+                        <td class="text-rose-700 font-bold">없음</td>
+                        <td>가열을 켜고 끈다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">말로 묻는 도우미</td>
+                        <td>말소리</td>
+                        <td class="text-teal-700 font-bold">수많은 말소리와 문장에서 규칙을 찾는다</td>
+                        <td>알아듣고 답한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-teal-500 mr-1"></i>
+                    가려낼 때 <strong>&lsquo;똑똑해 보이는가&rsquo;로 판단하지 않도록</strong> 조심하세요.
+                    자동문은 사람을 알아보고 열리니 똑똑해 보이지만,
+                    <strong>어제와 오늘의 동작이 달라지지 않습니다.</strong>
+                    반대로 화면이 단순한 기기라도 <strong>쓸수록 달라진다면</strong> 학습이 들어 있는 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                여러분이 쓰는 기기 하나를 골라 표의 네 칸을 채워 보세요.
+                <strong>학습 칸을 채웠다면</strong>, 그 기기는 <strong>무엇을 모아서</strong> 배우고 있을까요?
+                그것을 모아도 되는 것인지도 함께 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 6. 알아서 한다는 것의 값 ══════════ -->
+    <section id="limits" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">알아서 한다는 것의 값</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                스스로 판단한다는 것은 편리한 만큼 <strong>치러야 할 값</strong>도 있습니다.
+                지능 에이전트를 만들거나 들여놓을 때 미리 살펴야 할 것이 셋 있습니다.
+            </p>
+
+            <div class="space-y-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">
+                        <i class="fa-solid fa-1 text-teal-500 mr-1"></i>배운 적 없는 상황
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        학습은 <strong>쌓인 데이터 안에서만</strong> 이루어집니다.
+                        맑은 날의 통행량만 배운 신호등은 폭우가 쏟아지는 날 엉뚱한 주기를 고를 수 있습니다.
+                        규칙을 적어 두지 못해 막히는 것이 에이전트라면,
+                        <strong>겪어 보지 못해 헛짚는 것</strong>이 지능 에이전트입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">
+                        <i class="fa-solid fa-2 text-teal-500 mr-1"></i>목표를 잘못 준 경우
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        지능 에이전트는 <strong>사람이 준 목표를 이루는 쪽으로</strong> 판단합니다.
+                        신호등에 &lsquo;차가 멈추는 시간을 줄여라&rsquo;만 목표로 주면
+                        <strong>사람이 건널 시간을 자꾸 줄이는</strong> 쪽으로 나아갈 수 있습니다.
+                        기계가 잘못한 것이 아니라 <strong>시킨 것을 잘한</strong> 것입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">
+                        <i class="fa-solid fa-3 text-teal-500 mr-1"></i>무엇을 모으고 있는가
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        학습하려면 데이터를 모아야 하고, 그 데이터에는
+                        <strong>사람의 움직임이 담기는 경우가 많습니다.</strong>
+                        누가 언제 어디를 지났는지가 쌓이면 그것은 개인의 기록이 됩니다.
+                        <strong>얼마나 자세히 모을지, 얼마나 오래 두는지</strong>를 정해 두어야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-check text-teal-600 mr-1"></i>
+                    셋 모두 <strong>기계를 더 똑똑하게 만들어서 풀리는 문제가 아닙니다.</strong>
+                    어떤 데이터를 모을지, 어떤 목표를 줄지, 어디까지 기록할지는
+                    <strong>사람이 정해 주어야 하는 것</strong>들입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                앞의 환기 장치에 <strong>&lsquo;전기를 적게 쓰라&rsquo;는 목표만</strong> 준다면 어떤 일이 벌어질까요?
+                목표를 <strong>어떻게 고쳐 주어야</strong> 할지도 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 7. 핵심 정리 ══════════ -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">에이전트</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">agent</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>주어진 환경에서 <strong>특정한 일을 대신 수행하는 것</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>움직이는 근거는 <strong>미리 적어 둔 규칙의 목록</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>적어 두지 않은 상황에서는 <strong>대응하지 못한다</strong></span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">지능 에이전트</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">intelligent agent</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>에이전트에 <strong>인공지능을 결합</strong>한 것</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>가르는 자리는 <strong>학습과 추론</strong>이다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>실제 제품은 <strong>일부 대목에만 학습이 들어간</strong> 경우가 많다</span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">동작 원리</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">how it works</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>인식(센서) &rarr; 학습 &rarr; 추론 &rarr; 행동(구동기)</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>행동의 결과가 <strong>다시 인식되어</strong> 고리를 이룬다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>그래서 <strong>쓸수록 그 자리에 맞게 다듬어진다</strong></span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">다섯 가지 특성</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">five traits</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>자율성 &middot; 능동성 &middot; 사회성 &middot; 시간 연속성 &middot; 반응성</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span><strong>시키지 않아도 하는 것</strong>과 <strong>먼저 나서는 것</strong>은 다르다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>가려낼 때는 <strong>쓸수록 달라지는가</strong>를 본다</span></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 8. 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q1</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    에이전트와 지능 에이전트를 가르는 기준으로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '둘 다 주변을 읽습니다. 자동문도 앞에 사람이 있는지 인식합니다.')">
+                    ① 주변을 인식하는가
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '둘 다 행동합니다. 행동하지 않으면 애초에 에이전트가 아닙니다.')">
+                    ② 실제로 무언가를 움직이는가
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞습니다! 학습과 추론이 있으면 지능 에이전트입니다.')">
+                    ③ 겪은 것으로 학습하고 정해 두지 않은 상황을 추론하는가
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '겉모습이나 값으로 갈리지 않습니다. 안에서 무엇을 하는지로 갈립니다.')">
+                    ④ 값이 비싸고 최신 기기인가
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q2</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    지능 에이전트의 동작에서 <strong>구동기</strong>가 맡는 대목은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '주변을 읽어 신호로 바꾸는 것은 센서가 하는 일입니다.')">
+                    ① 주변을 읽어 데이터로 바꾼다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '데이터에서 규칙을 찾는 것은 학습 단계입니다.')">
+                    ② 데이터에서 규칙을 찾는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '무엇을 할지 정하는 것은 추론 단계입니다.')">
+                    ③ 지금 무엇을 할지 정한다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '정확합니다! 정한 것을 실제 움직임으로 옮기는 장치가 구동기입니다.')">
+                    ④ 정해진 행동을 실제로 실행한다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q3</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 설명에 해당하는 특성은? &mdash; <strong>&ldquo;쉬는 시간이 다가오면 사람이 몰릴 것을 보고 미리 환기를 시작한다&rdquo;</strong>
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '자율성은 시키지 않아도 스스로 판단해 움직인다는 뜻입니다. 여기서는 한 걸음 더 나아갔습니다.')">
+                    ① 자율성
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞습니다! 반응만 하는 것이 아니라 목표를 위해 먼저 나서는 것이 능동성입니다.')">
+                    ② 능동성
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '사회성은 사람이나 다른 기기와 주고받는 성질입니다.')">
+                    ③ 사회성
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '반응성은 환경이 달라졌을 때 그에 맞게 대응하는 성질입니다.')">
+                    ④ 반응성
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

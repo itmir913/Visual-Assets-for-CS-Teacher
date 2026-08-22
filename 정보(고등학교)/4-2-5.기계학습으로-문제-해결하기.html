@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기계학습으로 문제 해결하기</title>
+    <link rel="stylesheet" href="/src/styles/informatics.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #f0fdfa;
+            border-color: #5eead4;
+        }
+
+        .quiz-btn.correct {
+            background: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f0fdfa;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-list-check absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-gauge-high absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">정보</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            기계학습으로 문제 해결하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            문제 하나를 잡고 <strong>처음부터 끝까지</strong> 가 봅니다.<br>
+            어느 단계에서 <strong>무엇을 정하는지</strong>가 오늘의 과녁입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-teal-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>기계학습으로 문제를 해결하는 <strong>일곱 단계</strong>를 순서대로 말할 수 있다.</li>
+                    <li>문제 하나를 잡아 각 단계에서 <strong>무엇을 정해야 하는지</strong> 적을 수 있다.</li>
+                    <li>레이블과 맞히려는 값을 따져 <strong>알맞은 모델의 갈래</strong>를 고를 수 있다.</li>
+                    <li>성능을 재는 방법과, 성능이 나쁠 때 <strong>어느 단계로 돌아갈지</strong> 설명할 수 있다.</li>
+                    <li>만든 것을 실제로 쓸 때 <strong>살펴야 할 점</strong>을 들어 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-list-check text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">문제 해결하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#seven" class="hover:text-teal-600 transition">일곱 단계</a>
+            <a href="#walk" class="hover:text-teal-600 transition">한 바퀴</a>
+            <a href="#choose" class="hover:text-teal-600 transition">모델 고르기</a>
+            <a href="#eval" class="hover:text-teal-600 transition">재고 고치기</a>
+            <a href="#record" class="hover:text-teal-600 transition">남기는 것</a>
+            <a href="#apply" class="hover:text-teal-600 transition">쓸 때 살필 것</a>
+            <a href="#summary" class="hover:text-teal-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-teal-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 일곱 단계 ══════════ -->
+    <section id="seven" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">일곱 단계로 나눕니다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞에서 기계학습이 무엇인지, 어떤 갈래가 있는지, 어떤 문제에 쓰는지를 보았습니다.
+                이제 그것을 <strong>실제로 굴리는 순서</strong>로 세워 봅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-12">단계</th>
+                        <th class="w-40">이름</th>
+                        <th>여기서 하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1</td>
+                        <td class="font-bold">문제 정의</td>
+                        <td>무엇을 맞히게 할지 한 문장으로 적고, 어떤 데이터가 필요할지 생각한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2</td>
+                        <td class="font-bold">데이터 수집</td>
+                        <td>필요한 데이터를 모은다. <strong>양과 질이 성능을 좌우한다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3</td>
+                        <td class="font-bold">데이터 전처리</td>
+                        <td>속성을 확인하고, 학습할 수 있는 형태로 다듬는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4</td>
+                        <td class="font-bold">모델 선정</td>
+                        <td>문제에 맞는 학습 방법과 모델의 갈래를 고른다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">5</td>
+                        <td class="font-bold">학습과 모델 생성</td>
+                        <td>고른 모델에 훈련 데이터를 학습시킨다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">6</td>
+                        <td class="font-bold">성능 평가와 개선</td>
+                        <td>따로 남겨 둔 데이터로 얼마나 맞히는지 재고, 나쁘면 고친다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">7</td>
+                        <td class="font-bold">모델 적용</td>
+                        <td>실제 문제에 쓰고, 쓰면서 드러나는 것을 살핀다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-rotate text-teal-600 mr-1"></i>
+                    번호가 붙어 있지만 <strong>한 줄로 흐르지 않습니다.</strong>
+                    6단계에서 성능이 나쁘면 3단계나 2단계로 돌아가고,
+                    때로는 1단계로 돌아가 문제를 다시 적습니다.
+                    <strong>돌아가는 것은 잘못된 것이 아니라 원래 그런 것</strong>입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 한 바퀴 ══════════ -->
+    <section id="walk" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">한 바퀴 돌아봅시다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-5 space-y-1">
+                <p class="font-black text-base text-teal-700">잡은 문제</p>
+                <p class="text-lg font-black text-slate-800 leading-relaxed">
+                    학교 정수기의 물이 <strong>하루에 얼마나 쓰일지</strong> 미리 가늠할 수 있을까?
+                </p>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    미리 알면 물통을 <strong>언제 갈아 두어야 할지</strong> 정할 수 있습니다.
+                </p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">1단계 &mdash; 문제 정의</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        맞히려는 값을 <strong>&lsquo;그날 쓰인 물의 양(L)&rsquo;</strong>로 못박습니다.
+                        근거로 삼을 값은 <strong>그날의 최고 기온, 요일, 체육 수업이 든 학급 수</strong>로 정합니다.
+                        &ldquo;물을 아끼자&rdquo; 같은 문장으로 두면 무엇을 세야 할지 정해지지 않습니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">2단계 &mdash; 데이터 수집</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        정수기의 <strong>날마다 남은 양</strong>을 기록해 쓰인 양을 구하고,
+                        기온은 공개된 관측 자료에서 받아 옵니다.
+                        <strong>며칠 치를 모을지, 언제까지 모을지</strong>를 먼저 정해 둡니다.
+                        시험 기간만 모으면 <strong>평소를 배우지 못합니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-teal-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">3단계 &mdash; 데이터 전처리</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        두 자료를 <strong>날짜로 이어 붙이고</strong>, 재지 못한 날의 빈칸을 어떻게 할지 정합니다.
+                        요일은 글자이므로 <strong>숫자로 바꾸어</strong> 둡니다.
+                        휴업일처럼 <strong>아예 학교를 쓰지 않은 날</strong>은 빼기로 합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">4단계 &mdash; 모델 선정</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        답이 붙은 데이터가 있으니 <strong>지도학습</strong>이고,
+                        맞히려는 값이 수치이니 <strong>회귀</strong>입니다.
+                        &ldquo;많이 쓴 날 &middot; 적게 쓴 날&rdquo;을 가리기로 했다면 분류가 되었을 것입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">5단계 &mdash; 학습과 모델 생성</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        모은 데이터를 <strong>훈련용과 시험용으로 나눕니다.</strong>
+                        훈련용으로만 학습시키고 <strong>시험용은 손대지 않고 남겨 둡니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">6단계 &mdash; 성능 평가와 개선</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        남겨 둔 시험용 데이터를 넣어 <strong>실제 값과 얼마나 벌어지는지</strong> 봅니다.
+                        많이 벌어진다면 어느 단계로 돌아갈지 정합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">7단계 &mdash; 모델 적용</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        내일의 기온과 요일을 넣어 <strong>내일 쓰일 양</strong>을 가늠해 보고,
+                        물통을 갈 날을 정하는 데 참고합니다.
+                        <strong>쓰면서 어긋난 날을 적어 두면</strong> 다음에 고칠 거리가 됩니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                5단계에서 <strong>시험용 데이터로도 학습을 시켜 버리면</strong> 무슨 일이 생길까요?
+                성능을 재는 일이 왜 <strong>배운 적 없는 데이터로</strong> 이루어져야 하는지 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 모델 고르기 ══════════ -->
+    <section id="choose" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계에서 갈리는 길</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                모델을 고르는 일은 <strong>물음 두 개로 갈라집니다.</strong>
+                외울 것이 아니라, 앞에서 배운 것을 순서대로 놓아 본 것입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg class="w-full h-auto max-w-[660px] mx-auto" style="min-width:660px" viewBox="0 0 660 300"
+                     xmlns="http://www.w3.org/2000/svg" role="img"
+                     aria-label="레이블이 있으면 지도학습으로 가고 맞히려는 값이 범주면 분류 수치면 회귀, 레이블이 없으면 비지도학습의 군집으로 가는 갈림길 그림">
+                    <rect fill="#ffffff" height="300" width="660" x="0" y="0"></rect>
+
+                    <rect fill="#e2e8f0" height="46" rx="12" stroke="#64748b" stroke-width="2" width="250" x="205"
+                          y="10"></rect>
+                    <text fill="#1e293b" font-size="16" font-weight="700" text-anchor="middle" x="330" y="39">답(레이블)이
+                        붙어 있는가?
+                    </text>
+
+                    <defs>
+                        <marker id="ar-t3" markerHeight="7" markerWidth="7" orient="auto" refX="6" refY="3.5"
+                                viewBox="0 0 8 7">
+                            <path d="M0,0 L8,3.5 L0,7 z" fill="#0d9488"></path>
+                        </marker>
+                    </defs>
+
+                    <path d="M255,60 L160,60 L160,92" fill="none" marker-end="url(#ar-t3)" stroke="#0d9488"
+                          stroke-width="2.5"></path>
+                    <text fill="#0f766e" font-size="16" font-weight="700" text-anchor="middle" x="196" y="82">있다</text>
+                    <path d="M405,60 L520,60 L520,92" fill="none" marker-end="url(#ar-t3)" stroke="#0d9488"
+                          stroke-width="2.5"></path>
+                    <text fill="#0f766e" font-size="16" font-weight="700" text-anchor="middle" x="562" y="82">없다</text>
+
+                    <rect fill="#ccfbf1" height="44" rx="12" stroke="#0d9488" stroke-width="2" width="150" x="85"
+                          y="100"></rect>
+                    <text fill="#0f766e" font-size="16" font-weight="700" text-anchor="middle" x="160" y="128">지도학습
+                    </text>
+                    <rect fill="#ede9fe" height="44" rx="12" stroke="#7c3aed" stroke-width="2" width="150" x="445"
+                          y="100"></rect>
+                    <text fill="#5b21b6" font-size="16" font-weight="700" text-anchor="middle" x="520" y="128">비지도학습
+                    </text>
+
+                    <line marker-end="url(#ar-t3)" stroke="#0d9488" stroke-width="2.5" x1="160" x2="160" y1="148"
+                          y2="176"></line>
+                    <rect fill="#f1f5f9" height="44" rx="12" stroke="#64748b" stroke-width="2" width="260" x="30"
+                          y="184"></rect>
+                    <text fill="#1e293b" font-size="16" font-weight="700" text-anchor="middle" x="160" y="212">맞히려는 값이
+                        범주인가?
+                    </text>
+
+                    <path d="M75,228 L75,258" fill="none" marker-end="url(#ar-t3)" stroke="#0d9488"
+                          stroke-width="2.5"></path>
+                    <path d="M245,228 L245,258" fill="none" marker-end="url(#ar-t3)" stroke="#0d9488"
+                          stroke-width="2.5"></path>
+                    <rect fill="#ccfbf1" height="34" rx="10" stroke="#0d9488" stroke-width="2" width="110" x="20"
+                          y="262"></rect>
+                    <text fill="#0f766e" font-size="16" font-weight="700" text-anchor="middle" x="75" y="285">분류</text>
+                    <rect fill="#ccfbf1" height="34" rx="10" stroke="#0d9488" stroke-width="2" width="110" x="190"
+                          y="262"></rect>
+                    <text fill="#0f766e" font-size="16" font-weight="700" text-anchor="middle" x="245" y="285">회귀</text>
+
+                    <line marker-end="url(#ar-t3)" stroke="#7c3aed" stroke-width="2.5" x1="520" x2="520" y1="148"
+                          y2="258"></line>
+                    <rect fill="#ede9fe" height="34" rx="10" stroke="#7c3aed" stroke-width="2" width="110" x="465"
+                          y="262"></rect>
+                    <text fill="#5b21b6" font-size="16" font-weight="700" text-anchor="middle" x="520" y="285">군집</text>
+                </svg>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-teal-500 mr-1"></i>
+                    갈림길의 <strong>첫 물음은 데이터를 보고</strong> 답하고,
+                    <strong>둘째 물음은 우리가 무엇을 묻기로 했는지를 보고</strong> 답합니다.
+                    그래서 같은 데이터라도 <strong>1단계에서 문제를 어떻게 적었느냐에 따라 가는 길이 달라집니다.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 재고 고치기 ══════════ -->
+    <section id="eval" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">재고, 고치고, 다시 잽니다</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                모델을 만들었다고 끝이 아닙니다. <strong>얼마나 쓸 만한지 재어 보아야</strong> 합니다.
+                이때 지켜야 할 것이 하나 있습니다 &mdash;
+                <strong>학습에 쓴 데이터로 성능을 재지 않는다.</strong>
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">훈련 데이터</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        모델을 <strong>가르치는 데</strong> 쓰는 데이터입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">시험 데이터</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        학습에 쓰지 않고 남겨 두었다가 <strong>성능을 재는 데</strong> 쓰는 데이터입니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가르칠 때 보여 준 문제로 시험을 보면 <strong>누구나 잘 맞힙니다.</strong>
+                그것은 <strong>외운 것이지 배운 것이 아닙니다.</strong>
+                처음 보는 데이터에서 얼마나 하는지를 봐야 <strong>실제로 쓸 때의 모습</strong>을 알 수 있습니다.
+            </p>
+
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-base text-teal-900">성능이 나쁠 때 어디로 돌아가나</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>어느 한 갈래만 유난히 못 맞힌다</strong> &rarr; 2단계. 그 갈래의 예가 너무 적었던 것이다.</li>
+                    <li><strong>값이 통째로 이상하다</strong> &rarr; 3단계. 단위가 섞였거나 빈칸을 잘못 메웠을 수 있다.</li>
+                    <li><strong>맞힐 수 있는 정보가 애초에 없다</strong> &rarr; 1단계. 근거로 삼은 값이 답과 상관이 적었던 것이다.</li>
+                </ul>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                    고칠 때는 <strong>한 번에 하나만 바꿉니다.</strong>
+                    데이터를 더 모으면서 모델도 바꾸고 설정도 만지면,
+                    성능이 올라가도 <strong>무엇 덕분인지 알 수 없습니다.</strong>
+                    바꾼 것과 그때의 값을 <strong>한 줄씩 적어 두는</strong> 것까지가 6단계입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 단계마다 남기는 것 ══════════ -->
+    <section id="record" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계마다 무엇을 남기나</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <p class="text-base text-slate-700 leading-relaxed">
+                돌아가는 일이 잦기 때문에 <strong>지나온 자리마다 흔적을 남겨 두어야</strong> 합니다.
+                남겨 두지 않으면 성능이 좋아졌을 때 <strong>무엇 덕분인지 알 수 없고</strong>,
+                모둠원끼리 <strong>같은 자리를 두 번 헤매게</strong> 됩니다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-40">단계</th>
+                        <th>남겨 두는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">문제 정의</td>
+                        <td>맞히려는 값과 근거로 삼을 값을 적은 <strong>한 문장</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">데이터 수집</td>
+                        <td>원본 파일과 <strong>어디서 언제 받았는지</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">데이터 전처리</td>
+                        <td>무엇을 버리고 무엇을 채웠는지, <strong>그렇게 한 까닭</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">모델 선정과 학습</td>
+                        <td>고른 갈래와 <strong>왜 그것을 골랐는지</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">성능 평가</td>
+                        <td>잰 값과 <strong>다음에 바꿔 볼 것 한 가지</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">적용</td>
+                        <td>실제로 쓰면서 <strong>어긋난 날과 그때의 상황</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-teal-50 border-2 border-teal-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-check text-teal-600 mr-1"></i>
+                    이 기록이 곧 <strong>보고서의 절반</strong>이 됩니다.
+                    발표할 때 &ldquo;성능이 이만큼 나왔습니다&rdquo;만 말하는 것과,
+                    <strong>&ldquo;무엇을 바꿨더니 어떻게 달라졌습니다&rdquo;</strong>를 말하는 것은 전혀 다릅니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 5. 쓸 때 살필 것 ══════════ -->
+    <section id="apply" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">실제로 쓸 때 살필 것</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                7단계는 &ldquo;다 만들었으니 쓴다&rdquo;가 아닙니다.
+                <strong>만든 것이 사람들 사이에 놓이는 순간</strong>이라, 여기서 새로 살펴야 할 것이 생깁니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">배운 적 없는 상황</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        학기 중 데이터로만 배운 모델을 <strong>방학에 쓰면</strong> 어긋납니다.
+                        <strong>어떤 상황은 배우지 못했다</strong>는 것을 함께 적어 두어야 합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">틀렸을 때의 대가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        물통을 늦게 가는 정도라면 감당할 수 있습니다.
+                        <strong>사람에 관한 결정</strong>이라면 사람이 확인하는 단계를 사이에 둡니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">모으는 데이터</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        쓰면서 데이터가 계속 쌓입니다.
+                        그 안에 <strong>누구인지 알아볼 수 있는 값</strong>이 들어가고 있지는 않은지 봅니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-800">다른 데 쓰이는 것</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        물 사용량을 가늠하려고 만든 것이
+                        <strong>어느 반이 많이 쓰는지 따지는 데</strong> 쓰일 수도 있습니다.
+                        <strong>쓸 자리를 좁혀 적어 두면</strong> 그런 일을 줄일 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 넷은 <strong>모델을 더 잘 만들어서 없앨 수 있는 문제가 아닙니다.</strong>
+                무엇을 모을지, 어디에 쓸지, 틀리면 어떻게 할지는
+                <strong>만드는 사람과 쓰는 사람이 정해야 하는 것</strong>입니다.
+                기계학습으로 문제를 해결한다는 말에는 <strong>여기까지가 들어 있습니다.</strong>
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 주변의 문제를 하나 골라 <strong>일곱 단계를 한 줄씩</strong> 적어 보세요.
+                적다가 <strong>막히는 칸</strong>이 나왔다면, 그 칸이 바로 이 문제에서 <strong>가장 먼저 풀어야 할 일</strong>입니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 6. 핵심 정리 ══════════ -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-teal-500">
+                <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">일곱 단계</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">seven steps</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>문제 정의 &rarr; 수집 &rarr; 전처리 &rarr; <strong>모델 선정</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>학습 &rarr; <strong>성능 평가와 개선</strong> &rarr; 적용</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-teal-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>한 줄로 흐르지 않는다 &mdash; <strong>돌아가는 것이 정상</strong></span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">모델 고르기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">choosing the model</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>레이블이 <strong>있으면 지도학습</strong>, 없으면 비지도학습</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>맞히려는 값이 <strong>범주면 분류, 수치면 회귀</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>둘째 물음의 답은 <strong>1단계에서 어떻게 적었느냐</strong>가 정한다</span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">성능 재기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">evaluating</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>훈련 데이터와 <strong>시험 데이터를 나눈다</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>가르칠 때 본 문제로 시험 보면 <strong>외운 것을 재는 것</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>고칠 때는 <strong>한 번에 하나만</strong>, 그리고 적어 둔다</span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">쓸 때 살필 것</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">when it goes live</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span><strong>배우지 못한 상황</strong>을 밝혀 적는다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>사람에 관한 결정에는 <strong>사람이 확인하는 단계</strong>를 둔다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span><strong>쓸 자리를 좁혀 적어</strong> 다른 데 쓰이는 것을 줄인다</span></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 7. 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-teal-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q1</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    학습에 쓴 데이터로 성능을 재면 안 되는 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞습니다! 가르칠 때 본 문제로 시험을 보면 외운 것을 재게 됩니다.')">
+                    ① 이미 본 데이터라 잘 맞히는 것이 당연해서
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '데이터가 줄어드는 것은 나누기의 결과이지 그 까닭이 아닙니다.')">
+                    ② 학습에 쓸 데이터가 줄어들어서
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '시간이 오래 걸리는 것과는 상관이 없습니다.')">
+                    ③ 성능을 재는 데 시간이 오래 걸려서
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '레이블이 사라지지 않습니다. 그대로 남아 있습니다.')">
+                    ④ 레이블이 사라져서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q2</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    전체 성능은 괜찮은데 <strong>어느 한 갈래만 유난히 못 맞히고</strong> 있습니다. 어디로 돌아가는 것이 알맞을까?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '정확합니다! 그 갈래의 예가 적었을 가능성이 큽니다. 데이터를 더 모읍니다.')">
+                    ① 2단계 &mdash; 그 갈래의 데이터를 더 모은다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '성능을 재는 방법만 바꾸면 문제는 그대로 남습니다.')">
+                    ② 6단계에 머물며 재는 방법만 바꾼다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞히려는 대상을 통째로 바꿀 만큼 큰 문제는 아닙니다.')">
+                    ③ 1단계 &mdash; 맞힐 대상을 통째로 바꾼다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '여러 가지를 한꺼번에 바꾸면 무엇 덕분에 좋아졌는지 알 수 없게 됩니다.')">
+                    ④ 데이터 · 모델 · 설정을 한꺼번에 바꿔 본다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q3</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    &ldquo;그날 쓰인 물의 양&rdquo;을 맞히려 합니다. 4단계에서 고를 갈래는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '지난 기록에 실제 사용량이 남아 있으므로 레이블이 있는 셈입니다.')">
+                    ① 레이블이 없으므로 군집
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '맞히려는 값이 갈래가 아니라 수치입니다.')">
+                    ② 지도학습의 분류
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞습니다! 답이 붙어 있으니 지도학습이고, 맞히려는 값이 수치이니 회귀입니다.')">
+                    ③ 지도학습의 회귀
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '데이터를 모으기 전에도 무엇을 맞힐지 정했다면 갈래를 고를 수 있습니다.')">
+                    ④ 데이터를 다 모으기 전에는 정할 수 없다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #0d9488; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

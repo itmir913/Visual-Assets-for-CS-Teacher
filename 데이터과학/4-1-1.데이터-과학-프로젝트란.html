@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 과학 프로젝트란</title>
+    <link rel="stylesheet" href="/src/styles/data-science.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
+
+        .quiz-btn.correct {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        
+        
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-diagram-project absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-flag-checkered absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">데이터 과학</span>
+        <h1 class="text-3xl md:text-5xl font-black mb-6 leading-tight break-keep">
+            데이터 과학 프로젝트란
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            <strong>지금까지 배운 것은 전부 조각이었습니다.</strong><br>
+            이제 그 조각을 <strong>질문 하나에 꿰어</strong> 봅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-indigo-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터 과학 프로젝트가 어떤 일을 하는 활동인지 설명할 수 있다.</li>
+                    <li>프로젝트의 여섯 단계를 순서대로 말하고, 각 단계에서 하는 일을 설명할 수 있다.</li>
+                    <li>앞 단계로 되돌아가야 하는 상황을 예를 들어 설명할 수 있다.</li>
+                    <li>여러 분야에서 데이터 과학이 쓰이는 자리를 조사하여, 어떤 데이터로 무엇을 알아냈는지 정리할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-diagram-project text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">프로젝트란</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-indigo-600 transition">왜 프로젝트인가</a>
+            <a href="#steps" class="hover:text-indigo-600 transition">여섯 단계</a>
+            <a href="#walk" class="hover:text-indigo-600 transition">한 바퀴</a>
+            <a href="#loop" class="hover:text-indigo-600 transition">되돌아가기</a>
+            <a href="#cases" class="hover:text-indigo-600 transition">쓰이는 자리</a>
+            <a href="#ai" class="hover:text-indigo-600 transition">AI 정리</a>
+            <a href="#summary" class="hover:text-indigo-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-indigo-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 왜 프로젝트인가 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">조각을 한 줄로 잇습니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                배운 것을 <strong>하나씩 꺼내 쓰는 일</strong>과
+                <strong>차례로 이어 쓰는 일</strong>은 전혀 다릅니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지 우리는 데이터를 모으는 법, 빠진 값을 메우는 법, 그림으로 그려 보는 법,
+                그리고 회귀 &middot; 군집 &middot; 연관으로 관계를 찾는 법을 배웠습니다.
+                그런데 매번 <strong>이미 골라진 데이터</strong>가 앞에 놓여 있었고,
+                <strong>무엇을 알아볼지도 이미 정해져</strong> 있었습니다.
+            </p>
+            <p class="text-base text-slate-700 leading-relaxed">
+                프로젝트는 그 <strong>정해져 있던 부분을 여러분이 직접 정하는</strong> 활동입니다.
+                무엇이 궁금한지 스스로 문장으로 쓰고, 그 문장에 답할 데이터를 찾아오고,
+                답을 얻은 뒤에는 <strong>다른 사람이 검토할 수 있는 형태</strong>로 내놓습니다.
+            </p>
+
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-indigo-900">
+                    <i class="fa-solid fa-flag mr-1"></i>데이터 과학 프로젝트(data science project)
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>데이터로 답할 수 있는 질문 하나</strong>를 정하고,
+                    데이터를 모아 다듬고 분석해 <strong>그 질문에 대한 답을 끝까지 밀고 간 다음</strong>,
+                    어떻게 그 답에 이르렀는지를 <strong>남이 따라올 수 있게 밝히는</strong> 활동.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+                    데이터가 스스로 답을 내놓는 것이 아닙니다.
+                    <strong>질문을 던지는 것도, 나온 값에 뜻을 붙이는 것도 사람</strong>입니다.
+                    데이터는 그 사이에서 <strong>근거</strong>가 되어 줄 뿐입니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 여섯 단계 ===== -->
+    <section id="steps" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">여섯 단계로 나누어 봅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                단계를 나누는 까닭은 <strong>지금 어디에 서 있는지</strong> 알기 위해서입니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-sky-700">단계 1</p>
+                    <p class="font-black text-lg text-slate-800">문제 정의하기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        무엇을 알고 싶은지 <strong>한 문장</strong>으로 쓴다.
+                        데이터로 답할 수 있는 문장인지 따져 본다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-sky-700">단계 2</p>
+                    <p class="font-black text-lg text-slate-800">데이터 수집 및 특성 파악하기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        그 문장에 답할 데이터를 구한다.
+                        <strong>어디서 온 데이터인지</strong>, 열이 각각 무엇인지 확인한다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-sky-700">단계 3</p>
+                    <p class="font-black text-lg text-slate-800">데이터 전처리하기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        빠진 값과 튀는 값을 살피고, 필요하면 자료형을 고치거나 값의 범위를 맞춘다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border-2 border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-violet-700">단계 4</p>
+                    <p class="font-black text-lg text-slate-800">탐색적 데이터 분석하기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        그림과 통계값으로 <strong>데이터의 생김새</strong>를 먼저 본다.
+                        분포와 관계를 눈으로 확인한다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border-2 border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-violet-700">단계 5</p>
+                    <p class="font-black text-lg text-slate-800">데이터 모델링하기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        문제에 맞는 방법을 골라 모델을 만들고,
+                        <strong>성능 지표로 확인해</strong> 더 나은 쪽을 택한다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border-2 border-violet-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-violet-700">단계 6</p>
+                    <p class="font-black text-lg text-slate-800">결과 해석 및 공유하기</p>
+                    <p class="text-base text-slate-600 leading-relaxed">
+                        나온 값에 <strong>뜻을 붙여 결론</strong>을 쓰고,
+                        과정을 밝혀 다른 사람과 나눈다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞의 <strong>세 단계는 데이터를 쓸 수 있게 만드는 일</strong>이고,
+                <strong>뒤의 세 단계는 그 데이터에서 답을 꺼내는 일</strong>입니다.
+                해 보면 알겠지만 대개 앞의 세 단계가 훨씬 오래 걸립니다.
+                분석이 화려해 보여도 <strong>일의 대부분은 데이터를 손보는 데</strong> 들어갑니다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-4">
+            <h3 class="text-xl font-black text-slate-800">
+                <i class="fa-solid fa-link text-indigo-500 mr-1"></i>이미 배운 자리와 이어 봅시다
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">단계</th>
+                        <th>이 단계에서 결정하는 것</th>
+                        <th>배운 자리</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 문제 정의</td>
+                        <td>무엇을 알아낼 값으로 두고, 무엇을 그 근거로 볼 것인가</td>
+                        <td><a href="2-1-1.문제-정의와-데이터-수집.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">문제 정의와 데이터 수집</a></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 수집 &middot; 특성</td>
+                        <td>어디서 구할 것인가, 각 열이 무슨 속성인가</td>
+                        <td><a href="2-1-2.수집한-데이터의-특성.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">수집한 데이터의 특성</a></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 전처리</td>
+                        <td>결측치 &middot; 이상치를 어떻게 다룰 것인가</td>
+                        <td><a href="2-2-1.데이터-전처리.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">데이터 전처리</a></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 탐색적 분석</td>
+                        <td>어떤 그림과 어떤 통계값으로 볼 것인가</td>
+                        <td><a href="2-3-1.탐색적-데이터-분석.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">탐색적 데이터 분석</a></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">5 모델링</td>
+                        <td>회귀 &middot; 군집 &middot; 연관 가운데 무엇을 쓸 것인가</td>
+                        <td><a href="3-1-1.데이터-모델의-이해.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">데이터 모델의 이해</a></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">6 해석 &middot; 공유</td>
+                        <td>이 값이 무엇을 뜻하는가, 무엇까지는 말할 수 없는가</td>
+                        <td><a href="3-2-4.회귀-분석-활용.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">회귀 분석 활용</a></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-base text-slate-600 leading-relaxed">
+                표를 보면 알 수 있듯이 <strong>새로 배울 기술은 하나도 없습니다.</strong>
+                프로젝트가 어려운 것은 기술 때문이 아니라
+                <strong>그 결정을 아무도 대신 내려 주지 않기</strong> 때문입니다.
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;우리 학교 학생들은 점심시간에 주로 어디에 있을까?&rdquo;라는 궁금증이 있습니다.
+                이것을 <strong>단계 1의 한 문장</strong>으로 다시 쓰려면 무엇을 더 정해야 할까요?
+                <strong>무엇을 세어야 답이 되는지</strong>부터 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section: 한 바퀴 미리 돌아보기 ===== -->
+    <section id="walk" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">작은 예로 한 바퀴 돌아봅니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                단계마다 <strong>무엇을 결정하게 되는지</strong> 미리 느껴 봅시다.
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5">
+                <p class="font-black text-base text-indigo-700 mb-1">가져온 궁금증</p>
+                <p class="text-lg font-black text-slate-800 leading-relaxed">
+                    &ldquo;우리 학교 앞 정류장은 아침에 늘 붐비는데, 정말 그럴까?&rdquo;
+                </p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-slate-50 border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-sky-700 mb-1">단계 1 &mdash; 물음을 다듬는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        &lsquo;붐빈다&rsquo;를 무엇으로 셀지 정합니다.
+                        <strong>시간대별 승차 인원</strong>으로 두기로 합니다.
+                        그러면 물음은 &ldquo;이 정류장의 시간대별 승차 인원은 어떻게 다를까?&rdquo;가 됩니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-sky-700 mb-1">단계 2 &mdash; 데이터를 구한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        버스 정류장별 승하차 인원은 <strong>공개된 자료로 받을 수 있습니다.</strong>
+                        받아 보니 정류장 이름, 날짜, 시간대, 승차 인원, 하차 인원 열이 있습니다.
+                        <strong>언제부터 언제까지의 기록인지</strong>부터 적어 둡니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-sky-500 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-sky-700 mb-1">단계 3 &mdash; 쓸 수 있게 만든다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        정류장 이름이 <strong>표기가 조금씩 다르게</strong> 여러 개로 나뉘어 있습니다.
+                        같은 정류장으로 묶고, 인원이 비어 있는 행을 어떻게 할지 정합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-violet-700 mb-1">단계 4 &mdash; 그려 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        시간대를 가로축에 두고 평균 승차 인원을 그려 봅니다.
+                        여기서 <strong>&ldquo;늘 붐빈다&rdquo;가 맞는지</strong>가 처음으로 눈에 보입니다.
+                        방학과 학기가 섞여 있다면 그것도 이때 드러납니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-violet-700 mb-1">단계 5 &mdash; 모델을 만든다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        시간대와 요일로 <strong>승차 인원을 예측하는 회귀 모델</strong>을 만들어 봅니다.
+                        얼마나 맞히는지 성능 지표로 확인합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border-l-4 border-l-violet-500 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-violet-700 mb-1">단계 6 &mdash; 뜻을 붙인다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        &ldquo;아침 등교 시간대의 승차 인원이 다른 시간대보다 많았다&rdquo;처럼
+                        <strong>본 것을 그대로</strong> 적습니다.
+                        그리고 이 결과를 누구에게 어떻게 보일지 정합니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                눈여겨볼 것은 <strong>단계 1에서 &lsquo;붐빈다&rsquo;를 승차 인원으로 바꾼 결정</strong>입니다.
+                그것을 <strong>정류장에 서 있는 사람 수</strong>로 정했다면 전혀 다른 데이터를 모으고
+                전혀 다른 결론에 이르렀을 것입니다.
+                단계 1의 한 줄이 나머지 다섯 단계를 <strong>거의 다 정해 버립니다.</strong>
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 되돌아가기 ===== -->
+    <section id="loop" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계는 되돌아옵니다</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                1에서 6까지 <strong>한 번에 곧게 가는 프로젝트는 드뭅니다.</strong>
+            </p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                단계를 번호로 적어 두면 계단처럼 보이지만, 실제로는 앞으로 갔다가
+                <strong>몇 칸 뒤로 물러나기를 반복</strong>하게 됩니다.
+                뒤로 물러나는 것은 잘못해서가 아니라,
+                <strong>해 보기 전에는 알 수 없던 것을 그제야 알게 되었기</strong> 때문입니다.
+            </p>
+
+            <div class="space-y-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-slate-800 mb-1">
+                        <i class="fa-solid fa-rotate-left text-rose-500 mr-1"></i>단계 4에서 단계 2로
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        그림을 그려 보니 <strong>필요한 시기의 기록이 통째로 빠져</strong> 있습니다.
+                        데이터를 더 구해 오거나, 다룰 기간을 좁혀야 합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-slate-800 mb-1">
+                        <i class="fa-solid fa-rotate-left text-rose-500 mr-1"></i>단계 5에서 단계 3으로
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        모델의 성능이 지나치게 나쁩니다. 값을 다시 보니
+                        <strong>단위가 크게 다른 열이 섞여</strong> 있었습니다. 값의 범위를 맞추는 일부터 다시 합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p class="font-black text-base text-slate-800 mb-1">
+                        <i class="fa-solid fa-rotate-left text-rose-500 mr-1"></i>단계 6에서 단계 1로
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        결과가 나왔는데 <strong>처음 궁금해했던 것에 답이 되지 않습니다.</strong>
+                        질문이 데이터와 어긋나 있었던 것이므로, 질문을 고쳐 다시 시작합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>
+                    그래서 <strong>기록을 남기는 일이 중요합니다.</strong>
+                    어떤 값을 왜 버렸는지, 왜 이 방법을 골랐는지를 적어 두지 않으면
+                    뒤로 돌아갔을 때 <strong>같은 자리를 두 번 헤매게</strong> 됩니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 쓰이는 자리 ===== -->
+    <section id="cases" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어떤 자리에서 쓰일까요</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">
+                분야는 달라도 <strong>여섯 단계의 모양은 같습니다.</strong>
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-base text-sky-600 uppercase tracking-widest">교통</p>
+                <h3 class="text-xl font-black text-slate-800">버스 배차를 손볼 자리 찾기</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    교통카드 승하차 기록에는 <strong>어느 정류장에서 몇 시에 몇 명이 탔는지</strong>가 남습니다.
+                    시간대별로 묶어 보면 사람이 몰리는 구간과 한산한 구간이 갈리고,
+                    배차 간격을 어디부터 손볼지 <strong>근거를 갖고</strong> 말할 수 있습니다.
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-base text-rose-600 uppercase tracking-widest">보건</p>
+                <h3 class="text-xl font-black text-slate-800">응급실이 붐비는 때 알아내기</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    환자가 도착한 시각 기록을 요일 &middot; 시간대로 나누어 보면
+                    <strong>붐비는 때가 몰려 있는지 고르게 퍼져 있는지</strong>가 드러납니다.
+                    붐비는 때를 미리 알면 그 시간대에 사람을 더 배치할 수 있습니다.
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-base text-emerald-600 uppercase tracking-widest">환경</p>
+                <h3 class="text-xl font-black text-slate-800">하천 수질이 나빠지는 때 찾기</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    하천 여러 지점에서 정기적으로 잰 수질 측정값을 시간 순으로 늘어놓으면
+                    <strong>어느 계절, 어느 지점에서 값이 크게 흔들리는지</strong>를 볼 수 있습니다.
+                    사람이 일일이 돌아보지 않아도 <strong>먼저 살펴볼 곳</strong>을 좁힐 수 있습니다.
+                </p>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-base text-violet-600 uppercase tracking-widest">문화</p>
+                <h3 class="text-xl font-black text-slate-800">도서관 서가를 어떻게 배치할까</h3>
+                <p class="text-base text-slate-600 leading-relaxed">
+                    대출 기록을 보면 <strong>어떤 분야의 책이 함께 빌려지는지</strong>가 보입니다.
+                    Ⅲ단원에서 다룬 <a href="3-4-1.연관-분석의-이해.html" class="text-indigo-600 font-bold underline hover:text-indigo-800">연관 분석</a>이
+                    그대로 쓰이는 자리이고, 책을 어느 서가 옆에 놓을지 정하는 데에도 쓰입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-4">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                위 네 가지는 <strong>어떤 데이터로 무엇을 알아낼 수 있는지</strong>를 보이려고 든 예입니다.
+                특정 기관이 실제로 진행한 사업을 가리키는 것이 아니니,
+                여러분이 관심 있는 분야에서 <strong>실제 사례를 직접 찾아보세요.</strong>
+            </p>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-base text-slate-800">찾을 때 이 세 가지를 함께 적어 둡니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>어떤 데이터를 썼는가</strong> &mdash; 무엇을 언제부터 언제까지 모은 값인가</li>
+                    <li><strong>무엇을 알아냈는가</strong> &mdash; 한 문장으로 쓸 수 있는가</li>
+                    <li><strong>그래서 무엇이 달라졌는가</strong> &mdash; 알아낸 것이 어떤 결정에 쓰였는가</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200
+                    border-l-4 border-l-sky-500 rounded-2xl px-6 py-5
+                    flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 사례 가운데 <strong>회귀 &middot; 군집 &middot; 연관</strong> 중 무엇을 쓸지
+                가장 분명하게 정해지는 것은 어느 것일까요?
+                <strong>그 사례의 질문이 무엇을 묻고 있는지</strong>를 먼저 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: AI와 함께 정리하기 ===== -->
+    <section id="ai" class="scroll-mt-24">
+        <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-3xl p-8 text-white">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2 class="text-2xl font-black">AI와 함께 정리하기</h2>
+            </div>
+            <div class="bg-white/10 rounded-2xl p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-sky-200 text-lg shrink-0">Q.</span>
+                    <p class="text-base text-white font-bold leading-relaxed">
+                        단계를 꼭 순서대로 지켜야 해? 그냥 데이터 넣고 돌려 보면 안 되나?
+                    </p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-black text-indigo-200 text-lg shrink-0">A.</span>
+                    <p class="text-base text-white leading-relaxed">
+                        돌려 볼 수는 있고, 값도 나옵니다. 문제는
+                        <strong class="text-sky-200">그 값이 쓸 만한지 아닌지를 알 방법이 없다</strong>는 것입니다.
+                        무엇을 물었는지 적어 두지 않았으면 <strong class="text-indigo-200">답이 나와도 답인 줄 모르고</strong>,
+                        데이터를 어떻게 손봤는지 적어 두지 않았으면
+                        <strong class="text-sky-200">이상한 값이 나와도 어디서 어긋났는지 되짚을 수 없습니다.</strong>
+                        단계는 순서를 강요하려고 나눈 것이 아니라
+                        <strong class="text-indigo-200">되돌아갈 자리를 만들어 두려고</strong> 나눈 것입니다.
+                        그래서 앞뒤로 오가는 것은 괜찮지만,
+                        <strong class="text-sky-200">건너뛴 단계는 대개 나중에 돌아와서 발목을 잡습니다.</strong>
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-pen text-sky-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">질문이 먼저다</p>
+                    <p class="text-base text-sky-100">한 문장으로 쓸 수 있어야 한다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-broom text-emerald-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">앞 세 단계가 길다</p>
+                    <p class="text-base text-sky-100">일의 대부분은 데이터 손질이다</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4">
+                    <i class="fa-solid fa-rotate text-amber-200 text-xl mb-2 block"></i>
+                    <p class="font-bold text-base text-white mb-1">되돌아가도 된다</p>
+                    <p class="text-base text-sky-100">대신 기록을 남긴다</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">데이터 과학 프로젝트</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">data science project</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>데이터로 답할 <strong>질문 하나</strong>에서 시작한다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>답을 <strong>끝까지 밀고 가서</strong> 결론을 낸다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>과정을 밝혀 <strong>남이 검토할 수 있게</strong> 내놓는다</span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">여섯 단계</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">six stages</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>문제 정의 &rarr; 수집 &middot; 특성 &rarr; 전처리</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>탐색적 분석 &rarr; 모델링 &rarr; 해석 &middot; 공유</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>앞 셋은 <strong>쓸 수 있게 만드는 일</strong>, 뒤 셋은 <strong>답을 꺼내는 일</strong></span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500">
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">되돌아가는 과정</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">an iterative process</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>곧게 한 번에 가는 프로젝트는 <strong>드물다</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>해 보기 전에는 <strong>알 수 없던 것</strong>이 드러나기 때문이다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-rose-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>그래서 <strong>왜 그렇게 했는지 기록</strong>을 남긴다</span></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">쓰이는 자리</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">where it is used</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>분야가 달라도 <strong>여섯 단계의 모양은 같다</strong></span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>사례는 <strong>데이터 &middot; 알아낸 것 &middot; 달라진 것</strong>으로 정리한다</span></li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0" style="font-size:0.5rem"></i><span>질문의 모양이 <strong>쓸 방법</strong>을 좁혀 준다</span></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 7: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q1</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    모델을 만들다가 <strong>단위가 크게 다른 열이 섞여 있는 것</strong>을 발견했습니다. 어느 단계로 돌아가야 할까?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '질문 자체가 어긋난 것은 아닙니다. 값을 손보면 되는 문제입니다.')">
+                    ① 단계 1 문제 정의로 돌아간다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '데이터를 더 모아도 단위가 다른 것은 그대로입니다.')">
+                    ② 단계 2로 돌아가 데이터를 더 모은다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞습니다! 값의 범위를 맞추는 일은 전처리 단계에서 합니다.')">
+                    ③ 단계 3 전처리로 돌아간다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '그대로 두고 결론을 쓰면, 단위가 큰 열에만 끌려간 모델을 설명하게 됩니다.')">
+                    ④ 그대로 두고 단계 6에서 설명만 덧붙인다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q2</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    프로젝트에서 <strong>단계를 여섯으로 나누어 두는</strong> 까닭으로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '순서를 어기면 안 된다는 규칙이 아닙니다. 실제로는 앞뒤로 오갑니다.')">
+                    ① 정해진 순서를 어기지 못하게 하려고
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '정확합니다! 지금 어디에 있는지 알아야 어디로 돌아갈지도 정할 수 있습니다.')">
+                    ② 지금 어디에 있고 어디로 돌아갈지 알 수 있게 하려고
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '단계를 나눈다고 시간이 줄지는 않습니다. 오히려 적어 둘 것이 늘어납니다.')">
+                    ③ 프로젝트에 걸리는 시간을 줄이려고
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '모델의 성능은 데이터와 방법이 정합니다. 단계를 나눈다고 올라가지 않습니다.')">
+                    ④ 모델의 성능을 높이려고
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">Q3</div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    프로젝트에서 <strong>데이터가 대신해 주지 않는 일</strong>은 무엇일까?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '값이 어떻게 퍼져 있는지는 데이터를 그려 보면 드러납니다.')">
+                    ① 값이 어떻게 퍼져 있는지 보여 주는 일
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '두 열이 함께 움직이는지도 데이터에서 확인할 수 있습니다.')">
+                    ② 두 열이 함께 움직이는지 보여 주는 일
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '맞습니다! 무엇을 물을지 정하는 것은 언제나 사람의 몫입니다.')">
+                    ③ 무엇을 물을지 정하는 일
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '빠진 값이 어디에 있는지는 데이터를 살펴보면 드러납니다.')">
+                    ④ 빠진 값이 어디에 있는지 드러내는 일
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #4f46e5; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>함수 포인터</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/16-함수-포인터.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-arrow-pointer absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-code absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            함수 포인터
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            지금까지 포인터가 가리킨 것은 자료였습니다.<br>
+            <strong>그런데 함수도 메모리에 놓여 있습니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>함수 이름이 함수가 놓인 자리를 뜻한다는 것을 설명할 수 있다.</li>
+                    <li>함수 포인터를 선언하고 괄호가 왜 있어야 하는지 설명할 수 있다.</li>
+                    <li>함수를 넘겨받아 동작이 달라지는 함수를 만들 수 있다.</li>
+                    <li>함수 포인터 배열로 여럿 가운데 골라 쓸 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-arrow-pointer text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">함수 포인터</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#addr" class="hover:text-orange-600 transition">함수에도 자리가 있다</a>
+            <a href="#shape" class="hover:text-orange-600 transition">모양 읽는 법</a>
+            <a href="#pass" class="hover:text-orange-600 transition">동작을 넘기기</a>
+            <a href="#pick" class="hover:text-orange-600 transition">골라 쓰기</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 함수에도 자리가 있다 ===== -->
+    <section id="addr" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">함수에도 자리가 있다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">메모리에 놓이는 것은 자료만이 아닙니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                프로그램을 돌리면 <strong>변수만 메모리에 놓이는 것이 아닙니다.</strong>
+                <strong>「무엇을 하라」는 명령들도 메모리에 올라가야</strong> 컴퓨터가 하나씩 읽어 실행합니다.
+                함수는 그 명령들을 묶어 놓은 것이니 <strong>함수도 메모리 어딘가에 놓여 있고,
+                따라서 자리 번호를 가집니다.</strong>
+            </p>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">배열 이름과 같은 이야기입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    배열 이름은 <strong>첫 칸이 있는 자리</strong>를 뜻했습니다.
+                    <strong>함수 이름도 그 함수가 놓인 자리</strong>를 뜻합니다.
+                    그래서 <code>&amp;</code>를 붙이지 않고 <strong>이름을 그대로</strong> 씁니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    닮은 점이 하나 더 있습니다. <strong>함수 이름도 변수가 아닙니다.</strong>
+                    <code>twice = square;</code>라고 쓸 수 없습니다 &mdash;
+                    <strong>이름은 「거기 있다」를 뜻할 뿐 값을 담는 자리가 아니기</strong> 때문입니다.
+                    <strong>담아 두고 바꿔 쓰려면 그것을 담을 변수가 따로</strong> 있어야 합니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/16.주소.c"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900"><code>fp(10)</code>이 <code>twice(10)</code>과 똑같이 돕니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>fp</code>에 담긴 것은 <strong><code>twice</code>가 놓인 자리</strong>입니다.
+                    그 자리를 괄호와 함께 쓰면 <strong>「거기 있는 명령들을 실행하라」</strong>가 됩니다.
+                    그래서 <strong>결과가 같습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>fp == twice</code>가 참인 것도 확인해 두세요.
+                    <strong>담긴 번호가 같다</strong>는 뜻입니다.
+                    포인터끼리 <code>==</code>로 물으면 <strong>같은 곳을 가리키는지</strong>를 답한다는
+                    규칙이 그대로 적용됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>fp = square;</code>로 갈아 끼운 뒤 <code>fp(10)</code>을 부르면 무엇이 나올까요? <code>twice</code>는 그대로일까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 모양 읽는 법 ===== -->
+    <section id="shape" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">모양 읽는 법</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이 차시에서 가장 낯선 것은 문법의 생김새입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>int (*fp)(int);</code>는 지금까지 본 선언과 모양이 다릅니다.
+                <strong>세 조각으로 끊어 읽으면</strong> 뜻이 보입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">조각</th>
+                        <th class="w-40">무엇을 정하나</th>
+                        <th>읽는 말</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>(*fp)</code></td>
+                        <td>이름과 포인터라는 것</td>
+                        <td><code>fp</code>는 <strong>가리키는 변수</strong>인데</td>
+                    </tr>
+                    <tr>
+                        <td><code>(int)</code></td>
+                        <td>가리킬 함수가 <strong>받는 것</strong></td>
+                        <td>정수 하나를 받아서</td>
+                    </tr>
+                    <tr>
+                        <td>맨 앞 <code>int</code></td>
+                        <td>가리킬 함수가 <strong>돌려주는 것</strong></td>
+                        <td>정수를 돌려주는 함수를 가리킨다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">가리킬 함수의 「모양」이 곧 자료형입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int *</code>가 <strong>「정수를 가리킨다」</strong>였듯,
+                    함수 포인터는 <strong>「이런 모양의 함수를 가리킨다」</strong>입니다.
+                    모양을 이루는 것은 <strong>돌려주는 종류와 받는 것들</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 <strong>모양이 다르면 담을 수 없습니다.</strong>
+                    <code>int (*fp)(int)</code>에 <strong>정수 둘을 받는 함수</strong>를 담으려 하면
+                    컴파일러가 붙잡습니다. <strong>「몇 칸을 읽을지」가 자료형이었던 것처럼
+                    여기서는 「어떻게 부를지」가 자료형</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>괄호를 빼면 아예 다른 것이 됩니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int *fp(int);</code>이라고 쓰면 <strong>「정수를 받아 정수의 자리를 돌려주는 «함수»」</strong>를
+                    선언한 것이 됩니다. <strong>변수가 아니라 함수</strong>입니다.
+                    그래서 <code>fp = twice;</code>라고 담으려 하면
+                    <strong>「담을 수 있는 자리가 아니다」</strong>라며 컴파일이 멈춥니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>괄호는 <code>*</code>를 이름에 먼저 붙이라는 표시</strong>입니다.
+                    괄호가 없으면 뒤의 <code>()</code>가 먼저 붙어 <strong>「함수」로 읽히기</strong> 때문입니다.
+                    <code>(*out)[i]</code>에서 괄호를 씌운 것과 <strong>같은 까닭</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>부를 때는 <code>fp(10)</code>으로 씁니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>(*fp)(10)</code>이라고 적은 코드도 볼 수 있습니다. <strong>둘 다 됩니다.</strong>
+                    <strong>「따라가서 부른다」는 뜻을 드러내려고</strong> 앞의 방식을 쓰기도 하는데,
+                    <strong>이 강의노트에서는 짧은 쪽으로 통일</strong>합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">실수 둘을 받아 실수를 돌려주는 함수를 가리키려면 어떻게 적어야 할까요? 세 조각을 하나씩 채워 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 동작을 넘기기 ===== -->
+    <section id="pass" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">동작을 넘기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">함수 포인터를 왜 만드는지가 여기서 드러납니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지 함수에 넘긴 것은 <strong>「무엇을」</strong>이었습니다 &mdash; 숫자, 배열, 자리 번호.
+                함수 포인터를 넘기면 <strong>「무엇을 할지」</strong>까지 넘길 수 있습니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/16.넘기기.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">같은 함수가 두 가지 일을 합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>apply</code>는 <strong>「배열을 하나씩 훑어 찍는다」는 뼈대만</strong> 갖고 있습니다.
+                    <strong>각 칸에 무엇을 하는지는 정해 두지 않았습니다.</strong>
+                    그것을 <strong>부르는 쪽이 넣어 줍니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    함수 포인터가 없다면 <strong><code>apply_twice</code>와 <code>apply_square</code>를
+                    따로 만들어야</strong> 했을 것입니다.
+                    훑는 부분은 <strong>글자 하나 다르지 않은데도</strong> 말입니다.
+                    <strong>「같은 일이 여러 곳에」 있으면 묶는다</strong>던 함수의 요점이
+                    <strong>한 겹 더 올라간 것</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">쓰는 쪽에서는 이름만 적습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>apply(data, 5, twice)</code>에서 <strong><code>twice</code> 뒤에 괄호가 없는 것</strong>을 보세요.
+                    <strong><code>twice(…)</code>라고 적으면 「지금 불러서 그 결과를 넘겨라」</strong>가 되고,
+                    <strong><code>twice</code>라고만 적으면 「이 함수 자체를 넘겨라」</strong>가 됩니다.
+                    <strong>괄호 하나가 「부르기」와 「가리키기」를 가릅니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">칸마다 값을 찍지 않고 <strong>바꿔 넣고</strong> 싶다면 <code>apply</code>를 어떻게 고쳐야 할까요? 배열은 이미 자리로 넘어와 있습니다.</p>
+        </div>
+    </section>
+
+    <!-- ===== 골라 쓰기 ===== -->
+    <section id="pick" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">골라 쓰기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">담을 수 있으면 배열에도 담을 수 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                함수 포인터도 <strong>값을 담는 변수</strong>이니 <strong>배열로 여럿 늘어놓을 수</strong> 있습니다.
+                그러면 <strong>첨자 하나로 「어느 동작을 쓸지」를 고르게</strong> 됩니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/16.전체.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900"><code>int (*op[3])(int, int)</code>을 끊어 읽습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    가운데가 <code>*op[3]</code>이므로 <strong><code>op</code>는 셋짜리 배열</strong>이고,
+                    <strong>담는 것은 포인터</strong>이며, <strong>가리킬 함수는 정수 둘을 받아 정수를 돌려줍니다.</strong>
+                    <strong>안에서 밖으로 읽어 나가면</strong> 아무리 길어도 풀립니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>op[i](a, b)</code>는 <strong><code>i</code>번째에 담긴 함수를 부르는</strong> 것입니다.
+                    <strong><code>if</code>·<code>switch</code>로 갈래를 벌여 놓는 대신 첨자 하나로 고르는 것</strong>이라,
+                    <strong>동작을 더할 때 배열에 한 줄만 보태면</strong> 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>첨자가 칸 밖으로 나가면 더 위험합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    배열의 칸 밖을 짚으면 <strong>엉뚱한 값이 나온다</strong>고 했습니다.
+                    함수 포인터 배열에서는 <strong>엉뚱한 값을 「실행」하려 듭니다.</strong>
+                    <strong>고를 번호가 밖에서 들어온다면 범위를 먼저 확인</strong>해야 합니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>필요할 때만 씁니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    함수 포인터는 <strong>코드를 읽는 사람에게서 「지금 무엇이 불리는지」를 감춥니다.</strong>
+                    <code>op[i](a, b)</code>라는 줄만 봐서는 <strong>더하는지 곱하는지 알 수 없습니다.</strong>
+                    <strong>갈래가 두셋뿐이라면 <code>if</code>로 또박또박 적는 편이 읽기 쉽습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>값이 있는 자리는 「동작을 나중에 정해야 할 때」</strong>입니다 &mdash;
+                    쓰는 사람이 고르게 하거나, 뼈대만 만들어 두고 <strong>세부를 나중에 끼워 넣을 때</strong>요.
+                    <strong>포인터를 쓸 수 있다고 늘 쓰는 것이 낫지는 않다</strong>는 말이 여기에도 그대로 적용됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">나눗셈을 더하려면 어디를 고쳐야 할까요? 0으로 나누는 경우는 어디서 막아야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">함수 이름도 자리다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    명령들도 메모리에 놓이므로 함수에도 주소가 있다.
+                    <strong>배열 이름처럼 <code>&amp;</code> 없이 그대로</strong> 쓰고,
+                    <strong>배열 이름처럼 변수가 아니다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">모양이 자료형이다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>돌려주는 종류와 받는 것들</strong>이 「어떤 함수를 가리킬 수 있는지」를 정한다.
+                    <strong>모양이 다르면 담을 수 없다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">괄호가 뜻을 가른다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int (*fp)(int)</code>는 변수, <code>int *fp(int)</code>는 함수다.
+                    넘길 때도 <strong><code>twice</code>는 가리키기, <code>twice()</code>는 부르기</strong>다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">동작을 나중에 정한다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    뼈대는 한 번만 만들고 <strong>무엇을 할지는 부르는 쪽이</strong> 넣는다.
+                    다만 <strong>읽는 사람에게서 「지금 무엇이 불리는지」를 감추므로</strong>
+                    필요할 때만 쓴다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>int (*fp)(int);</code>와 <code>int *fp(int);</code>의 차이는?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '괄호가 있으면 별표가 이름에 먼저 붙어 변수가 되고, 없으면 뒤의 괄호가 먼저 붙어 함수 선언이 됩니다.')">
+                    ① 앞은 포인터 <strong>변수</strong>, 뒤는 <strong>함수</strong> 선언이다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '반대입니다. 괄호로 묶어야 이름이 포인터가 됩니다.')">
+                    ② 앞은 함수 선언, 뒤는 포인터 변수다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '괄호가 뜻을 완전히 바꿉니다. 보기 좋으라고 넣은 것이 아닙니다.')">
+                    ③ 뜻은 같고 보기만 다르다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '둘 다 문법에 맞는 선언입니다. 다만 뜻이 다릅니다.')">
+                    ④ 뒤의 것은 문법에 어긋난다
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>apply(data, 5, twice);</code>에서 <code>twice</code> 뒤에 괄호를 붙여 <code>twice()</code>로 쓰면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '똑같지 않습니다. 괄호는 「지금 부르라」는 표시입니다.')">
+                    ① 똑같이 동작한다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '괄호는 「지금 불러서 그 결과를 넘겨라」는 뜻이라 함수 자체를 넘기는 것이 아니게 됩니다.')">
+                    ② 함수를 넘기는 것이 아니라 <strong>부른 결과</strong>를 넘기려는 뜻이 된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '괄호를 붙이는 것이 규칙이 아닙니다. 넘길 때는 이름만 적습니다.')">
+                    ③ 그렇게 붙이는 것이 올바른 표기다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '주소가 넘어가는 것은 괄호를 «붙이지 않았을» 때입니다.')">
+                    ④ 주소가 두 번 넘어간다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 함수 포인터를 쓰기에 알맞은 상황은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '뼈대는 같고 세부 동작만 달라질 때가 함수 포인터가 값을 하는 자리입니다.')">
+                    ① 훑는 방법은 같고 칸마다 할 일만 달라질 때
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '갈래가 둘뿐이면 if로 또박또박 적는 편이 읽기 쉽습니다.')">
+                    ② 갈래가 둘뿐이고 앞으로도 늘지 않을 때
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '함수 포인터는 부르는 방법을 바꿀 뿐 빠르게 만들어 주지 않습니다.')">
+                    ③ 프로그램을 빠르게 만들고 싶을 때
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '오히려 「지금 무엇이 불리는지」를 감춥니다. 읽기 쉬워지지 않습니다.')">
+                    ④ 코드를 누구나 읽기 쉽게 만들고 싶을 때
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

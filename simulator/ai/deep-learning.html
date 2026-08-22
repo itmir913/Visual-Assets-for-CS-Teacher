@@ -112,17 +112,17 @@
             min-height: 520px;
         }
 
-        /* 좁은 화면에서는 신경망을 «위에서 아래로» 쌓으므로 키가 더 있어야 한다.
+        /* 세로로 쌓았을 때만 키를 늘린다. **화면 폭이 아니라 «그림 칸의 폭»이 기준이다** —
+           1024px 위에서는 그림 칸이 두 칸짜리 격자의 왼쪽이라 도로 좁아지므로,
+           미디어 쿼리로는 맞출 수 없다. 표시는 스크립트가 붙인다.
            키가 늘면 노드 반지름이 커져 안에 든 숫자가 함께 커진다. */
-        @media (max-width: 639px) {
-            .net-stage {
-                min-height: 33rem;
-            }
+        .net-stage.is-stacked {
+            min-height: 33rem;
+        }
 
-            /* 경사하강법은 그림이 둘이라 더 필요하다. */
-            .gd-stage {
-                min-height: 38rem;
-            }
+        /* 경사하강법은 그림이 둘이라 더 필요하다. */
+        .gd-stage.is-stacked {
+            min-height: 38rem;
         }
 
         @media (min-width: 1024px) {
@@ -285,7 +285,7 @@
                     <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
                         <span id="gdStepLabel">준비</span>
                     </div>
-                    <div class="min-w-0 sm:min-w-[36rem] h-full relative">
+                    <div class="min-w-0 h-full relative">
                         <canvas id="gdCanvas" class="absolute inset-0 w-full h-full block touch-none"></canvas>
                     </div>
                 </div>
@@ -543,7 +543,7 @@
                     <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
                         <span id="fpStepLabel">준비</span>
                     </div>
-                    <div class="min-w-0 sm:min-w-[36rem] h-full relative">
+                    <div class="min-w-0 h-full relative">
                         <canvas id="fpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
                     </div>
                 </div>
@@ -642,7 +642,7 @@
                     <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
                         <span id="bpStepLabel">준비</span>
                     </div>
-                    <div class="min-w-0 sm:min-w-[36rem] h-full relative">
+                    <div class="min-w-0 h-full relative">
                         <canvas id="bpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
                     </div>
                 </div>
@@ -1320,6 +1320,7 @@
 
         resize() {
             if (!this.canvas) return;
+            markStacked(this.canvas, GD_STACK_W);
             const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
@@ -1417,7 +1418,12 @@
             const LV = this.lossView();
             if (this.mode === 'data') {
                 const SV = this.scatterView();
-                ctx.fillText('데이터와 모델  예측값 = w × x', (SV.x0 + SV.x1) / 2, SV.titleY ?? titleY);
+                /* 나란히 놓았을 때 칸이 좁으면 제목이 y축 이름과 겹친다.
+                   재 보고 안 들어가면 짧은 이름만 쓴다 — 식은 오른쪽 설명에 그대로 있다. */
+                const full = '데이터와 모델  예측값 = w × x';
+                const room = SV.x1 - SV.x0;
+                ctx.fillText(ctx.measureText(full).width <= room - 8 ? full : '데이터와 모델',
+                    (SV.x0 + SV.x1) / 2, SV.titleY ?? titleY);
                 this.drawScatter(ctx, SV);
             }
             ctx.fillStyle = '#64748b';
@@ -2335,6 +2341,15 @@
         return L.vertical ? {x: v, y: 0} : {x: 0, y: v};
     }
 
+    /* 그림 칸이 좁으면 세로로 쌓고, 쌓을 때는 키를 늘려야 한다.
+       **폭만 보고 정하므로 키가 바뀌어도 판정이 흔들리지 않는다** — 되돌이가 생길 수 없다. */
+    function markStacked(canvas, limit) {
+        // 점검 하네스의 가짜 캔버스에는 closest도 classList도 없다. 없으면 그냥 넘어간다.
+        if (!canvas || typeof canvas.closest !== 'function') return;
+        const box = canvas.closest('.net-stage, .gd-stage');
+        if (box && box.classList) box.classList.toggle('is-stacked', box.clientWidth < limit);
+    }
+
     function netLayoutStacked(w, h) {
         const left = 56;                       // 층 이름이 앉는 왼쪽 띠
         const top = NET_BADGE_BAND;
@@ -2607,6 +2622,7 @@
         },
 
         resize() {
+            markStacked(this.canvas, NET_STACK_W);
             const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;
@@ -3090,6 +3106,7 @@
 
         resize() {
             if (!this.canvas) return;
+            markStacked(this.canvas, NET_STACK_W);
             const dims = window.fitCanvas(this.canvas, this.ctx);
             this.logicalWidth = dims.w;
             this.logicalHeight = dims.h;

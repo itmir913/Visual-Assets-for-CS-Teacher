@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>포인터를 가리키는 포인터</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/15-포인터를-가리키는-포인터.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-link absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-sitemap absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            포인터를 가리키는 포인터
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            값을 바꾸려고 값의 자리를 넘겼습니다.<br>
+            <strong>그러면 포인터를 바꾸려면 무엇을 넘겨야 할까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>포인터도 변수라 자기 자리가 따로 있다는 것을 확인할 수 있다.</li>
+                    <li>별표를 하나 더 붙여 선언하고 두 번 따라가 값을 읽고 바꿀 수 있다.</li>
+                    <li>함수가 포인터 자체를 바꾸게 하려면 무엇을 넘겨야 하는지 설명할 수 있다.</li>
+                    <li>줄마다 따로 빌린 표를 만들고 올바른 순서로 돌려줄 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-link text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">포인터를 가리키는 포인터</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#self" class="hover:text-orange-600 transition">포인터의 자리</a>
+            <a href="#double" class="hover:text-orange-600 transition">별표를 하나 더</a>
+            <a href="#func" class="hover:text-orange-600 transition">포인터를 바꾸는 함수</a>
+            <a href="#grid" class="hover:text-orange-600 transition">줄마다 따로 빌린 표</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 포인터의 자리 ===== -->
+    <section id="self" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">포인터의 자리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이미 말해 둔 사실을 눈으로 볼 차례입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                포인터를 배울 때 <strong>「포인터도 변수라 자기 자리가 따로 있다」</strong>고 했습니다.
+                <code>p</code>는 <strong>「저기」라고 적어 둔 쪽지</strong>인데,
+                <strong>그 쪽지도 어딘가에 놓여 있어야</strong> 합니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/15.자리.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">번호가 둘 나옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>p</code>는 <strong><code>num</code>이 있는 자리</strong>를 담고 있고,
+                    <code>&amp;p</code>는 <strong><code>p</code> 자신이 놓인 자리</strong>입니다.
+                    <strong>둘은 다른 번호</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    변수 앞에 <code>&amp;</code>를 붙이면 그 변수의 자리가 나왔습니다.
+                    <strong>포인터도 변수이니 예외가 아닙니다.</strong>
+                    특별한 규칙이 새로 생긴 것이 아니라 <strong>이미 있는 규칙을 한 번 더 적용</strong>한 것뿐입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그렇다면 <strong><code>&amp;p</code>가 내놓는 그 번호도 어딘가에 담아 둘 수</strong> 있어야 합니다.
+                    주소를 담는 변수가 포인터였으니, <strong>포인터의 주소를 담는 변수</strong>도 있어야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>p</code>가 <code>num</code>을 가리키게 한 뒤 <code>p = &amp;other;</code>로 바꾸면, <code>&amp;p</code>가 내는 번호도 함께 달라질까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 별표를 하나 더 ===== -->
+    <section id="double" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">별표를 하나 더</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">한 번 더 따라가면 되는 일입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>int *p</code>가 <strong>「정수를 가리키는 포인터」</strong>였으니,
+                <code>int **q</code>는 <strong>「정수를 가리키는 포인터를 가리키는 포인터」</strong>입니다.
+                <strong>뒤에서부터 읽으면 그대로 뜻이 됩니다.</strong>
+                이런 것을 <strong>이중 포인터</strong>라고 부릅니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/15.이중.c"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">적은 것</th>
+                        <th class="w-44">무엇이 나오나</th>
+                        <th>어떻게 읽나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>q</code></td>
+                        <td><code>p</code>가 있는 자리</td>
+                        <td>따라가지 않고 담긴 번호 그대로</td>
+                    </tr>
+                    <tr>
+                        <td><code>*q</code></td>
+                        <td><code>num</code>이 있는 자리</td>
+                        <td>한 번 따라가면 <code>p</code>에 담긴 것이 나온다</td>
+                    </tr>
+                    <tr>
+                        <td><code>**q</code></td>
+                        <td><code>60</code></td>
+                        <td>두 번 따라가면 값에 닿는다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">별표 하나가 한 걸음입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>따라가야 할 걸음 수만큼 별표를 붙인다</strong>고 보면 헷갈리지 않습니다.
+                    <code>num</code>까지 <strong>두 걸음</strong>이니 <code>**q</code>이고,
+                    <code>p</code>까지는 <strong>한 걸음</strong>이니 <code>*q</code>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만이 아니라 바꾸기도 됩니다.</strong>
+                    <code>**q = 99;</code>는 <strong>두 걸음 따라가 <code>num</code>을 바꿉니다.</strong>
+                    <code>*q = &amp;other;</code>라고 쓰면 <strong>한 걸음만 가서 <code>p</code>를 바꿉니다</strong> &mdash;
+                    <strong>별표 개수가 무엇을 손대는지를 정합니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-slate-400 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">세 개, 네 개도 문법상 됩니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int ***r</code>도 만들 수 있습니다. <strong>다만 실제로 쓰는 일은 드뭅니다.</strong>
+                    걸음이 늘수록 <strong>사람이 따라가기가 급격히 어려워지고</strong>,
+                    그렇게까지 겹쳐야 한다면 <strong>구조를 달리 짜는 편이 나은 경우가 많기</strong> 때문입니다.
+                    <strong>「할 수 있다」와 「그렇게 쓴다」는 다릅니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>*q = NULL;</code>을 실행하면 무엇이 <code>NULL</code>이 될까요? <code>num</code>은 어떻게 될까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 포인터를 바꾸는 함수 ===== -->
+    <section id="func" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">포인터를 바꾸는 함수</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이중 포인터가 실제로 필요해지는 자리입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                자리를 빌리는 일을 <strong>함수에 맡기고 싶다고</strong> 해 봅시다.
+                함수 안에서 <code>malloc</code>을 하고 <strong>그 결과를 부른 쪽이 받아야</strong> 합니다.
+                그런데 <code>void make(int *out)</code>이라고 적고 <code>out = malloc(…)</code>을 하면
+                <strong>바뀌는 것은 사본뿐</strong>입니다 &mdash; 함수를 배울 때 본 그 문제 그대로입니다.
+            </p>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">규칙은 언제나 같습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「무엇을 바꾸고 싶으면 그것이 있는 자리를 넘긴다」</strong>입니다.
+                    정수를 바꾸고 싶어서 <code>int *</code>를 넘겼습니다.
+                    이번에 바꾸고 싶은 것은 <strong>포인터</strong>이니 <strong><code>int **</code>를 넘깁니다.</strong>
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/15.함수.c"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900"><code>&amp;data</code>를 넘기고 <code>*out</code>에 담습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>make(&amp;data, 5)</code>는 <strong><code>data</code>가 있는 자리</strong>를 알려 줍니다.
+                    함수 안의 <code>*out = malloc(…)</code>은 <strong>그 자리에 빌린 번호를 써 넣는</strong> 것이라
+                    <strong>부른 쪽의 <code>data</code>가 채워집니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>data</code>를 <strong><code>NULL</code>로 두고 시작한 것</strong>도 눈여겨보세요.
+                    함수가 실패해 아무것도 담지 않았을 때 <strong>부른 쪽이 그것을 알 수 있어야</strong> 하기 때문입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i><code>(*out)[i]</code>의 괄호를 빼면 안 됩니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>*out[i]</code>라고 쓰면 <strong>대괄호가 별표보다 먼저</strong> 붙어
+                    <strong><code>*(out[i])</code></strong>로 읽힙니다.
+                    <code>out</code>을 <strong>포인터의 배열</strong>로 보고 <code>i</code>번째를 짚은 다음
+                    따라가라는 뜻이 되어 <strong>전혀 다른 자리를 뒤집니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>먼저 따라가고 그다음 칸을 짚어야</strong> 하므로
+                    <code>(*out)[i]</code>처럼 <strong>괄호로 순서를 못박습니다.</strong>
+                    <strong>컴파일은 둘 다 되니 컴파일러가 잡아 주지 않습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">다 쓴 자리를 돌려주는 일까지 함수에 맡긴다면, 그 함수도 <code>int **</code>를 받아야 할까요? 무엇을 바꾸고 싶은지로 생각해 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 줄마다 따로 빌린 표 ===== -->
+    <section id="grid" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">줄마다 따로 빌린 표</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">크기를 도중에 정하는 표를 만들어 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                2차원 배열은 <strong>행과 열을 미리 적어야</strong> 했습니다.
+                크기를 <strong>돌려 보고 정해야</strong> 한다면 빌려 써야 하는데,
+                <strong>표는 「줄이 여럿」이므로 빌리는 일도 두 층</strong>이 됩니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/15.전체.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">먼저 「줄을 가리킬 자리」를, 그다음 각 줄을 빌립니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>malloc(rows * sizeof(int *))</code>은 <strong>정수를 빌리는 것이 아니라
+                    「정수를 가리키는 포인터」 세 개 자리</strong>를 빌립니다.
+                    <code>sizeof(int)</code>가 아니라 <strong><code>sizeof(int *)</code></strong>인 까닭입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그다음 <strong>줄마다 <code>malloc</code>을 한 번씩</strong> 더 해서
+                    <code>grid[0]</code>·<code>grid[1]</code>·<code>grid[2]</code>에 담습니다.
+                    다 하고 나면 <strong><code>grid[r][c]</code>로 2차원 배열과 똑같이</strong> 쓸 수 있습니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>2차원 배열과 겉모습만 같습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int a[3][4]</code>는 <strong>열두 칸이 빈틈없이 이어져</strong> 있었습니다.
+                    그런데 위 실행 결과를 보면 <strong>0번 줄과 1번 줄의 번호가 딱 붙어 있지 않습니다.</strong>
+                    <strong>줄마다 따로 빌렸으니 서로 다른 곳에 흩어져 놓일 수 있기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>포인터 하나로 처음부터 끝까지 내리 읽는 방법은 여기서 통하지 않습니다.</strong>
+                    <strong>「몇 칸마다 줄이 바뀌는지」라는 것 자체가 없습니다</strong> &mdash;
+                    줄이 어디 있는지는 <code>grid[r]</code>에 적힌 번호가 알려 줍니다.
+                    <strong>그 대신 줄마다 길이를 다르게 빌릴 수도</strong> 있습니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>돌려주는 순서가 정해져 있습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>줄들을 먼저 돌려주고 <code>grid</code>를 나중에</strong> 돌려줍니다.
+                    <code>grid</code>를 먼저 돌려주면 <strong>각 줄의 번호가 적혀 있던 자리가 사라져</strong>
+                    <strong>줄들을 돌려줄 방법이 없어집니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    중간에 실패했을 때도 마찬가지입니다.
+                    위 코드는 <strong>실패한 줄 앞까지 빌려 둔 것들을 하나씩 돌려주고</strong> 나서 끝냅니다.
+                    <strong>빌린 것이 여럿이면 실패하는 길에서도 남김없이 돌려주어야</strong> 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">줄마다 길이가 다른 표(첫 줄은 두 칸, 둘째 줄은 다섯 칸)를 만들려면 무엇만 바꾸면 될까요? 그 길이들은 어디에 적어 두어야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">포인터에도 자리가 있다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    포인터도 변수이므로 <code>&amp;p</code>가 성립한다.
+                    <strong>새 규칙이 아니라 있던 규칙을 한 번 더 적용</strong>한 것이다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">별표 하나가 한 걸음</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>**q</code>는 두 걸음 따라가 값에, <code>*q</code>는 한 걸음 가서
+                    <strong>포인터에</strong> 닿는다. <strong>별표 개수가 무엇을 손대는지를 정한다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">바꾸려면 그것의 자리를</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    정수를 바꾸려면 <code>int *</code>, <strong>포인터를 바꾸려면 <code>int **</code></strong>를 넘긴다.
+                    함수가 자리를 빌려 채워 주는 자리에서 쓰인다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">겉모습만 2차원 배열</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    줄마다 따로 빌리므로 <strong>이어 붙어 있지 않다.</strong>
+                    대신 줄마다 길이를 달리할 수 있다.
+                    <strong>줄을 먼저, 바깥을 나중에</strong> 돌려준다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>int num; int *p = &amp;num; int **q = &amp;p;</code>일 때 <code>*q</code>가 내는 것은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'num의 값에 닿으려면 두 걸음을 가야 합니다. **q입니다.')">
+                    ① <code>num</code>의 값
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '한 걸음 따라가면 p에 담긴 것, 곧 num이 있는 자리가 나옵니다.')">
+                    ② <code>num</code>이 있는 자리
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'p가 있는 자리는 따라가지 않은 q 자신이 담고 있는 값입니다.')">
+                    ③ <code>p</code>가 있는 자리
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'q에도 자기 자리가 있지만 그것은 &q로 얻습니다.')">
+                    ④ <code>q</code>가 있는 자리
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. 함수가 부른 쪽의 <strong>포인터 변수</strong>를 바꾸게 하려면 무엇을 넘겨야 하는가?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '포인터를 그냥 넘기면 사본이 넘어가, 함수 안에서 바꿔도 밖은 그대로입니다.')">
+                    ① 포인터를 그대로 넘긴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '바꾸고 싶은 것이 포인터이므로 그 포인터가 있는 자리를 넘깁니다.')">
+                    ② 그 포인터가 있는 자리를 넘긴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '값을 넘기면 자리를 알 수 없어 부른 쪽에 닿지 못합니다.')">
+                    ③ 가리키는 곳의 값을 넘긴다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '넘길 방법이 있습니다. 규칙은 「바꾸고 싶은 것의 자리를 넘긴다」로 한결같습니다.')">
+                    ④ 넘길 방법이 없다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. <code>int **grid</code>로 만든 표가 <code>int a[3][4]</code>와 다른 점은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '줄마다 따로 빌리므로 흩어져 놓일 수 있고, 그래서 줄마다 길이를 달리할 수도 있습니다.')">
+                    ① 줄들이 이어 붙어 있지 않을 수 있다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '둘 다 grid[r][c]로 똑같이 씁니다. 겉모습이 같은 것이 헷갈리는 지점입니다.')">
+                    ② 대괄호 두 개로 짚을 수 없다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '줄 수도 빌릴 때 정하므로 도중에 정할 수 있습니다.')">
+                    ③ 줄 수를 미리 적어야 한다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '빌린 것은 모두 돌려주어야 합니다. 오히려 돌려줄 것이 더 많습니다.')">
+                    ④ 돌려주지 않아도 된다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

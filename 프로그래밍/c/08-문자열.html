@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문자열</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/08-문자열.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-font absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-quote-right absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            문자열
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            글자 하나를 담는 자리는 이미 있습니다.<br>
+            <strong>여럿이 되는 순간 배열이 나섭니다.</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>글자 여럿을 담는 자리를 <code>char</code> 배열로 만들 수 있다.</li>
+                    <li>문자열의 끝을 알리는 표시가 왜 있어야 하는지 설명할 수 있다.</li>
+                    <li>문자열을 입력받아 내보내고, 빈칸이 든 줄도 받을 수 있다.</li>
+                    <li>길이를 세고 옮겨 적고 비교하는 도구를 가져다 쓸 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-font text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">문자열</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#line" class="hover:text-orange-600 transition">글자 여럿을 담는 자리</a>
+            <a href="#null" class="hover:text-orange-600 transition">끝을 알리는 한 칸</a>
+            <a href="#io" class="hover:text-orange-600 transition">받고 내보내기</a>
+            <a href="#tool" class="hover:text-orange-600 transition">다루는 도구</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 글자 여럿을 담는 자리 ===== -->
+    <section id="line" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">글자 여럿을 담는 자리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">C에는 「이름」을 담는 자료형이 따로 없습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>char</code>는 <strong>글자 하나</strong>를 담는 자리였습니다.
+                그런데 이름이나 낱말은 글자가 여럿입니다.
+                <strong>같은 종류의 값이 여럿</strong>이라면 답은 앞에서 나왔습니다 &mdash; 배열입니다.
+            </p>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">문자열(string)은 새 자료형이 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    C에서 <strong>문자열</strong>은 <strong><code>char</code>를 담는 배열</strong>입니다.
+                    「글자를 담는 칸을 여러 개 나란히 붙여 놓고 앞에서부터 채운 것」이 전부입니다.
+                    그래서 <strong>앞 차시에서 배운 배열의 규칙이 그대로 적용됩니다</strong> &mdash;
+                    칸 번호는 0부터고, 칸 수는 만들 때 정해지고, 칸 밖은 사람이 지킵니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.만들기.c#두가지"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">쓴 방법</th>
+                        <th>어떤가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>{'h', 'e', ...}</code></td>
+                        <td>칸을 하나씩 채웁니다. <strong>끝 표시까지 손으로 적어야</strong> 합니다.</td>
+                    </tr>
+                    <tr>
+                        <td><code>"hello"</code></td>
+                        <td>큰따옴표로 한 번에 채웁니다. <strong>끝 표시는 저절로 붙습니다.</strong></td>
+                    </tr>
+                    <tr>
+                        <td><code>char c[] = "hello"</code></td>
+                        <td>칸 수를 적지 않으면 <strong>담는 내용에 맞게 잡힙니다.</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>따옴표 두 종류를 가릅니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>작은따옴표 <code>'A'</code>는 글자 하나</strong>, <strong>큰따옴표 <code>"A"</code>는 문자열</strong>입니다.
+                    글자 수가 같아도 다른 것입니다. <code>"A"</code>는 글자 하나만 담겼어도
+                    <strong>끝 표시가 뒤에 붙어 칸을 둘 차지합니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <code>char grade = "A";</code>는 <strong>글자 하나짜리 자리에 두 칸짜리를 넣으려는 것</strong>이라
+                    맞지 않습니다. 자료형을 처음 배울 때 나왔던 그 함정이 여기서 설명됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>char b[6] = "hello";</code>에서 칸을 <code>[5]</code>로 줄이면 무엇이 모자랄까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 끝을 알리는 한 칸 ===== -->
+    <section id="null" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">끝을 알리는 한 칸</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">배열은 자기가 어디까지 채워졌는지 모릅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                칸이 열 개인 배열에 <code>"hello"</code>를 담으면 <strong>다섯 칸이 남습니다.</strong>
+                그런데 화면에 찍을 때는 <code>hello</code>까지만 나오고 남은 칸은 나오지 않았습니다.
+                <strong>어디까지가 내용인지를 무엇이 알려 주는 걸까요?</strong>
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.널.c#칸보기"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">칸 번호</th>
+                        <th>0</th>
+                        <th>1</th>
+                        <th>2</th>
+                        <th>3</th>
+                        <th>4</th>
+                        <th>5</th>
+                        <th>6~9</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>보이는 글자</td>
+                        <td>h</td>
+                        <td>e</td>
+                        <td>l</td>
+                        <td>l</td>
+                        <td>o</td>
+                        <td>끝 표시</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>담긴 수</td>
+                        <td>104</td>
+                        <td>101</td>
+                        <td>108</td>
+                        <td>108</td>
+                        <td>111</td>
+                        <td>0</td>
+                        <td>0</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">5번 칸의 0이 「여기서 끝」이라는 신호입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    문자열의 끝에는 <strong>값이 0인 칸</strong>이 하나 붙습니다.
+                    코드에서는 <code>'\0'</code>이라고 적고 <strong>널 문자</strong>라고 부릅니다.
+                    <code>%s</code>로 찍을 때 C는 <strong>앞 칸부터 하나씩 내보내다가 이 0을 만나면 멈춥니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>이것이 「칸을 하나 더 잡아야 하는」 까닭입니다.</strong>
+                    글자가 다섯이면 칸은 <strong>여섯</strong>이 있어야 합니다.
+                    딱 맞게 <code>char b[5] = "hello";</code>라고 적으면 끝 표시가 들어갈 자리가 없어,
+                    찍을 때 멈출 곳을 못 찾고 <strong>옆 칸까지 계속 읽어 나갑니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    글자가 <code>char</code> 칸에 <strong>수로 담겨 있다</strong>는 것도 위 표에서 보입니다.
+                    <code>'h'</code>는 104, <code>'e'</code>는 101입니다.
+                    글자마다 정해진 번호가 있고, <code>char</code>는 그 번호를 담고 있는 것입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그러면 <strong>「지금 몇 칸이 채워져 있나」</strong>는 어떻게 알까요?
+                끝 표시까지 세어 주는 도구가 있습니다. <code>string.h</code>를 들여와야 쓸 수 있습니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.널.c#크기와길이"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">「칸 수」와 「채워진 칸 수」는 다릅니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong><code>sizeof</code>로 얻는 10은 만들어 둔 칸 수</strong>이고,
+                    <strong><code>strlen</code>이 돌려주는 5는 끝 표시 앞까지 채워진 칸 수</strong>입니다.
+                    앞의 것은 <strong>변하지 않고</strong>, 뒤의 것은 <strong>담는 내용에 따라 달라집니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 한 가지를 짚고 가야 합니다.
+                <code>strlen</code>이 세는 것은 <strong>칸</strong>이지 사람이 보는 <strong>글자</strong>가 아닙니다.
+                영어는 한 글자가 한 칸이라 둘이 같아 보이지만, 한글은 그렇지 않습니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.한글.c"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>한글 한 글자는 한 칸이 아닙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>"안녕"</code>은 두 글자인데 <strong>6이 나옵니다.</strong>
+                    우리가 쓰는 UTF-8 방식에서는 <strong>한글 한 글자가 세 칸</strong>을 차지하기 때문입니다.
+                    <code>char</code> 한 칸에 담을 수 있는 번호의 가짓수가 한글을 다 담기에는 모자라서,
+                    <strong>여러 칸을 이어 붙여 한 글자를 나타냅니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>한글이 든 문자열은 칸 하나씩 잘라 다루면 글자가 깨집니다.</strong>
+                    <code>word[0]</code>을 찍어도 「안」이 나오지 않습니다.
+                    <strong>이 차시에서 글자를 하나씩 짚는 예시를 영어로만 드는 까닭</strong>이 이것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">「programming」을 담으려면 칸이 최소 몇 개 필요할까요? 글자 수를 세고 하나를 더해 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 받고 내보내기 ===== -->
+    <section id="io" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">받고 내보내기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">여기서 <code>&amp;</code>가 사라집니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/08.입력.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">배열 이름에는 <code>&amp;</code>를 붙이지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    변수에 입력받을 때는 <code>&amp;score</code>처럼 붙였고,
+                    배열의 칸 하나에 받을 때도 <code>&amp;score[i]</code>처럼 붙였습니다.
+                    그런데 <strong>배열 이름은 그 자체로 「자리가 어디인지」를 나타내는 말</strong>이라
+                    앞에 <code>&amp;</code>를 더 붙이지 않습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>name</code>은 자리를 가리키고, <code>name[0]</code>은 그 자리에 <strong>담긴 값</strong>입니다.
+                    담긴 값에는 <code>&amp;</code>를 붙여야 하고, 자리에는 붙일 것이 없습니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900"><code>%19s</code>의 숫자가 칸을 지킵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>char name[20]</code>에 <strong>스무 칸보다 긴 글이 들어오면 칸 밖으로 넘칩니다.</strong>
+                    앞 차시에서 봤듯 C는 이것을 막아 주지 않습니다.
+                    <code>%s</code> 사이에 숫자를 적어 <strong>「최대 몇 칸까지만 받아라」</strong>라고 정해 둘 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>19를 적은 것은 끝 표시가 들어갈 한 칸을 남겨 두기 위해서</strong>입니다.
+                    칸이 <em>n</em>개면 <code>%</code>와 <code>s</code> 사이에 <strong><em>n</em> &minus; 1</strong>을 적습니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다만 <code>scanf</code>로 문자열을 받으면 <strong>빈칸에서 끊깁니다.</strong>
+                「hello there」를 넣으면 <code>hello</code>까지만 담깁니다.
+                빈칸이 든 줄을 통째로 받으려면 다른 도구를 씁니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.줄받기.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-slate-400 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900"><code>fgets</code>는 줄 끝까지 받습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>어디에 담을지, 몇 칸까지 받을지, 어디서 읽을지</strong> 셋을 적습니다.
+                    <code>stdin</code>은 「키보드에서」라는 뜻입니다.
+                    칸 수를 적는 자리가 아예 있어서 <strong>넘치는 일을 막기가 쉽습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    대신 <strong>엔터를 누른 것까지 함께 담깁니다.</strong>
+                    그래서 위 코드는 마지막에 <code>\n</code>을 더 찍지 않았습니다.
+                    두 번 찍으면 빈 줄이 하나 더 생깁니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">주소나 책 제목처럼 빈칸이 들어가는 것을 받아야 한다면 둘 가운데 무엇을 골라야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 다루는 도구 ===== -->
+    <section id="tool" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다루는 도구</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">먼저 되지 않는 것부터 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 문자열에 같은 글자가 담겨 있습니다. <code>==</code>로 물어보면 무엇이 나올까요?
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.비교함정.c#함정"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i><code>다릅니다</code>가 찍힙니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    담긴 글자가 똑같은데도 그렇습니다. <code>==</code>는 <strong>값 하나끼리 대어 보는 기호</strong>인데,
+                    문자열은 <strong>값 하나가 아니라 칸이 여럿인 묶음</strong>이기 때문입니다.
+                    <code>a == b</code>는 <strong>두 묶음이 각각 어디에 놓여 있는지를 대어 봅니다.</strong>
+                    두 배열은 서로 다른 자리에 만들어졌으니 답은 「다르다」입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>컴파일러도 이상하게 여기고 경고를 냅니다</strong> &mdash;
+                    「배열 둘을 비교하고 있다」는 문구가 뜹니다.
+                    <strong>경고가 떴는데 결과가 그럴듯하게 나오면 특히 위험합니다.</strong>
+                    돌아는 가지만 묻고 싶었던 것을 묻고 있지 않기 때문입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                내용을 다루려면 <strong>칸을 하나씩 훑는 도구</strong>가 필요합니다.
+                <code>string.h</code>가 자주 쓰는 것들을 담아 두었으니 가져다 쓰면 됩니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.도구.c"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-36">도구</th>
+                        <th class="w-44">하는 일</th>
+                        <th>돌려주는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>strlen(a)</code></td>
+                        <td>채워진 칸을 센다</td>
+                        <td>끝 표시 앞까지의 칸 수</td>
+                    </tr>
+                    <tr>
+                        <td><code>strcpy(b, a)</code></td>
+                        <td><code>a</code>의 내용을 <code>b</code>로 옮겨 적는다</td>
+                        <td>&mdash; (<code>b</code>가 바뀐다)</td>
+                    </tr>
+                    <tr>
+                        <td><code>strcmp(a, b)</code></td>
+                        <td>내용을 앞 칸부터 대어 본다</td>
+                        <td><strong>같으면 0</strong>, 다르면 0이 아닌 수</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>「같다」가 0입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>strcmp</code>는 같을 때 <strong>0</strong>을 돌려줍니다.
+                    조건문에서 0은 거짓으로 읽히니, <code>if (strcmp(a, b))</code>라고 쓰면
+                    <strong>다를 때 참이 되어 뜻이 뒤집힙니다.</strong>
+                    <strong>같은지 묻고 싶다면 <code>== 0</code>을 반드시 함께 적습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>strcpy</code>는 <strong>받는 쪽 칸이 모자라도 그대로 옮겨 적습니다.</strong>
+                    옮겨 담을 곳의 칸 수가 넉넉한지 <strong>사람이 먼저 확인해야</strong> 합니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">여기까지를 한 프로그램으로</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    낱말을 받아 길이를 세고, 칸을 거꾸로 훑어 뒤집고, 찾는 글자가 몇 번 나오는지 셉니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/08.전체.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                거꾸로 찍는 반복이 <strong><code>len - 1</code>에서 시작해 <code>0</code>까지 내려가는</strong> 것을 보세요.
+                마지막 칸의 번호가 <code>len - 1</code>이라는 것을 그대로 쓴 것입니다.
+                <strong>배열에서 세운 규칙이 문자열에서도 그대로 통합니다.</strong>
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">받은 낱말이 앞뒤로 읽어도 같은지 알아보려면 어떤 칸끼리 대어 보아야 할까요? 몇 번까지 대어 보면 될지도 생각해 보세요.</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">문자열은 <code>char</code> 배열이다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    새 자료형이 아니다. <strong>배열의 규칙이 그대로 통한다</strong> &mdash;
+                    번호는 0부터, 칸 수는 만들 때 정해지고, 칸 밖은 사람이 지킨다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">끝 표시에 한 칸</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    끝에 값이 0인 칸(<code>'\0'</code>)이 붙어 「여기까지」를 알린다.
+                    그래서 <strong>글자 수보다 칸이 하나 더</strong> 있어야 한다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">칸 수 &ne; 글자 수</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>strlen</code>이 세는 것은 <strong>채워진 칸</strong>이다.
+                    영어는 한 글자가 한 칸이라 같아 보이지만
+                    <strong>UTF-8에서 한글 한 글자는 세 칸</strong>이다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900"><code>==</code>로 비교하지 않는다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>==</code>는 <strong>어디에 놓였는지</strong>를 대어 본다.
+                    내용을 비교하려면 <code>strcmp</code>를 쓰고,
+                    <strong>같음은 0</strong>이므로 <code>== 0</code>을 함께 적는다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>"school"</code>을 담으려면 <code>char</code> 배열의 칸이 최소 몇 개 있어야 하는가?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '글자 수만 세었습니다. 끝 표시가 들어갈 칸이 빠졌습니다.')">
+                    ① 6개
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '글자 여섯에 끝 표시 한 칸을 더해 일곱입니다.')">
+                    ② 7개
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '끝 표시는 한 칸이면 됩니다. 두 칸을 더할 까닭이 없습니다.')">
+                    ③ 8개
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '칸 수는 담을 내용에 따라 정해집니다. 정해진 수가 따로 있지 않습니다.')">
+                    ④ 언제나 20개
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. 두 문자열에 같은 글자가 담겼는지 알아보는 올바른 방법은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '==는 어디에 놓였는지를 대어 봅니다. 내용이 같아도 「다르다」가 나옵니다.')">
+                    ① <code>if (a == b)</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, 'strcmp는 같을 때 0을 돌려줍니다. 그래서 == 0을 함께 적습니다.')">
+                    ② <code>if (strcmp(a, b) == 0)</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '0은 거짓으로 읽히므로 이렇게 쓰면 «다를 때» 참이 되어 뜻이 뒤집힙니다.')">
+                    ③ <code>if (strcmp(a, b))</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'strlen은 채워진 칸 수만 셉니다. 길이가 같아도 내용은 다를 수 있습니다.')">
+                    ④ <code>if (strlen(a) == strlen(b))</code>
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. <code>char s[20] = "안녕";</code>일 때 <code>strlen(s)</code>의 값은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '사람이 보는 글자 수입니다. strlen은 글자가 아니라 칸을 셉니다.')">
+                    ① 2
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, 'UTF-8에서 한글 한 글자가 세 칸을 차지하므로 3 × 2 = 6입니다.')">
+                    ② 6
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '만들어 둔 칸 수입니다. sizeof가 알려 주는 값이지 strlen이 세는 값이 아닙니다.')">
+                    ③ 20
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'strlen은 끝 표시를 빼고 셉니다. 끝 표시를 더하지 않습니다.')">
+                    ④ 7
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>리스트 내포</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/py/13-리스트-내포.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-compress absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-list-check absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            리스트 내포
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            담을 곳을 만들고, 훑고, 담는 <strong>세 줄</strong>.<br>
+            <strong>한 줄로 적을 수 있습니다.</strong> 그래야 하는지는 또 다른 문제입니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>리스트 내포로 반복과 담기를 한 줄로 적을 수 있다.</li>
+                    <li>내포의 세 조각을 구별하고 적는 차례와 실행 차례가 다름을 설명할 수 있다.</li>
+                    <li><code>if</code>를 붙여 거르면서 담을 수 있다.</li>
+                    <li>중괄호를 써서 딕셔너리와 집합을 만들 수 있다.</li>
+                    <li>한 줄로 쓸지 반복으로 풀지 판단하는 기준을 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-compress text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">리스트 내포</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#make" class="hover:text-orange-600 transition">세 줄이 한 줄로</a>
+            <a href="#parts" class="hover:text-orange-600 transition">세 조각</a>
+            <a href="#filter" class="hover:text-orange-600 transition">조건 붙이기</a>
+            <a href="#limit" class="hover:text-orange-600 transition">어디까지 한 줄로</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+
+    <section id="make" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">세 줄이 한 줄로</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">새 기능이 아니라 짧게 적는 법입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">리스트를 만들어 값을 담는 일은 지금까지 <strong>늘 같은 모양</strong>이었습니다.</p>
+            <pre class="language-python"><code class="language-python" data-src="code/13.반복.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed"><strong>빈 리스트를 만들고, 훑으면서, 담습니다.</strong> 이 모양이 너무 자주 나와서 파이썬에는 <strong>한 줄로 적는 문법</strong>이 따로 있습니다.</p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 314" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="위에 세 줄짜리 반복 코드가 있고 아래로 화살표가 내려가 한 줄짜리 리스트 내포 코드가 놓여 있다">
+                    <defs><marker id="cp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c2410c"/></marker></defs>
+                    <text x="288" y="28" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">「만들고 · 훑고 · 담는」 세 줄이 한 줄이 된다</text>
+                    <rect x="40" y="56" width="496" height="124" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="2.5"/>
+                    <text x="64" y="80" font-size="16" fill="#64748b" text-anchor="start">지금까지 쓰던 방법</text>
+                    <text x="64" y="110" font-size="17" fill="#334155" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">squares = []</text>
+                    <text x="64" y="138" font-size="17" fill="#334155" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">for n in nums:</text>
+                    <text x="64" y="166" font-size="17" fill="#334155" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">    squares.append(n * n)</text>
+                    <line x1="288" y1="186" x2="288" y2="214" stroke="#c2410c" stroke-width="3" marker-end="url(#cp)"/>
+                    <rect x="40" y="222" width="496" height="76" rx="12" fill="#fff7ed" stroke="#f97316" stroke-width="2.5"/>
+                    <text x="64" y="246" font-size="16" fill="#c2410c" text-anchor="start">리스트 내포로 적으면</text>
+                    <text x="64" y="278" font-size="17" fill="#c2410c" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">squares = [n * n for n in nums]</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/13.내포.py"></code></pre>
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">리스트 내포(list comprehension)</p>
+                <p class="text-base text-slate-700 leading-relaxed"><strong>훑으면서 만든 값으로 리스트를 바로 만드는 문법</strong>입니다. 대괄호 안에 <strong>담을 것</strong>을 먼저 적고 <strong><code>for</code></strong>를 뒤에 붙입니다. 하는 일은 위의 세 줄과 <strong>완전히 같습니다.</strong></p>
+            </div>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">빈 리스트를 만들지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed"><code>squares = []</code>가 없어졌습니다. 내포는 <strong>리스트를 통째로 만들어</strong> 이름에 붙입니다. 그래서 <strong>담을 곳을 미리 준비하는 줄을 빠뜨릴 일이 없습니다.</strong></p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>[n * n for n in nums]</code>를 실행한 뒤 <code>n</code>을 찍으면 어떻게 될까요? 반복으로 쓴 쪽과 비교해 보면 어떨까요?</p>
+        </div>
+    </section>
+
+
+    <section id="parts" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">세 조각으로 뜯어 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">적는 차례와 읽는 차례가 다릅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">내포 한 줄은 <strong>세 조각</strong>으로 되어 있습니다.</p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 242" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="왼쪽부터 담을 것 n 곱하기 n, 어디서 훑나 for n in nums, 거를 조건 if n 나머지 2가 0 세 상자가 있고 각각 3번 1번 2번 순서 표가 붙어 있다">
+                    <text x="288" y="28" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">내포는 세 조각이다</text>
+                    <circle cx="95" cy="62" r="15" fill="#ffffff" stroke="#c2410c" stroke-width="2.5"/>
+                    <text x="95" y="68" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle">3</text>
+                    <text x="95" y="102" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle">담을 것</text>
+                    <rect x="20" y="116" width="150" height="56" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2.5"/>
+                    <text x="95" y="150" font-size="16" fill="#c2410c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">n * n</text>
+                    <circle cx="290" cy="62" r="15" fill="#ffffff" stroke="#0369a1" stroke-width="2.5"/>
+                    <text x="290" y="68" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle">1</text>
+                    <text x="290" y="102" font-size="17" fill="#0369a1" font-weight="700" text-anchor="middle">어디서 훑나</text>
+                    <rect x="190" y="116" width="200" height="56" rx="10" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2.5"/>
+                    <text x="290" y="150" font-size="16" fill="#0369a1" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">for n in nums</text>
+                    <circle cx="483" cy="62" r="15" fill="#ffffff" stroke="#047857" stroke-width="2.5"/>
+                    <text x="483" y="68" font-size="16" fill="#047857" font-weight="700" text-anchor="middle">2</text>
+                    <text x="483" y="102" font-size="17" fill="#047857" font-weight="700" text-anchor="middle">거를 조건</text>
+                    <rect x="406" y="116" width="154" height="56" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="2.5"/>
+                    <text x="483" y="150" font-size="16" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">if n % 2 == 0</text>
+                    <text x="288" y="202" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">적는 차례와 «읽는 차례»가 다르다</text>
+                    <text x="288" y="228" font-size="16" fill="#64748b" text-anchor="middle">훑고(1) → 거르고(2) → 담는다(3)</text>
+                </svg>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">조각</th>
+                        <th class="w-40">적는 자리</th>
+                        <th>하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>담을 것</strong></td>
+                        <td>대괄호 <strong>맨 앞</strong></td>
+                        <td>리스트에 들어갈 값을 만든다</td>
+                    </tr>
+                    <tr>
+                        <td><code>for</code></td>
+                        <td>가운데</td>
+                        <td>어디서 무엇을 훑을지 정한다</td>
+                    </tr>
+                    <tr>
+                        <td><code>if</code></td>
+                        <td>맨 뒤 (없어도 된다)</td>
+                        <td>담을 것만 남기고 거른다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">맨 앞에 적지만 맨 나중에 하는 일입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">코드는 <strong>담을 것 → <code>for</code> → <code>if</code></strong> 차례로 적지만, 실제로는 <strong><code>for</code>로 훑고 → <code>if</code>로 거르고 → 담습니다.</strong> <strong>적는 차례를 실행 차례로 읽으면 헷갈립니다.</strong> 「무엇을 만들지를 먼저 밝히고, 어디서 가져올지는 뒤에 적는다」고 읽으면 됩니다.</p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>if</code>를 <code>for</code>보다 앞에 적으면 어떻게 될까요? 왜 그 자리에 둘 수 없을지 생각해 보세요.</p>
+        </div>
+    </section>
+
+
+    <section id="filter" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">조건 붙이기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">거르는 일까지 한 줄에 들어갑니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed"><code>for</code> 뒤에 <code>if</code>를 붙이면 <strong>맞는 것만 담습니다.</strong></p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 292" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="위에 1부터 6까지 여섯 칸이 있고 가운데 조건 띠를 지나면서 홀수는 가위표로 막히고 짝수 2 4 6만 아래로 내려와 세 칸에 담긴다">
+                    <defs><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c2410c"/></marker></defs>
+                    <text x="288" y="28" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">조건에 맞는 것만 아래로 내려온다</text>
+                    <rect x="24" y="56" width="82" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="65" y="88" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">1</text>
+                    <line x1="65" y1="108" x2="65" y2="140" stroke="#be123c" stroke-width="2.5" stroke-dasharray="5 4"/>
+                    <path d="M57 148 l16 16 M73 148 l-16 16" fill="none" stroke="#be123c" stroke-width="3" stroke-linecap="round"/>
+                    <rect x="114" y="56" width="82" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="155" y="88" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">2</text>
+                    <line x1="155" y1="108" x2="198" y2="194" stroke="#c2410c" stroke-width="3" marker-end="url(#fl)"/>
+                    <rect x="204" y="56" width="82" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="245" y="88" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">3</text>
+                    <line x1="245" y1="108" x2="245" y2="140" stroke="#be123c" stroke-width="2.5" stroke-dasharray="5 4"/>
+                    <path d="M237 148 l16 16 M253 148 l-16 16" fill="none" stroke="#be123c" stroke-width="3" stroke-linecap="round"/>
+                    <rect x="294" y="56" width="82" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="335" y="88" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">4</text>
+                    <line x1="335" y1="108" x2="288" y2="194" stroke="#c2410c" stroke-width="3" marker-end="url(#fl)"/>
+                    <rect x="384" y="56" width="82" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="425" y="88" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">5</text>
+                    <line x1="425" y1="108" x2="425" y2="140" stroke="#be123c" stroke-width="2.5" stroke-dasharray="5 4"/>
+                    <path d="M417 148 l16 16 M433 148 l-16 16" fill="none" stroke="#be123c" stroke-width="3" stroke-linecap="round"/>
+                    <rect x="474" y="56" width="82" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="515" y="88" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">6</text>
+                    <line x1="515" y1="108" x2="378" y2="194" stroke="#c2410c" stroke-width="3" marker-end="url(#fl)"/>
+                    <rect x="16" y="128" width="544" height="44" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="2.5" stroke-dasharray="7 5"/>
+                    <text x="288" y="158" font-size="17" fill="#047857" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">if n % 2 == 0</text>
+                    <rect x="157" y="200" width="82" height="48" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2.5"/>
+                    <text x="198" y="232" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">2</text>
+                    <rect x="247" y="200" width="82" height="48" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2.5"/>
+                    <text x="288" y="232" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">4</text>
+                    <rect x="337" y="200" width="82" height="48" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="2.5"/>
+                    <text x="378" y="232" font-size="19" fill="#0f172a" font-weight="700" text-anchor="middle">6</text>
+                    <text x="288" y="276" font-size="17" fill="#c2410c" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">[n for n in nums if n % 2 == 0]</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/13.조건.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed">두 코드는 <strong>같은 일</strong>을 합니다. 아래쪽은 네 줄, 위쪽은 한 줄입니다.</p>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900"><code>if</code>는 담기 전에 거릅니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">조건에 맞지 않는 값은 <strong>아예 리스트에 들어가지 않습니다.</strong> 그래서 결과 리스트의 길이가 <strong>원래보다 짧아질 수 있습니다.</strong> 훑는 개수와 담기는 개수가 다르다는 점을 잊지 않아야 합니다.</p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">글자를 다듬는 일에도 자주 씁니다.</p>
+            <pre class="language-python"><code class="language-python" data-src="code/13.글자.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed"><code>[int(v) for v in values[1:]]</code>은 <strong>「이름 뒤의 값들을 하나씩 수로 바꿔 담아라」</strong>입니다. 파일에서 읽은 값은 <strong>언제나 글자</strong>이므로 이 모양이 자주 나옵니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">대괄호 대신 중괄호를 쓰면 <strong>딕셔너리나 집합</strong>이 만들어집니다.</p>
+            <pre class="language-python"><code class="language-python" data-src="code/13.딕집합.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed"><code>{키: 값 for …}</code>이면 딕셔너리, <code>{값 for …}</code>이면 집합입니다. <strong>콜론이 있는지</strong>가 둘을 가릅니다.</p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>[n for n in nums if n % 2 == 0]</code>과 <code>[n % 2 == 0 for n in nums]</code>는 각각 무엇을 담을까요?</p>
+        </div>
+    </section>
+
+
+    <section id="limit" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어디까지 한 줄로 쓸까</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">짧게 쓸 수 있다는 것과 그래야 한다는 것은 다릅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">내포는 <strong>줄 수를 줄여 주지만 읽기까지 쉽게 해 주지는 않습니다.</strong></p>
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 316" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="세 줄이 있다. 위의 둘은 초록 동그라미에 O가 붙어 있고 맨 아래 것은 붉은 동그라미에 X가 붙어 있다">
+                    <text x="288" y="28" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">짧다고 늘 좋은 것은 아니다</text>
+                    <circle cx="38" cy="86" r="18" fill="#ecfdf5" stroke="#047857" stroke-width="2.5"/>
+                    <text x="38" y="93" font-size="18" fill="#047857" font-weight="700" text-anchor="middle">O</text>
+                    <rect x="68" y="60" width="492" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <text x="88" y="84" font-size="16" fill="#047857" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">[n * n for n in nums]</text>
+                    <text x="88" y="104" font-size="16" fill="#64748b" text-anchor="start">한 가지 일만 한다</text>
+                    <circle cx="38" cy="162" r="18" fill="#ecfdf5" stroke="#047857" stroke-width="2.5"/>
+                    <text x="38" y="169" font-size="18" fill="#047857" font-weight="700" text-anchor="middle">O</text>
+                    <rect x="68" y="136" width="492" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+                    <text x="88" y="160" font-size="16" fill="#047857" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">[n for n in nums if n > 0]</text>
+                    <text x="88" y="180" font-size="16" fill="#64748b" text-anchor="start">거르는 조건이 하나다</text>
+                    <circle cx="38" cy="238" r="18" fill="#fff1f2" stroke="#be123c" stroke-width="2.5"/>
+                    <text x="38" y="245" font-size="18" fill="#be123c" font-weight="700" text-anchor="middle">X</text>
+                    <rect x="68" y="212" width="492" height="52" rx="8" fill="#fff1f2" stroke="#be123c" stroke-width="2"/>
+                    <text x="88" y="236" font-size="16" fill="#be123c" font-weight="700" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">[[r[0], 평균(r)] for r in rows if 평균(r) >= 60]</text>
+                    <text x="88" y="256" font-size="16" fill="#64748b" text-anchor="start">같은 계산이 두 번, 일이 셋</text>
+                    <text x="288" y="302" font-size="16" fill="#64748b" text-anchor="middle">한 줄에 담긴 «일의 수»가 기준이지 글자 수가 아니다</text>
+                </svg>
+            </div>
+            <pre class="language-python"><code class="language-python" data-src="code/13.읽기.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed">위쪽 한 줄은 <strong>평균을 두 번 계산</strong>합니다. 거를 때 한 번, 담을 때 한 번입니다. 아래쪽은 <code>avg</code>라는 <strong>이름을 붙여</strong> 한 번만 계산합니다.</p>
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">기준은 「한 줄에 든 일의 수」입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed"><strong>담는 일 하나</strong>, 거기에 <strong>거르는 조건 하나</strong>까지가 한눈에 읽힙니다. 여기에 <strong>계산에 이름을 붙여야 하거나</strong> <strong>중간 결과를 다시 써야 한다면</strong> 반복으로 풀어 쓰는 편이 낫습니다. 글자 수가 아니라 <strong>일의 수</strong>가 기준입니다.</p>
+            </div>
+            <div class="bg-white border-l-4 border-l-slate-500 border border-slate-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-slate-900">읽는 사람이 나 자신입니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">코드는 쓰는 시간보다 <strong>읽는 시간이 깁니다.</strong> 한 줄로 줄여 놓고 일주일 뒤에 못 읽는다면 줄인 것이 손해입니다.</p>
+            </div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">파일에서 읽어 평균을 내는 프로그램을 내포로 적으면 이렇게 됩니다.</p>
+            <pre class="language-python"><code class="language-python" data-src="code/13.전체.py"></code></pre>
+            <p class="text-base text-slate-700 leading-relaxed">줄을 자르는 일과 수로 바꾸는 일은 <strong>각각 하나씩</strong>이라 한 줄이 알맞고, 평균을 내어 찍는 일은 <strong>이름을 붙여 가며</strong> 반복으로 풀었습니다. <strong>한 프로그램 안에서도 자리마다 고르는 것</strong>입니다.</p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">위쪽 한 줄에서 평균이 두 번 계산되는 것을 어떻게 확인할 수 있을까요? 평균을 내는 함수가 화면에 무언가를 찍는다면 몇 줄이 찍힐까요?</p>
+        </div>
+    </section>
+
+
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">새 기능이 아니라 적는 법이다</h3>
+                <p class="text-base text-slate-700 leading-relaxed"><code>[n * n for n in nums]</code>는 <strong>빈 리스트를 만들고 훑으며 담는 세 줄</strong>과 완전히 같은 일을 한다.</p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">세 조각으로 되어 있다</h3>
+                <p class="text-base text-slate-700 leading-relaxed"><strong>담을 것 · <code>for</code> · <code>if</code></strong>. <code>if</code>는 없어도 되고, 있으면 <strong>담기 전에</strong> 거른다.</p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">적는 차례와 읽는 차례가 다르다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">맨 앞에 적은 <strong>담을 것</strong>이 실제로는 <strong>맨 나중</strong>에 일어난다. 훑고 → 거르고 → 담는다.</p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">중괄호를 쓰면 다른 것이 나온다</h3>
+                <p class="text-base text-slate-700 leading-relaxed"><code>{k: v for …}</code>는 딕셔너리, <code>{v for …}</code>는 집합이다. <strong>콜론이 있는지</strong>가 가른다.</p>
+            </div>
+            <div class="section-card space-y-2 md:col-span-2">
+                <h3 class="text-xl font-black text-slate-900">기준은 글자 수가 아니라 일의 수다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">담기 하나에 조건 하나까지가 한눈에 읽힌다. <strong>계산에 이름을 붙여야 하면</strong> 반복으로 풀어 쓰는 편이 낫다.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>[n * 2 for n in [1, 2, 3]]</code>의 결과는?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '각 값에 2를 곱해 담습니다.')">
+                    ① <code>[2, 4, 6]</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '리스트를 두 번 이어 붙이는 것이 아닙니다.')">
+                    ② <code>[1, 2, 3, 1, 2, 3]</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '리스트가 만들어지지 값 하나가 나오지 않습니다.')">
+                    ③ <code>6</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '담을 것에 n * 2를 적었으므로 두 배가 됩니다.')">
+                    ④ <code>[1, 2, 3]</code>
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>[n for n in nums if n &gt; 0]</code>에서 <code>if</code>가 하는 일은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '담기 전에 거릅니다. 맞지 않는 값은 아예 들어가지 않습니다.')">
+                    ① 담은 뒤에 걸러 낸다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '그래서 결과 리스트가 원래보다 짧아질 수 있습니다.')">
+                    ② 담기 전에 걸러 낸다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '그것은 [n &gt; 0 for n in nums]입니다. 자리가 다릅니다.')">
+                    ③ 조건이 참인지 거짓인지를 담는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '차례는 그대로입니다.')">
+                    ④ 훑는 차례를 바꾼다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. 다음 중 <strong>내포로 쓰지 않는 편이 나은</strong> 경우는?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '일이 하나뿐이라 한 줄이 알맞습니다.')">
+                    ① 각 값을 두 배로 만들어 담는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '거르는 조건 하나까지는 한눈에 읽힙니다.')">
+                    ② 0보다 큰 값만 골라 담는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '같은 계산이 두 번 들어갑니다. 이름을 붙여 반복으로 푸는 편이 낫습니다.')">
+                    ③ <strong>계산 결과를 조건에도 쓰고 담을 때도 쓴다</strong>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '일이 하나뿐입니다.')">
+                    ④ 글자 앞뒤의 공백을 떼어 담는다
+                </button>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

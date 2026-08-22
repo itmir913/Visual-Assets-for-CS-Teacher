@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>동적 메모리 할당</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/14-동적-메모리-할당.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-hand-holding absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-boxes-stacked absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            동적 메모리 할당
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            배열은 칸 수를 미리 적어야 했습니다.<br>
+            <strong>미리 알 수 없다면 어떻게 할까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>필요한 칸 수를 프로그램이 도는 동안 정해야 하는 상황을 설명할 수 있다.</li>
+                    <li><code>malloc</code>으로 자리를 빌려 배열처럼 쓸 수 있다.</li>
+                    <li>다 쓴 자리를 돌려주어야 하는 까닭을 설명할 수 있다.</li>
+                    <li><code>calloc</code>과 <code>realloc</code>이 무엇이 다른지 알고 가려 쓸 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-hand-holding text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">동적 메모리 할당</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-orange-600 transition">미리 알 수 없을 때</a>
+            <a href="#borrow" class="hover:text-orange-600 transition">빌려 쓰기</a>
+            <a href="#back" class="hover:text-orange-600 transition">돌려주기</a>
+            <a href="#family" class="hover:text-orange-600 transition">형제 둘</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 미리 알 수 없을 때 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">미리 알 수 없을 때</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">코드를 쓰는 시점과 답을 아는 시점이 다릅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>int score[5];</code>라고 적으려면 <strong>코드를 쓰는 순간에 5를 알고 있어야</strong> 합니다.
+                그런데 <strong>몇 명분이 필요한지를 프로그램을 돌려 봐야 아는</strong> 경우가 많습니다 &mdash;
+                사용자가 개수를 입력하거나, 파일을 열어 봐야 줄 수를 알거나 하는 식으로요.
+            </p>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">넉넉하게 잡아 두면 되지 않을까요</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>int score[1000];</code>처럼 크게 잡는 방법을 흔히 떠올립니다.
+                    <strong>두 가지가 걸립니다.</strong>
+                    다섯 명만 쓸 때는 <strong>995칸이 놀고</strong>,
+                    <strong>1001명이 오면 그때는 방법이 없습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「얼마나 커야 충분한가」에 답이 없다는 것</strong>이 문제의 핵심입니다.
+                    필요한 것은 <strong>「그때 가서 필요한 만큼 마련하는」 방법</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">돌아가는 도중에 자리를 빌립니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    운영체제는 <strong>프로그램이 필요할 때 빌려 갈 수 있는 메모리 몫</strong>을 따로 두고 있습니다.
+                    프로그램은 <strong>「이만큼 필요합니다」라고 청하고</strong>,
+                    운영체제는 <strong>빈 자리를 찾아 그 시작 주소를 알려 줍니다.</strong>
+                    이것을 <strong>동적 메모리 할당</strong>이라고 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>돌려받는 것이 「주소」라는 데 주목하세요.</strong>
+                    이름표가 붙은 변수가 생기는 것이 아니라 <strong>번호만 받습니다.</strong>
+                    그래서 <strong>동적으로 빌린 자리는 포인터로만 다룰 수 있습니다</strong> &mdash;
+                    포인터를 배우기 전에는 아예 꺼낼 수 없는 이야기였던 셈입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">지금까지 만든 프로그램 가운데 「넉넉하게 잡아 둔」 배열이 있었나요? 얼마나 놀고 있었을까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 빌려 쓰기 ===== -->
+    <section id="borrow" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">빌려 쓰기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">청하는 함수의 이름은 <code>malloc</code>입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/14.빌리기.c"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">적은 것</th>
+                        <th>뜻</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>n * sizeof(int)</code></td>
+                        <td>몇 <strong>칸</strong>이 필요한지. 개수가 아니라 <strong>바이트 수</strong>로 청합니다.</td>
+                    </tr>
+                    <tr>
+                        <td><code>(int *)</code></td>
+                        <td>돌려받은 번호를 <strong>정수를 가리키는 것으로</strong> 정해 줍니다.</td>
+                    </tr>
+                    <tr>
+                        <td><code>== NULL</code></td>
+                        <td><strong>못 빌렸을 때</strong>를 가려냅니다. 실패하면 <code>NULL</code>이 옵니다.</td>
+                    </tr>
+                    <tr>
+                        <td><code>data[i]</code></td>
+                        <td>빌린 뒤에는 <strong>배열과 똑같이</strong> 대괄호로 씁니다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">개수가 아니라 바이트 수로 청합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>malloc(5)</code>는 <strong>「다섯 칸(바이트)」</strong>이지 「정수 다섯 개」가 아닙니다.
+                    정수 다섯 개를 담으려면 <strong><code>5 * sizeof(int)</code></strong>라고 적어야 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong><code>20</code>이라고 직접 적지 않는 까닭</strong>이 있습니다.
+                    <code>int</code>가 몇 칸인지는 <strong>환경에 따라 다를 수 있고</strong>,
+                    나중에 담을 종류를 바꾸면 <strong>숫자를 함께 고쳐야</strong> 합니다.
+                    <code>sizeof</code>로 적어 두면 <strong>둘 다 저절로 따라옵니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i><code>malloc</code>은 <code>void *</code>를 돌려줍니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빌려 주는 쪽은 <strong>그 자리를 무엇에 쓸지 알 수 없습니다.</strong>
+                    정수를 담을지 글자를 담을지는 <strong>청한 사람만 압니다.</strong>
+                    그래서 <strong>종류를 정하지 않은 포인터</strong>를 돌려주고,
+                    받는 쪽이 <strong>형변환으로 「이렇게 쓰겠다」</strong>고 정합니다.
+                    앞 차시의 <code>void</code> 포인터가 <strong>바로 이 자리에서 쓰이는 것</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>C에서는 이 형변환을 생략해도 됩니다.</strong>
+                    다만 <strong>적어 두면 무엇으로 쓸 자리인지가 그 줄에서 바로 보이므로</strong>
+                    이 강의노트에서는 적는 쪽으로 씁니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>빌리지 못할 수도 있습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빌려 줄 자리가 없으면 <code>malloc</code>은 <strong><code>NULL</code>을 돌려줍니다.</strong>
+                    그것을 확인하지 않고 <code>data[0] = 10;</code>을 하면
+                    <strong>아무 곳도 아닌 자리에 값을 넣으려는 것</strong>이 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>빌린 직후에 <code>NULL</code>인지 묻는 것이 규칙</strong>입니다.
+                    포인터를 배울 때 「쓰기 전에 <code>NULL</code>인지 물어보는 습관」이라 한 것이
+                    <strong>가장 자주 쓰이는 자리</strong>가 여기입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">글자 100개를 담을 자리를 빌리려면 <code>malloc</code>에 무엇을 적어야 할까요? 문자열이라면 몇을 더 빌려야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 돌려주기 ===== -->
+    <section id="back" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">돌려주기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">빌렸으면 돌려주어야 합니다. 저절로 되지 않습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                함수 안에서 만든 변수는 <strong>함수가 끝나면 저절로 사라졌습니다.</strong>
+                그런데 <strong>빌린 자리는 그렇지 않습니다.</strong>
+                <strong><code>free</code>로 「다 썼습니다」라고 말해 주기 전까지 계속 빌린 상태</strong>입니다.
+            </p>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>주소를 잃어버리면 돌려줄 수도 없습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빌린 자리를 가리키는 <strong>포인터가 유일한 연결선</strong>입니다.
+                    그 포인터에 <strong>다른 주소를 덮어써 버리면</strong>
+                    앞서 빌린 자리는 <strong>어디였는지 알 방법이 없어집니다.</strong>
+                    쓰지도 못하고 돌려주지도 못하는 자리가 되는 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이렇게 <strong>돌려주지 못한 자리가 쌓여 쓸 수 있는 메모리가 줄어드는 것</strong>을
+                    <strong>메모리 누수</strong>라고 합니다.
+                    <strong>프로그램이 끝나면 운영체제가 한꺼번에 거두어 가므로</strong>
+                    짧게 돌다 끝나는 프로그램에서는 티가 나지 않습니다.
+                    <strong>오래 켜 두는 프로그램일수록 새는 만큼 그대로 쌓입니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">돌려준 뒤에도 포인터는 옛 번호를 들고 있습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>free(data);</code>는 <strong>「이 자리 이제 안 씁니다」라고 알리는 것</strong>이지
+                    <strong><code>data</code>를 지우는 것이 아닙니다.</strong>
+                    <code>data</code>에는 <strong>여전히 그 번호가 남아</strong> 있습니다.
+                    그 상태로 <code>data[0]</code>을 하면 <strong>이미 남에게 넘어갔을 자리를 뒤지는 셈</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong><code>free</code> 다음 줄에 <code>data = NULL;</code>을 적어 두는</strong>
+                    습관이 있습니다. <strong>「아무 곳도 아니다」로 바꿔 두면</strong> 실수로 썼을 때
+                    <strong>조용히 넘어가지 않고 그 자리에서 드러납니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>같은 자리를 두 번 돌려주는 것도 하면 안 됩니다.</strong>
+                    빌리지도 않은 것을 돌려주겠다는 말이 되기 때문입니다.
+                    <code>NULL</code>로 바꿔 두면 <strong>이 실수도 함께 막힙니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">빌린 줄과 돌려주는 줄을 짝으로 봅니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong><code>malloc</code>을 적는 순간 <code>free</code>를 어디에 적을지 함께 정합니다.</strong>
+                    나중에 찾아 넣으려 하면 <strong>어느 길로 빠져나가는지를 다 따져야</strong> 합니다 &mdash;
+                    중간에 <code>return</code>으로 나가는 길이 있으면 <strong>그 길에도 <code>free</code>가 있어야</strong> 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">반복 안에서 <code>malloc</code>을 하고 같은 포인터에 계속 담으면 무슨 일이 생길까요? 몇 번째 것까지 돌려줄 수 있을까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 형제 둘 ===== -->
+    <section id="family" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">형제 둘</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">채워 주는 것과 늘려 주는 것입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>malloc</code>이 빌려 준 자리에는 <strong>무엇이 들어 있을까요?</strong>
+                초기화하지 않은 배열을 읽지 말라던 것과 <strong>같은 이야기</strong>입니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/14.초기값.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900"><code>calloc</code>은 0으로 채워 줍니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>malloc</code>이 준 자리에는 <strong>정해지지 않은 값</strong>이 들어 있습니다.
+                    <strong>돌릴 때마다 다른 값이 나올 수 있고, 0이 나올 수도 있습니다</strong> &mdash;
+                    <strong>0이 나왔다고 「0으로 채워진다」고 믿으면 안 되는</strong> 대표적인 자리입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>calloc</code>은 <strong>빌려 준 자리를 0으로 채워</strong> 줍니다.
+                    적는 방법도 조금 달라서 <strong>개수와 크기를 쉼표로 나누어</strong> 적습니다 &mdash;
+                    <code>calloc(5, sizeof(int))</code>입니다.
+                    <strong>합을 쌓거나 개수를 셀 자리라면 <code>calloc</code>이 한 줄을 아껴 줍니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                빌린 뒤에 <strong>모자란 것을 알게 되면</strong> 어떻게 할까요?
+                더 큰 자리를 새로 빌려 <strong>담긴 것을 옮기고 옛 자리를 돌려주면</strong> 되는데,
+                그 셋을 한 번에 해 주는 것이 <code>realloc</code>입니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/14.늘리기.c"></code></pre>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>결과를 원래 포인터에 바로 담지 않습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>data = realloc(data, …);</code>라고 <strong>바로 담고 싶어집니다.</strong>
+                    그런데 <strong>늘리는 데 실패하면 <code>NULL</code>이 돌아옵니다.</strong>
+                    그것을 <code>data</code>에 덮어써 버리면 <strong>원래 자리의 번호를 잃어버려</strong>
+                    <strong>돌려줄 수도 없게</strong> 됩니다 &mdash; 실패 한 번으로 누수가 생기는 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>다른 포인터로 먼저 받아 <code>NULL</code>인지 확인한 뒤</strong>
+                    <strong>성공했을 때만 갈아 끼웁니다.</strong>
+                    실패해도 <strong>원래 자리는 그대로 살아 있으므로</strong> 돌려주고 끝낼 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 가지 더 &mdash; <strong>늘린 자리가 옛 자리와 다른 곳일 수 있습니다.</strong>
+                    옆에 빈 자리가 없으면 <strong>통째로 옮겨 담기</strong> 때문입니다.
+                    그래서 <strong>옛 주소를 들고 있던 다른 포인터가 있다면 그것들도 못 쓰게</strong> 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">여기까지를 한 프로그램으로</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    개수를 입력받아 <strong>그만큼만</strong> 빌리고, 다 쓰고 나서 <strong>돌려줍니다.</strong>
+                    「넉넉하게 잡아 두기」가 필요 없어졌습니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/14.전체.c"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>n</code>이 0 이하인지 <strong>먼저 거른 것</strong>을 보세요.
+                입력이 그대로 <code>malloc</code>에 들어가므로
+                <strong>이상한 값이 들어오면 이상한 크기를 청하게</strong> 됩니다.
+                <strong>밖에서 받은 값을 그대로 믿고 자리를 빌리지 않습니다.</strong>
+            </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">위 프로그램에서 <code>malloc</code>이 성공한 뒤 입력 도중에 <code>return</code>으로 빠져나가는 길을 만든다면 무엇을 잊지 말아야 할까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">도는 도중에 빌린다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    필요한 크기를 <strong>그때 가서</strong> 청한다.
+                    돌려받는 것은 <strong>주소뿐</strong>이라 <strong>포인터로만 다룰 수 있다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">바이트로 청하고 확인한다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>개수 * sizeof(종류)</code>로 적는다.
+                    돌아온 것이 <code>NULL</code>인지 <strong>쓰기 전에 반드시</strong> 묻는다.
+                    빌린 뒤에는 <strong>배열과 똑같이</strong> 쓴다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">저절로 돌아가지 않는다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>free</code>로 직접 돌려준다. 주소를 잃으면 <strong>돌려줄 수도 없다.</strong>
+                    돌려준 뒤에는 <code>NULL</code>로 바꿔 <strong>옛 번호를 남기지 않는다.</strong>
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">채워 주는 것, 늘려 주는 것</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>calloc</code>은 <strong>0으로 채워</strong> 준다.
+                    <code>realloc</code>은 <strong>옮겨 담기까지</strong> 해 주지만
+                    <strong>실패할 수 있으니 다른 포인터로 먼저 받는다.</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. 정수 <code>n</code>개를 담을 자리를 빌리는 올바른 코드는?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'malloc은 바이트 수로 청합니다. n을 그대로 적으면 n바이트만 빌립니다.')">
+                    ① <code>malloc(n)</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '개수에 한 개의 크기를 곱해 바이트 수로 청합니다.')">
+                    ② <code>malloc(n * sizeof(int))</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'sizeof(int)만 적으면 정수 «한 개» 자리만 빌립니다.')">
+                    ③ <code>malloc(sizeof(int))</code>
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '숫자를 직접 적으면 환경이 바뀌거나 담을 종류가 바뀔 때 함께 틀립니다.')">
+                    ④ <code>malloc(20)</code>
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>free(data);</code>를 한 뒤 <code>data</code>는 어떤 상태인가?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'free는 자리를 돌려줄 뿐 포인터 변수를 건드리지 않습니다.')">
+                    ① 저절로 <code>NULL</code>이 된다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '번호는 그대로 남아 있어 그 자리를 다시 쓰면 남에게 넘어갔을 자리를 뒤지게 됩니다.')">
+                    ② 옛 번호를 그대로 들고 있다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '포인터 변수 자체가 사라지지는 않습니다. 돌려준 것은 가리키던 자리입니다.')">
+                    ③ 변수 자체가 사라진다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '돌려준 자리를 계속 써도 된다면 free를 할 까닭이 없습니다.')">
+                    ④ 그대로 계속 써도 된다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. <code>data = realloc(data, 더 큰 크기);</code>처럼 바로 담으면 위험한 까닭은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '실패하면 NULL이 덮어써져 원래 자리의 번호를 잃고, 돌려줄 수도 없게 됩니다.')">
+                    ① 실패하면 원래 자리의 번호까지 잃어버려서
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '담긴 것은 realloc이 옮겨 줍니다. 그것이 realloc이 하는 일입니다.')">
+                    ② 담긴 값이 사라져서
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '문법에는 문제가 없습니다. 컴파일은 그대로 됩니다.')">
+                    ③ 문법에 어긋나서
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'realloc은 줄일 때도 쓸 수 있습니다. 늘리기 전용이 아닙니다.')">
+                    ④ <code>realloc</code>은 크기를 늘릴 수 없어서
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

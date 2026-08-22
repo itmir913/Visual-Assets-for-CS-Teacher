@@ -112,6 +112,19 @@
             min-height: 520px;
         }
 
+        /* 좁은 화면에서는 신경망을 «위에서 아래로» 쌓으므로 키가 더 있어야 한다.
+           키가 늘면 노드 반지름이 커져 안에 든 숫자가 함께 커진다. */
+        @media (max-width: 639px) {
+            .net-stage {
+                min-height: 27rem;
+            }
+
+            /* 경사하강법은 그림이 둘이라 더 필요하다. */
+            .gd-stage {
+                min-height: 34rem;
+            }
+        }
+
         @media (min-width: 1024px) {
             .sim-stage {
                 display: grid;
@@ -265,14 +278,14 @@
 
             <div class="sim-stage grid grid-cols-1 gap-4">
 
-                <div class="relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
+                <div class="gd-stage relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
                     <div class="absolute top-3 left-3 bg-blue-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
                         <i class="fa-solid fa-mountain-sun mr-1"></i> 경사하강법 &mdash; 손실이 낮아지는 쪽으로
                     </div>
                     <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
                         <span id="gdStepLabel">준비</span>
                     </div>
-                    <div class="min-w-[36rem] h-full relative">
+                    <div class="min-w-0 sm:min-w-[36rem] h-full relative">
                         <canvas id="gdCanvas" class="absolute inset-0 w-full h-full block touch-none"></canvas>
                     </div>
                 </div>
@@ -523,14 +536,14 @@
                  단계마다 식의 줄 수가 달라지므로, 빈 줄을 채워 줄 수까지 고정한다. -->
             <div class="sim-stage grid grid-cols-1 gap-4">
 
-                <div class="relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
+                <div class="net-stage relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
                     <div class="absolute top-3 left-3 bg-teal-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
                         <i class="fa-solid fa-arrow-right-long mr-1"></i> 순전파 &mdash; 값이 앞으로 흐른다
                     </div>
                     <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
                         <span id="fpStepLabel">준비</span>
                     </div>
-                    <div class="min-w-[36rem] h-full relative">
+                    <div class="min-w-0 sm:min-w-[36rem] h-full relative">
                         <canvas id="fpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
                     </div>
                 </div>
@@ -622,14 +635,14 @@
             <!-- 순전파 탭과 같은 짜임이다. 아래 칸의 높이를 못박아 위 그림이 흔들리지 않게 한다. -->
             <div class="sim-stage grid grid-cols-1 gap-4">
 
-                <div class="relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
+                <div class="net-stage relative min-h-[320px] rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-x-auto overflow-y-hidden lg:col-start-1 lg:row-start-1">
                     <div class="absolute top-3 left-3 bg-rose-600 text-white px-3 py-1.5 rounded-md text-base font-bold shadow-sm z-10">
                         <i class="fa-solid fa-arrow-left-long mr-1"></i> 역전파 &mdash; 책임이 거꾸로 온다
                     </div>
                     <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md text-base font-bold text-slate-700 shadow-sm border border-slate-200 z-10">
                         <span id="bpStepLabel">준비</span>
                     </div>
-                    <div class="min-w-[36rem] h-full relative">
+                    <div class="min-w-0 sm:min-w-[36rem] h-full relative">
                         <canvas id="bpCanvas" class="absolute inset-0 w-full h-full block"></canvas>
                     </div>
                 </div>
@@ -1313,18 +1326,27 @@
             this.draw();
         },
 
-        // 왼쪽(데이터) 그림의 좌표 변환. 곡선 모드에서는 없다.
+        /* 좁은 화면에서는 두 그림을 좌우가 아니라 «위아래»로 놓는다.
+           나란히 두면 한 쪽이 130px밖에 못 받아 축 눈금조차 들어가지 않는다. */
+        stacked() {
+            return this.mode === 'data' && this.logicalWidth < GD_STACK_W;
+        },
+
+        // 위(데이터) 그림의 좌표 변환. 곡선 모드에서는 없다.
         scatterView() {
             if (this.mode !== 'data') return null;
             const w = this.logicalWidth, h = this.logicalHeight;
             if (!w || !h) return null;
             const top = NET_BADGE_BAND + NET_TITLE_BAND;
             const pad = 46;
-            const x0 = pad, x1 = w * 0.5 - 24;
-            const y0 = top, y1 = h - 34;
+            const stack = this.stacked();
+            const half = (h - top - 34 - GD_STACK_GAP) / 2;
+            const x0 = pad, x1 = stack ? w - 24 : w * 0.5 - 24;
+            const y0 = top, y1 = stack ? top + half : h - 34;
             const XMAX = 4.4, YMAX = 6.4;
             return {
                 x0, x1, y0, y1, XMAX, YMAX,
+                titleY: NET_BADGE_BAND + 4,
                 toX: (x) => x0 + (x / XMAX) * (x1 - x0),
                 toY: (y) => y1 - (y / YMAX) * (y1 - y0),
                 fromX: (px) => (px - x0) / (x1 - x0) * XMAX,
@@ -1337,15 +1359,21 @@
             if (!w || !h) return null;
             const top = NET_BADGE_BAND + NET_TITLE_BAND;
             const full = this.mode !== 'data';
-            const x0 = full ? 52 : w * 0.5 + 46;
-            const x1 = w - 24;
-            const y0 = top, y1 = h - 34;
+            let x0 = full ? 52 : w * 0.5 + 46;
+            let x1 = w - 24;
+            let y0 = top, y1 = h - 34;
+            if (this.stacked()) {
+                const half = (h - top - 34 - GD_STACK_GAP) / 2;
+                x0 = 52;
+                y0 = top + half + GD_STACK_GAP;
+            }
             const [wLo, wHi] = this.wRange();
             let lMax = 0;
             for (let i = 0; i <= 120; i++) lMax = Math.max(lMax, this.loss(wLo + (wHi - wLo) * i / 120));
             lMax = Math.max(lMax * 1.08, 0.5);
             return {
                 x0, x1, y0, y1, wLo, wHi, lMax,
+                titleY: this.stacked() ? y0 - NET_TITLE_BAND : NET_BADGE_BAND + 4,
                 toX: (v) => x0 + (v - wLo) / (wHi - wLo) * (x1 - x0),
                 // 곡선과 점은 값이 천장을 넘어도 그림 칸 안에 머물도록 가둔다.
                 toY: (l) => y1 - Math.max(0, Math.min(lMax, l)) / lMax * (y1 - y0),
@@ -1389,12 +1417,13 @@
             const LV = this.lossView();
             if (this.mode === 'data') {
                 const SV = this.scatterView();
-                ctx.fillText('데이터와 모델  예측값 = w × x', (SV.x0 + SV.x1) / 2, titleY);
+                ctx.fillText('데이터와 모델  예측값 = w × x', (SV.x0 + SV.x1) / 2, SV.titleY ?? titleY);
                 this.drawScatter(ctx, SV);
             }
             ctx.fillStyle = '#64748b';
             ctx.textAlign = 'center';
-            ctx.fillText(this.mode === 'data' ? '오차 함수 L(w)' : '주어진 곡선', (LV.x0 + LV.x1) / 2, titleY);
+            ctx.fillText(this.mode === 'data' ? '오차 함수 L(w)' : '주어진 곡선',
+                (LV.x0 + LV.x1) / 2, LV.titleY ?? titleY);
             this.drawLoss(ctx, LV);
         },
 
@@ -2285,12 +2314,56 @@
     const NET_BADGE_BAND = 52;   // 배지가 차지하는 띠
     const NET_TITLE_BAND = 28;   // 열 이름 줄
 
+    /* 이 폭 아래로는 층을 «위에서 아래로» 쌓는다.
+       가로로 늘어놓으면 열과 열 사이에 28px밖에 남지 않는데 간선 라벨은 44px이라
+       들어갈 자리가 없다(2026-08-22 375px 실측). 세로로 쌓으면 노드가 오히려 커진다
+       — 반지름이 높이가 아니라 «폭»에 매이기 때문이다. */
+    const NET_STACK_W = 400;
+
+    /* 경사하강법은 그림이 둘이라 더 일찍 쌓는다. 나란히 두면 한 쪽이
+       (w/2 - 70)px밖에 못 받는데, 375px 화면에서는 그것이 82px이다. */
+    const GD_STACK_W = 460;
+
+    // 위아래로 쌓았을 때 두 그림 사이. 위 그림의 축 이름과 아래 그림의 제목이 함께 들어간다.
+    const GD_STACK_GAP = 52;
+
+    // 간선 라벨 하나가 차지하는 폭(375px에서 측정한 가장 긴 라벨 44px + 여백).
+    const NET_LABEL_ROOM = 52;
+
+    // 라벨을 간선에서 밀어내는 방향. 가로 배치는 위아래로, 세로 배치는 좌우로 민다.
+    function netOffset(L, v) {
+        return L.vertical ? {x: v, y: 0} : {x: 0, y: v};
+    }
+
+    function netLayoutStacked(w, h) {
+        const left = 56;                       // 층 이름이 앉는 왼쪽 띠
+        const top = NET_BADGE_BAND;
+        const uw = Math.max(140, w - left - 12);
+        const uh = Math.max(220, h - top - 14);
+        // 반지름은 폭이 정한다. 이웃한 두 노드가 닿지 않는 선이 천장이다.
+        const r = Math.max(18, Math.min(42, Math.min(uw * 0.19, uh * 0.13)));
+        const cx = (t) => left + uw * t;
+        const cy = (t) => top + uh * t;
+        return {
+            r,
+            vertical: true,
+            titleY: top,
+            titleX: left - 10,
+            nudge: Math.max(16, Math.min(34, uw * 0.15)),
+            input: [{x: cx(0.27), y: cy(0.12)}, {x: cx(0.73), y: cy(0.12)}],
+            hidden: [{x: cx(0.27), y: cy(0.5)}, {x: cx(0.73), y: cy(0.5)}],
+            out: {x: cx(0.5), y: cy(0.86)}
+        };
+    }
+
     function netLayout(w, h) {
+        if (w < NET_STACK_W) return netLayoutStacked(w, h);
         const top = NET_BADGE_BAND + NET_TITLE_BAND;   // 그림이 시작되는 자리
         const hh = Math.max(80, h - top);
         /* 노드 안에 숫자 두 줄이 들어가야 한다. 자리를 좁히는 것은 세로 간격이므로
            높이를 기준으로 잡고, 가로로도 이웃 열과 닿지 않게 함께 묶는다. */
-        const r = Math.max(20, Math.min(46, Math.min(hh * 0.16, w * 0.13)));
+        const gapCap = Math.max(20, (w * 0.34 - NET_LABEL_ROOM) / 2);
+        const r = Math.max(20, Math.min(46, Math.min(hh * 0.16, w * 0.13, gapCap)));
         return {
             r,
             titleY: NET_BADGE_BAND + 4,
@@ -2319,6 +2392,15 @@
         return 'bold ' + Math.max(16, Math.round(r * ratio)) + 'px ui-monospace, Menlo, Consolas, monospace';
     }
 
+    /* ctx.font에서 글자 크기를 읽는다.
+       **parseFloat를 쓰면 안 된다** — 'bold 18px …'는 «bold»로 시작하므로 NaN이 나오고,
+       그 값으로 자리를 잡은 글자는 NaN 좌표에 놓여 «통째로 사라진다».
+       실제로 두 줄짜리 노드와 꼬리표가 그렇게 안 보였다(2026-08-22). */
+    function fontPx(font) {
+        const m = /(\d+(?:\.\d+)?)px/.exec(String(font));
+        return m ? parseFloat(m[1]) : 16;
+    }
+
     /* at 은 라벨을 간선의 어디에 놓을지다(0=시작, 1=끝), dy 는 거기서 위아래로 밀 거리다.
        두 대각선은 한가운데가 같은 점일 뿐 아니라 서로 대칭이라, at 만 달리해도
        같은 높이에 놓인다. 라벨이 길어지면 결국 겹치므로 높이도 함께 벌린다. */
@@ -2338,9 +2420,11 @@
 
         if (label) {
             const t = (at === undefined) ? 0.5 : at;
-            const mx = sx + (ex - sx) * t, my = sy + (ey - sy) * t + (nudge || 0);
+            // 숫자로 오면 예전처럼 «위아래»로 민다. 세로 배치는 {x, y}로 넘긴다.
+            const off = (typeof nudge === 'number') ? {x: 0, y: nudge} : (nudge || {x: 0, y: 0});
+            const mx = sx + (ex - sx) * t + off.x, my = sy + (ey - sy) * t + off.y;
             ctx.font = netFont(r, 0.42);
-            const fs = parseFloat(ctx.font);
+            const fs = fontPx(ctx.font);
             const pad = 6;
             const tw = ctx.measureText(label).width;
             ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
@@ -2365,7 +2449,7 @@
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
         ctx.font = netFont(r, 0.42);
-        const fs = parseFloat(ctx.font);
+        const fs = fontPx(ctx.font);
         if (lines.length === 1) {
             ctx.fillText(lines[0], p.x, p.y);
         } else if (lines.length >= 2) {
@@ -2377,6 +2461,15 @@
     function drawColumnTitles(ctx, w, L) {
         ctx.font = 'bold ' + Math.max(16, Math.round(L.r * 0.4)) + 'px Pretendard, sans-serif';
         ctx.fillStyle = '#64748b';
+        if (L.vertical) {
+            // 층이 위아래로 놓이므로 이름도 열이 아니라 «줄» 옆에 붙는다.
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('입력층', L.titleX, L.input[0].y);
+            ctx.fillText('은닉층', L.titleX, L.hidden[0].y);
+            ctx.fillText('출력층', L.titleX, L.out.y);
+            return;
+        }
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText('입력층', L.input[0].x, L.titleY);
@@ -2384,10 +2477,25 @@
         ctx.fillText('출력층', L.out.x, L.titleY);
     }
 
+    /* 세로로 쌓았을 때의 꼬리표. 위아래는 간선과 그 라벨이 지나는 길이라 자리가 없다.
+       좌우는 비어 있으므로 옆에 붙인다. */
+    function drawSideTag(ctx, p, r, text, color, right) {
+        ctx.font = netFont(r, 0.4);
+        const fs = fontPx(ctx.font);
+        ctx.textAlign = right ? 'left' : 'right';
+        ctx.textBaseline = 'middle';
+        const x = right ? p.x + r + 6 : p.x - r - 6;
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.fillRect(right ? x - 3 : x - tw - 3, p.y - fs * 0.7, tw + 6, fs * 1.4);
+        ctx.fillStyle = color;
+        ctx.fillText(text, x, p.y);
+    }
+
     // 노드 옆에 붙는 작은 꼬리표 (편향·정답 등)
     function drawTag(ctx, p, r, text, color, above) {
         ctx.font = netFont(r, 0.4);
-        const fs = parseFloat(ctx.font);
+        const fs = fontPx(ctx.font);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const y = above ? p.y - r - fs : p.y + r + fs;
@@ -2679,7 +2787,9 @@
                             : nf(x[i]) + '×' + par(n.w1[i][j]) + '=' + nf(x[i] * n.w1[i][j]);
                     }
                     drawEdge(ctx, L.input[i], L.hidden[j], L.r, n.w1[i][j], dim, label, null,
-                        i === 0 ? 0.3 : 0.7, i === j ? (i === 0 ? -L.nudge * 0.5 : L.nudge * 0.5) : (i === 0 ? L.nudge : -L.nudge));
+                        i === 0 ? 0.3 : 0.7,
+                        netOffset(L, i === j ? (i === 0 ? -L.nudge * 0.5 : L.nudge * 0.5)
+                            : (i === 0 ? L.nudge : -L.nudge)));
                 }
             }
             // 은닉 → 출력
@@ -2691,7 +2801,8 @@
                         ? nf(fw.a1[j] * n.w2[j])
                         : nf(fw.a1[j], 2) + '×' + par(n.w2[j]) + '=' + nf(fw.a1[j] * n.w2[j]);
                 }
-                drawEdge(ctx, L.hidden[j], L.out, L.r, n.w2[j], dim, label);
+                drawEdge(ctx, L.hidden[j], L.out, L.r, n.w2[j], dim, label, null,
+                    0.5, L.vertical ? netOffset(L, j === 0 ? -L.nudge * 0.8 : L.nudge * 0.8) : 0);
             }
 
             // 노드
@@ -2705,7 +2816,10 @@
                 const isDead = dead[j] && netSim.act === 'relu';
                 drawNode(ctx, L.hidden[j], L.r, isDead ? '#94a3b8' : '#6366f1',
                     isDead ? '#64748b' : '#4338ca', lines, p < 2);
-                if (isDead) drawTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', true);
+                if (isDead) {
+                    if (L.vertical) drawSideTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', j === 1);
+                    else drawTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', true);
+                }
             }
             let outLines = ['?'];
             if (p >= 6) outLines = ['z ' + nf(fw.z2), nf(fw.a2, 3)];
@@ -2713,7 +2827,8 @@
             drawNode(ctx, L.out, L.r, '#10b981', '#047857', outLines, p < 5);
             if (p >= 6) {
                 const [, y] = netSim.sample();
-                drawTag(ctx, L.out, L.r, '정답 ' + y, '#334155', true);
+                if (L.vertical) drawSideTag(ctx, L.out, L.r, '정답 ' + y, '#334155', true);
+                else drawTag(ctx, L.out, L.r, '정답 ' + y, '#334155', true);
             }
         },
 
@@ -3186,7 +3301,9 @@
                     const label = on ? (compact ? nf(g.dw1[i][j], 3) : '기울기 ' + nf(g.dw1[i][j], 3))
                         : nf(n.w1[i][j]);
                     drawEdge(ctx, L.input[i], L.hidden[j], L.r, n.w1[i][j], !on, label,
-                        on ? '#be123c' : null, i === 0 ? 0.3 : 0.7, i === j ? (i === 0 ? -L.nudge * 0.5 : L.nudge * 0.5) : (i === 0 ? L.nudge : -L.nudge));
+                        on ? '#be123c' : null, i === 0 ? 0.3 : 0.7,
+                        netOffset(L, i === j ? (i === 0 ? -L.nudge * 0.5 : L.nudge * 0.5)
+                            : (i === 0 ? L.nudge : -L.nudge)));
                 }
             }
             // 은닉 → 출력. 1단계부터 기울기를 적는다.
@@ -3194,7 +3311,8 @@
                 const on = p >= 1;
                 const label = on ? (compact ? nf(g.dw2[j], 3) : '기울기 ' + nf(g.dw2[j], 3))
                     : nf(n.w2[j]);
-                drawEdge(ctx, L.hidden[j], L.out, L.r, n.w2[j], !on, label, on ? '#be123c' : null);
+                drawEdge(ctx, L.hidden[j], L.out, L.r, n.w2[j], !on, label, on ? '#be123c' : null,
+                    0.5, L.vertical ? netOffset(L, j === 0 ? -L.nudge * 0.8 : L.nudge * 0.8) : 0);
             }
 
             // 되돌아오는 화살표 — 책임이 거꾸로 흐른다는 것을 보이는 표시
@@ -3211,14 +3329,22 @@
                 const lines = p >= 2 ? ['몫', nf(g.dz1[j], 3)] : ['a ' + nf(fw.a1[j], 2)];
                 drawNode(ctx, L.hidden[j], L.r, isDead ? '#94a3b8' : '#6366f1',
                     isDead ? '#64748b' : '#4338ca', lines, p < 2);
-                if (isDead) drawTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', true);
+                if (isDead) {
+                    if (L.vertical) drawSideTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', j === 1);
+                    else drawTag(ctx, L.hidden[j], L.r, '죽은 뉴런', '#b91c1c', true);
+                }
             }
             const outLines = p >= 1 ? ['몫', nf(g.dz2, 3)] : [nf(fw.a2, 3)];
             drawNode(ctx, L.out, L.r, '#e11d48', '#9f1239', outLines, false);
-            drawTag(ctx, L.out, L.r,
-                compact ? nf(fw.a2, 2) + '/' + y : '예측 ' + nf(fw.a2, 3) + ' / 정답 ' + y, '#334155', true);
-            drawTag(ctx, L.out, L.r,
-                compact ? nf(netSim.loss(fw.a2, y), 3) : '손실 ' + nf(netSim.loss(fw.a2, y), 4), '#be123c', false);
+            const outTag = compact ? nf(fw.a2, 2) + '/' + y : '예측 ' + nf(fw.a2, 3) + ' / 정답 ' + y;
+            const lossTag = compact ? nf(netSim.loss(fw.a2, y), 3) : '손실 ' + nf(netSim.loss(fw.a2, y), 4);
+            if (L.vertical) {
+                drawSideTag(ctx, L.out, L.r, outTag, '#334155', false);
+                drawSideTag(ctx, L.out, L.r, lossTag, '#be123c', true);
+            } else {
+                drawTag(ctx, L.out, L.r, outTag, '#334155', true);
+                drawTag(ctx, L.out, L.r, lossTag, '#be123c', false);
+            }
         },
 
         drawBackArrow(ctx, from, to, r) {

@@ -448,6 +448,64 @@ def gutter_rules(src: str):
     return bad
 
 
+SHRINK_COL = re.compile(r"(?<![-\w:])flex-col\b")
+SHRINK_ITEMS = re.compile(r"(?<![-\w:])items-(?:start|center|end|baseline)\b")
+FORCED_W = re.compile(r"table-prose|min-w-\[|min-width\s*:")
+SELF_WIDE = re.compile(r"(?<![-\w:])(?:w-full|self-stretch|w-\[)?")
+
+
+def stack_rules(src: str):
+    """세로로 쌓은 칸 «안»에 폭을 강제하는 것이 들었는가.
+
+    `flex`를 `flex-col`로 바꾸면 `items-*`의 뜻이 주축에서 교차축으로 옮겨간다.
+    가로일 때 `items-start`는 「위로 붙임」이지만 **세로일 때는 「내용 폭에 맞춤」**이다.
+    그러면 칸이 화면 폭을 채우지 않고, 안에 든 `table-prose`(min-width 32rem)가
+    칸을 밀어내 **페이지가 통째로 가로로 넘친다.**
+
+    래퍼가 있는지만 보는 「테이블 래퍼」 검사는 이것을 못 잡는다 —
+    래퍼 자체가 줄어들기 때문이다. 실제로 그렇게 214px이 샌 적이 있다.
+    폭을 강제하는 것을 품지 않았다면 줄어들어도 넘치지 않으므로 보지 않는다.
+    """
+    nodes, st = [], []
+    for m in re.finditer(r"<(/?)(div|section|main|li|td)\b([^>]*)>", src, re.I):
+        if m.group(1):
+            while st:
+                i = st.pop()
+                if nodes[i][2] == m.group(2).lower():
+                    nodes[i] = (nodes[i][0], nodes[i][1], nodes[i][2], nodes[i][3], m.start())
+                    break
+            continue
+        if re.search(r"/>\s*$", m.group(3)):
+            continue
+        c = re.search(r'class="([^"]*)"', m.group(3))
+        nodes.append((st[-1] if st else -1, c.group(1) if c else "",
+                      m.group(2).lower(), m.end(), len(src)))
+        st.append(len(nodes) - 1)
+
+    kids = {}
+    for i, n in enumerate(nodes):
+        kids.setdefault(n[0], []).append(i)
+
+    bad = []
+    for i, (_parent, cls, _tag, start, end) in enumerate(nodes):
+        if not SHRINK_COL.search(cls) or "flex" not in cls.split():
+            continue
+        it = SHRINK_ITEMS.search(cls)
+        if not it:
+            continue
+        # 폭을 스스로 못박은 자식은 줄어들지 않으므로 넘치지 않는다.
+        for k in kids.get(i, []):
+            kcls = nodes[k][1]
+            if SELF_WIDE.search(kcls):
+                continue
+            if FORCED_W.search(src[nodes[k][3]:nodes[k][4]]):
+                bad.append(f"{_line_of(src, start)}행: 세로로 쌓은 칸에 「{it.group(0)}」 "
+                           f"— 세로일 때는 «내용 폭에 맞춤»이라 안에 든 넓은 표·도해가 "
+                           f"페이지를 가로로 밀어낸다. items-stretch sm:{it.group(0)} 로 준다")
+                break
+    return bad
+
+
 def check(path: Path, log) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
@@ -504,6 +562,7 @@ def check(path: Path, log) -> tuple[int, int]:
     report("금지 요소", banned_rules(src))
     report("머리말", head_rules(src))
     report("좁은 화면 여백", gutter_rules(src))
+    report("세로로 쌓은 칸", stack_rules(src))
 
     return violations, warnings
 

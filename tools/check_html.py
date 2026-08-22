@@ -377,6 +377,32 @@ def _msg(item: str) -> str:
     return re.sub(r"^\d+행:\s*", "", item)
 
 
+def head_rules(src: str):
+    """머리말이 제구실을 하는지. 화면에 안 보이므로 눈으로는 못 잡는다."""
+    bad = []
+
+    metas = list(re.finditer(r"<meta\s[^>]*>", src, re.I))
+    vp = [m for m in metas if re.search(r'name\s*=\s*"viewport"', m.group(0), re.I)]
+    if not vp:
+        # 이름이 어긋난 것을 찾아 준다. 태그는 있는데 무시당하는 쪽이 더 헷갈린다.
+        near = [m for m in metas if "width=device-width" in m.group(0)]
+        why = (f" — 이름이 어긋났다: {near[0].group(0)}" if near else "")
+        line = _line_of(src, near[0].start()) if near else 1
+        bad.append(f"{line}행: viewport 메타가 없다{why}. "
+                   f'<meta name="viewport" content="width=device-width, initial-scale=1.0">')
+    elif "width=device-width" not in vp[0].group(0):
+        bad.append(f"{_line_of(src, vp[0].start())}행: viewport에 width=device-width가 없다 "
+                   f"— 모바일이 980px로 잡고 통째로 축소한다")
+
+    # 태그 «안»의 한글 낱자모는 IME가 흘린 것이다. 본문의 자모는 정당할 수 있으므로 보지 않는다.
+    for m in re.finditer(r"<[^>!][^>]*>", src):
+        j = re.search(r"[ㄱ-ㆎ]", m.group(0))
+        if j:
+            bad.append(f"{_line_of(src, m.start())}행: 태그 안에 한글 낱자모 "
+                       f"「{j.group(0)}」 — 입력기가 흘린 것이다 :: {m.group(0)[:60]}")
+    return bad
+
+
 def check(path: Path, log) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
@@ -431,6 +457,7 @@ def check(path: Path, log) -> tuple[int, int]:
     report("고정폭 래퍼", c.wide_unwrapped)
     report("제목 일치", title_rules(path, src))
     report("금지 요소", banned_rules(src))
+    report("머리말", head_rules(src))
 
     return violations, warnings
 

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>void 포인터</title>
+    <link rel="stylesheet" href="/src/styles/programming.css">
+    <script type="module" src="/src/entries/프로그래밍/c/13-void-포인터.js"></script>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-shapes absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-circle-question absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">프로그래밍</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            void 포인터
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            포인터의 자료형은 「몇 칸을 읽을지」였습니다.<br>
+            <strong>그 답을 미뤄 두면 어떻게 될까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li><code>void</code> 포인터가 무엇을 미뤄 두는 포인터인지 설명할 수 있다.</li>
+                    <li>형변환으로 읽을 종류를 정해 주고 값을 꺼낼 수 있다.</li>
+                    <li>같은 자리를 다른 종류로 읽으면 왜 다른 값이 나오는지 설명할 수 있다.</li>
+                    <li>여러 종류를 함께 다루는 함수를 <code>void</code> 포인터로 만들 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-shapes text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">void 포인터</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-orange-600 transition">종류를 미뤄 두기</a>
+            <a href="#cast" class="hover:text-orange-600 transition">읽을 때 정해 준다</a>
+            <a href="#byte" class="hover:text-orange-600 transition">같은 자리 다르게 읽기</a>
+            <a href="#use" class="hover:text-orange-600 transition">종류를 가리지 않는 함수</a>
+            <a href="#summary" class="hover:text-orange-600 transition">핵심 정리</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== 종류를 미뤄 두기 ===== -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">종류를 미뤄 두기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">무엇이 올지 모르는 채로 자리를 받아야 할 때가 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                포인터에 붙는 자료형은 <strong>가리키는 대상에 관한 정보</strong>였습니다.
+                <code>int *</code>면 네 칸을 읽어 정수로, <code>char *</code>면 한 칸을 읽어 글자로 봅니다.
+                그래서 <strong>담을 수 있는 주소도 그 종류로 제한</strong>됩니다 &mdash;
+                <code>double</code>의 자리를 <code>int *</code>에 넣으려 하면 컴파일러가 붙잡습니다.
+            </p>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">그런데 「아직 모를 때」가 있습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    정수를 다루든 실수를 다루든 <strong>하는 일이 똑같은 함수</strong>를 만든다고 해 봅시다.
+                    받을 자리를 <code>int *</code>로 적으면 <strong>정수 말고는 못 받고</strong>,
+                    <code>double *</code>로 적으면 <strong>실수 말고는 못 받습니다.</strong>
+                    종류마다 같은 함수를 따로 만들어야 할까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「자리 번호는 지금 받아 두고, 그것을 어떻게 읽을지는 나중에 정하겠다」</strong>고
+                    말할 수 있으면 좋겠습니다. 그것이 <strong><code>void</code> 포인터</strong>입니다.
+                </p>
+            </div>
+
+            <pre class="language-c"><code class="language-c" data-src="code/13.보이드.c"></code></pre>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">종류가 다른 주소를 같은 변수에 담았습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>void *p</code> 하나에 <strong><code>&amp;n</code>도 <code>&amp;d</code>도</strong> 그대로 들어갑니다.
+                    <strong>「가리키는 대상이 무엇인지」를 아예 적지 않았기 때문</strong>입니다.
+                    <code>void</code>가 함수에서 <strong>「없다」</strong>는 뜻이었던 것처럼
+                    여기서는 <strong>「정하지 않았다」</strong>는 뜻입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>담을 수 있는 것은 그대로입니다</strong> &mdash; 포인터가 담는 것은
+                    <strong>자료가 아니라 번호</strong>이고, 번호를 적는 데 드는 크기는 대상과 무관했습니다.
+                    <strong>그래서 <code>void</code> 포인터가 있을 수 있습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">포인터 크기가 가리키는 대상에 따라 달라졌다면 <code>void</code> 포인터를 만들 수 있었을까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 읽을 때 정해 준다 ===== -->
+    <section id="cast" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">읽을 때 정해 준다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">미룬 답은 언젠가 내놓아야 합니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                위 코드에서 값을 꺼낼 때 <code>*p</code>라고 쓰지 않고
+                <strong><code>*(int *) p</code></strong>라고 적었습니다.
+                <strong><code>*p</code>라고만 쓰면 컴파일이 되지 않습니다.</strong>
+            </p>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>몇 칸을 읽을지 모르니 읽을 수가 없습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    역참조는 <strong>「그 자리로 가서 정해진 칸 수만큼 읽어 오라」</strong>였습니다.
+                    <code>void</code> 포인터는 <strong>그 칸 수를 정해 두지 않았으니</strong>
+                    가더라도 <strong>어디까지 읽어야 할지 알 수 없습니다.</strong>
+                    그래서 컴파일러가 <strong>「<code>void</code>를 잘못 쓰고 있다」며 오류</strong>를 냅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    덧셈도 사정이 같습니다. <code>+ 1</code>이 <strong>「대상 하나만큼 옆으로」</strong>인데
+                    그 하나가 몇 칸인지 모르니 <strong>표준이 뜻을 정해 두지 않았습니다.</strong>
+                    컴파일러가 나름의 해석으로 받아 주기도 하지만 <strong>기대고 쓸 것은 못 됩니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">괄호로 종류를 씌워 줍니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>(int *) p</code>는 <strong>「이 번호를 정수를 가리키는 것으로 쳐라」</strong>는 뜻입니다.
+                    이렇게 종류를 바꿔 주는 것을 <strong>형변환(캐스트)</strong>이라고 합니다.
+                    나눗셈에서 <code>(double) sum / n</code>이라고 쓰던 그 괄호와 <strong>같은 문법</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>*(int *) p</code>는 <strong>먼저 종류를 정하고 그다음 역참조</strong>합니다.
+                    <strong>순서를 지키려고 괄호를 씌운 것</strong>이니,
+                    <code>*(int *) p</code>를 <strong>「정수로 쳐서 읽어라」</strong> 한 덩어리로 읽으면 됩니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>형변환은 「어떻게 읽을지」를 정할 뿐 자리에 담긴 것을 고치지 않습니다.</strong>
+                그래서 <strong>틀리게 정해 주어도 컴파일러가 막지 못합니다.</strong>
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/13.캐스트.c"></code></pre>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>3.5도 3도 아닌 값이 나옵니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    실수 <code>3.5</code>가 든 자리를 <strong>정수로 쳐서 네 칸만</strong> 읽었습니다.
+                    이 컴퓨터에서는 <strong>0</strong>이 찍혔습니다.
+                    <strong>어떤 값이 나오든 3.5와는 아무 관계가 없는 값</strong>입니다 &mdash;
+                    실수를 담는 방식과 정수를 담는 방식이 <strong>애초에 다르기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>형변환은 「이렇게 읽겠다」는 선언이지 「이렇게 바꿔라」가 아닙니다.</strong>
+                    그래서 <strong><code>void</code> 포인터를 쓸 때는 「무엇을 담아 두었는지」를
+                    사람이 기억하고 있어야</strong> 합니다. 컴파일러가 대신 지켜 주지 않습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>int</code>를 담아 둔 <code>void</code> 포인터를 <code>*(double *)</code>로 읽으면 몇 칸을 읽게 될까요? 그 가운데 몇 칸이 남의 자리일까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 같은 자리 다르게 읽기 ===== -->
+    <section id="byte" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">같은 자리 다르게 읽기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">틀리게 읽는 것이 아니라 일부러 다르게 읽어 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 절에서는 잘못 읽어 엉뚱한 값이 나왔지만, <strong>일부러 다르게 읽어 얻는 것</strong>도 있습니다.
+                정수 하나가 <strong>네 칸에 어떻게 나뉘어 들어 있는지</strong>를 보려면
+                <code>char *</code>로 <strong>한 칸씩</strong> 읽으면 됩니다.
+            </p>
+
+            <pre class="language-c"><code class="language-c" data-src="code/13.바이트.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">먼저 <code>0x</code> 표기를 짚고 갑니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>0x12345678</code>은 <strong>16진수로 적은 수</strong>입니다.
+                    주소를 찍을 때 나오던 그 표기이고, <strong>앞의 <code>0x</code>가 「이건 16진수」라는 표시</strong>입니다.
+                    16진수가 편한 까닭은 <strong>두 자리가 정확히 한 칸(1바이트)</strong>이기 때문입니다 &mdash;
+                    <code>12</code> <code>34</code> <code>56</code> <code>78</code>이 <strong>칸 네 개에 하나씩</strong> 대응합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>%02X</code>는 <strong>「16진수 두 자리로, 모자라면 0을 채워」</strong> 찍으라는 뜻입니다.
+                    그래야 칸마다 자릿수가 같아 <strong>줄을 세워 볼 수</strong> 있습니다.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-orange-900">거꾸로 나옵니다 &mdash; <code>78 56 34 12</code></p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    적은 순서대로라면 <code>12 34 56 78</code>이 나와야 할 것 같은데 <strong>뒤집혀 나옵니다.</strong>
+                    <strong>낮은 자릿수를 앞 칸에 놓는 방식</strong>으로 담기 때문입니다.
+                    많이 쓰는 개인용 컴퓨터가 이 방식이고, <strong>반대로 놓는 컴퓨터도 있습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>어느 쪽이 옳고 그른 것이 아니라 약속이 다른 것</strong>입니다.
+                    평소에는 알 필요가 없다가, <strong>칸 단위로 직접 들여다볼 때</strong>에야 드러납니다.
+                    <strong>포인터의 자료형이 「해석하는 방법」이라는 말의 뜻</strong>이 여기서 분명해집니다 &mdash;
+                    <strong>자리에 든 것은 그대로인데 읽는 방법이 결과를 정합니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed">반복 조건을 <code>i &lt; 8</code>로 늘리면 무엇을 읽게 될까요? 정수는 네 칸뿐이었습니다.</p>
+        </div>
+    </section>
+
+    <!-- ===== 종류를 가리지 않는 함수 ===== -->
+    <section id="use" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">종류를 가리지 않는 함수</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">처음의 물음으로 돌아갑니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <pre class="language-c"><code class="language-c" data-src="code/13.전체.c"></code></pre>
+
+            <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-slate-900">종류가 다른 셋을 한 배열에 담았습니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    배열은 <strong>한 종류만 담는다</strong>는 규칙은 그대로입니다 &mdash;
+                    <code>slot</code>은 <strong><code>void *</code>만 담는 배열</strong>입니다.
+                    다만 <strong><code>void *</code>는 어떤 자리든 가리킬 수 있으니</strong>
+                    결과적으로 <strong>정수·실수·글자를 한 줄에 세운 것</strong>이 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>show</code>는 <strong>무엇이 올지 모르는 채로 자리를 받습니다.</strong>
+                    그래서 <code>kind</code>를 <strong>함께 받습니다</strong> &mdash;
+                    <strong>「이 자리를 무엇으로 읽어야 하는지」를 알려 주는 쪽지</strong>입니다.
+                </p>
+            </div>
+
+            <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-triangle-exclamation mr-2"></i>지켜 주는 장치가 사라집니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>kind</code>를 <code>'d'</code>로 잘못 적어도 <strong>컴파일은 그대로 됩니다.</strong>
+                    <strong><code>void</code> 포인터를 쓰는 값이 「종류를 안 따지는 것」인데,
+                    그 값이 곧 대가</strong>이기도 합니다 &mdash;
+                    <strong>종류가 맞는지 봐 주던 컴파일러의 검사를 스스로 꺼 버린 셈</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 <strong>꼭 필요할 때만 씁니다.</strong>
+                    다루는 종류가 <strong>하나로 정해져 있다면 <code>int *</code>처럼 또박또박 적는 편</strong>이
+                    낫습니다. 그래야 <strong>틀리면 컴파일러가 붙잡아 줍니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 space-y-2">
+                <p class="font-black text-lg text-amber-900"><i class="fa-solid fa-lightbulb mr-2"></i>이미 쓰고 있던 것이기도 합니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    주소를 찍을 때 <code>printf("%p", (void *) &amp;n)</code>이라고
+                    <strong><code>void *</code>로 씌워</strong> 왔습니다.
+                    <code>%p</code>는 <strong>「무엇을 가리키든 상관없이 번호만 찍는」</strong> 자리라
+                    <strong>종류를 따지지 않는 포인터를 받게</strong> 되어 있습니다.
+                    지금까지 까닭 없이 붙이던 괄호가 <strong>여기서 뜻을 갖습니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-2xl p-6">
+            <p class="font-black text-base text-sky-900 mb-2"><i class="fa-solid fa-circle-question mr-2"></i>스스로 확인</p>
+            <p class="text-base text-slate-700 leading-relaxed"><code>show</code>에서 <code>kind</code>를 없애고 자리만 받게 하면 무엇이 불가능해질까요?</p>
+        </div>
+    </section>
+
+    <!-- ===== 핵심 정리 ===== -->
+    <section id="summary" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">종류를 미뤄 둔 포인터</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>void *</code>는 <strong>가리키는 대상을 정하지 않은</strong> 포인터다.
+                    포인터의 크기가 대상과 무관하기 때문에 <strong>있을 수 있는 것</strong>이다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">읽으려면 정해 주어야</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    몇 칸을 읽을지 모르므로 <strong>그대로는 역참조할 수 없다.</strong>
+                    <code>*(int *) p</code>처럼 <strong>형변환으로 「이렇게 읽겠다」</strong>고 말해 준다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">읽는 방법이 결과를 정한다</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    형변환은 <strong>담긴 것을 고치지 않는다.</strong>
+                    같은 자리도 <code>char *</code>로 읽으면 칸별로 보이고,
+                    틀리게 정하면 <strong>아무 관계 없는 값</strong>이 나온다.
+                </p>
+            </div>
+            <div class="section-card space-y-2">
+                <h3 class="text-xl font-black text-slate-900">검사를 스스로 끄는 일</h3>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    종류를 안 따지는 만큼 <strong>컴파일러도 안 봐 준다.</strong>
+                    <strong>무엇을 담았는지 사람이 기억해야</strong> 하므로
+                    꼭 필요할 때만 쓴다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div id="q1" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">1. <code>void *p = &amp;n;</code> 다음에 <code>printf("%d", *p);</code>라고 쓰면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, 'void 포인터는 몇 칸을 읽을지 정해져 있지 않아 그대로 읽을 수 없습니다.')">
+                    ① <code>n</code>의 값이 잘 찍힌다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '읽을 칸 수가 정해져 있지 않아 컴파일러가 붙잡습니다. 형변환으로 정해 주어야 합니다.')">
+                    ② 컴파일되지 않는다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '엉뚱한 값이 나오는 것이 아니라 아예 컴파일 단계에서 막힙니다.')">
+                    ③ 엉뚱한 값이 찍힌다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '주소가 아니라 값을 읽으려는 코드입니다. 그리고 읽을 수 없습니다.')">
+                    ④ 주소가 찍힌다
+                </button>
+            </div>
+        </div>
+
+        <div id="q2" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">2. <code>double</code>이 든 자리를 <code>*(int *)</code>로 읽으면?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '소수점을 버리는 것이 아닙니다. 그것은 값을 바꾸는 형변환이고, 여기서는 읽는 방법만 바꿨습니다.')">
+                    ① 소수점 아래가 잘린 정수가 나온다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '담는 방식이 애초에 다르므로 원래 값과 아무 관계 없는 값이 나옵니다.')">
+                    ② 원래 값과 관계없는 값이 나온다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '형변환은 담긴 것을 고치지 않습니다. 자리의 내용은 그대로입니다.')">
+                    ③ 그 자리의 값이 정수로 바뀐다
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '컴파일러가 막지 못합니다. 형변환은 「이렇게 읽겠다」는 사람의 선언이기 때문입니다.')">
+                    ④ 컴파일러가 막아 준다
+                </button>
+            </div>
+        </div>
+
+        <div id="q3" class="section-card space-y-4">
+            <p class="font-black text-lg text-slate-900">3. <code>void</code> 포인터를 쓸 때 사람이 함께 챙겨야 하는 것은?</p>
+            <div class="space-y-3">
+                <button class="quiz-btn" onclick="checkAnswer(this, true, '무엇을 담아 두었는지는 컴파일러가 봐 주지 않으므로 사람이 기억하거나 따로 넘겨야 합니다.')">
+                    ① 그 자리에 무엇이 들어 있는지
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '포인터의 크기는 대상과 무관하게 같습니다. 챙길 것이 아닙니다.')">
+                    ② 포인터 변수 자신의 크기
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '주소값은 운영체제가 정합니다. 사람이 챙길 수 있는 것이 아닙니다.')">
+                    ③ 주소로 몇 번이 나올지
+                </button>
+                <button class="quiz-btn" onclick="checkAnswer(this, false, '16진수 표기는 찍는 방법일 뿐 챙겨야 할 정보가 아닙니다.')">
+                    ④ 주소를 16진수로 적었는지
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -420,6 +420,34 @@ def head_rules(src: str):
     return bad
 
 
+def gutter_rules(src: str):
+    """좁은 화면에서 «본문에 남는 폭»을 갉아먹는 두 자리.
+
+    375px에서는 바깥 여백이 겹칠수록 글이 토막 난다. 여백은 데스크톱에서 보기
+    좋으라고 준 값이라 모바일에서 눈에 띄지 않고, 그래서 조용히 남는다.
+    카드 여백 40px + 본문 여백 24px이면 시작부터 128px이 사라진다.
+    """
+    bad = []
+
+    m = re.search(r"\.section-card\s*\{([^}]*)\}", src)
+    if m:
+        pm = re.search(r"padding:\s*([^;]+);", m.group(1))
+        if pm:
+            v = pm.group(1).strip()
+            fixed = re.fullmatch(r"([\d.]+)rem", v)
+            if fixed and float(fixed.group(1)) >= 2:
+                bad.append(f"{_line_of(src, m.start())}행: .section-card 여백이 {v} 고정 "
+                           f"— 375px에서 좌우로 {float(fixed.group(1)) * 32:.0f}px을 먹는다. "
+                           f"clamp(1.25rem, 4vw, {v})로 준다")
+
+    m = re.search(r'<main\s[^>]*class="([^"]*)"', src)
+    if m and re.search(r"(?<![-\w:])px-[5-9]\b", m.group(1)) \
+            and not re.search(r"(?<![-\w:])px-[1-4](?:\.\d)?\b", m.group(1)):
+        bad.append(f"{_line_of(src, m.start())}행: <main>의 좌우 여백이 좁은 화면에서도 그대로다 "
+                   f"— px-4 sm:px-6 처럼 준다")
+    return bad
+
+
 def check(path: Path, log) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
@@ -475,6 +503,7 @@ def check(path: Path, log) -> tuple[int, int]:
     report("제목 일치", title_rules(path, src))
     report("금지 요소", banned_rules(src))
     report("머리말", head_rules(src))
+    report("좁은 화면 여백", gutter_rules(src))
 
     return violations, warnings
 

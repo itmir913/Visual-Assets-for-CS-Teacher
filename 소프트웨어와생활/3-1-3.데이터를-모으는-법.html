@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터를 모으는 법</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-magnifying-glass-chart absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-cloud-arrow-down absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            데이터를 모으는 법
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            구하기 쉬운 것부터 모으면<br><strong>물음과 어긋납니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터를 모으는 <strong>네 가지 길</strong>을 알고 물음에 맞는 길을 고를 수 있다.</li>
+                    <li>공개 데이터를 제공하는 곳을 찾아 <strong>필요한 데이터를 내려받을</strong> 수 있다.</li>
+                    <li>모으는 과정에서 <strong>지켜야 할 것</strong>을 알고 받은 데이터의 출처를 확인할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-magnifying-glass-chart text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터를 모으는 법</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#ways" class="hover:text-emerald-600 transition">네 가지 길</a>
+            <a href="#open" class="hover:text-emerald-600 transition">공개 데이터</a>
+            <a href="#rules" class="hover:text-emerald-600 transition">지켜야 할 것</a>
+            <a href="#check" class="hover:text-emerald-600 transition">받으면 먼저 볼 것</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 네 가지 길 ══════════ -->
+    <section id="ways" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">네 가지 길</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                물음을 세웠으면 <strong>그 물음에 답할 데이터</strong>를 구해야 합니다. 구하는 길은 크게
+                넷입니다. 어느 길로 갈지는 <strong>물음이 정합니다.</strong> 반대로 길부터 정하고 물음을
+                맞추면 앞 차시에서 본 실수가 됩니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-building-columns text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-emerald-900">공개 데이터를 받아 온다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        나라와 공공 기관, 연구 단체가 <strong>누구나 쓰라고 열어 둔</strong> 데이터입니다.
+                        양이 많고 오래 쌓여 있으며, <strong>어떻게 모았는지</strong>가 함께 적혀 있습니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>아쉬운 점</strong> &mdash; 내가 알고 싶은 것과 <strong>딱 맞는 항목이
+                        없을 때</strong>가 많습니다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-ruler text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">직접 측정한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        Ⅱ단원에서 만든 장치가 이 길입니다. <strong>내가 원하는 값을 원하는 자리에서</strong>
+                        얻을 수 있습니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>아쉬운 점</strong> &mdash; 시간이 걸리고, <strong>모을 수 있는 양이
+                        적습니다.</strong> 장치가 놓인 그 자리 이야기뿐입니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-clipboard-question text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-amber-900">사람에게 묻는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        설문이나 면담입니다. <strong>생각과 까닭처럼 기계가 읽을 수 없는 것</strong>을
+                        얻는 유일한 길입니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>아쉬운 점</strong> &mdash; <strong>답한 사람만</strong> 담깁니다. 관심 있는
+                        사람이 주로 답하므로 치우치기 쉽습니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-globe text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">누리집에서 긁어 온다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        화면에 보이는 것을 프로그램이 <strong>차례로 읽어 모으는</strong> 방법입니다.
+                        공개 데이터로 정리되지 않은 것도 얻을 수 있습니다.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>아쉬운 점</strong> &mdash; 화면이 바뀌면 <strong>프로그램도 다시 고쳐야</strong>
+                        하고, <strong>허락된 범위</strong>를 반드시 확인해야 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-base text-slate-900">물음에 맞는 길 고르기</p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">물음의 종류와 그에 맞는 수집 방법</caption>
+                        <thead>
+                        <tr>
+                            <th class="w-44">이런 물음이라면</th>
+                            <th>이 길이 알맞다</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>「지난 10년 동안 어떻게 달라졌나」</td>
+                            <td><strong>공개 데이터</strong> &mdash; 오래 쌓인 것은 직접 모을 수 없다</td>
+                        </tr>
+                        <tr>
+                            <td>「우리 교실은 지금 어떤가」</td>
+                            <td><strong>직접 측정</strong> &mdash; 이 자리의 값은 아무도 대신 모아 두지 않았다</td>
+                        </tr>
+                        <tr>
+                            <td>「왜 그렇게 했나」</td>
+                            <td><strong>사람에게 묻기</strong> &mdash; 까닭은 센서로도 기록으로도 안 나온다</td>
+                        </tr>
+                        <tr>
+                            <td>「사람들이 무엇에 대해 이야기하나」</td>
+                            <td><strong>누리집에서 모으기</strong> &mdash; 다만 허락된 범위 안에서만</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>두 가지 길을 섞어 쓰는 것</strong>도 좋습니다. 공개 데이터로 큰 흐름을 보고,
+                설문으로 <strong>「왜 그런가」</strong>를 물으면 서로의 빈자리를 메워 줍니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「우리 학교 학생들은 왜 도서관을 잘 안 갈까」에 답하려면 <strong>어느 길</strong>이
+                필요할까요? 하나로 될까요, 둘을 섞어야 할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 공개 데이터 ══════════ -->
+    <section id="open" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">공개 데이터</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 길 가운데 학교에서 가장 자주 쓰는 것은 <strong>공개 데이터</strong>입니다. 어디에서
+                찾을 수 있는지 몇 곳만 짚어 두겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">공개 데이터를 얻을 수 있는 곳</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">어디</th>
+                        <th>무엇이 있나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">공공데이터포털<br>
+                            <a class="ext-link" href="https://www.data.go.kr" target="_blank" rel="noopener noreferrer">data.go.kr</a>
+                        </td>
+                        <td>여러 공공 기관이 모아 둔 데이터가 <strong>한곳에</strong> 있습니다. 시설 위치,
+                            이용 현황, 안전 관련 기록 같은 것이 많습니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">국가통계포털<br>
+                            <a class="ext-link" href="https://kosis.kr" target="_blank" rel="noopener noreferrer">kosis.kr</a>
+                        </td>
+                        <td>인구 &middot; 가구 &middot; 물가처럼 <strong>나라 전체를 오래 세어 온</strong>
+                            통계가 있습니다. 여러 해를 나란히 놓고 보기에 좋습니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">기상자료개방포털<br>
+                            <a class="ext-link" href="https://data.kma.go.kr" target="_blank" rel="noopener noreferrer">data.kma.go.kr</a>
+                        </td>
+                        <td>기상청이 <strong>관측 지점마다 날마다</strong> 남긴 기온 &middot; 강수 &middot;
+                            바람 기록이 있습니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">캐글<br>
+                            <a class="ext-link" href="https://www.kaggle.com/datasets" target="_blank" rel="noopener noreferrer">kaggle.com/datasets</a>
+                        </td>
+                        <td>전 세계 사람들이 올려 둔 <strong>연습용 데이터</strong>가 많습니다. 다만
+                            <strong>누가 어떻게 모았는지</strong>를 꼭 확인해야 합니다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">앞의 셋과 마지막 하나는 성격이 다르다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞의 세 곳은 <strong>기관이 책임지고 모아 공개한</strong> 데이터입니다. 어떻게 측정했고
+                    무엇이 빠졌는지가 함께 적혀 있습니다. 마지막 한 곳은
+                    <strong>여러 사람이 올린 자리</strong>라서, 잘 정리된 것도 있고
+                    <strong>출처가 불분명한 것도 섞여</strong> 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    연습용으로는 좋지만, <strong>결론을 뒷받침하는 근거로 쓸 때는</strong> 원래 어디서
+                    나온 것인지 따라가 확인해야 합니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">받을 때 살펴볼 것</p>
+
+            <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                <li><strong>어느 범위인가</strong> &mdash; 전국인가 한 지역인가, 몇 년치인가</li>
+                <li><strong>어떤 꼴인가</strong> &mdash; 표로 된 파일인지, 그림이나 문서인지</li>
+                <li><strong>얼마나 자주 갱신되나</strong> &mdash; 오래 멈춰 있는 데이터일 수도 있다</li>
+                <li><strong>어떻게 쓸 수 있나</strong> &mdash; 출처를 밝히면 되는지, 다른 조건이 있는지</li>
+            </ul>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 곳 가운데 한 곳에 들어가 <strong>관심 있는 데이터를 하나</strong> 찾아보세요. 위의
+                살펴볼 것 네 가지에 답할 수 있나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 지켜야 할 것 ══════════ -->
+    <section id="rules" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">지켜야 할 것</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                데이터를 모으는 일은 <strong>대개 남에 대한 것을 모으는 일</strong>입니다. 그래서 기술보다
+                먼저 정해야 할 것이 있습니다. 셋만 짚겠습니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">하나 &mdash; 누구인지 알 수 없게 한다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학교에서 다루는 데이터에는 <strong>이름 &middot; 학번 &middot; 연락처</strong>가 들어
+                    있기 쉽습니다. 분석에 이 값이 필요한 경우는 <strong>거의 없습니다.</strong> 학년별로
+                    세려면 학년만 있으면 되고, 이름은 필요 없습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>받자마자 지우는</strong> 것이 원칙입니다. 「나중에 필요할지도 모르니」는
+                    가장 위험한 생각입니다. 이 강의노트의 예시에서 이름을 <strong>「학생 A」</strong>로
+                    적는 것도 같은 이유입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">둘 &mdash; 지웠다고 안심하지 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이름을 지워도 <strong>다른 값들을 겹쳐 보면</strong> 누구인지 드러날 수 있습니다.
+                    「3학년 &middot; 축구부 &middot; 안경 &middot; 화요일마다 늦게 빌림」이 모이면
+                    <strong>한 사람으로 좁혀집니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 <strong>사람 수가 적은 칸</strong>을 조심해야 합니다. 「3학년 여학생 축구부」가
+                    두 명뿐이라면, 그 칸의 값은 <strong>사실상 그 두 사람의 값</strong>입니다. 이럴 때는
+                    <strong>더 큰 묶음으로 합쳐</strong> 발표합니다.
+                </p>
+            </div>
+
+            <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-sky-900">셋 &mdash; 허락된 범위 안에서만 가져온다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>공개 데이터</strong>라도 쓰는 조건이 붙어 있습니다. 대개는 출처를 밝히면
+                        되지만, 조건을 <strong>읽어 보고</strong> 쓰는 것이 맞습니다.
+                    </li>
+                    <li><strong>설문</strong>은 무엇에 쓸지 미리 알리고 답을 받습니다. 나중에 다른 데 쓰려면
+                        <strong>다시 물어야</strong> 합니다.
+                    </li>
+                    <li><strong>누리집에서 모을 때</strong>는 그 누리집이 정해 둔 범위를 확인합니다. 또
+                        <strong>짧은 시간에 몰아서 요청하지 않습니다.</strong> 남의 서버에 부담을 주는
+                        일이기 때문입니다.
+                    </li>
+                </ul>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 가지 모두 <strong>「할 수 있는가」가 아니라 「해도 되는가」</strong>를 묻고 있습니다.
+                기술로는 대부분 가능합니다. 그래서 <strong>스스로 선을 그어야</strong> 합니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                반별로 나눈 표에서 <strong>어떤 칸에 한 명밖에 없다면</strong> 어떻게 하는 것이 좋을까요?
+                그대로 두면 무엇이 문제인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 받으면 먼저 볼 것 ══════════ -->
+    <section id="check" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">받으면 먼저 볼 것</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                파일을 내려받으면 바로 열어 계산하고 싶어집니다. 그 전에 <strong>다섯 가지</strong>를
+                확인하세요. 이것을 적어 두면 나중에 보고서를 쓸 때 <strong>그대로 옮겨</strong> 쓸 수 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">데이터를 받았을 때 확인할 다섯 가지</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">확인할 것</th>
+                        <th>왜 봐야 하나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">누가 모았나</td>
+                        <td>기관이 모은 것과 개인이 올린 것은 <strong>믿을 만한 정도가 다릅니다.</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">언제 것인가</td>
+                        <td>몇 해 전에 멈춘 데이터로 <strong>지금을 말하면</strong> 틀립니다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">어디까지 담겼나</td>
+                        <td>전국인지 한 지역인지, <strong>어떤 사람이 빠져 있는지</strong>를 봅니다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">어떻게 측정했나</td>
+                        <td>기계가 측정한 것인지, 사람이 적은 것인지, <strong>설문에 답한 것인지</strong>에
+                            따라 성격이 다릅니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">각 칸이 무슨 뜻인가</td>
+                        <td>칸 이름만 보고 짐작하면 틀립니다. <strong>설명 문서를 함께</strong> 받습니다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">마지막 줄에서 가장 많이 넘어진다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「이용자 수」라는 칸이 있다고 합시다. 이것은 <strong>다녀간 사람의 수</strong>일까요,
+                    <strong>회원으로 등록한 사람의 수</strong>일까요? 아니면 <strong>같은 사람이 여러 번
+                    온 것을 각각 센</strong> 것일까요?
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    셋은 전혀 다른 값인데 <strong>이름은 똑같습니다.</strong> 설명 문서를 안 읽고 계산하면
+                    <strong>숫자는 나오지만 뜻이 없는</strong> 결과가 됩니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">해 보기 &mdash; 출처 카드 만들기</p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    쓰려는 데이터마다 <strong>카드 한 장</strong>을 만들어 두세요. 아래 다섯 줄이면 됩니다.
+                </p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>이름과 주소</strong> &mdash; 어디서 받았는지 다시 갈 수 있게</li>
+                    <li><strong>모은 곳과 시기</strong></li>
+                    <li><strong>담긴 범위</strong>와 빠져 있는 것</li>
+                    <li><strong>쓴 칸</strong>과 그 칸의 정확한 뜻</li>
+                    <li><strong>쓰는 조건</strong> &mdash; 출처를 어떻게 밝혀야 하는지</li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    보고서를 쓸 때 이 카드를 <strong>그대로 옮겨 붙이면</strong> 출처가 완성됩니다.
+                    나중에 다시 찾느라 시간을 쓰지 않아도 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「도서관 이용자 수」를 <strong>세 가지 다른 뜻</strong>으로 읽어 보세요. 우리 학교
+                도서관이라면 어느 쪽으로 세고 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">네 가지 길</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>공개 데이터 &middot; 직접 측정 &middot; 사람에게 묻기 &middot;
+                        누리집에서 모으기.</strong></li>
+                    <li>어느 길로 갈지는 <strong>물음이 정한다.</strong> 길부터 정하면 물음이 끌려간다.</li>
+                    <li>두 길을 섞으면 <strong>서로의 빈자리</strong>를 메울 수 있다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">공개 데이터</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>공공데이터포털 &middot; 국가통계포털 &middot; 기상자료개방포털 같은 곳에서 얻는다.</li>
+                    <li>기관이 공개한 것과 <strong>여러 사람이 올린 자리</strong>는 성격이 다르다.</li>
+                    <li>받을 때 <strong>범위 &middot; 꼴 &middot; 갱신 &middot; 쓰는 조건</strong>을 본다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">지켜야 할 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>이름 &middot; 학번은 <strong>받자마자 지운다.</strong> 「나중에 필요할지도」가 가장 위험하다.</li>
+                    <li>지웠어도 <strong>여러 값을 겹치면</strong> 누구인지 드러난다. 사람 수가 적은 칸을 조심한다.</li>
+                    <li>「할 수 있는가」가 아니라 <strong>「해도 되는가」</strong>를 묻는다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">받으면 먼저 볼 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>누가 &middot; 언제 &middot; 어디까지 &middot; 어떻게 &middot; 각 칸의 뜻</strong> 다섯.</li>
+                    <li>가장 많이 넘어지는 곳은 <strong>칸의 뜻</strong>이다. 이름이 같아도 세는 방법이 다르다.</li>
+                    <li><strong>출처 카드</strong>를 만들어 두면 보고서에 그대로 옮겨 쓸 수 있다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「왜 그렇게 했는지」를 알고 싶을 때 알맞은 길은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '까닭은 기록에 남지 않습니다. 무슨 일이 있었는지만 남습니다.')">
+                    ① 공개 데이터를 받아 온다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '센서는 값을 읽을 뿐 까닭을 읽지 못합니다.')">
+                    ② 센서로 직접 측정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 생각과 까닭은 사람에게 물어야만 얻을 수 있습니다.')">
+                    ③ 사람에게 묻는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '누리집 글에서 짐작할 수는 있지만, 그 사람의 까닭을 직접 아는 것은 아닙니다.')">
+                    ④ 누리집에서 긁어 온다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    설문으로 모은 데이터에서 <strong>조심할 점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 답한 사람만 담깁니다. 관심 있는 사람이 주로 답하므로 치우치기 쉽습니다.')">
+                    ① 답한 사람만 담겨 치우칠 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '설문은 오히려 짧은 시간에 많이 모을 수 있는 편입니다.')">
+                    ② 모으는 데 반드시 몇 년이 걸린다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '설문 결과도 표로 정리할 수 있습니다.')">
+                    ③ 표로 만들 수 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '까닭을 물을 수 있다는 것이 오히려 설문의 강점입니다.')">
+                    ④ 까닭을 물을 수 없다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    이름을 지웠는데도 <strong>누구인지 드러날 수 있는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지운 이름이 되살아나지는 않습니다.')">
+                    ① 지운 이름이 다시 나타나기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 학년·동아리·요일 같은 값을 겹쳐 보면 한 사람으로 좁혀질 수 있습니다.')">
+                    ② 남은 값들을 겹쳐 보면 한 사람으로 좁혀지기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '파일 이름을 바꾸는 것과는 관계가 없습니다.')">
+                    ③ 파일 이름에 이름이 남아 있기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '숫자가 이름으로 바뀌는 일은 없습니다.')">
+                    ④ 숫자가 저절로 이름으로 바뀌기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    데이터를 받았을 때 <strong>가장 많이 넘어지는</strong> 확인 항목은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '누가 모았는지는 대개 첫 화면에 적혀 있어 놓치기 어렵습니다.')">
+                    ① 누가 모았나
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '언제 것인지도 대개 눈에 띄게 적혀 있습니다.')">
+                    ② 언제 것인가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '범위도 중요하지만 이름만 보고 오해하기 쉬운 쪽은 따로 있습니다.')">
+                    ③ 어디까지 담겼나
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 「이용자 수」처럼 이름은 같아도 세는 방법이 다른 칸에서 가장 많이 넘어집니다.')">
+                    ④ 각 칸이 정확히 무슨 뜻인가
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

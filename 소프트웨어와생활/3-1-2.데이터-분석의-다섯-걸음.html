@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 분석의 다섯 걸음</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-list-check absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-broom absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            데이터 분석의 다섯 걸음
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            가장 오래 걸리는 걸음은<br><strong>계산이 아니라 청소</strong>입니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터 분석의 <strong>다섯 걸음</strong>을 차례대로 설명할 수 있다.</li>
+                    <li>빠진 값 · 튄 값 · 겹친 값 · 단위가 다른 값을 <strong>가려내고 다룰</strong> 수 있다.</li>
+                    <li>요약한 숫자 하나만 보면 <strong>무엇을 놓치는지</strong> 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-list-check text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터 분석의 다섯 걸음</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#steps" class="hover:text-emerald-600 transition">다섯 걸음</a>
+            <a href="#clean" class="hover:text-emerald-600 transition">다듬기</a>
+            <a href="#look" class="hover:text-emerald-600 transition">살펴보기</a>
+            <a href="#read" class="hover:text-emerald-600 transition">읽어 내기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 다섯 걸음 ══════════ -->
+    <section id="steps" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다섯 걸음</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                데이터 분석이라고 하면 <strong>계산하고 그래프 그리는 장면</strong>이 떠오릅니다. 그런데
+                실제로 해 보면 그 장면은 <strong>전체의 아주 짧은 한 토막</strong>입니다. 앞뒤에 훨씬
+                긴 일이 붙어 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 224" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="다섯 개의 번호가 붙은 상자가 왼쪽에서 오른쪽으로 이어진다. 물음 세우기, 모으기, 다듬기, 살펴보기, 읽어 내기 순서이며 세 번째 상자가 가장 크게 그려져 있고 가장 오래 걸린다고 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">분석은 다섯 걸음으로 돈다</text>
+
+                    <rect x="8" y="76" width="98" height="66" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <circle cx="28" cy="94" r="11" fill="#059669"/>
+                    <text x="28" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+                    <text x="57" y="128" font-size="16" fill="#064e3b" font-weight="700" text-anchor="middle">물음 세우기</text>
+
+                    <path d="M112 109 L122 109" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M118 101 L130 109 L118 117 Z" fill="#94a3b8"/>
+
+                    <rect x="134" y="76" width="82" height="66" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <circle cx="154" cy="94" r="11" fill="#2563eb"/>
+                    <text x="154" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+                    <text x="175" y="128" font-size="16" fill="#1e3a8a" font-weight="700" text-anchor="middle">모으기</text>
+
+                    <path d="M222 109 L232 109" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M228 101 L240 109 L228 117 Z" fill="#94a3b8"/>
+
+                    <rect x="244" y="58" width="112" height="102" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="4"/>
+                    <circle cx="266" cy="80" r="11" fill="#d97706"/>
+                    <text x="266" y="86" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+                    <text x="300" y="118" font-size="18" fill="#78350f" font-weight="700" text-anchor="middle">다듬기</text>
+                    <text x="300" y="142" font-size="16" fill="#92400e" text-anchor="middle">가장 오래 걸린다</text>
+
+                    <path d="M362 109 L372 109" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M368 101 L380 109 L368 117 Z" fill="#94a3b8"/>
+
+                    <rect x="384" y="76" width="88" height="66" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <circle cx="404" cy="94" r="11" fill="#7c3aed"/>
+                    <text x="404" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+                    <text x="428" y="128" font-size="16" fill="#4c1d95" font-weight="700" text-anchor="middle">살펴보기</text>
+
+                    <path d="M478 109 L488 109" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M484 101 L496 109 L484 117 Z" fill="#94a3b8"/>
+
+                    <rect x="490" y="76" width="78" height="66" rx="12" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+                    <circle cx="510" cy="94" r="11" fill="#dc2626"/>
+                    <text x="510" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+                    <text x="529" y="128" font-size="16" fill="#7f1d1d" font-weight="700" text-anchor="middle">읽어 내기</text>
+
+                    <path d="M529 168 L529 194 L57 194 L57 168" fill="none" stroke="#94a3b8" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M50 176 L57 164 L64 176 Z" fill="#94a3b8"/>
+                    <text x="293" y="216" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">읽고 나면 대개 새 물음이 생겨 처음으로 돌아간다</text>
+                </svg>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다섯 걸음에서 각각 하는 일과 흔한 실수</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">걸음</th>
+                        <th>하는 일</th>
+                        <th class="w-44">흔한 실수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">1. 물음 세우기</td>
+                        <td>무엇을 알고 싶은지 <strong>한 문장</strong>으로 적는다</td>
+                        <td>「분석해 보자」로 시작해 방향이 없다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">2. 모으기</td>
+                        <td>그 물음에 답할 데이터를 <strong>어디서 얻을지</strong> 정하고 가져온다</td>
+                        <td>구하기 쉬운 것부터 모아 <strong>물음과 어긋난다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">3. 다듬기</td>
+                        <td>빠진 값 &middot; 튄 값 &middot; 겹친 값 &middot; 단위를 <strong>정리</strong>한다</td>
+                        <td>대충 넘어가고 <strong>결과를 믿어 버린다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">4. 살펴보기</td>
+                        <td>세고 &middot; 평균 내고 &middot; 그림으로 그려 <strong>모양을 본다</strong></td>
+                        <td>숫자 하나만 보고 넘어간다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">5. 읽어 내기</td>
+                        <td>나온 것이 <strong>무슨 뜻인지</strong> 판단하고 다음에 무엇을 할지 정한다</td>
+                        <td>함께 움직인 것을 <strong>원인이라고</strong> 말한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">3번 상자가 유독 큰 까닭</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    데이터를 실제로 다뤄 본 사람들은 입을 모아 말합니다 &mdash;
+                    <strong>대부분의 시간은 다듬는 데 쓴다</strong>고. 계산은 명령 한 줄이면 되지만,
+                    <strong>어느 값을 버릴지 정하는 일</strong>은 사람이 하나하나 판단해야 하기 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 걸음을 건너뛰면 <strong>결과는 나옵니다.</strong> 그것이 무서운 점입니다.
+                    프로그램은 「이 값이 이상한데요」라고 말해 주지 않습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                2번 걸음의 흔한 실수 &mdash; <strong>구하기 쉬운 것부터 모으면</strong> 왜 물음과
+                어긋나게 될까요? Ⅰ단원의 융합 2단계와 이어서 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 다듬기 ══════════ -->
+    <section id="clean" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다듬기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                실제로 받은 데이터는 <strong>가지런하지 않습니다.</strong> 아래는 어느 학교 도서관의
+                대출 기록 일부입니다. 값은 <strong>수업에서 원리를 확인하려고 지어낸 것</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다듬기 전의 도서관 대출 기록 예시. 값은 수업용으로 지어낸 것이다.</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">번호</th>
+                        <th class="w-36">빌린 날</th>
+                        <th class="w-32">학년</th>
+                        <th>빌린 권수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>3월 4일</td>
+                        <td>1</td>
+                        <td>2</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>3월 4일</td>
+                        <td class="text-rose-700 font-bold">(비어 있음)</td>
+                        <td>1</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>3월 5일</td>
+                        <td>2</td>
+                        <td class="text-rose-700 font-bold">99</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>3월 5일</td>
+                        <td>2</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td class="text-rose-700 font-bold">4</td>
+                        <td class="text-rose-700 font-bold">3월 5일</td>
+                        <td class="text-rose-700 font-bold">2</td>
+                        <td class="text-rose-700 font-bold">3</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td class="text-rose-700 font-bold">2026-03-06</td>
+                        <td>3</td>
+                        <td>1</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                붉게 표시한 자리가 <strong>네 가지 다른 문제</strong>입니다. 하나씩 어떻게 다룰지
+                보겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">데이터를 다듬을 때 만나는 네 가지 문제와 다루는 법</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">무엇이</th>
+                        <th>어떻게 다루나</th>
+                        <th class="w-44">조심할 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">빠진 값</td>
+                        <td>그 줄을 <strong>빼거나</strong>, 다른 값으로 <strong>채운다.</strong>
+                            학년처럼 짐작할 수 없는 것은 빼는 편이 낫다.
+                        </td>
+                        <td>빼면 <strong>빠진 사람들만 사라진다.</strong> 왜 비었는지 먼저 생각한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">튄 값</td>
+                        <td>있을 수 없는 값인지 살핀다. 한 사람이 하루에 99권은 <strong>대개 잘못
+                            적힌 것</strong>이다.
+                        </td>
+                        <td>정말 그런 일이 있었을 수도 있다. <strong>지우기 전에 확인</strong>한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">겹친 줄</td>
+                        <td>똑같은 줄이 두 번 들어갔으면 <strong>하나만 남긴다.</strong></td>
+                        <td>정말 두 번 일어난 일일 수도 있다. <strong>번호가 같은지</strong>를 본다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">다른 표기</td>
+                        <td>「3월 6일」과 「2026-03-06」을 <strong>한 가지 꼴로</strong> 맞춘다.</td>
+                        <td>맞추지 않으면 <strong>다른 날짜로 세어진다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">빠진 값을 지울 때 가장 조심한다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「비어 있으니 그 줄은 빼자」는 편해 보입니다. 그런데 <strong>왜 비었는지</strong>
+                    생각해 보세요. 학년이 비어 있는 줄이 유독 많다면, <strong>어떤 이유로 학년을 적지
+                    않고 빌리는 사람들</strong>이 있다는 뜻일 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그 줄들을 다 빼면 <strong>그 사람들만 통째로 사라진</strong> 데이터가 됩니다.
+                    Ⅰ단원의 <strong>「계산에서 빠지는 사람」</strong>이 여기서도 나옵니다.
+                    빈칸은 <strong>없는 것이 아니라 하나의 신호</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「빌린 권수」에 <strong>0이 적힌 줄</strong>을 발견했습니다. 이것은 튄 값일까요, 아니면
+                뜻이 있는 값일까요? 어떻게 확인하면 좋을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 살펴보기 ══════════ -->
+    <section id="look" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">살펴보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                다듬은 데이터를 이제 살펴봅니다. 가장 먼저 하는 일은 <strong>여러 값을 하나로 줄여
+                보는</strong> 것입니다. 스무 명의 대출 권수를 하나하나 읽는 대신 <strong>평균</strong>
+                하나를 봅니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">줄이면 반드시 잃는 것이 있다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    스무 개의 값을 하나로 줄였으니 <strong>열아홉 개만큼의 이야기가 사라진</strong> 것입니다.
+                    이것은 나쁜 일이 아니라 <strong>줄인다는 말의 뜻</strong>입니다. 다만
+                    <strong>무엇이 사라졌는지</strong>는 알고 있어야 합니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">평균이 같아도 전혀 다른 두 반</p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 236" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="두 개의 점 그래프가 위아래로 놓여 있다. 위쪽 1반은 점들이 가운데에 몰려 있고, 아래쪽 2반은 점들이 양쪽 끝에 갈려 있다. 두 그래프 모두 평균이 같은 자리에 표시되어 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">평균은 같지만 모양은 전혀 다르다</text>
+
+                    <text x="46" y="80" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">1반</text>
+                    <path d="M84 92 L556 92" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="272" cy="74" r="9" fill="#2563eb"/>
+                    <circle cx="296" cy="74" r="9" fill="#2563eb"/>
+                    <circle cx="320" cy="74" r="9" fill="#2563eb"/>
+                    <circle cx="248" cy="74" r="9" fill="#2563eb"/>
+                    <circle cx="344" cy="74" r="9" fill="#2563eb"/>
+                    <path d="M296 100 L296 118" stroke="#dc2626" stroke-width="3"/>
+                    <text x="296" y="140" font-size="16" fill="#b91c1c" font-weight="700" text-anchor="middle">평균 3권</text>
+
+                    <text x="46" y="186" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">2반</text>
+                    <path d="M84 198 L556 198" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="108" cy="180" r="9" fill="#7c3aed"/>
+                    <circle cx="132" cy="180" r="9" fill="#7c3aed"/>
+                    <circle cx="156" cy="180" r="9" fill="#7c3aed"/>
+                    <circle cx="480" cy="180" r="9" fill="#7c3aed"/>
+                    <circle cx="524" cy="180" r="9" fill="#7c3aed"/>
+                    <path d="M296 206 L296 222" stroke="#dc2626" stroke-width="3"/>
+                    <text x="296" y="234" font-size="16" fill="#b91c1c" font-weight="700" text-anchor="middle">평균 3권</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 반의 평균은 똑같이 3권입니다. 그런데 1반은 <strong>대부분이 두세 권씩</strong>
+                빌렸고, 2반은 <strong>거의 안 빌린 사람과 아주 많이 빌린 사람으로 갈렸습니다.</strong>
+                평균만 보고 「두 반이 비슷하다」고 하면 <strong>완전히 잘못 읽은</strong> 것입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그래서 살펴볼 때는 <strong>숫자 하나로 줄이기 전에 먼저 그림으로 늘어놓아</strong>
+                봅니다. 점을 찍어 보면 위 그림처럼 <strong>모양이 한눈에</strong> 보입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">자주 쓰는 요약값과 각각이 말해 주는 것</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">요약값</th>
+                        <th>무엇을 말해 주나</th>
+                        <th class="w-44">언제 속나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">평균</td>
+                        <td>값들을 <strong>고르게 나누면</strong> 얼마씩 돌아가는지</td>
+                        <td>아주 큰 값 하나에 <strong>통째로 끌려간다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">가운데 값</td>
+                        <td>크기순으로 늘어놓았을 때 <strong>한가운데</strong> 있는 값</td>
+                        <td>양쪽으로 갈린 모양은 <strong>드러내지 못한다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">가장 큰 값과 작은 값</td>
+                        <td>값이 <strong>어디부터 어디까지</strong> 퍼져 있는지</td>
+                        <td>가운데가 어떤지는 <strong>전혀 알려 주지 않는다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">개수</td>
+                        <td>몇 건이나 되는지. <strong>가장 먼저 확인할 것</strong></td>
+                        <td>속을 일이 없다. 다만 자주 빠뜨린다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 줄을 눈여겨보세요. <strong>「몇 건인가」</strong>는 시시해 보여서 자주 건너뜁니다.
+                그런데 다듬는 과정에서 <strong>절반이 지워졌다면</strong> 평균이 아무리 그럴듯해도
+                믿을 수 없습니다. <strong>개수를 먼저 확인하는 버릇</strong>을 들이세요.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                2반처럼 <strong>양쪽으로 갈린 모양</strong>을 발견했다면, 그다음에 무엇을 알아보고
+                싶어질까요? 새 물음을 하나 만들어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 읽어 내기 ══════════ -->
+    <section id="read" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">읽어 내기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 걸음입니다. 나온 숫자를 <strong>사람의 말로 옮기는</strong> 자리이고, 가장 실수가
+                많은 자리이기도 합니다. 실수는 대개 <strong>한 종류</strong>입니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">함께 움직였다는 것과 원인이라는 것은 다르다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「대출이 많은 달에 시험 성적도 높았다」는 결과가 나왔다고 합시다. 여기서
+                    <strong>「책을 많이 빌리면 성적이 오른다」</strong>로 넘어가면 안 됩니다.
+                    데이터가 말해 준 것은 <strong>둘이 함께 움직였다</strong>는 것뿐입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다른 설명도 얼마든지 됩니다 &mdash; <strong>시험이 가까우면 자습실에 오래 있게 되고,
+                    그 김에 책도 빌린다</strong>고 하면 순서가 반대입니다. 아니면 <strong>공부를 열심히
+                    하는 시기</strong>가 둘 다를 끌어올렸을 수도 있습니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 216" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="세 가지 설명이 나란히 그려져 있다. 첫째는 대출이 성적을 올린다, 둘째는 성적 때문에 대출이 는다, 셋째는 시험 기간이라는 다른 것이 둘 다를 끌어올린다는 그림이며 각각 상자에 이름이 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">함께 움직였다면 설명은 여럿이다</text>
+
+                    <text x="288" y="60" font-size="17" fill="#334155" font-weight="700" text-anchor="middle">① 대출이 성적을 끌어올렸다</text>
+                    <rect x="120" y="70" width="130" height="34" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+                    <text x="185" y="93" font-size="16" fill="#1e3a8a" font-weight="700" text-anchor="middle">대출</text>
+                    <path d="M256 87 L318 87" stroke="#2563eb" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M314 79 L326 87 L314 95 Z" fill="#2563eb"/>
+                    <rect x="332" y="70" width="130" height="34" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+                    <text x="397" y="93" font-size="16" fill="#1e3a8a" font-weight="700" text-anchor="middle">성적</text>
+
+                    <text x="288" y="134" font-size="17" fill="#334155" font-weight="700" text-anchor="middle">② 순서가 반대다</text>
+                    <rect x="120" y="144" width="130" height="34" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="185" y="167" font-size="16" fill="#78350f" font-weight="700" text-anchor="middle">대출</text>
+                    <path d="M326 161 L264 161" stroke="#d97706" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M268 153 L256 161 L268 169 Z" fill="#d97706"/>
+                    <rect x="332" y="144" width="130" height="34" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="397" y="167" font-size="16" fill="#78350f" font-weight="700" text-anchor="middle">공부 시간</text>
+
+                    <text x="288" y="206" font-size="17" fill="#334155" font-weight="700" text-anchor="middle">③ 시험 기간이라는 다른 것이 둘 다를 끌어올렸다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 설명 가운데 <strong>어느 것이 맞는지 이 데이터만으로는 알 수 없습니다.</strong>
+                그래서 읽어 낼 때는 <strong>비교하는 화법</strong>으로 씁니다 &mdash; 「대출이 많은 달은
+                성적도 높은 편이었다」까지가 데이터가 뒷받침하는 말입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">읽어 낼 때 쓰는 화법 비교</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">화법</th>
+                        <th>문장</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-rose-800">넘어간 쪽</td>
+                        <td>「책을 많이 빌리면 성적이 오른다.」 &mdash; <strong>한 사람이 그렇게 하면
+                            그렇게 된다</strong>는 뜻으로 읽힌다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">지킨 쪽</td>
+                        <td>「대출이 많았던 달은 성적도 높은 편이었다. <strong>다만 어느 쪽이 원인인지는
+                            이 자료로 알 수 없다.</strong>」
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그래서 무엇을 할까</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                읽어 내기의 마지막은 <strong>「그래서 무엇을 할까」</strong>입니다. 여기서 멈추면
+                보고서가 <strong>사실 나열</strong>로 끝납니다. 다만 앞에서 원인을 단정하지 않았으므로,
+                할 일도 <strong>단정하지 않고</strong> 적습니다.
+            </p>
+
+            <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                <li><strong>더 알아볼 것</strong> &mdash; 「시험 기간을 빼고 다시 세어 보면 어떨까」</li>
+                <li><strong>해 볼 것</strong> &mdash; 「한 학년만 추천 도서를 늘려 보고 달라지는지 본다」</li>
+                <li><strong>바로 할 수 있는 것</strong> &mdash; 「빈칸이 많은 항목은 적는 방식을 고친다」</li>
+            </ul>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 번째가 특히 쓸모 있습니다. <strong>다듬는 걸음에서 발견한 문제</strong>는 대개
+                <strong>지금 당장 고칠 수 있는 것</strong>입니다. 분석의 성과가 결론에만 있는 것이
+                아닙니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「비 오는 날 도서관 이용자가 많았다」는 결과를 <strong>세 가지 설명</strong>으로 나누어
+                말해 보세요. 어느 것이 맞는지 알아보려면 무엇이 더 필요할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다섯 걸음</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>물음 세우기 &rarr; 모으기 &rarr; 다듬기 &rarr; 살펴보기 &rarr; 읽어 내기.</strong></li>
+                    <li>읽고 나면 대개 <strong>새 물음이 생겨</strong> 처음으로 돌아간다.</li>
+                    <li>가장 오래 걸리는 것은 계산이 아니라 <strong>다듬기</strong>다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다듬기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>빠진 값 &middot; 튄 값 &middot; 겹친 줄 &middot; 다른 표기</strong> 넷을 가려낸다.</li>
+                    <li>이 걸음을 건너뛰어도 <strong>결과는 나온다.</strong> 그것이 무서운 점이다.</li>
+                    <li>빈칸은 없는 것이 아니라 <strong>하나의 신호</strong>다. 지우기 전에 왜 비었는지 본다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">살펴보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>여러 값을 하나로 줄이면 <strong>반드시 잃는 것</strong>이 있다.</li>
+                    <li><strong>평균이 같아도 모양은 전혀 다를 수</strong> 있다. 먼저 그림으로 늘어놓는다.</li>
+                    <li><strong>개수 확인</strong>을 가장 먼저 한다. 다듬다가 절반이 지워졌을 수 있다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">읽어 내기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>함께 움직였다는 것과 원인이라는 것은 다르다.</strong> 설명은 늘 여럿이다.</li>
+                    <li>그래서 <strong>비교하는 화법</strong>으로 적고, 알 수 없는 것은 알 수 없다고 밝힌다.</li>
+                    <li>마지막은 <strong>「그래서 무엇을 할까」</strong>다. 다듬다 발견한 문제는 대개
+                        당장 고칠 수 있다.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    데이터 분석에서 <strong>대개 가장 오래 걸리는</strong> 걸음은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '물음을 세우는 데 시간이 걸리기는 하지만, 손이 가장 많이 가는 곳은 아닙니다.')">
+                    ① 물음 세우기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 계산은 명령 한 줄이면 되지만, 어느 값을 어떻게 할지는 사람이 하나하나 판단해야 합니다.')">
+                    ② 다듬기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '살펴보는 일은 프로그램이 금방 해 줍니다.')">
+                    ③ 살펴보기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '읽어 내기는 짧지만 중요한 걸음입니다. 가장 오래 걸리지는 않습니다.')">
+                    ④ 읽어 내기
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    학년이 <strong>비어 있는 줄</strong>을 발견했습니다. 가장 먼저 할 일은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '바로 지우면 그 사람들만 통째로 사라진 데이터가 될 수 있습니다.')">
+                    ① 그 줄을 곧바로 지운다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 빈칸은 하나의 신호입니다. 왜 비었는지 알아야 지울지 채울지 정할 수 있습니다.')">
+                    ② 왜 비어 있는지 알아본다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무 값이나 넣으면 없던 사실을 만들어 내는 셈입니다.')">
+                    ③ 아무 학년이나 적어 넣는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '못 본 척하면 뒤의 모든 계산이 그 위에서 이루어집니다.')">
+                    ④ 못 본 척하고 넘어간다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    두 반의 <strong>평균이 같다</strong>는 것이 뜻하는 바는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평균이 같다고 비슷한 반이 아닙니다. 한쪽은 몰려 있고 다른 쪽은 갈려 있을 수 있습니다.')">
+                    ① 두 반이 비슷하다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 평균은 나누어 가진 몫만 알려 줍니다. 값이 어떤 모양으로 퍼져 있는지는 말해 주지 않습니다.')">
+                    ② 고르게 나누면 같은 몫이 돌아간다는 것뿐이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 많이 빌린 사람이 같은지는 평균으로 알 수 없습니다.')">
+                    ③ 가장 많이 빌린 사람이 같다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람 수는 평균과 별개입니다. 개수는 따로 확인해야 합니다.')">
+                    ④ 두 반의 사람 수가 같다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「대출이 많은 달에 성적도 높았다」에서 <strong>말할 수 있는 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이 자료만으로는 원인을 알 수 없습니다. 순서가 반대일 수도 있습니다.')">
+                    ① 책을 많이 빌리면 성적이 오른다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '반대 방향도 마찬가지로 단정할 수 없습니다.')">
+                    ② 성적이 오르면 책을 많이 빌리게 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 데이터가 뒷받침하는 것은 둘이 함께 움직였다는 사실까지입니다.')">
+                    ③ 대출이 많았던 달은 성적도 높은 편이었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무 관계가 없다고 말할 수도 없습니다. 함께 움직인 것은 사실입니다.')">
+                    ④ 둘은 아무 관계가 없다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

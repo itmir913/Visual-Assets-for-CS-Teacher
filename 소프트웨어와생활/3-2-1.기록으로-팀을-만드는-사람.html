@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기록으로 팀을 만드는 사람</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-stopwatch absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-person-running absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            기록으로 팀을 만드는 사람
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            숫자가 정해 주는 것과<br><strong>사람이 정해야 하는 것</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>기록을 분석하는 일이 <strong>무엇을 만들어 내는 일인지</strong> 설명할 수 있다.</li>
+                    <li>개인 기록으로 <strong>순서를 정하는 근거</strong>를 세워 볼 수 있다.</li>
+                    <li>기록이 <strong>말해 주지 않는 것</strong>을 가려내고 사람의 판단이 필요한 자리를 짚을 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-stopwatch text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">기록으로 팀을 만드는 사람</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#job" class="hover:text-emerald-600 transition">무엇을 하는 일인가</a>
+            <a href="#order" class="hover:text-emerald-600 transition">순서 정해 보기</a>
+            <a href="#silent" class="hover:text-emerald-600 transition">말해 주지 않는 것</a>
+            <a href="#skill" class="hover:text-emerald-600 transition">필요한 힘</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 무엇을 하는 일인가 ══════════ -->
+    <section id="job" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 하는 일인가</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                운동 경기에는 <strong>기록이 아주 많이</strong> 남습니다. 누가 몇 초에 뛰었고, 어디로 공이
+                갔고, 몇 번을 시도했는지. 예전에는 이 기록을 <strong>지난 경기를 돌아보는 데</strong>만
+                썼습니다. 지금은 <strong>다음 경기를 정하는 데</strong> 씁니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">기록을 분석하는 사람이 만들어 내는 것</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    승리도 아니고 그래프도 아닙니다. <strong>「이렇게 정하면 이런 근거가 있다」는
+                    판단의 재료</strong>입니다. 정하는 사람은 여전히 감독이고 선수입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅰ단원에서 <strong>새 직업의 이름은 「분야 + 다루는 방식」</strong>이라고 했습니다. 이 일이
+                딱 그렇습니다. <strong>운동이라는 오래된 분야</strong>에 <strong>자료를 읽는 일</strong>이
+                붙었습니다. 그래서 <strong>운동을 모르면 할 수 없습니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 216" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="경기에서 기록이 나오고, 기록을 다듬어 근거를 만들고, 그 근거로 사람이 결정하며, 결정한 결과가 다시 경기로 이어지는 고리가 그려져 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">기록은 결정을 대신하지 않고 돕는다</text>
+
+                    <rect x="12" y="56" width="128" height="70" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <text x="76" y="88" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">경기</text>
+                    <text x="76" y="110" font-size="16" fill="#1d4ed8" text-anchor="middle">기록이 남는다</text>
+
+                    <path d="M146 91 L162 91" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M158 83 L170 91 L158 99 Z" fill="#94a3b8"/>
+
+                    <rect x="174" y="56" width="128" height="70" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="238" y="88" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">분석</text>
+                    <text x="238" y="110" font-size="16" fill="#92400e" text-anchor="middle">근거를 만든다</text>
+
+                    <path d="M308 91 L324 91" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M320 83 L332 91 L320 99 Z" fill="#94a3b8"/>
+
+                    <rect x="336" y="56" width="128" height="70" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="400" y="88" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">사람</text>
+                    <text x="400" y="110" font-size="16" fill="#065f46" text-anchor="middle">결정한다</text>
+
+                    <path d="M470 91 L486 91" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M482 83 L494 91 L482 99 Z" fill="#94a3b8"/>
+
+                    <rect x="498" y="56" width="66" height="70" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <text x="531" y="88" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">다음</text>
+                    <text x="531" y="110" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">경기</text>
+
+                    <path d="M531 148 L531 178 L76 178 L76 148" fill="none" stroke="#94a3b8" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M69 156 L76 144 L83 156 Z" fill="#94a3b8"/>
+                    <text x="292" y="202" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">결정한 결과가 다시 기록으로 쌓인다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                고리의 <strong>세 번째 칸이 「사람」</strong>이라는 데 주목하세요. 분석이 아무리 정교해도
+                <strong>결정은 사람이 합니다.</strong> 왜 그런지는 이 차시를 마칠 때쯤 분명해집니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「결정한 결과가 다시 기록으로 쌓인다」고 했습니다. 어떤 선수를 <strong>계속 뽑지 않으면</strong>
+                그 선수의 기록에는 무슨 일이 생길까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 순서 정해 보기 ══════════ -->
+    <section id="order" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">순서 정해 보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                직접 해 보겠습니다. <strong>체육대회 이어달리기</strong>에 나갈 네 명을 여섯 명 가운데
+                고르고, <strong>뛸 순서까지</strong> 정해야 합니다. 아래는 연습에서 나온 100m 기록입니다.
+                <strong>수업용으로 지어낸 값</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">여섯 명의 연습 기록. 수업용으로 지어낸 값이다.</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">선수</th>
+                        <th class="w-32">1차</th>
+                        <th class="w-32">2차</th>
+                        <th class="w-32">3차</th>
+                        <th>평균</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 A</td>
+                        <td>13.4</td>
+                        <td>13.2</td>
+                        <td>13.3</td>
+                        <td class="font-bold">13.30</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 B</td>
+                        <td>12.8</td>
+                        <td>14.1</td>
+                        <td>13.0</td>
+                        <td class="font-bold">13.30</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 C</td>
+                        <td>13.6</td>
+                        <td>13.5</td>
+                        <td>13.5</td>
+                        <td class="font-bold">13.53</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 D</td>
+                        <td>12.9</td>
+                        <td>13.0</td>
+                        <td>12.9</td>
+                        <td class="font-bold">12.93</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 E</td>
+                        <td>14.0</td>
+                        <td>13.8</td>
+                        <td>13.9</td>
+                        <td class="font-bold">13.90</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 F</td>
+                        <td>13.1</td>
+                        <td>13.2</td>
+                        <td>13.1</td>
+                        <td class="font-bold">13.13</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">평균만 보면</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                평균이 빠른 순서는 <strong>D(12.93) &rarr; F(13.13) &rarr; A와 B(13.30) &rarr;
+                C(13.53) &rarr; E(13.90)</strong>입니다. 네 명을 고른다면 D &middot; F &middot; A &middot; B가
+                됩니다. 여기서 <strong>바로 결정하지 말고</strong> 표를 한 번 더 보세요.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">A와 B는 평균이 같지만 전혀 다르다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    둘 다 13.30입니다. 그런데 A는 <strong>13.2 &middot; 13.3 &middot; 13.4</strong>로
+                    거의 같고, B는 <strong>12.8 &middot; 13.0 &middot; 14.1</strong>로 크게 흔들립니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    3-1-2에서 본 <strong>「평균이 같아도 모양은 다르다」</strong>가 그대로 나왔습니다.
+                    B는 가장 빠른 기록(12.8)을 가진 선수이지만, <strong>어느 날이 나올지 모릅니다.</strong>
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 236" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="두 개의 수직선이 위아래로 놓여 있다. 위쪽 학생 A는 세 점이 가까이 모여 있고, 아래쪽 학생 B는 세 점이 넓게 흩어져 있다. 두 줄 모두 평균 13.30이 같은 자리에 표시되어 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">평균은 같고 흔들림은 다르다</text>
+
+                    <text x="52" y="82" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">학생 A</text>
+                    <path d="M104 94 L548 94" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="288" cy="76" r="9" fill="#059669"/>
+                    <circle cx="264" cy="76" r="9" fill="#059669"/>
+                    <circle cx="312" cy="76" r="9" fill="#059669"/>
+                    <path d="M288 102 L288 118" stroke="#dc2626" stroke-width="3"/>
+                    <text x="288" y="138" font-size="16" fill="#b91c1c" font-weight="700" text-anchor="middle">평균 13.30</text>
+
+                    <text x="52" y="188" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">학생 B</text>
+                    <path d="M104 200 L548 200" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="168" cy="182" r="9" fill="#7c3aed"/>
+                    <circle cx="216" cy="182" r="9" fill="#7c3aed"/>
+                    <circle cx="480" cy="182" r="9" fill="#7c3aed"/>
+                    <path d="M288 208 L288 224" stroke="#dc2626" stroke-width="3"/>
+                    <text x="288" y="234" font-size="16" fill="#b91c1c" font-weight="700" text-anchor="middle">평균 13.30</text>
+                </svg>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">그러면 누구를 어디에</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서부터는 <strong>목적에 따라 답이 갈립니다.</strong> 두 가지 다른 생각이 있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-emerald-900">「우승을 노린다」면</p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>흔들리는 B를 넣습니다. <strong>가장 좋은 날이 나오면 누구보다 빠릅니다.</strong></li>
+                        <li>대신 <strong>나쁜 날이 나오면 크게 뒤집니다.</strong></li>
+                        <li>이길 확률은 낮지만 <strong>이길 가능성 자체는</strong> 이쪽이 큽니다.</li>
+                    </ul>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-sky-900">「최소한 중간은 한다」면</p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li>B 대신 <strong>C를 넣습니다.</strong> 평균은 조금 느리지만 <strong>흔들리지
+                            않습니다.</strong></li>
+                        <li>크게 앞서지 못해도 <strong>크게 무너지지도 않습니다.</strong></li>
+                        <li>여러 종목의 점수를 합산하는 대회라면 이쪽이 나을 수 있습니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>데이터는 어느 쪽이 옳은지 말해 주지 않습니다.</strong> 「우승만이 의미 있는가」와
+                「고르게 잘하는 것이 나은가」는 <strong>팀이 정할 문제</strong>입니다. 분석이 하는 일은
+                <strong>이 갈림길이 있다는 것을 보여 주는</strong> 것까지입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                B를 넣기로 했다면 <strong>몇 번째 주자</strong>로 두는 것이 좋을까요? 앞쪽과 뒤쪽 가운데
+                고르고 까닭을 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 말해 주지 않는 것 ══════════ -->
+    <section id="silent" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">말해 주지 않는 것</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞에서 우리는 <strong>개인 100m 기록</strong>만 보고 이야기했습니다. 그런데 이어달리기는
+                <strong>개인 달리기 넷을 이어 붙인 것이 아닙니다.</strong> 표에 없는 것들이 결과를
+                크게 바꿉니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">개인 기록표에 담기지 않은 요소들</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">표에 없는 것</th>
+                        <th>왜 중요한가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">바통을 주고받는 솜씨</td>
+                        <td>인계 구간에서 <strong>1초 가까이</strong> 잃기도 한다. 개인 기록 0.3초 차이보다
+                            훨씬 크다. <strong>둘이 맞춰 본 적이 있는가</strong>가 개인 기록보다 중요할 수 있다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">곡선 주로</td>
+                        <td>이어달리기는 <strong>곡선을 도는 구간</strong>이 있다. 직선 100m 기록으로는
+                            누가 곡선에 강한지 알 수 없다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">출발과 이어받기</td>
+                        <td>1번 주자만 <strong>멈춰 서서 출발</strong>하고 나머지는 달리면서 받는다.
+                            <strong>필요한 능력이 다르다.</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">그날의 몸 상태</td>
+                        <td>연습 기록은 <strong>지난 며칠의 이야기</strong>다. 대회 당일은 다를 수 있다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">본인의 뜻</td>
+                        <td>빠르다고 <strong>나가고 싶은 것은 아니다.</strong> 부담을 크게 느끼는 자리도 있다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">세 번밖에 측정하지 않았다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 가지 더 있습니다. 각 선수의 기록이 <strong>세 개뿐</strong>입니다. 3-1-4에서
+                    <strong>「평균을 보기 전에 건수를 본다」</strong>고 했습니다. 세 번으로 그 사람의
+                    빠르기를 말하기는 <strong>얇습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    특히 B의 14.1은 <strong>정말 흔들리는 선수라서</strong> 나온 것일 수도 있고,
+                    <strong>그날 하루 아팠던 것</strong>일 수도 있습니다. 세 번으로는 갈라낼 수 없습니다.
+                    <strong>더 측정해 보자</strong>는 것이 가장 정직한 다음 걸음입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그래서 분석은 어디까지 하는가</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이렇게 보면 <strong>「기록으로는 아무것도 못 정하겠다」</strong>는 생각이 들 수도 있습니다.
+                그렇지 않습니다. 분석은 <strong>정하는 것이 아니라 좁히는 것</strong>입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">기록이 실제로 해 준 일</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li>여섯 명 가운데 <strong>E는 확실히 느리다</strong>는 것을 알려 주었다. 고민할 대상이
+                        다섯으로 줄었다.
+                    </li>
+                    <li><strong>A와 B가 같아 보이지만 다르다</strong>는 것을 드러냈다. 평균만 봤다면
+                        몰랐을 것이다.
+                    </li>
+                    <li><strong>무엇을 더 알아봐야 하는지</strong>를 알려 주었다 &mdash; 인계 연습 기록,
+                        곡선 구간 기록, 더 많은 측정.
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    셋 다 <strong>결정은 아니지만 결정에 필요한 것</strong>입니다. 감으로 정하는 것과
+                    <strong>이만큼 알고 정하는 것</strong>은 전혀 다릅니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「바통을 주고받는 솜씨」를 <strong>숫자로 바꾸려면</strong> 무엇을 측정하면 될까요?
+                Ⅰ단원의 융합 2단계를 떠올려 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 필요한 힘 ══════════ -->
+    <section id="skill" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">필요한 힘</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이런 일을 하려면 무엇이 필요할까요? Ⅰ단원에서 <strong>「어느 단계에서 왜 필요한가」로
+                적으라</strong>고 했습니다. 그대로 해 보겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">기록 분석에 필요한 힘과 그것이 필요한 자리</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">어느 자리에서</th>
+                        <th>어떤 힘이</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">물음을 세울 때</td>
+                        <td><strong>그 종목을 아는 힘.</strong> 이어달리기에서 인계가 중요하다는 것을
+                            모르면 개인 기록만 들여다보게 된다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">숫자로 바꿀 때</td>
+                        <td><strong>측정할 수 없는 것을 측정할 수 있는 것으로 옮기는 힘.</strong> 「호흡이 맞는다」를
+                            무엇으로 나타낼지 궁리하는 자리다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">계산을 맡길 때</td>
+                        <td><strong>도구를 다루는 힘.</strong> 표를 읽고 묶어 세고 그림으로 그릴 수 있어야 한다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">되읽을 때</td>
+                        <td><strong>단정하지 않는 힘.</strong> 「이 선수를 빼라」가 아니라 「이런 갈림길이
+                            있다」로 말할 수 있어야 한다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">전할 때</td>
+                        <td><strong>사람을 헤아리는 힘.</strong> 결과는 <strong>사람에 대한 이야기</strong>다.
+                            어떻게 전하느냐가 팀을 바꾼다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">마지막 줄이 이 분야의 특별한 점이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    도서관 대출 기록을 분석할 때는 <strong>숫자가 사람을 가리키지 않았습니다.</strong>
+                    여기서는 다릅니다. <strong>「E는 느리다」는 한 사람에 대한 말</strong>이고, 그 사람이
+                    바로 옆에 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 이런 자리에서는 <strong>분석을 어떻게 쓰느냐가 분석 자체만큼 중요합니다.</strong>
+                    잘못 쓰면 <strong>기록이 사람을 줄 세우는 도구</strong>가 됩니다. 우리가 만들려던 것은
+                    <strong>더 나은 결정을 돕는 재료</strong>였습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">이 일과 이어지는 자리들</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅰ단원에서 배운 <strong>이름의 짜임</strong>을 떠올려 보세요. 앞자리를 바꾸면 다른 분야로
+                넘어갑니다. <strong>병원 &middot; 공연장 &middot; 농장 &middot; 물류 창고</strong>에도
+                기록이 쌓이고, <strong>그 기록으로 다음을 정하는 사람</strong>이 필요합니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                공통점은 하나입니다 &mdash; <strong>그 분야를 아는 사람이라야 좋은 물음을 세웁니다.</strong>
+                운동을 좋아한다면 그것이 <strong>이 일을 하는 데 방해가 아니라 밑천</strong>입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 내 분야의 기록 분석</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>내가 좋아하는 활동을 하나 고릅니다. <strong>운동이 아니어도</strong> 됩니다 &mdash;
+                        악기 &middot; 게임 &middot; 요리 무엇이든.
+                    </li>
+                    <li>그 활동에서 <strong>이미 남고 있는 기록</strong>을 세 가지 적습니다.</li>
+                    <li>그 기록으로 답할 수 있는 <strong>물음 하나</strong>를 만듭니다.</li>
+                    <li>그 물음에 답해도 <strong>여전히 사람이 정해야 하는 것</strong>을 하나 적습니다.</li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    4번을 꼭 채우세요. <strong>기록이 정해 주지 못하는 자리를 아는 것</strong>이 이 일을
+                    제대로 하는 사람의 표시입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「기록이 사람을 줄 세우는 도구가 된다」는 것은 어떤 모습일까요? <strong>학교에서 그런
+                일이 생기지 않게</strong> 하려면 무엇을 정해 두면 좋을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">무엇을 하는 일인가</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>만들어 내는 것은 승리도 그래프도 아니라 <strong>판단의 재료</strong>다.</li>
+                    <li>「운동」이라는 오래된 분야에 <strong>자료를 읽는 일</strong>이 붙어 생긴 일이다.</li>
+                    <li>고리의 가운데에 <strong>사람</strong>이 있다. 결정은 사람이 한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">순서 정해 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>평균이 같아도 <strong>흔들림이 다르면 전혀 다른 선수</strong>다.</li>
+                    <li>흔들리는 선수를 넣을지는 <strong>무엇을 노리는가</strong>에 달렸다.</li>
+                    <li>데이터는 어느 쪽이 옳은지 말해 주지 않는다. <strong>갈림길이 있다는 것을</strong> 보여 준다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">말해 주지 않는 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>인계 솜씨 &middot; 곡선 &middot; 몸 상태 &middot; <strong>본인의 뜻</strong>은 표에 없다.</li>
+                    <li>기록이 <strong>세 개뿐</strong>이라는 것도 잊지 않는다.</li>
+                    <li>분석은 <strong>정하는 것이 아니라 좁히는 것</strong>이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">필요한 힘</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>물음을 세우는 자리에는 <strong>그 종목을 아는 힘</strong>이 든다.</li>
+                    <li>되읽을 때는 <strong>단정하지 않는 힘</strong>, 전할 때는 <strong>사람을 헤아리는 힘</strong>.</li>
+                    <li>잘못 쓰면 기록이 <strong>사람을 줄 세우는 도구</strong>가 된다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    기록을 분석하는 사람이 <strong>만들어 내는 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '승리를 만들어 내지는 못합니다. 경기는 선수가 합니다.')">
+                    ① 승리
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '그래프는 도구일 뿐 목적이 아닙니다.')">
+                    ② 보기 좋은 그래프
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 「이렇게 정하면 이런 근거가 있다」는 판단의 재료를 만듭니다.')">
+                    ③ 판단의 재료
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '최종 결정은 감독과 선수가 합니다.')">
+                    ④ 최종 결정
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    평균이 같은 A와 B에 대해 <strong>바르게 말한 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평균이 같다고 실력이 같은 것은 아닙니다. 흔들림이 다릅니다.')">
+                    ① 실력이 같으므로 아무나 뽑으면 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! B는 가장 빠른 기록을 가졌지만 어느 날이 나올지 알 수 없습니다.')">
+                    ② B는 더 빠를 수도, 더 느릴 수도 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, 'B가 늘 느린 것이 아닙니다. 12.8은 여섯 명 가운데 가장 빠른 기록입니다.')">
+                    ③ B는 A보다 늘 느리다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 번의 나쁜 기록으로 실력을 단정할 수 없습니다. 세 번뿐이라 갈라낼 수도 없습니다.')">
+                    ④ B의 14.1을 보면 실력이 없는 것이다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    이어달리기에서 <strong>개인 100m 기록으로 알 수 없는</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '직선 구간에서 빠른지는 100m 기록이 알려 주는 바로 그것입니다.')">
+                    ① 직선 구간에서 얼마나 빠른가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 인계 구간에서 잃는 시간은 개인 기록에 담기지 않고, 그 차이가 오히려 더 큽니다.')">
+                    ② 바통을 주고받을 때 얼마나 잃는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기록이 흔들리는 정도는 여러 번의 기록을 보면 알 수 있습니다.')">
+                    ③ 기록이 얼마나 흔들리는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 좋았던 기록은 표에 그대로 있습니다.')">
+                    ④ 가장 좋았던 기록이 얼마인가
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    사람에 대한 기록을 다룰 때 <strong>특히 조심할 점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산을 정확히 하는 것은 기본이지만, 이 분야의 특별한 점은 아닙니다.')">
+                    ① 계산을 정확히 하는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 결과가 사람에 대한 이야기이므로, 잘못 쓰면 기록이 사람을 줄 세우는 도구가 됩니다.')">
+                    ② 분석을 어떻게 쓰고 어떻게 전하는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '그래프를 화려하게 만드는 것과는 관계가 없습니다.')">
+                    ③ 그래프를 화려하게 만드는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과를 아무에게도 알리지 않으면 분석한 뜻이 없습니다. 어떻게 전할지가 문제입니다.')">
+                    ④ 결과를 아무에게도 알리지 않는 것
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

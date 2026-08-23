@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터와 데이터의 종류</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-database absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-table-list absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            데이터와 데이터의 종류
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            쌓아 둔 값은 아직 아무 말도 하지 않습니다<br><strong>물어야 답이 나옵니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>데이터와 정보를 <strong>물음이 있느냐</strong>로 구별해 설명할 수 있다.</li>
+                    <li>정형 · 비정형 · 반정형 데이터를 <strong>표에 들어가는가</strong>로 갈라 볼 수 있다.</li>
+                    <li>빅데이터가 무엇을 가리키는 말인지 알고 <strong>크다고 답이 나오지는 않는다</strong>는 것을 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-database text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">데이터와 데이터의 종류</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-emerald-600 transition">데이터와 정보</a>
+            <a href="#kinds" class="hover:text-emerald-600 transition">세 갈래</a>
+            <a href="#why" class="hover:text-emerald-600 transition">왜 갈라 보나</a>
+            <a href="#big" class="hover:text-emerald-600 transition">빅데이터</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 데이터와 정보 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">데이터와 정보</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                「<strong>17, 22, 19, 25, 21</strong>」이라는 다섯 개의 숫자가 있습니다. 무슨 뜻일까요?
+                알 수 없습니다. 나이일 수도, 온도일 수도, 반 학생 수일 수도 있습니다.
+                <strong>값만으로는 아무 말도 하지 않습니다.</strong>
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-100 border border-slate-300 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-900">데이터(data)</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>측정하거나 세어 적어 둔 값 자체</strong>입니다. 아직 무엇을 뜻하는지
+                        정해지지 않았고, <strong>참인지 거짓인지도 말하지 않습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-emerald-900">정보(information)</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        데이터를 <strong>어떤 물음에 답하도록 다듬은 것</strong>입니다. 「5월 중 가장 더운
+                        날은 언제였나」에 답하는 순간 데이터는 정보가 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 208" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="데이터 상자에 물음이 더해져 정보가 되고, 정보에서 판단으로 이어지는 그림이다. 각 상자에 이름과 보기가 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">물음이 더해져야 정보가 된다</text>
+
+                    <rect x="12" y="56" width="150" height="86" rx="14" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>
+                    <text x="87" y="88" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">데이터</text>
+                    <text x="87" y="114" font-size="16" fill="#334155" text-anchor="middle">17 22 19 25 21</text>
+
+                    <text x="196" y="106" font-size="26" fill="#475569" font-weight="700" text-anchor="middle">+</text>
+
+                    <rect x="222" y="56" width="150" height="86" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="297" y="88" font-size="18" fill="#78350f" font-weight="700" text-anchor="middle">물음</text>
+                    <text x="297" y="114" font-size="16" fill="#92400e" text-anchor="middle">가장 더운 날은?</text>
+
+                    <path d="M380 99 L398 99" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M394 91 L406 99 L394 107 Z" fill="#94a3b8"/>
+
+                    <rect x="412" y="56" width="152" height="86" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="488" y="88" font-size="18" fill="#064e3b" font-weight="700" text-anchor="middle">정보</text>
+                    <text x="488" y="114" font-size="16" fill="#065f46" text-anchor="middle">넷째 날이 25도로 최고</text>
+
+                    <text x="288" y="180" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">같은 데이터라도 물음이 달라지면 다른 정보가 나온다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                같은 다섯 숫자로 <strong>「닷새 평균은?」</strong>이라고 물으면 20.8이라는 다른 정보가
+                나옵니다. <strong>「점점 더워지고 있나?」</strong>라고 물으면 「그렇다고 보기 어렵다」는
+                또 다른 답이 나옵니다. <strong>물음이 정보를 만듭니다.</strong>
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">그래서 「데이터를 분석해 보자」는 아직 아무 계획도 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    Ⅰ단원에서 <strong>「데이터를 모은다」는 아직 아무것도 정한 것이 아니다</strong>라고
+                    했습니다. 같은 이야기입니다. 물음이 없으면 다듬을 방향이 정해지지 않아,
+                    <strong>평균도 내 보고 그래프도 그려 보다가</strong> 시간만 갑니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 반 <strong>출석 기록</strong>은 데이터입니다. 이것으로 답할 수 있는 물음을
+                <strong>서로 다른 세 가지</strong>만 만들어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 세 갈래 ══════════ -->
+    <section id="kinds" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">세 갈래</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                데이터는 생김새가 아주 다양합니다. 다루는 방법을 정하려면 먼저 갈래를 나누어야 합니다.
+                가르는 기준은 하나입니다 &mdash; <strong>표에 가지런히 들어가는가.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 250" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="세 개의 상자가 나란히 있다. 왼쪽 정형 데이터는 가지런한 표 모양, 가운데 반정형 데이터는 이름표가 붙은 덩어리, 오른쪽 비정형 데이터는 제각각인 모양이며 각각 이름과 보기가 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">표에 들어가는 정도로 가른다</text>
+
+                    <rect x="10" y="46" width="176" height="150" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="98" y="76" font-size="18" fill="#064e3b" font-weight="700" text-anchor="middle">정형 데이터</text>
+                    <rect x="34" y="92" width="128" height="60" rx="4" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+                    <path d="M34 112 L162 112 M34 132 L162 132 M76 92 L76 152 M120 92 L120 152" stroke="#6ee7b7" stroke-width="2"/>
+                    <text x="98" y="176" font-size="16" fill="#065f46" text-anchor="middle">그대로 표가 된다</text>
+
+                    <rect x="200" y="46" width="176" height="150" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="288" y="76" font-size="18" fill="#78350f" font-weight="700" text-anchor="middle">반정형 데이터</text>
+                    <rect x="224" y="92" width="128" height="60" rx="6" fill="#ffffff" stroke="#d97706" stroke-width="2"/>
+                    <path d="M236 106 L286 106 M300 106 L340 106 M236 126 L316 126 M236 142 L272 142" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+                    <text x="288" y="176" font-size="16" fill="#92400e" text-anchor="middle">이름표는 붙어 있다</text>
+
+                    <rect x="390" y="46" width="176" height="150" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <text x="478" y="76" font-size="18" fill="#4c1d95" font-weight="700" text-anchor="middle">비정형 데이터</text>
+                    <circle cx="424" cy="112" r="16" fill="#c4b5fd"/>
+                    <rect x="450" y="96" width="44" height="30" rx="4" fill="#c4b5fd"/>
+                    <path d="M506 126 L520 96 L534 126 Z" fill="#c4b5fd"/>
+                    <path d="M414 142 L544 142" stroke="#c4b5fd" stroke-width="5" stroke-linecap="round"/>
+                    <text x="478" y="176" font-size="16" fill="#5b21b6" text-anchor="middle">모양이 제각각이다</text>
+
+                    <text x="288" y="228" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">왼쪽에서 오른쪽으로 갈수록 다루기 어려워진다</text>
+                </svg>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">데이터 세 갈래의 특징 비교</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">갈래</th>
+                        <th>생김새</th>
+                        <th class="w-44">보기</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">정형 데이터</td>
+                        <td>가로줄과 세로줄이 정해져 있어 <strong>그대로 표가 됩니다.</strong> 어느 칸에
+                            무엇이 들어갈지 미리 정해져 있습니다.
+                        </td>
+                        <td>출석부, 성적표, 가계부, 기온 관측 기록</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">반정형 데이터</td>
+                        <td>표는 아니지만 <strong>값마다 이름표가 붙어</strong> 있습니다. 「제목은 이것,
+                            쓴 날짜는 이것」처럼 무엇인지 알 수 있게 되어 있습니다.
+                        </td>
+                        <td>누리집이 주고받는 자료, 사진에 딸린 촬영 정보</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">비정형 데이터</td>
+                        <td>정해진 틀이 없습니다. <strong>어디까지가 무엇인지 사람이 읽어야</strong>
+                            알 수 있습니다.
+                        </td>
+                        <td>감상문, 사진, 소리, 영상, 손으로 쓴 쪽지</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                갈래는 <strong>딱 잘라 나뉘지 않습니다.</strong> 가운데 갈래가 있다는 것부터가 그렇습니다.
+                감상문이라도 <strong>「누가 · 언제 · 어떤 책에 대해」</strong>가 따로 적혀 있으면 그
+                부분만은 정형에 가깝습니다. 그래서 <strong>한 덩어리 안에 여러 갈래가 섞여 있는</strong>
+                경우가 흔합니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>학교 알림장</strong>을 세 갈래로 갈라 보세요. 어느 부분이 정형이고 어느 부분이
+                비정형인가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 왜 갈라 보나 ══════════ -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">왜 갈라 보나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                갈래 이름을 외우는 것이 목적이 아닙니다. <strong>다루는 방법이 완전히 달라지기</strong>
+                때문에 갈라 봅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">정형 데이터와 비정형 데이터를 다룰 때의 차이</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">따져 볼 자리</th>
+                        <th>정형 데이터</th>
+                        <th>비정형 데이터</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">세거나 더하기</td>
+                        <td>바로 된다. 「평균」 &middot; 「가장 큰 값」이 곧바로 나온다</td>
+                        <td><strong>먼저 숫자로 바꾸어야</strong> 한다. 글이라면 낱말을 세는 식이다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">찾기</td>
+                        <td>「3월이면서 2학년인 줄」을 <strong>정확히</strong> 골라낼 수 있다</td>
+                        <td>「비슷한 내용의 글」은 <strong>기준을 사람이 정해</strong> 주어야 한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">차지하는 자리</td>
+                        <td>작다. 숫자와 짧은 글자뿐이다</td>
+                        <td>크다. 사진 한 장이 <strong>표 수천 줄보다</strong> 클 수 있다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">양</td>
+                        <td>세상에 쌓이는 데이터 가운데 <strong>적은 쪽</strong>이다</td>
+                        <td>훨씬 <strong>많은 쪽</strong>이다. 우리가 만드는 것 대부분이 여기에 든다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 줄이 중요합니다. <strong>다루기 쉬운 쪽이 오히려 적습니다.</strong> 우리가 하루에
+                만드는 것을 떠올려 보세요 &mdash; 사진, 메시지, 영상, 목소리. 정해진 표에 들어가는 것은
+                거의 없습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">그래서 자주 하는 일 &mdash; 표로 만들어 두기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    비정형 데이터를 다룰 때 흔히 쓰는 방법은 <strong>먼저 표로 옮기는</strong> 것입니다.
+                    감상문 백 편이 있다면 <strong>「글쓴이 &middot; 책 &middot; 글자 수 &middot; 가장
+                    많이 나온 낱말」</strong>로 표를 만듭니다. 그러면 그다음부터는 정형 데이터를 다루듯
+                    할 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다만 표로 옮기는 순간 <strong>버려지는 것</strong>이 생깁니다. 글의 말투, 문장의
+                    흐름, 마지막 한 줄의 여운은 표에 담기지 않습니다. <strong>무엇을 버렸는지 알고
+                    옮기는 것</strong>이 중요합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>노래 한 곡</strong>을 표로 옮긴다면 어떤 칸을 만들 수 있을까요? 그리고 그때
+                <strong>버려지는 것</strong>은 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 빅데이터 ══════════ -->
+    <section id="big" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">빅데이터</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                요즘 자주 들리는 말입니다. 그런데 <strong>「몇 기가바이트부터 빅데이터인가」</strong>라는
+                기준은 없습니다. 크기로 정해지는 말이 아니기 때문입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">빅데이터(big data)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>지금까지 쓰던 방법으로는 다루기 어려울 만큼</strong> 크고, 빠르게 쌓이고,
+                    생김새가 제각각인 데이터를 이르는 말입니다. 「어렵다」는 기준이 들어 있으므로,
+                    <strong>도구가 좋아지면 같은 데이터도 빅데이터가 아니게</strong> 됩니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">무엇이 어려운가 &mdash; 세 가지</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-box-archive text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">양이 많다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 대의 컴퓨터에 <strong>다 들어가지 않습니다.</strong> 여러 대에 나누어 담고
+                        나누어 계산해야 합니다.
+                    </p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-gauge-high text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-amber-900">빠르게 쌓인다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        모아 두었다가 나중에 보는 것으로는 늦습니다. <strong>들어오는 대로 처리</strong>해야
+                        하는 경우가 많습니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-shapes text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">생김새가 제각각이다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        표와 글과 사진이 섞여 들어옵니다. <strong>한 가지 방법으로 다 다룰 수
+                        없습니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">크다고 답이 나오지는 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「데이터가 많으면 좋은 결과가 나온다」는 말은 <strong>절반만 맞습니다.</strong>
+                    많으면 <strong>우연히 생긴 흔들림에 속을 위험은 줄어듭니다.</strong> 그러나
+                    <strong>치우친 데이터는 아무리 많아도 치우친 채</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 학교에서만 백만 건을 모아도 <strong>다른 학교 이야기는 알 수 없습니다.</strong>
+                    양이 늘어난다고 <strong>빠져 있는 사람이 채워지지는 않습니다.</strong> Ⅰ단원에서
+                    본 「자료가 없는 곳이 계속 뒤로 밀리는 고리」와 같은 이야기입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그래서 데이터를 볼 때 <strong>「얼마나 많은가」보다 「어디서 온 것인가」</strong>를 먼저
+                물어야 합니다. 다음 차시에서 <strong>모으는 법과 지켜야 할 것</strong>을 다루는 까닭이
+                여기에 있습니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「도구가 좋아지면 같은 데이터도 빅데이터가 아니게 된다」고 했습니다. 이 말이
+                <strong>왜 자연스러운지</strong> 빅데이터의 정의로 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">데이터와 정보</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>데이터</strong>는 적어 둔 값 자체이고, <strong>정보</strong>는 어떤 물음에
+                        답하도록 다듬은 것이다.
+                    </li>
+                    <li>같은 데이터라도 <strong>물음이 달라지면 다른 정보</strong>가 나온다.</li>
+                    <li>「데이터를 분석해 보자」는 아직 <strong>아무 계획도 아니다.</strong></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">세 갈래</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>가르는 기준은 <strong>표에 가지런히 들어가는가</strong>다.</li>
+                    <li><strong>정형</strong>은 그대로 표가 되고, <strong>반정형</strong>은 이름표는 붙어
+                        있고, <strong>비정형</strong>은 틀이 없다.
+                    </li>
+                    <li>한 덩어리 안에 <strong>여러 갈래가 섞여</strong> 있는 경우가 흔하다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">왜 갈라 보나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>갈래마다 <strong>세는 법 &middot; 찾는 법 &middot; 차지하는 자리</strong>가 다르다.</li>
+                    <li><strong>다루기 쉬운 쪽이 오히려 적다.</strong> 우리가 만드는 것 대부분은 비정형이다.</li>
+                    <li>비정형을 표로 옮기면 다루기 쉬워지지만 <strong>버려지는 것</strong>이 생긴다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">빅데이터</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>지금 쓰던 방법으로 다루기 어려운</strong> 데이터를 이르는 말이다. 크기 기준은 없다.</li>
+                    <li>어려운 까닭은 <strong>양 &middot; 속도 &middot; 제각각인 생김새</strong> 셋이다.</li>
+                    <li><strong>치우친 데이터는 아무리 많아도 치우친 채</strong>다. 「얼마나 많은가」보다
+                        「어디서 왔는가」를 먼저 묻는다.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    데이터가 <strong>정보가 되려면</strong> 무엇이 있어야 하나요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '양이 많다고 정보가 되지는 않습니다. 물음이 없으면 아무리 많아도 값 더미입니다.')">
+                    ① 아주 많은 양
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 물음이 있어야 어떻게 다듬을지 정해지고, 그때 데이터가 정보가 됩니다.')">
+                    ② 답하려는 물음
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '좋은 프로그램이 있어도 무엇을 물을지 없으면 방향이 정해지지 않습니다.')">
+                    ③ 좋은 분석 프로그램
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '그래프는 정보를 보여 주는 방법의 하나일 뿐입니다. 먼저 물음이 있어야 합니다.')">
+                    ④ 보기 좋은 그래프
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다음 가운데 <strong>비정형 데이터</strong>에 가장 가까운 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '출석부는 가로줄과 세로줄이 정해져 있어 그대로 표가 됩니다.')">
+                    ① 우리 반 출석부
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기온 관측 기록도 날짜와 값이 나란한 정형 데이터입니다.')">
+                    ② 날짜별 기온 관측 기록
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 감상문은 정해진 틀이 없어 어디까지가 무엇인지 사람이 읽어야 압니다.')">
+                    ③ 학생들이 쓴 독서 감상문
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가계부도 날짜·항목·금액이 정해진 표입니다.')">
+                    ④ 날짜와 금액이 적힌 가계부
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    비정형 데이터를 <strong>표로 옮길 때</strong> 잊지 말아야 할 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '칸을 많이 만드는 것이 목적이 아닙니다. 물음에 답할 칸이면 됩니다.')">
+                    ① 칸을 되도록 많이 만든다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 표로 옮기면 다루기 쉬워지지만 말투와 흐름 같은 것이 버려집니다. 무엇을 버렸는지 알아야 합니다.')">
+                    ② 옮기면서 무엇이 버려지는지 알고 있어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '원본을 지우면 다시 옮길 수도, 확인할 수도 없게 됩니다.')">
+                    ③ 원본은 지워야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '표로 옮겼다고 비정형이 아니게 되는 것이 아닙니다. 원본은 여전히 비정형입니다.')">
+                    ④ 표로 옮기면 원래 데이터도 정형이 된다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「데이터가 많으면 좋은 결과가 나온다」에 대한 <strong>알맞은 평가</strong>는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '많으면 우연한 흔들림에 속을 위험이 줄기는 합니다. 완전히 틀린 말은 아닙니다.')">
+                    ① 완전히 틀린 말이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '치우친 데이터는 아무리 많아도 치우친 채입니다. 늘 맞는 말은 아닙니다.')">
+                    ② 언제나 맞는 말이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 우연한 흔들림에는 강해지지만, 치우침은 양이 늘어도 그대로 남습니다.')">
+                    ③ 우연한 흔들림에는 강해지지만 치우침은 그대로 남는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '많을수록 나빠지는 것이 아닙니다. 양 자체가 문제는 아닙니다.')">
+                    ④ 데이터는 적을수록 정확하다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

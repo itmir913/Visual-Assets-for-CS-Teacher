@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>표로 된 데이터 다루기</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-table absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-calculator absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            표로 된 데이터 다루기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            39줄을 읽어 36줄로 만들고<br><strong>묶어서 세어 봅니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>표로 된 파일을 프로그램으로 읽어 <strong>줄 수와 칸 이름</strong>을 확인할 수 있다.</li>
+                    <li>빠진 값 · 튄 값 · 겹친 줄을 <strong>차례로 걸러 내며 줄 수를 확인</strong>할 수 있다.</li>
+                    <li>묶어 세어 나온 결과를 <strong>단정하지 않고</strong> 읽어 낼 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-table text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">표로 된 데이터 다루기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#data" class="hover:text-emerald-600 transition">다룰 데이터</a>
+            <a href="#read" class="hover:text-emerald-600 transition">읽어 보기</a>
+            <a href="#clean" class="hover:text-emerald-600 transition">다듬기</a>
+            <a href="#group" class="hover:text-emerald-600 transition">묶어 세기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 다룰 데이터 ══════════ -->
+    <section id="data" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다룰 데이터</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이번 시간에는 <strong>표로 된 데이터</strong>를 직접 다뤄 보겠습니다. 쓸 파일은
+                <span class="attr-name">3-1-4.도서관-대출기록.csv</span>이고, 이 강의노트 옆
+                <span class="attr-name">code/</span> 폴더에 함께 들어 있습니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">이 파일의 값은 지어낸 것이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    실제 어느 학교의 기록이 아닙니다. <strong>수업에서 다루는 법을 익히려고 만든 값</strong>입니다.
+                    그래서 여기서 나오는 결과로 <strong>어떤 학교에 대해서도 말할 수 없습니다.</strong>
+                    익히는 것은 <strong>다루는 방법</strong>입니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">어떻게 생겼나</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>쉼표로 칸을 나눈 파일</strong>입니다. 확장자가 <span class="attr-name">.csv</span>인
+                파일이 이런 꼴입니다. 첫 줄이 <strong>칸의 이름</strong>이고, 둘째 줄부터가 값입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">대출 기록 파일의 앞부분. 값은 수업용으로 지어낸 것이다.</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">날짜</th>
+                        <th class="w-24">학년</th>
+                        <th class="w-28">분야</th>
+                        <th>권수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>2026-03-01</td>
+                        <td>1</td>
+                        <td>예술</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-03</td>
+                        <td>3</td>
+                        <td>역사</td>
+                        <td>2</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-06</td>
+                        <td>2</td>
+                        <td>사회</td>
+                        <td>4</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-19</td>
+                        <td class="text-rose-700 font-bold">(비어 있음)</td>
+                        <td>과학</td>
+                        <td>2</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                눈에 띄는 점이 있습니다. <strong>이름이나 학번이 없습니다.</strong> 학년별로 세는 것이
+                목적이라 <strong>누구인지는 필요 없기</strong> 때문입니다. 앞 차시에서 「받자마자 지운다」고
+                한 것을 그대로 지킨 모습입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">답하려는 물음</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>학년에 따라 빌리는 권수가 다른가?</strong></li>
+                    <li><strong>달에 따라 대출이 늘고 주는가?</strong></li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    물음을 먼저 적어 두는 까닭은 앞 차시에서 배웠습니다. 이 두 물음이 있어야
+                    <strong>무엇을 묶어 셀지</strong>가 정해집니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 파일에 <strong>이름 칸이 있었다면</strong> 무엇을 더 할 수 있고, 무엇을 조심해야
+                할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 읽어 보기 ══════════ -->
+    <section id="read" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">읽어 보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                파일을 읽는 데는 <strong>판다스(pandas)</strong>라는 도구를 씁니다. 표로 된 데이터를
+                다루기 위해 만들어진 것으로, <strong>한 줄로 읽어 들이고</strong> 묶어 세는 일까지 해 줍니다.
+            </p>
+
+            <pre><code class="language-python" data-src="code/3-1-4.대출기록-분석.py#읽기"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">읽기 부분의 각 줄이 하는 일</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">코드</th>
+                        <th>하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800"><code>pd.read_csv(FILE)</code></td>
+                        <td>쉼표로 나뉜 파일을 읽어 <strong>표 모양으로</strong> 만들어 준다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800"><code>len(표)</code></td>
+                        <td><strong>줄 수</strong>를 센다. 앞 차시에서 「가장 먼저 확인할 것」이라고 한 그것이다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800"><code>list(표.columns)</code></td>
+                        <td><strong>칸 이름</strong>을 늘어놓는다. 내가 아는 칸이 맞는지 확인한다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800"><code>표.head()</code></td>
+                        <td>앞의 다섯 줄만 보여 준다. <strong>눈으로 훑어보는</strong> 자리다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                돌려 보면 <strong>39줄</strong>이라고 나오고, 앞의 다섯 줄이 화면에 뜹니다. 그리고 벌써
+                한 가지가 눈에 띕니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">학년이 <code>1.0</code>으로 나온다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    분명 파일에는 <code>1</code>이라고 적었는데 화면에는 <code>1.0</code>으로 나옵니다.
+                    <strong>빈칸이 하나 섞여 있기 때문</strong>입니다. 판다스는 빈칸을
+                    <code>NaN</code>이라는 특별한 값으로 채우는데, 이것을 담으려면 그 칸 전체를
+                    <strong>소수를 담을 수 있는 꼴</strong>로 바꿔야 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>화면에 나온 모습이 이미 알려 준 것</strong>입니다. 「왜 1.0이지?」를 그냥
+                    넘기지 않는 것이 데이터를 다루는 사람의 눈입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「권수」 칸은 <code>3</code>으로 잘 나오는데 「학년」만 <code>1.0</code>으로 나옵니다.
+                <strong>이 차이가 무엇을 알려 주는지</strong> 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 다듬기 ══════════ -->
+    <section id="clean" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다듬기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 차시에서 배운 네 가지 문제를 실제로 걸러 내겠습니다. 요령이 하나 있습니다 &mdash;
+                <strong>한 가지를 걸러 낼 때마다 줄 수를 찍어 보는</strong> 것입니다.
+            </p>
+
+            <pre><code class="language-python" data-src="code/3-1-4.대출기록-분석.py#다듬기"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                돌려 보면 이렇게 나옵니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다듬는 과정에서 줄 수가 줄어드는 모습</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">무엇을 했나</th>
+                        <th class="w-28">남은 줄</th>
+                        <th>줄어든 수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>처음</td>
+                        <td class="font-bold">39</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>학년이 빈 줄을 뺐다</td>
+                        <td class="font-bold">38</td>
+                        <td>1줄</td>
+                    </tr>
+                    <tr>
+                        <td>권수가 20을 넘는 줄을 뺐다</td>
+                        <td class="font-bold">37</td>
+                        <td>1줄</td>
+                    </tr>
+                    <tr>
+                        <td>똑같이 겹친 줄을 하나로 합쳤다</td>
+                        <td class="font-bold">36</td>
+                        <td>1줄</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">줄 수를 찍어 보는 것이 왜 중요한가</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    걸러 낸 뒤 <strong>얼마나 사라졌는지 모르면</strong> 결과를 믿을 수 없습니다.
+                    여기서는 세 번 걸러 <strong>3줄만</strong> 빠졌습니다. 만약 39줄에서 12줄이 빠졌다면
+                    <strong>그 데이터는 다시 봐야</strong> 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    무엇을 뺐는지도 보고서에 적습니다. <strong>「어떻게 다듬었는가」를 밝히지 않은
+                    분석</strong>은 남이 확인할 수가 없습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">「20을 넘으면 뺀다」는 우리가 정한 것이다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                코드에 <code>표["권수"] &lt;= 20</code>이라고 적었습니다. 이 <strong>20이라는 숫자는
+                어디서 왔을까요?</strong> 데이터가 알려 준 것이 아니라 <strong>우리가 정한</strong>
+                것입니다. 「하루에 한 사람이 20권을 넘게 빌리지는 않을 것」이라는 판단입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이런 판단은 <strong>틀릴 수 있습니다.</strong> 학급문고를 통째로 빌려 간 날이 정말
+                있었다면, 우리는 <strong>진짜 있었던 일을 지운</strong> 셈입니다. 그래서
+                <strong>지우기 전에 확인하고, 확인할 수 없으면 정한 기준을 밝혀</strong> 둡니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">순서를 바꾸면 결과가 달라질까</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빈칸 &rarr; 튄 값 &rarr; 겹친 줄 차례로 걸렀습니다. 순서를 바꿔도 될까요? 이 데이터에서는
+                    같은 36줄이 나옵니다. 그러나 <strong>늘 그런 것은 아닙니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    예를 들어 <strong>빈칸을 「평균으로 채우는」</strong> 방식을 쓴다면, 튄 값을 먼저 빼느냐
+                    나중에 빼느냐에 따라 <strong>채워 넣는 평균이 달라집니다.</strong> 그래서 순서도
+                    적어 두어야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                기준을 <strong>20이 아니라 5</strong>로 바꾸면 몇 줄이 남을까요? 예상해 보고 코드를 고쳐
+                확인해 보세요. 어느 쪽이 더 알맞은 기준일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 묶어 세기 ══════════ -->
+    <section id="group" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">묶어 세기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 물음에 답할 차례입니다. 첫 물음은 <strong>「학년에 따라 다른가」</strong>였습니다.
+                그러려면 <strong>학년이 같은 줄끼리 묶어</strong> 세면 됩니다.
+            </p>
+
+            <pre><code class="language-python" data-src="code/3-1-4.대출기록-분석.py#학년별"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <code>groupby("학년")</code>이 <strong>학년이 같은 줄끼리 모으고</strong>,
+                <code>agg</code>가 그 묶음마다 <strong>개수 &middot; 평균 &middot; 가장 큰 값</strong>을
+                구합니다. 결과는 이렇습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">학년별 대출 권수 요약. 값은 수업용으로 지어낸 자료에서 나온 것이다.</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-24">학년</th>
+                        <th class="w-28">건수</th>
+                        <th class="w-32">평균 권수</th>
+                        <th>가장 많이 빌린 건</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1학년</td>
+                        <td>12</td>
+                        <td class="font-bold">2.92</td>
+                        <td>4권</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2학년</td>
+                        <td>12</td>
+                        <td class="font-bold">2.83</td>
+                        <td>5권</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3학년</td>
+                        <td>12</td>
+                        <td class="font-bold">1.83</td>
+                        <td>3권</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>건수 칸을 먼저 보세요.</strong> 셋 다 12건으로 같습니다. 만약 한 학년만 3건이었다면
+                <strong>그 학년의 평균은 믿기 어렵습니다.</strong> 평균을 보기 전에 건수를 보는 버릇이
+                여기서 쓰입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                결과를 읽으면 <strong>3학년이 눈에 띄게 적습니다.</strong> 1 &middot; 2학년은 3권 가까이
+                빌렸는데 3학년은 2권이 안 됩니다. 그런데 여기서 멈춰야 합니다 &mdash;
+                <strong>왜 그런지는 이 표가 말해 주지 않습니다.</strong>
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">달별로도 묶어 본다</p>
+
+            <pre><code class="language-python" data-src="code/3-1-4.대출기록-분석.py#달별"></code></pre>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                날짜는 <code>2026-03-01</code>처럼 적혀 있으므로, <strong>가운데 두 글자만 잘라</strong>
+                달로 삼았습니다. <code>str[5:7]</code>이 그 일을 합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 240" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="네 개의 세로 막대가 있다. 3월 22, 4월 21, 5월 27, 6월 21이며 5월 막대가 가장 높다. 각 막대 아래에 달 이름과 값이 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">달별 대출 권수 합계</text>
+
+                    <path d="M70 190 L540 190" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+
+                    <rect x="98" y="70" width="80" height="120" rx="6" fill="#a7f3d0" stroke="#059669" stroke-width="2.5"/>
+                    <text x="138" y="60" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">22</text>
+                    <text x="138" y="216" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">3월</text>
+
+                    <rect x="212" y="76" width="80" height="114" rx="6" fill="#a7f3d0" stroke="#059669" stroke-width="2.5"/>
+                    <text x="252" y="66" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">21</text>
+                    <text x="252" y="216" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">4월</text>
+
+                    <rect x="326" y="43" width="80" height="147" rx="6" fill="#fde68a" stroke="#d97706" stroke-width="3"/>
+                    <text x="366" y="34" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">27</text>
+                    <text x="366" y="216" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">5월</text>
+
+                    <rect x="440" y="76" width="80" height="114" rx="6" fill="#a7f3d0" stroke="#059669" stroke-width="2.5"/>
+                    <text x="480" y="66" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">21</text>
+                    <text x="480" y="216" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">6월</text>
+                </svg>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">5월이 높다 &mdash; 여기서 무엇을 말할 수 있나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「5월에 시험이 있어서 도서관에 많이 왔다」고 적고 싶어집니다. 그런데 이 표에는
+                    <strong>시험이 언제인지가 없습니다.</strong> 시험 이야기는 우리가 <strong>바깥에서
+                    가져온 짐작</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    말할 수 있는 것은 여기까지입니다 &mdash; <strong>「이 자료에서는 5월의 합계가 다른
+                    달보다 높았다」.</strong> 그다음은 새 물음입니다. 「시험 일정을 함께 놓고 보면 어떨까」가
+                    <strong>다음 분석의 시작</strong>이 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 세 가지 더 물어보기</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>분야별</strong>로 묶어 세어 보세요. <code>groupby("분야")</code>로 바꾸면
+                        됩니다. 어느 분야가 많은가요?
+                    </li>
+                    <li><strong>학년과 달을 함께</strong> 묶어 보세요. <code>groupby(["학년", "달"])</code>처럼
+                        목록으로 넘기면 됩니다. 3학년의 5월은 어떤가요?
+                    </li>
+                    <li>평균 대신 <strong>가운데 값</strong>으로 바꿔 보세요. <code>"mean"</code>을
+                        <code>"median"</code>으로 고치면 됩니다. 달라지나요? 왜 그럴까요?
+                    </li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    셋 다 <strong>결과를 적기 전에 예상을 먼저</strong> 적으세요. 예상과 다른 자리가
+                    가장 배울 것이 많은 자리입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「3학년이 적다」를 <strong>단정하지 않는 문장</strong>으로 적어 보세요. 그리고 왜 그런지
+                알아보려면 <strong>어떤 데이터가 더</strong> 필요할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다룰 데이터</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>쉼표로 칸을 나눈 파일이다. 첫 줄이 <strong>칸의 이름</strong>이다.</li>
+                    <li>이름과 학번이 없다. <strong>학년별로 세는 데 필요 없기</strong> 때문이다.</li>
+                    <li>먼저 <strong>답하려는 물음</strong>을 적어야 무엇을 묶을지 정해진다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">읽어 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>읽자마자 <strong>줄 수 &middot; 칸 이름 &middot; 앞부분</strong>을 확인한다.</li>
+                    <li>학년이 <code>1.0</code>으로 나오는 것은 <strong>빈칸이 섞여 있다는 신호</strong>다.</li>
+                    <li>「왜 이렇게 보이지?」를 그냥 넘기지 않는다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다듬기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>한 가지를 걸러 낼 때마다 <strong>줄 수를 찍어</strong> 본다. 39 &rarr; 36이었다.</li>
+                    <li>「20을 넘으면 뺀다」는 <strong>우리가 정한 기준</strong>이다. 틀릴 수 있으므로 밝혀 둔다.</li>
+                    <li>걸러 내는 <strong>순서</strong>에 따라 결과가 달라지는 경우도 있다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">묶어 세기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><code>groupby</code>로 <strong>같은 값끼리 모아</strong> 개수 &middot; 평균 &middot;
+                        최댓값을 구한다.
+                    </li>
+                    <li>평균을 보기 전에 <strong>건수</strong>를 본다. 건수가 적으면 평균을 믿기 어렵다.</li>
+                    <li>「5월이 높다」까지가 자료가 말하는 것이다. <strong>까닭은 새 물음</strong>이다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    학년이 <code>1.0</code>으로 나오는 것은 무엇을 알려 주나요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '파일이 잘못된 것이 아닙니다. 파일에는 1이라고 적혀 있습니다.')">
+                    ① 파일이 잘못 만들어졌다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 빈칸을 담으려면 소수를 담을 수 있는 꼴이 되어야 하므로 1.0으로 보입니다.')">
+                    ② 그 칸에 빈칸이 섞여 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '학년을 소수로 적을 이유는 없습니다. 다른 까닭이 있습니다.')">
+                    ③ 학년을 소수로 적었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '판다스가 늘 소수로 바꾸지는 않습니다. 권수 칸은 정수로 나옵니다.')">
+                    ④ 판다스는 모든 숫자를 소수로 바꾼다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    걸러 낼 때마다 <strong>줄 수를 찍어 보는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면을 채우려는 것이 아닙니다. 확인하려는 것입니다.')">
+                    ① 화면에 결과가 많이 나오게 하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 얼마나 사라졌는지 모르면 결과를 믿을 수 없습니다. 너무 많이 빠졌다면 데이터를 다시 봐야 합니다.')">
+                    ② 얼마나 사라졌는지 알아야 결과를 믿을 수 있으므로
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '프로그램이 빨라지지는 않습니다.')">
+                    ③ 프로그램이 빨라지므로
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오류를 막아 주지는 않습니다. 확인하는 눈을 주는 것입니다.')">
+                    ④ 오류가 나지 않게 막아 주므로
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    학년별 표에서 <strong>평균보다 먼저 보아야 할</strong> 칸은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 건수가 적으면 그 묶음의 평균은 믿기 어렵습니다.')">
+                    ① 건수
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 큰 값도 쓸모 있지만, 평균을 믿을 수 있는지부터 봐야 합니다.')">
+                    ② 가장 많이 빌린 건
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '학년은 묶는 기준일 뿐입니다.')">
+                    ③ 학년
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분야는 이 표에 들어 있지 않습니다.')">
+                    ④ 분야
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    5월 합계가 높게 나왔을 때 <strong>이 자료로 말할 수 있는 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '시험 일정은 이 자료에 들어 있지 않습니다. 바깥에서 가져온 짐작입니다.')">
+                    ① 5월에 시험이 있어서 대출이 늘었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 자료가 뒷받침하는 것은 「이 자료에서는 5월 합계가 높았다」까지입니다.')">
+                    ② 이 자료에서는 5월의 합계가 다른 달보다 높았다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '봄에 책을 많이 읽는다는 일반화는 넉 달치 지어낸 자료로 할 수 없습니다.')">
+                    ③ 사람들은 봄에 책을 많이 읽는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '5월에 신간이 많이 들어왔는지는 이 자료에 없습니다.')">
+                    ④ 5월에 새 책이 많이 들어왔다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

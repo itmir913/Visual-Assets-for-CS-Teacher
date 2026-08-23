@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사회 현상을 모의 실험하는 사람</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-users-viewfinder absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-chair absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            사회 현상을 모의 실험하는 사람
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            사람은 물체가 아닙니다<br>그런데도 <strong>모형이 되는 자리</strong>가 있습니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>사회 현상을 모형으로 다룰 때 <strong>무엇을 규칙으로 옮기는지</strong> 설명할 수 있다.</li>
+                    <li>낱낱의 선택에서 <strong>아무도 원하지 않은 결과</strong>가 나오는 과정을 설명할 수 있다.</li>
+                    <li>사람을 다루는 모형에서 <strong>조심해야 할 것</strong>을 들어 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-users-viewfinder text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">사회 현상을 모의 실험하는 사람</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#can" class="hover:text-emerald-600 transition">사람도 모형이 되나</a>
+            <a href="#seat" class="hover:text-emerald-600 transition">자리 고르기</a>
+            <a href="#limit" class="hover:text-emerald-600 transition">알 수 있는 것</a>
+            <a href="#job" class="hover:text-emerald-600 transition">이 일을 하는 사람</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 사람도 모형이 되나 ══════════ -->
+    <section id="can" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">사람도 모형이 되나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지금까지 다룬 것은 자동차와 급식 줄이었습니다. 둘 다 사람이 움직이지만, 모형에서는
+                <strong>「앞으로 간다 &middot; 줄을 선다」</strong>는 아주 단순한 존재였습니다. 그런데
+                사회 현상은 다릅니다 &mdash; <strong>사람이 무엇을 생각하고 고르는지</strong>가 알맹이입니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">먼저 인정할 것 &mdash; 사람은 물체가 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    같은 상황에서도 사람마다 다르게 합니다. 어제와 오늘이 다르고, 기분에 따라 다르고,
+                    <strong>누가 보고 있느냐</strong>에 따라 다릅니다. 이것을 몇 줄의 규칙으로 옮기는 일은
+                    <strong>본래 무리한 일</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그러니 <strong>「이 모형은 사람을 다 담았다」고 말할 수 없습니다.</strong> 담은 것은
+                    <strong>「사람이 그 상황에서 대체로 하는 한 가지」</strong>뿐입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그런데도 사회 현상을 모형으로 만드는 데는 까닭이 있습니다. <strong>한 사람의 마음은
+                못 맞혀도, 여럿이 모였을 때의 모양은 맞을 때가 있기</strong> 때문입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 232" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="왼쪽에 한 사람이라는 상자와 맞히기 어렵다는 설명, 오른쪽에 여럿이 모였을 때라는 상자와 모양이 드러난다는 설명이 있고 가운데에 그런데도라는 화살표가 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">한 사람은 못 맞혀도 전체 모양은 맞을 수 있다</text>
+
+                    <rect x="12" y="52" width="234" height="136" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+                    <text x="129" y="86" font-size="18" fill="#7f1d1d" font-weight="700" text-anchor="middle">한 사람</text>
+                    <circle cx="129" cy="122" r="18" fill="#fca5a5"/>
+                    <text x="129" y="166" font-size="16" fill="#991b1b" text-anchor="middle">언제 무엇을 할지 못 맞힌다</text>
+
+                    <path d="M256 120 L296 120" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M292 112 L306 120 L292 128 Z" fill="#94a3b8"/>
+
+                    <rect x="318" y="52" width="246" height="136" rx="16" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="441" y="86" font-size="18" fill="#064e3b" font-weight="700" text-anchor="middle">여럿이 모였을 때</text>
+                    <circle cx="381" cy="114" r="9" fill="#6ee7b7"/>
+                    <circle cx="411" cy="114" r="9" fill="#6ee7b7"/>
+                    <circle cx="441" cy="114" r="9" fill="#6ee7b7"/>
+                    <circle cx="471" cy="114" r="9" fill="#6ee7b7"/>
+                    <circle cx="501" cy="114" r="9" fill="#6ee7b7"/>
+                    <circle cx="396" cy="138" r="9" fill="#6ee7b7"/>
+                    <circle cx="426" cy="138" r="9" fill="#6ee7b7"/>
+                    <circle cx="456" cy="138" r="9" fill="#6ee7b7"/>
+                    <text x="441" y="172" font-size="16" fill="#065f46" text-anchor="middle">거듭 나타나는 모양이 드러난다</text>
+
+                    <text x="288" y="218" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">그래서 「사람」이 아니라 「사람들」을 모형으로 만든다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                예를 들어 <strong>내일 우리 반의 누가 지각할지</strong>는 아무도 맞힐 수 없습니다.
+                그런데 <strong>「비 오는 날은 지각이 는다」</strong>는 여러 학교에서 거듭 나타납니다.
+                모형이 다루는 것은 뒤쪽입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>「한 사람은 못 맞혀도 여럿의 모양은 맞는」</strong> 다른 보기를 하나 들어 보세요.
+                학교나 동네에서 찾아봅니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 자리 고르기 ══════════ -->
+    <section id="seat" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">자리 고르기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                아주 단순한 사회 현상 하나를 모형으로 만들어 보겠습니다. <strong>도서관 열람실에
+                자리를 고르는 일</strong>입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">규칙은 딱 하나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「빈자리 가운데, 다른 사람에게서 가장 멀리 떨어진 자리에 앉는다.」</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것만 넣습니다. 친구와 앉고 싶은 마음도, 창가를 좋아하는 취향도, 콘센트가 있는
+                    자리를 찾는 습관도 <strong>전부 덜어 냅니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                열 자리가 한 줄로 있다고 하고, 한 사람씩 들어와 이 규칙대로 앉게 해 봅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 286" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="열 개의 자리가 한 줄로 그려진 그림이 네 줄 있다. 첫째 줄은 아무도 없고, 둘째 줄은 한쪽 끝에 한 명, 셋째 줄은 양 끝과 가운데에 세 명, 넷째 줄은 한 칸씩 띄어 다섯 명이 앉아 있으며 더 이상 앉을 자리가 없다고 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">규칙 하나에서 나오는 자리 배치</text>
+
+                    <text x="44" y="66" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">0명</text>
+                    <rect x="86" y="48" width="472" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <path d="M133 48 L133 74 M180 48 L180 74 M227 48 L227 74 M274 48 L274 74 M321 48 L321 74 M368 48 L368 74 M415 48 L415 74 M462 48 L462 74 M509 48 L509 74" stroke="#cbd5e1" stroke-width="1.5"/>
+
+                    <text x="44" y="128" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">1명</text>
+                    <rect x="86" y="110" width="472" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <path d="M133 110 L133 136 M180 110 L180 136 M227 110 L227 136 M274 110 L274 136 M321 110 L321 136 M368 110 L368 136 M415 110 L415 136 M462 110 L462 136 M509 110 L509 136" stroke="#cbd5e1" stroke-width="1.5"/>
+                    <circle cx="109" cy="123" r="9" fill="#059669"/>
+
+                    <text x="44" y="190" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">3명</text>
+                    <rect x="86" y="172" width="472" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <path d="M133 172 L133 198 M180 172 L180 198 M227 172 L227 198 M274 172 L274 198 M321 172 L321 198 M368 172 L368 198 M415 172 L415 198 M462 172 L462 198 M509 172 L509 198" stroke="#cbd5e1" stroke-width="1.5"/>
+                    <circle cx="109" cy="185" r="9" fill="#059669"/>
+                    <circle cx="533" cy="185" r="9" fill="#059669"/>
+                    <circle cx="321" cy="185" r="9" fill="#059669"/>
+
+                    <text x="44" y="252" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">5명</text>
+                    <rect x="86" y="234" width="472" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <path d="M133 234 L133 260 M180 234 L180 260 M227 234 L227 260 M274 234 L274 260 M321 234 L321 260 M368 234 L368 260 M415 234 L415 260 M462 234 L462 260 M509 234 L509 260" stroke="#cbd5e1" stroke-width="1.5"/>
+                    <circle cx="109" cy="247" r="9" fill="#dc2626"/>
+                    <circle cx="203" cy="247" r="9" fill="#dc2626"/>
+                    <circle cx="321" cy="247" r="9" fill="#dc2626"/>
+                    <circle cx="439" cy="247" r="9" fill="#dc2626"/>
+                    <circle cx="533" cy="247" r="9" fill="#dc2626"/>
+
+                    <text x="322" y="282" font-size="16" fill="#b91c1c" font-weight="700" text-anchor="middle">열 자리인데 다섯 명에서 더 앉기 어려워진다</text>
+                </svg>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">아무도 원하지 않은 결과</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다섯 명이 앉고 나면 <strong>빈자리는 다섯 개나 남았는데</strong>, 남은 자리는 모두
+                    <strong>누군가의 바로 옆</strong>입니다. 뒤에 온 사람은 <strong>「자리가 없네」</strong>
+                    하고 돌아섭니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아무도 <strong>「열람실을 반만 쓰자」</strong>고 하지 않았습니다. 각자
+                    <strong>가장 편한 자리를 골랐을 뿐</strong>입니다. 그런데 모두 합쳐 놓으니
+                    <strong>절반이 버려졌습니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이것이 사회 현상 모형이 보여 주는 전형적인 모습입니다. <strong>낱낱은 모두 합리적으로
+                골랐는데 전체는 손해</strong>가 되는 자리. 이런 것은 <strong>사람을 탓해서는 풀리지
+                않습니다.</strong> 규칙이나 자리 배치를 바꿔야 합니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">모형이 있으면 대책도 돌려 볼 수 있다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>칸막이를 세운다</strong> &mdash; 옆에 사람이 있어도 덜 신경 쓰이면
+                        규칙 자체가 달라진다.
+                    </li>
+                    <li><strong>자리를 정해 준다</strong> &mdash; 고르지 못하게 하면 빈 곳 없이 찬다.
+                        대신 <strong>고를 자유가 사라진다.</strong>
+                    </li>
+                    <li><strong>남은 자리를 보여 준다</strong> &mdash; 들어오기 전에 어디가 비었는지
+                        알면 돌아서는 사람이 준다.
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    셋을 각각 모형에 넣고 돌려 보면 <strong>어느 쪽이 얼마나 나은지</strong>를
+                    실제로 바꾸기 전에 볼 수 있습니다. 이것이 Ⅰ단원에서 말한
+                    <strong>「미리 해 볼 수 있다」</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>「낱낱은 합리적인데 전체는 손해」</strong>인 다른 자리를 하나 들어 보세요.
+                버스 &middot; 매점 &middot; 사물함 어디든 좋습니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 알 수 있는 것 ══════════ -->
+    <section id="limit" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">알 수 있는 것</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                자리 고르기 모형은 <strong>규칙 하나</strong>뿐이었습니다. 그런데도 쓸 만한 것을 알려
+                주었습니다. 무엇을 알려 주고 무엇은 알려 주지 못하는지 갈라 보겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">사회 현상 모형이 알려 주는 것과 알려 주지 못하는 것</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">이런 물음에는</th>
+                        <th>답할 수 있나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">「이런 규칙이면 전체가 어떤 모양이 되나」</td>
+                        <td><strong>답한다.</strong> 이것이 모형의 본래 일이다. 자리가 절반만 차는 것을 보여 주었다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">「대책 A와 B 중 어느 쪽이 나은가」</td>
+                        <td><strong>비교해 볼 수 있다.</strong> 같은 모형에 둘을 넣고 돌리면 방향은 알 수 있다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">「어느 지점을 넘으면 달라지나」</td>
+                        <td><strong>대체로 알려 준다.</strong> 사람 수를 늘려 가며 돌리면 꺾이는 자리가 보인다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">「내일 몇 명이 올까」</td>
+                        <td><strong>답하지 못한다.</strong> 이것은 모형이 아니라 <strong>기록으로 하는 일</strong>이다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">「사람들이 왜 그렇게 하나」</td>
+                        <td><strong>답하지 못한다.</strong> 규칙은 <strong>우리가 넣은 것</strong>이다.
+                            모형이 알아낸 것이 아니다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">마지막 줄을 특히 조심한다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    자리 모형이 실제 열람실과 <strong>비슷한 모양</strong>을 내놓았다고 합시다. 여기서
+                    <strong>「그러니 사람들은 정말 멀리 앉으려 하는구나」</strong>로 넘어가면 안 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>전혀 다른 규칙에서 같은 모양이 나올 수도</strong> 있기 때문입니다. 예를 들어
+                    「출입구에서 가까운 자리를 좋아한다」로도 비슷한 그림이 나올 수 있습니다.
+                    <strong>결과가 맞았다고 규칙이 맞은 것은 아닙니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것은 Ⅲ단원의 <strong>「함께 움직였다와 원인은 다르다」</strong>가 모형에서 나타나는
+                    모습입니다. 사람의 마음을 다루는 자리라 <strong>더 조심해야</strong> 합니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그러면 규칙이 맞는지는 어떻게 아나</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                한 가지 방법이 있습니다. <strong>모형이 예상하지 않은 것을 예상하게 만든 뒤 확인하는</strong>
+                것입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">보기 &mdash; 자리 모형을 시험하는 법</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「멀리 앉는다」 규칙이 맞다면, <strong>자리 사이를 넓게 벌려 놓으면</strong> 사람들이
+                    <strong>더 많이 앉아야</strong> 합니다. 옆자리가 멀어져 덜 신경 쓰이기 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「출입구 가까이 앉는다」 규칙이라면 <strong>자리를 벌려도 별로 달라지지 않아야</strong> 합니다.
+                    <strong>두 규칙이 서로 다르게 예상하는 자리</strong>를 찾아, 실제로 확인해 보는 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이렇게 <strong>「이 규칙이 맞다면 이런 일도 일어나야 한다」</strong>를 만들어 확인하는
+                    것이, 모형을 시험하는 가장 튼튼한 방법입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「멀리 앉는다」와 「친구 옆에 앉는다」 두 규칙은 <strong>어떤 상황에서 다르게 예상</strong>할까요?
+                확인해 볼 자리를 하나 만들어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 이 일을 하는 사람 ══════════ -->
+    <section id="job" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">이 일을 하는 사람</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                사회 현상을 모형으로 만들어 <strong>정책이나 설계에 쓰는 일</strong>을 하는 사람들이
+                있습니다. Ⅰ단원에서 배운 이름의 짜임으로 보면 <strong>「사회 + 모형을 만드는 일」</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">사회 현상을 모형으로 다루는 자리와 하는 일</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">어디에서</th>
+                        <th>무엇을 돌려 보나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">도시 설계</td>
+                        <td>버스 노선을 바꾸면 <strong>어디에 사람이 몰릴지.</strong> 새 정류장 자리를 정하는 데 쓴다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">건물 설계</td>
+                        <td>출구가 몇 개여야 <strong>급할 때 다 빠져나갈 수 있는지.</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">보건</td>
+                        <td>병이 퍼질 때 <strong>어떤 순서로 대응하면</strong> 덜 번지는지.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">공공 서비스</td>
+                        <td>창구를 몇 개 열면 <strong>기다리는 시간이 얼마나 줄어드는지.</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 줄 모두 <strong>「실제로 해 보기 전에」</strong> 알아보려는 것입니다. 앞에서 배운
+                네 가지 까닭 가운데 <strong>「되돌릴 수 없어서」</strong>에 해당합니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">필요한 힘</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">사회 현상을 모형으로 다루는 데 필요한 힘</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">어느 자리에서</th>
+                        <th>어떤 힘이</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">규칙을 정할 때</td>
+                        <td><strong>사람을 관찰하는 힘.</strong> 실제로 사람들이 어떻게 하는지 보지 않고
+                            책상에서 정하면 엉뚱한 모형이 된다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">덜어 낼 때</td>
+                        <td><strong>무엇이 중요한지 가리는 힘.</strong> 사회 현상은 관련된 것이 너무 많아
+                            덜어 내기가 특히 어렵다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">돌릴 때</td>
+                        <td><strong>도구를 다루는 힘.</strong> 다만 규칙이 짧으므로 아주 어려운 프로그램은 아니다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">전할 때</td>
+                        <td><strong>한계를 함께 말하는 힘.</strong> 정책을 정하는 자리에 들어가는 결과라
+                            더 조심해야 한다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">사람을 단순하게 그리는 일의 무게</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    모형을 만들려면 <strong>사람을 단순하게 그려야</strong> 합니다. 그런데 그 단순한 그림이
+                    <strong>정책이 되어 실제 사람에게 돌아옵니다.</strong> 여기에 이 일의 무게가 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    특히 조심할 것이 있습니다. <strong>「사람들은 원래 이렇다」로 굳어지는</strong> 일입니다.
+                    모형에 넣은 규칙은 <strong>편의를 위한 가정</strong>이지 사람에 대한 진실이 아닙니다.
+                    이것을 잊으면 <strong>모형이 사람을 규정하기</strong> 시작합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 결과를 낼 때 반드시 이렇게 적습니다 &mdash;
+                    <strong>「사람들이 ○○하게 행동한다고 두었을 때, 전체는 이렇게 된다」.</strong>
+                    앞의 조건절을 빼면 <strong>전혀 다른 문장</strong>이 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 우리 학교의 사회 현상</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>학교에서 <strong>「사람들이 모여서 생기는 일」</strong>을 하나 고릅니다.
+                        자리 &middot; 줄 &middot; 이동 &middot; 소문 무엇이든 좋습니다.
+                    </li>
+                    <li>그 상황에서 사람들이 <strong>대체로 하는 한 가지</strong>를 규칙으로 적습니다.
+                        한 줄이면 충분합니다.
+                    </li>
+                    <li>그 규칙대로 <strong>종이에 그려</strong> 봅니다. 프로그램 없이도 열 명쯤은
+                        손으로 굴려 볼 수 있습니다.
+                    </li>
+                    <li><strong>아무도 원하지 않은 결과</strong>가 나오는지 봅니다. 나온다면 그것이
+                        모형으로 만들 값어치가 있는 현상입니다.
+                    </li>
+                    <li>결과를 <strong>「~라고 두었을 때」</strong>를 붙여 한 문장으로 적습니다.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「사람들은 멀리 앉으려 한다」와 <strong>「사람들이 멀리 앉으려 한다고 두었을 때」</strong>
+                &mdash; 두 문장이 정책 회의에서 어떻게 다르게 쓰일지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">사람도 모형이 되나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>사람을 몇 줄로 옮기는 것은 <strong>본래 무리한 일</strong>이다.</li>
+                    <li>그런데 <strong>한 사람은 못 맞혀도 여럿의 모양은 맞을 때</strong>가 있다.</li>
+                    <li>그래서 「사람」이 아니라 <strong>「사람들」</strong>을 모형으로 만든다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">자리 고르기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>규칙 하나만으로 <strong>열 자리 중 다섯만 차는</strong> 결과가 나온다.</li>
+                    <li>낱낱은 모두 합리적으로 골랐는데 <strong>전체는 손해</strong>가 되었다.</li>
+                    <li>이런 것은 <strong>사람을 탓해서 풀리지 않는다.</strong> 규칙이나 배치를 바꿔야 한다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">알 수 있는 것</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>「이 규칙이면 전체가 어떤 모양이 되나」와 <strong>대책끼리의 비교</strong>에는 답한다.</li>
+                    <li><strong>「사람들이 왜 그러나」에는 답하지 못한다.</strong> 규칙은 우리가 넣은 것이다.</li>
+                    <li>결과가 맞았다고 <strong>규칙이 맞은 것은 아니다.</strong> 다른 규칙에서도 같은 모양이 나온다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">이 일을 하는 사람</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>도시 &middot; 건물 &middot; 보건 &middot; 공공 서비스에서 <strong>실제로 해 보기 전에</strong> 돌린다.</li>
+                    <li>규칙은 <strong>사람을 관찰해서</strong> 정한다. 책상에서 정하면 엉뚱한 모형이 된다.</li>
+                    <li>결과에는 반드시 <strong>「~라고 두었을 때」</strong>를 붙인다. 빼면 전혀 다른 문장이 된다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    사회 현상을 모형으로 만들 때 <strong>다루는 대상</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 사람이 언제 무엇을 할지는 맞힐 수 없습니다.')">
+                    ① 한 사람이 내일 무엇을 할지
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 한 사람은 못 맞혀도 여럿이 모였을 때 거듭 나타나는 모양은 다룰 수 있습니다.')">
+                    ② 여럿이 모였을 때 거듭 나타나는 모양
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람의 속마음은 모형이 다루는 대상이 아닙니다.')">
+                    ③ 사람의 속마음
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '앞으로 몇 명이 올지는 기록으로 하는 일에 가깝습니다.')">
+                    ④ 앞으로 몇 명이 올지
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    열 자리 중 다섯만 차는 결과에서 <strong>배울 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람들이 이기적이어서가 아닙니다. 각자 편한 자리를 골랐을 뿐입니다.')">
+                    ① 사람들이 이기적이라는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 낱낱은 합리적으로 골랐는데 전체는 손해가 되는 자리가 있고, 이런 것은 사람을 탓해 풀리지 않습니다.')">
+                    ② 각자 합리적으로 골라도 전체는 손해가 될 수 있다는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '자리를 더 만들면 된다는 결론은 나오지 않습니다. 같은 일이 다시 일어납니다.')">
+                    ③ 자리를 두 배로 만들면 된다는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모형이 틀린 것이 아닙니다. 규칙대로 정확히 돌아간 결과입니다.')">
+                    ④ 모형이 잘못되었다는 것
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    모형의 결과가 실제와 <strong>비슷하게 나왔을 때</strong> 할 수 없는 말은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이 규칙으로 이런 모양이 나온다는 것은 말할 수 있습니다.')">
+                    ① 「이 규칙으로 두면 이런 모양이 나온다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 전혀 다른 규칙에서도 같은 모양이 나올 수 있으므로, 결과가 맞았다고 규칙이 맞은 것은 아닙니다.')">
+                    ② 「그러니 사람들은 정말 그렇게 생각한다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '대책끼리 비교해 보는 것은 모형이 잘하는 일입니다.')">
+                    ③ 「대책 A가 B보다 나아 보인다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한계를 함께 밝히는 것은 오히려 반드시 해야 할 일입니다.')">
+                    ④ 「이 모형은 취향을 담지 않았다」
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    결과를 적을 때 <strong>「~라고 두었을 때」를 붙이는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '문장을 길게 하려는 것이 아닙니다.')">
+                    ① 문장을 길고 정중하게 만들려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 모형에 넣은 규칙은 편의를 위한 가정이지 사람에 대한 진실이 아니라는 것을 밝히는 것입니다.')">
+                    ② 규칙이 가정일 뿐 사람에 대한 진실이 아님을 밝히려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '책임을 피하려는 것이 아니라 정확히 말하려는 것입니다.')">
+                    ③ 결과가 틀렸을 때 책임을 피하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '읽는 사람을 어렵게 하려는 것이 아닙니다. 오히려 더 정확히 이해하게 합니다.')">
+                    ④ 읽는 사람이 이해하기 어렵게 하려고
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

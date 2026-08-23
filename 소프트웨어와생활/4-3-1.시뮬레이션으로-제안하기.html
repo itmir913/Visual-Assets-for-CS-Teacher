@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시뮬레이션으로 제안하기</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-lightbulb absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-comments absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            시뮬레이션으로 제안하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            돌려 본 것을 근거로<br><strong>무엇을 바꾸자고 말합니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>돌려 본 결과를 <strong>제안으로 바꾸는</strong> 다섯 걸음을 설명할 수 있다.</li>
+                    <li>제안서에 <strong>무엇을 담고 무엇을 밝혀야 하는지</strong> 말할 수 있다.</li>
+                    <li>서로의 모형을 <strong>정해진 눈으로 의심해</strong> 보며 고칠 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-lightbulb text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">시뮬레이션으로 제안하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-emerald-600 transition">무엇이 다른가</a>
+            <a href="#steps" class="hover:text-emerald-600 transition">다섯 걸음</a>
+            <a href="#paper" class="hover:text-emerald-600 transition">제안서</a>
+            <a href="#doubt" class="hover:text-emerald-600 transition">서로 의심하기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 무엇이 다른가 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇이 다른가</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                단원마다 프로젝트를 하나씩 해 왔습니다. 이번 것은 앞의 셋과 <strong>내놓는 것이
+                다릅니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">단원별 프로젝트에서 내놓는 것의 비교</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">단원</th>
+                        <th class="w-40">내놓은 것</th>
+                        <th>무엇으로 뒷받침했나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">Ⅰ</td>
+                        <td>기획서</td>
+                        <td>불편을 겪은 <strong>사람들의 이야기</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">Ⅱ</td>
+                        <td>프로토타입</td>
+                        <td>남이 <strong>써 본 결과</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">Ⅲ</td>
+                        <td>분석 보고서</td>
+                        <td>이미 쌓인 <strong>기록</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">Ⅳ</td>
+                        <td><strong>제안</strong></td>
+                        <td><strong>돌려 본 결과</strong> &mdash; 아직 일어나지 않은 일</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">「해 보자」와 「이렇게 하면 이렇게 될 것이다」</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    지금까지의 제안은 <strong>「이렇게 하면 좋겠다」</strong>였습니다. 이번에는
+                    <strong>「이렇게 하면 이만큼 달라질 것이다」</strong>까지 말할 수 있습니다.
+                    숫자가 붙는 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것이 힘이자 위험입니다. 숫자가 붙으면 <strong>훨씬 설득력이 생기는데</strong>,
+                    그 숫자는 <strong>우리가 만든 모형이 낸 것</strong>입니다. 그래서 이 프로젝트에서는
+                    <strong>모형의 한계를 밝히는 일</strong>이 결과 못지않게 중요합니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">주제 고르기</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                주제는 자유입니다. 다만 <strong>모형으로 다룰 만한 것</strong>이어야 합니다. Ⅰ단원의
+                네 기준에 <strong>하나를 더해</strong> 고릅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">시뮬레이션 프로젝트의 주제를 고르는 기준</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">기준</th>
+                        <th>무엇을 묻나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">겪는 사람</td>
+                        <td>여러 사람이 자주 겪는 일인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">우리 손 안인가</td>
+                        <td>학교나 우리 동네에서 <strong>정할 수 있는</strong> 일인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">바꿀 것이 있나</td>
+                        <td><strong>손잡이로 만들 만한 것</strong>이 있는가. 없으면 돌려 볼 것이 없다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">여러 번 못 해 보나</td>
+                        <td>실제로 여러 번 해 볼 수 있다면 <strong>그냥 해 보는 편이 낫다.</strong>
+                            앞에서 배운 네 가지 까닭에 걸려야 한다
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">규칙으로 적을 수 있나</td>
+                        <td>낱낱이 무엇을 하는지 <strong>한두 줄로</strong> 적을 수 있는가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">고르기 좋은 주제의 냄새</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>사람이나 물건이 여럿 움직인다</strong> &mdash; 줄, 이동, 자리, 순서</li>
+                    <li><strong>몰리는 때가 있다</strong> &mdash; 등하교, 쉬는 시간, 행사</li>
+                    <li><strong>바꿔 볼 만한 숫자가 있다</strong> &mdash; 개수, 시각, 간격, 길이</li>
+                    <li><strong>바꿔 보기가 번거롭다</strong> &mdash; 한번 바꾸면 되돌리기 힘든 일</li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    반대로 <strong>「사람들의 마음을 바꾸자」</strong>는 주제는 이 프로젝트에 맞지
+                    않습니다. 손잡이로 만들 것이 없고, 규칙으로 적기도 어렵습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「분리배출을 잘하게 하자」를 이 프로젝트의 주제로 삼으려면 <strong>어떻게 바꿔</strong>
+                적어야 할까요? 다섯 기준에 걸리도록 고쳐 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 다섯 걸음 ══════════ -->
+    <section id="steps" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다섯 걸음</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞에서 배운 <strong>모델 만드는 다섯 걸음</strong>이 그대로 들어 있고, 앞뒤에 하나씩
+                붙습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">프로젝트의 다섯 걸음과 각 걸음의 결과물</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">걸음</th>
+                        <th>하는 일</th>
+                        <th class="w-40">남는 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">1. 문제 찾고 고르기</td>
+                        <td>후보를 여럿 모으고 <strong>다섯 기준</strong>으로 하나를 고른다. 지금 어떤지도
+                            함께 알아 둔다.
+                        </td>
+                        <td>고른 문제와 지금 상태</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">2. 모형 만들기</td>
+                        <td>덜어 내고, 화면을 정하고, 규칙을 적는다. <strong>비슷한 모형이 이미 있으면
+                            가져다 고쳐도</strong> 된다.
+                        </td>
+                        <td>도는 모형</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">3. 맞춰 보고 돌리기</td>
+                        <td>먼저 <strong>아는 답으로 맞추고</strong>, 조건을 하나씩 바꿔 가며
+                            <strong>여러 번씩</strong> 돌린다.
+                        </td>
+                        <td>결과 표</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">4. 제안 만들기</td>
+                        <td>결과에서 <strong>무엇을 바꾸자</strong>를 끌어낸다. 어디까지 말할 수 있는지도
+                            함께 정한다.
+                        </td>
+                        <td>제안서 한 장</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">5. 나누고 의심하기</td>
+                        <td>서로의 모형을 <strong>정해진 눈으로 따져</strong> 보고 고친다.</td>
+                        <td>고칠 목록과 남는 한계</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">1걸음에서 「지금 어떤지」를 꼭 알아 둔다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것이 <strong>3걸음의 맞춰 보기에 쓰입니다.</strong> 지금 줄이 얼마나 긴지, 몇 분이
+                    걸리는지를 모르면 <strong>모형이 맞는지 확인할 방법이 없습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거창하게 측정하지 않아도 됩니다. <strong>사흘 동안 시각과 인원을 적어 보는</strong>
+                    정도면 충분합니다. Ⅲ단원에서 배운 대로 <strong>어떻게 세었는지</strong>만 함께
+                    적어 두면 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">2걸음 &mdash; 처음부터 만들지 않아도 된다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞 시간에 열어 본 모델 가운데 <strong>비슷한 것이 있으면 가져다 고치는</strong> 편이
+                    훨씬 빠릅니다. 자동차 모델의 규칙을 <strong>복도의 사람으로 바꾸는</strong> 식입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이때 <strong>어디서 가져왔는지 반드시 적습니다.</strong> 그리고 <strong>무엇을
+                    고쳤는지</strong>도 함께 적습니다. 가져온 것과 내가 한 것을 갈라 두는 것이
+                    정직한 일입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                1걸음에서 <strong>「지금 어떤지」를 알아 두지 않으면</strong> 3걸음에서 무엇을 할 수
+                없게 되나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 제안서 ══════════ -->
+    <section id="paper" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">제안서</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                제안서는 <strong>한 장</strong>입니다. 읽는 사람은 선생님일 수도, 학생회일 수도,
+                동네 어른일 수도 있습니다. <strong>모형을 모르는 사람이 읽는다</strong>고 생각하고 씁니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">제안서에 담을 일곱 칸</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">칸</th>
+                        <th>무엇을 적나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">1. 무엇이 문제인가</td>
+                        <td>지금 어떤지를 <strong>숫자로</strong> 적는다. 「점심시간 시작 5분 뒤 줄이
+                            복도까지 이어진다」처럼.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">2. 무엇을 바꾸자는 것인가</td>
+                        <td>제안 <strong>한 문장.</strong> 「학년별로 마치는 시각을 5분씩 벌리자」</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">3. 어떻게 알아냈나</td>
+                        <td>모형을 만들어 돌려 봤다는 것. <strong>무엇을 담고 무엇을 뺐는지</strong>도
+                            여기 적는다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">4. 결과</td>
+                        <td>표나 그래프 하나. <strong>여러 번 돌린 값</strong>이 함께 보이게 한다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">5. 함께 나빠지는 것</td>
+                        <td>맞바꿈이 있으면 <strong>반드시</strong> 적는다. 「마지막 학년이 10분 늦게 먹게 된다」</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">6. 이 제안이 모르는 것</td>
+                        <td>모형이 담지 않은 것들. <strong>시간표 &middot; 공평함 &middot; 다른 방법.</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">7. 해 보자는 것</td>
+                        <td>바로 바꾸자가 아니라 <strong>「한 주만 해 보고 실제로 어떤지 보자」</strong>처럼
+                            작게 제안한다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">7번이 이 프로젝트의 열쇠다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    모형은 <strong>「이렇게 될 것이다」까지만</strong> 말할 수 있습니다. 그러니 제안도
+                    <strong>「이렇게 바꾸자」가 아니라 「이렇게 해 보고 확인하자」</strong>가 알맞습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    작게 해 보면 <strong>모형이 맞았는지도 확인</strong>됩니다. 맞았다면 넓히고,
+                    어긋났다면 <strong>모형에 무엇이 빠졌는지</strong> 알게 됩니다. 어느 쪽이든 남는 것이
+                    있습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">숫자를 쓸 때</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">제안서에서 숫자를 적는 방법의 비교</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">어떻게 적었나</th>
+                        <th>문장</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-rose-800">넘은 쪽</td>
+                        <td>「줄이 <strong>255명에서 45명으로</strong> 줄어듭니다.」 &mdash; 모형이 낸 값을
+                            <strong>현실의 값처럼</strong> 적었다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">지킨 쪽</td>
+                        <td>「모형에서는 가장 긴 줄이 <strong>5분의 1 아래로</strong> 줄었습니다. 실제
+                            숫자는 다르겠지만 <strong>줄어드는 방향은 뚜렷했습니다.</strong>」
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 시간에 배운 <strong>「모형은 얼마인가보다 어느 쪽인가에 강하다」</strong>가 그대로
+                쓰였습니다. <strong>비율이나 방향</strong>으로 적으면 모형이 말할 수 있는 데서
+                벗어나지 않습니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                제안서에서 <strong>5번과 6번을 빼면</strong> 어떤 글이 될까요? Ⅰ단원에서 배운
+                말로 표현해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 서로 의심하기 ══════════ -->
+    <section id="doubt" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">서로 의심하기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 걸음은 <strong>서로의 모형을 따져 보는</strong> 일입니다. Ⅱ단원에서는
+                <strong>써 보게</strong> 했고, 여기서는 <strong>의심해</strong> 봅니다. 모형은 써 보는
+                물건이 아니라 <strong>주장</strong>이기 때문입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">의심은 공격이 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「이 모형이 틀렸다」를 찾는 것이 아닙니다.</strong> 모든 모형은 무엇인가를
+                    덜어 냈으므로 어딘가는 틀려 있습니다. 찾을 것은
+                    <strong>「이 결론을 흔들 만큼 중요한 것이 빠졌는가」</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    잘 의심해 주는 것이 <strong>가장 도움이 되는 일</strong>입니다. 만든 사람은 자기
+                    모형을 오래 봐서 <strong>빠진 것이 안 보입니다.</strong>
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">네 가지 눈으로 묻는다</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다른 모둠의 모형을 따져 볼 때 쓰는 네 가지 눈</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">묻는 눈</th>
+                        <th>물어볼 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">뺀 것</td>
+                        <td><strong>「○○을 넣으면 결론이 뒤집힐까?」</strong> 뒤집힌다면 넣어야 하고,
+                            안 뒤집힌다면 뺀 것이 잘한 일이다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">맞춰 봤나</td>
+                        <td><strong>「지금 상태를 넣었을 때 지금과 비슷하게 나왔나?」</strong>
+                            이걸 안 했으면 결과를 믿기 어렵다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">몇 번 돌렸나</td>
+                        <td><strong>「한 번만 돌린 값 아닌가?」</strong> 여러 번 돌린 값이 얼마나
+                            퍼져 있는지 본다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">다른 방법</td>
+                        <td><strong>「이것 말고 다른 방법은 돌려 봤나?」</strong> 하나만 돌려 보고
+                            「이게 낫다」고 하면 안 된다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 눈 가운데 <strong>첫 번째</strong>가 가장 값집니다. 그리고 묻는 방법이 중요합니다 &mdash;
+                <strong>「이건 안 넣었네요」가 아니라 「이걸 넣으면 결론이 바뀔까요?」</strong>로 묻습니다.
+                앞은 지적이고 뒤는 <strong>함께 생각해 보자는 말</strong>입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">받은 물음으로 무엇을 하나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    Ⅱ단원과 같습니다. 셋 중 하나를 고릅니다 &mdash;
+                    <strong>모형에 넣어 본다 &middot; 「모르는 것」 칸에 적는다 &middot; 왜 안 넣어도
+                    되는지 설명한다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    세 번째가 새로 생긴 것입니다. <strong>「그것을 넣어도 결론이 안 바뀐다」를 근거를
+                    들어 말할 수 있으면</strong> 그것도 훌륭한 답입니다. 근거가 없으면
+                    <strong>넣어 보거나 모르는 것에 적으면</strong> 됩니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">발표할 때</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>지금 어떤지</strong>부터 말합니다. 문제가 실감 나야 뒤가 들립니다.</li>
+                    <li><strong>모형을 한 번 돌려 보입니다.</strong> 설명보다 움직이는 화면이 빠릅니다.</li>
+                    <li><strong>무엇을 뺐는지</strong>를 스스로 먼저 말합니다. 나중에 지적받는 것보다
+                        <strong>훨씬 믿음이 갑니다.</strong>
+                    </li>
+                    <li>결과는 <strong>표 하나</strong>로 보입니다. 여러 번 돌린 값이 보이게 합니다.</li>
+                    <li><strong>함께 나빠지는 것</strong>을 말하고, 마지막에 <strong>「작게 해 보자」</strong>로
+                        닫습니다.
+                    </li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    3번이 이 발표의 성격을 정합니다. <strong>한계를 감추면 발표가 광고가 되고,
+                    먼저 밝히면 제안이 됩니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">스스로 점검하기</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li>고른 문제가 <strong>다섯 기준</strong>에 걸리는가</li>
+                    <li><strong>지금 어떤지</strong>를 알아보고 모형을 맞춰 보았는가</li>
+                    <li>조건을 <strong>하나씩</strong> 바꾸며 <strong>여러 번씩</strong> 돌렸는가</li>
+                    <li>제안서에 <strong>함께 나빠지는 것</strong>과 <strong>모르는 것</strong>이 적혀 있는가</li>
+                    <li>마지막이 <strong>「작게 해 보자」</strong>로 되어 있는가</li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다섯 줄 가운데 <strong>세 줄 이상</strong>에 그렇다고 답할 수 있으면 이 단원에서
+                    배우려던 것은 충분히 익힌 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                발표에서 <strong>무엇을 뺐는지 스스로 먼저 말하는</strong> 것이 왜 믿음을 줄까요?
+                반대로 감추었다가 지적받으면 어떻게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">무엇이 다른가</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>내놓는 것은 <strong>제안</strong>이고, 뒷받침하는 것은 <strong>돌려 본 결과</strong>다.</li>
+                    <li>숫자가 붙어 <strong>설득력이 커지는 만큼</strong> 한계를 밝히는 일이 중요해진다.</li>
+                    <li>주제 기준에 <strong>「여러 번 못 해 보는 일인가」</strong>가 더해진다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다섯 걸음</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>문제 고르기 &rarr; 모형 만들기 &rarr; 맞춰 보고 돌리기 &rarr; 제안 만들기 &rarr;
+                        나누고 의심하기.
+                    </li>
+                    <li>1걸음에서 <strong>「지금 어떤지」</strong>를 알아 두어야 3걸음에서 맞춰 볼 수 있다.</li>
+                    <li>비슷한 모형이 있으면 <strong>가져다 고쳐도</strong> 된다. 어디서 가져왔는지 적는다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">제안서</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>일곱 칸. <strong>함께 나빠지는 것</strong>과 <strong>모르는 것</strong>을 반드시 넣는다.</li>
+                    <li>마지막은 <strong>「작게 해 보고 확인하자」</strong>다. 해 보면 모형도 함께 확인된다.</li>
+                    <li>숫자는 <strong>비율이나 방향</strong>으로 적는다. 모형이 말할 수 있는 데까지만.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">서로 의심하기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>찾을 것은 <strong>「이 결론을 흔들 만큼 중요한 것이 빠졌는가」</strong>다.</li>
+                    <li>「이건 안 넣었네요」가 아니라 <strong>「이걸 넣으면 결론이 바뀔까요?」</strong>로 묻는다.</li>
+                    <li>발표에서 <strong>한계를 먼저 밝히면 제안</strong>이고, 감추면 광고가 된다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    이 프로젝트의 주제로 <strong>알맞지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사물함 배치는 바꿔 볼 숫자가 있고 한번 바꾸면 되돌리기 번거로운 일입니다.')">
+                    ① 사물함을 어디에 놓으면 덜 붐빌까
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 손잡이로 만들 숫자가 없고 규칙으로 적기도 어렵습니다.')">
+                    ② 학생들이 서로 더 친절해지게 하려면
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '하교 시각을 나누는 것은 바꿔 볼 숫자가 있고 실제로 여러 번 해 보기 어렵습니다.')">
+                    ③ 하교 시각을 나누면 정문이 덜 막힐까
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '대피 경로는 실제로 여러 번 해 볼 수 없는 대표적인 주제입니다.')">
+                    ④ 대피할 때 어느 계단으로 보내야 빠를까
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    1걸음에서 <strong>「지금 어떤지」를 알아 두는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '발표를 길게 하려는 것이 아닙니다.')">
+                    ① 발표할 내용을 늘리려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 아는 답이 있어야 모형을 맞춰 보고 믿을 수 있는지 확인할 수 있습니다.')">
+                    ② 모형이 맞는지 맞춰 볼 기준이 되므로
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '모형을 안 만들어도 되는 것이 아닙니다. 지금 상태만으로는 「바꾸면 어떻게 될지」를 알 수 없습니다.')">
+                    ③ 알아 두면 모형을 안 만들어도 되므로
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '주제를 바꾸려는 것이 아닙니다.')">
+                    ④ 주제를 바꿀지 정하려고
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    제안서의 마지막을 <strong>「작게 해 보고 확인하자」</strong>로 닫는 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '자신이 없어서가 아닙니다. 모형이 말할 수 있는 범위를 지키는 것입니다.')">
+                    ① 제안에 자신이 없어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 모형은 「이렇게 될 것이다」까지만 말할 수 있고, 작게 해 보면 모형이 맞았는지도 확인됩니다.')">
+                    ② 모형은 예측까지만 말할 수 있고, 해 보면 모형도 확인되므로
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '책임을 나누려는 것이 아닙니다.')">
+                    ③ 잘못되었을 때 책임을 나누려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '비용과는 관계가 없습니다. 시간표를 바꾸는 데 돈이 드는 것은 아닙니다.')">
+                    ④ 크게 하면 돈이 많이 들어서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다른 모둠의 모형을 따져 볼 때 <strong>가장 값진 물음</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '틀린 곳을 찾는 것이 목적이 아닙니다. 모든 모형은 어딘가 틀려 있습니다.')">
+                    ① 「어디가 틀렸나요?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 뺀 것 가운데 결론을 흔들 만한 것이 있는지 함께 생각해 보자는 물음입니다.')">
+                    ② 「이걸 넣으면 결론이 바뀔까요?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '코드가 얼마나 긴지는 모형의 좋고 나쁨과 관계가 없습니다. 짧을수록 좋을 때가 많습니다.')">
+                    ③ 「코드를 몇 줄이나 썼나요?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면이 예쁜지는 이 프로젝트의 평가 항목이 아닙니다.')">
+                    ④ 「화면을 왜 이렇게 만들었나요?」
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

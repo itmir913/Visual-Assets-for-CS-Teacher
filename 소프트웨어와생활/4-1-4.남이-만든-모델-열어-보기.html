@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>남이 만든 모델 열어 보기</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-car absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-magnifying-glass absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            남이 만든 모델 열어 보기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            규칙 세 줄이<br><strong>막힘을 만들어 내는지</strong> 확인합니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>이미 만들어진 시뮬레이션을 열어 <strong>네 부분이 어디인지</strong> 찾아낼 수 있다.</li>
+                    <li>조건을 <strong>하나씩 바꿔 가며</strong> 돌리고 결과를 표에 적을 수 있다.</li>
+                    <li>모델의 <strong>규칙을 직접 읽어</strong> 전체 모습이 어디서 나왔는지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-car text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">남이 만든 모델 열어 보기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#open" class="hover:text-emerald-600 transition">열어 보기</a>
+            <a href="#run" class="hover:text-emerald-600 transition">돌려 보기</a>
+            <a href="#change" class="hover:text-emerald-600 transition">조건 바꾸기</a>
+            <a href="#code" class="hover:text-emerald-600 transition">규칙 읽기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 열어 보기 ══════════ -->
+    <section id="open" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">열어 보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                모델을 직접 만들기 전에 <strong>이미 만들어진 것을 열어 보겠습니다.</strong> 남이 지은
+                집을 둘러보는 것과 같습니다. <strong>어디에 무엇이 있는지</strong>를 알면 내가 지을 때
+                훨씬 수월합니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">넷로고(NetLogo)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>낱낱이 움직이는 모형</strong>을 만들고 돌려 보기 위해 만들어진 도구입니다.
+                    자연 &middot; 사회 &middot; 교통 같은 분야의 모델 수백 개가 <strong>안에 들어 있어</strong>
+                    바로 열어 볼 수 있고, 코드도 함께 볼 수 있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    깔지 않고 <strong>웹 브라우저에서 바로</strong> 쓸 수 있습니다 &mdash;
+                    <a class="ext-link" href="https://www.netlogoweb.org" target="_blank" rel="noopener noreferrer">netlogoweb.org</a>
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">열어 볼 모델 &mdash; 한 줄로 늘어선 자동차</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 시간에 <strong>자동차 세 규칙</strong>을 이야기했습니다. 「앞이 비면 나아간다 &middot;
+                앞이 막히면 선다 &middot; 가끔 잠깐 늦는다.」 이 규칙만으로
+                <strong>막히는 덩어리가 정말 생기는지</strong> 눈으로 확인해 보겠습니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-base text-slate-900">여는 차례</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>브라우저에서 넷로고 웹으로 갑니다.</li>
+                    <li><strong>모델 목록</strong>에서 교통(Traffic) 갈래를 찾습니다. 한 줄 도로에
+                        자동차가 늘어선 <strong>가장 단순한 것</strong>을 고릅니다.
+                    </li>
+                    <li>화면이 뜨면 <strong>돌리기 전에</strong> 아래 표부터 채웁니다.</li>
+                </ol>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">돌리기 전에 &mdash; 네 부분 찾기</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 시간에 배운 <strong>입력 &middot; 규칙 &middot; 시간 &middot; 출력</strong>이 화면
+                어디에 있는지 찾아 적어 봅니다. 이것이 <strong>처음 보는 시뮬레이션을 읽는 방법</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">시뮬레이션 화면에서 네 부분을 찾아 적는 표</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">부분</th>
+                        <th class="w-44">화면 어디에 있나</th>
+                        <th>무엇이 놓여 있나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-blue-800">입력</td>
+                        <td>대개 <strong>왼쪽이나 위쪽</strong></td>
+                        <td>자동차 수, 속도를 정하는 손잡이. 몇 개인지 세어 적는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">규칙</td>
+                        <td><strong>보이지 않는다</strong></td>
+                        <td>코드 탭을 열어야 나온다. 이 시간의 마지막에 볼 것이다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">시간</td>
+                        <td>단추 옆의 <strong>숫자</strong></td>
+                        <td>몇 걸음째인지 세는 값. 시작과 멈춤 단추</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">출력</td>
+                        <td><strong>가운데 큰 그림</strong>과 그 옆</td>
+                        <td>움직이는 자동차와, 시간에 따라 그려지는 그래프</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">단추를 누르는 순서가 있다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    거의 모든 시뮬레이션에 단추가 둘 있습니다. <strong>처음 상태를 만드는 단추</strong>와
+                    <strong>시간을 흐르게 하는 단추</strong>입니다. 순서를 지켜야 합니다 &mdash;
+                    <strong>먼저 처음 상태를 만들고, 그다음에 흐르게</strong> 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    손잡이를 바꾼 뒤에도 <strong>처음 상태를 다시 만들어야</strong> 그 값이 반영됩니다.
+                    돌아가는 도중에 손잡이를 움직이면 <strong>어떤 것은 반영되고 어떤 것은 안 되어</strong>
+                    결과를 해석할 수 없게 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 부분 가운데 <strong>화면에서 못 찾은 것</strong>이 있나요? 못 찾았다면 그것이
+                어디에 숨어 있을지 짐작해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 돌려 보기 ══════════ -->
+    <section id="run" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">돌려 보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 돌립니다. 그런데 <strong>돌리기 전에 예상을 적으세요.</strong> 예상 없이 보면
+                <strong>무엇을 보든 「그렇구나」</strong> 하고 넘어가게 됩니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">먼저 적을 것 &mdash; 예상</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>자동차들이 <strong>고르게 퍼져 달릴까,</strong> 아니면 <strong>몰렸다 흩어졌다</strong>
+                        할까?
+                    </li>
+                    <li>막히는 덩어리가 생긴다면, 그 덩어리는 <strong>어느 쪽으로 움직일까?</strong>
+                        자동차와 같은 쪽? 반대쪽? 제자리?
+                    </li>
+                    <li>오래 돌리면 막힘이 <strong>사라질까, 계속될까?</strong></li>
+                </ol>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">그리고 본다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                시작 단추를 누르고 <strong>1분쯤 그냥 봅니다.</strong> 조작하지 말고 보기만 하세요.
+                처음에는 고르게 퍼져 있던 자동차들이 <strong>어느 순간 한쪽에 뭉치기</strong> 시작합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 258" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="세 줄의 도로 그림이 위아래로 놓여 있다. 처음에는 자동차가 고르게 퍼져 있고, 시간이 지나면 한쪽에 뭉치며, 더 지나면 뭉친 덩어리가 왼쪽으로 옮겨 간다. 각 줄에 시각과 설명이 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">덩어리는 자동차와 반대쪽으로 밀려난다</text>
+
+                    <text x="52" y="66" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">처음</text>
+                    <rect x="96" y="48" width="464" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="120" y="54" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="200" y="54" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="280" y="54" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="360" y="54" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="440" y="54" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="520" y="54" width="18" height="14" rx="3" fill="#059669"/>
+
+                    <text x="52" y="136" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">잠시 뒤</text>
+                    <rect x="96" y="118" width="464" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="300" y="124" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="322" y="124" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="344" y="124" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="366" y="124" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="450" y="124" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="524" y="124" width="18" height="14" rx="3" fill="#059669"/>
+
+                    <text x="52" y="206" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">더 뒤</text>
+                    <rect x="96" y="188" width="464" height="26" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="180" y="194" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="202" y="194" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="224" y="194" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="246" y="194" width="18" height="14" rx="3" fill="#dc2626"/>
+                    <rect x="380" y="194" width="18" height="14" rx="3" fill="#059669"/>
+                    <rect x="470" y="194" width="18" height="14" rx="3" fill="#059669"/>
+
+                    <path d="M300 232 L200 232" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M206 224 L192 232 L206 240 Z" fill="#dc2626"/>
+                    <text x="380" y="238" font-size="16" fill="#b91c1c" font-weight="700" text-anchor="middle">덩어리가 옮겨 간 방향</text>
+                    <text x="470" y="94" font-size="16" fill="#047857" font-weight="700" text-anchor="middle">자동차가 가는 방향 &rarr;</text>
+                </svg>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">자동차는 오른쪽으로, 덩어리는 왼쪽으로</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것이 이 모델에서 가장 놀라운 장면입니다. <strong>자동차 한 대 한 대는 앞으로만
+                    갑니다.</strong> 뒤로 가는 자동차는 하나도 없습니다. 그런데 <strong>막힌 덩어리는
+                    뒤로 밀려납니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    까닭은 이렇습니다. 덩어리 <strong>맨 앞의 차</strong>가 빠져나가는 동안,
+                    <strong>맨 뒤에는 새 차가 와서 붙습니다.</strong> 그래서 덩어리를 이루는 차들은 계속
+                    바뀌는데, <strong>덩어리라는 「자리」는 뒤로</strong> 옮겨 갑니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아무도 이런 일이 일어나게 <strong>적지 않았습니다.</strong> 규칙 세 줄에서
+                    저절로 나온 것입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                예상을 적어 둔 종이를 다시 봅시다. <strong>2번을 맞혔나요?</strong> 대부분은 「자동차와
+                같은 쪽」이나 「제자리」라고 적습니다. 예상이 틀린 자리가
+                <strong>가장 많이 배우는 자리</strong>입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                실제 도로에서 <strong>막힌 구간이 뒤로 밀려나는 것</strong>을 본 적이 있나요? 차를 타고
+                가다 <strong>이유 없이 막혔다가 풀린</strong> 경험과 이어 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 조건 바꾸기 ══════════ -->
+    <section id="change" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">조건 바꾸기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 손잡이를 만집니다. 규칙은 그대로 두고 <strong>조건만 바꿔</strong> 봅니다.
+                앞 시간에 배운 대로 <strong>한 번에 하나씩</strong>입니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">해 보기 &mdash; 표를 채우며 돌린다</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">조건을 하나씩 바꿔 가며 돌린 결과를 적는 표</caption>
+                        <thead>
+                        <tr>
+                            <th class="w-24">번호</th>
+                            <th class="w-32">자동차 수</th>
+                            <th class="w-36">늦는 정도</th>
+                            <th>막힘이 생기나 &middot; 얼마나 오래가나</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold">1(기준)</td>
+                            <td>처음 값 그대로</td>
+                            <td>처음 값 그대로</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">2</td>
+                            <td class="font-bold text-emerald-800">아주 적게</td>
+                            <td>그대로</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">3</td>
+                            <td class="font-bold text-emerald-800">아주 많게</td>
+                            <td>그대로</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">4</td>
+                            <td>기준으로 되돌림</td>
+                            <td class="font-bold text-emerald-800">0에 가깝게</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">5</td>
+                            <td>기준으로 되돌림</td>
+                            <td class="font-bold text-emerald-800">아주 크게</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>4번과 5번 앞에서 자동차 수를 반드시 기준으로 되돌리세요.</strong> 되돌리지
+                    않으면 「자동차도 많고 늦는 정도도 크다」가 되어, <strong>무엇 때문인지 알 수
+                    없어집니다.</strong>
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">눈여겨볼 두 가지</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-sky-900">자동차가 적을 때</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        가끔 늦는 차가 있어도 <strong>뒤차가 여유 있게 지나갑니다.</strong> 흔들림이
+                        생겨도 <strong>번지지 않고 사라집니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-rose-900">자동차가 많을 때</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 대가 잠깐 늦으면 <strong>뒤차가 서고, 그 뒤차도 서고</strong> 줄줄이 이어집니다.
+                        작은 흔들림이 <strong>큰 막힘으로 번집니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">어느 지점을 넘으면 갑자기 달라진다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    자동차 수를 <strong>조금씩 늘려 가며</strong> 돌려 보면 재미있는 것을 발견합니다.
+                    처음에는 늘려도 별일이 없다가, <strong>어느 지점을 넘는 순간</strong> 막힘이
+                    생기기 시작합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>천천히 나빠지는 것이 아니라 갑자기 나빠집니다.</strong> 이런 것을 미리
+                    알아내는 것이 시뮬레이션이 하는 일입니다. 실제 도로에서라면
+                    <strong>막혀 본 뒤에야</strong> 알게 됩니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                여기서 앞 시간의 물음이 풀립니다 &mdash; <strong>「늦는 정도를 0으로 하면 어떻게 될까?」</strong>
+                4번을 돌려 보면 <strong>막힘이 거의 생기지 않습니다.</strong> 모두가 똑같이 완벽하게
+                움직이면 막히지 않는 것입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그런데 이것이 <strong>현실에 대한 답은 아닙니다.</strong> 현실의 사람은 완벽하게
+                움직이지 않기 때문입니다. 이 결과가 말해 주는 것은 오히려
+                <strong>「막힘의 원인은 사고가 아니라 작은 흔들림일 수 있다」</strong>는 쪽입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「모두가 완벽하게 움직이면 안 막힌다」에서 <strong>현실의 대책을 하나</strong> 끌어낸다면
+                무엇일까요? 사람에게 완벽하라고 할 수는 없습니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 규칙 읽기 ══════════ -->
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">규칙 읽기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막으로 <strong>규칙</strong>을 열어 봅니다. 넷로고에는 <strong>코드 탭</strong>이 있어
+                모델이 어떻게 만들어졌는지 그대로 볼 수 있습니다. 이것이 이 도구의 가장 좋은 점입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">읽을 때 겁먹지 않는 법</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    처음 열면 낯선 낱말이 가득합니다. <strong>다 이해하려 하지 마세요.</strong>
+                    찾을 것은 딱 하나입니다 &mdash; <strong>「한 걸음마다 하는 일」이 적힌 자리.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    대개 <strong>go</strong>라는 이름이 붙은 덩어리입니다. 그 안에 앞을 살피고, 속도를
+                    올리거나 줄이고, 앞으로 나아가는 몇 줄이 있습니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">찾아볼 것 세 가지</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">코드에서 찾아볼 세 가지</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">찾을 것</th>
+                        <th>어떻게 찾나</th>
+                        <th class="w-44">확인할 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">앞을 살피는 줄</td>
+                        <td>「앞에 차가 있나」를 묻는 부분. <strong>if</strong> 비슷한 말이 붙어 있다.</td>
+                        <td>몇 칸 앞까지 보는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">빨라지고 느려지는 줄</td>
+                        <td>속도에 <strong>더하거나 빼는</strong> 부분.</td>
+                        <td>빨라지는 양과 느려지는 양이 <strong>같은가</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">우연이 들어간 줄</td>
+                        <td><strong>random</strong> 비슷한 말이 있는 곳.</td>
+                        <td>손잡이의 값이 <strong>여기에 쓰이는가</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">규칙이 생각보다 짧다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    코드를 다 읽고 나면 놀라게 됩니다. <strong>한 걸음마다 하는 일이 열 줄 남짓</strong>입니다.
+                    그 짧은 규칙에서 <strong>덩어리가 생기고, 뒤로 밀려나고, 어느 지점에서 갑자기
+                    나빠지는</strong> 모든 일이 나왔습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것이 앞 시간에 말한 <strong>「낱낱의 규칙이 전체 모습을 만든다」</strong>를
+                    눈으로 확인한 것입니다. 내가 만들 모델도 <strong>이만큼 짧아도 된다</strong>는 뜻이기도 합니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">모델 설명도 함께 읽는다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                넷로고 모델에는 <strong>설명 탭</strong>이 붙어 있습니다. 만든 사람이
+                <strong>무엇을 담았고 무엇을 뺐는지</strong> 적어 둔 자리입니다. 여기에 대개
+                이런 것들이 있습니다.
+            </p>
+
+            <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                <li>이 모델이 <strong>무엇을 보이려고</strong> 만들어졌는가</li>
+                <li>손잡이가 각각 <strong>무엇을 뜻하는가</strong></li>
+                <li><strong>해 볼 만한 것</strong> &mdash; 만든 사람이 권하는 실험</li>
+                <li>이 모델이 <strong>담지 않은 것</strong> &mdash; 신호등, 여러 차선, 끼어들기</li>
+            </ul>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 줄이 우리가 배운 <strong>「덜어 낸 것을 적어 둔다」</strong>입니다. 잘 만든 모델은
+                <strong>스스로 한계를 밝혀</strong> 둡니다. 내가 만들 모델에도 이 자리를 두어야 합니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 다른 모델 하나 더</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>넷로고 모델 목록에서 <strong>관심 있는 분야</strong>의 모델을 하나 더 고릅니다.
+                        생태 &middot; 사회 &middot; 물리 무엇이든 좋습니다.
+                    </li>
+                    <li><strong>네 부분</strong>을 찾아 적습니다.</li>
+                    <li>돌리기 전에 <strong>예상을 적고</strong> 돌립니다.</li>
+                    <li>손잡이 하나를 골라 <strong>세 가지 값</strong>으로 돌려 표를 채웁니다.</li>
+                    <li>설명 탭에서 <strong>「담지 않은 것」</strong>을 찾아 두 가지 적습니다.</li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    5번을 못 찾겠다면 <strong>직접 생각해</strong> 적으세요. 「이 모델에는 ○○이
+                    없구나」를 알아채는 것이 <strong>모델을 읽을 줄 안다</strong>는 뜻입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이 교통 모델에는 <strong>신호등이 없습니다.</strong> 신호등을 넣으면 결과가 어떻게
+                달라질까요? 그리고 그때 <strong>새로 필요해지는 손잡이</strong>는 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">열어 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>처음 보는 시뮬레이션은 <strong>네 부분을 찾는</strong> 데서 시작한다.</li>
+                    <li>단추는 <strong>처음 상태를 만들고 &rarr; 시간을 흐르게</strong> 하는 순서다.</li>
+                    <li>손잡이를 바꾼 뒤에는 <strong>처음 상태를 다시 만들어야</strong> 반영된다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">돌려 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>돌리기 전에 <strong>예상을 적는다.</strong> 없으면 무엇을 보든 그냥 넘어간다.</li>
+                    <li>자동차는 앞으로만 가는데 <strong>막힌 덩어리는 뒤로</strong> 밀려난다.</li>
+                    <li>맨 앞이 빠져나가는 동안 <strong>맨 뒤에 새 차가 붙기</strong> 때문이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">조건 바꾸기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>바꾼 것을 <strong>다시 되돌려 놓고</strong> 다음 조건으로 넘어간다.</li>
+                    <li>차가 적으면 흔들림이 사라지고, 많으면 <strong>줄줄이 번진다.</strong></li>
+                    <li>어느 지점을 넘으면 <strong>갑자기</strong> 나빠진다. 이것을 미리 아는 것이 시뮬레이션의 일이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">규칙 읽기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>다 이해하려 하지 말고 <strong>「한 걸음마다 하는 일」</strong>만 찾는다.</li>
+                    <li>규칙은 <strong>열 줄 남짓</strong>이다. 그 짧은 것에서 모든 일이 나왔다.</li>
+                    <li>잘 만든 모델은 <strong>담지 않은 것</strong>을 스스로 밝혀 둔다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    손잡이를 바꾼 뒤 <strong>처음 상태를 다시 만들지 않으면</strong> 어떻게 되나요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오류가 나지는 않습니다. 조용히 돌아갑니다.')">
+                    ① 오류가 나서 멈춘다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 어떤 값은 반영되고 어떤 값은 안 되어 결과를 해석할 수 없게 됩니다.')">
+                    ② 바꾼 값이 반영되지 않아 결과를 해석할 수 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 되돌아가지는 않습니다. 손잡이는 그대로 있습니다.')">
+                    ③ 손잡이가 원래 값으로 되돌아간다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '언제나 반영되는 것이 아닙니다. 처음 상태를 만들 때 쓰이는 값들이 있습니다.')">
+                    ④ 아무 문제 없이 언제나 반영된다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    자동차는 앞으로만 가는데 <strong>막힌 덩어리가 뒤로 밀려나는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '뒤로 가는 자동차는 하나도 없습니다.')">
+                    ① 일부 자동차가 뒤로 가기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 맨 앞이 빠져나가는 동안 맨 뒤에 새 차가 붙으므로 「덩어리라는 자리」가 뒤로 옮겨 갑니다.')">
+                    ② 맨 앞이 빠지는 동안 맨 뒤에 새 차가 붙기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면이 거꾸로 그려진 것이 아닙니다. 자동차는 제대로 앞으로 갑니다.')">
+                    ③ 화면이 거꾸로 그려져 있기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '규칙에 그런 말은 없습니다. 아무도 그렇게 적지 않았습니다.')">
+                    ④ 규칙에 「덩어리는 뒤로 간다」고 적혀 있기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    자동차 수를 <strong>조금씩 늘려 가며</strong> 돌렸을 때 관찰되는 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '고르게 나빠지지 않습니다. 한동안 별일이 없다가 갑자기 달라집니다.')">
+                    ① 늘린 만큼 고르게 조금씩 나빠진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 어느 지점을 넘는 순간 갑자기 막힘이 생깁니다. 이런 지점을 미리 아는 것이 시뮬레이션의 일입니다.')">
+                    ② 한동안 괜찮다가 어느 지점에서 갑자기 막히기 시작한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무리 늘려도 그대로일 수는 없습니다. 도로의 길이는 정해져 있습니다.')">
+                    ③ 아무리 늘려도 결과가 그대로다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '차가 많아지면 막힘이 더 자주 생깁니다.')">
+                    ④ 늘릴수록 막힘이 사라진다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    모델의 <strong>설명 탭에서 「담지 않은 것」</strong>을 읽는 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '만든 사람을 탓하려는 것이 아닙니다. 덜어 내는 것은 모형의 본질입니다.')">
+                    ① 만든 사람이 게을렀는지 확인하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 결과를 어디까지 믿어야 할지 알려면 무엇이 빠져 있는지 알아야 합니다.')">
+                    ② 결과를 어디까지 믿어야 할지 알기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '빠진 것을 모두 넣어야 하는 것은 아닙니다. 다 넣으면 현실만큼 복잡해집니다.')">
+                    ③ 빠진 것을 모두 넣어 완성하기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '더 좋은 모델을 찾으려는 것이 아닙니다. 모든 모델은 무엇인가를 덜어 냅니다.')">
+                    ④ 아무것도 빠지지 않은 모델을 찾기 위해
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

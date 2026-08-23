@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시뮬레이션이란 무엇인가</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-flask absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-cubes absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            시뮬레이션이란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            해 보지 않고 해 보는 것<br><strong>다만 현실은 아닙니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>시뮬레이션이 무엇인지 <strong>모형을 만들어 돌려 보는 일</strong>로 설명할 수 있다.</li>
+                    <li>시뮬레이션을 쓰는 <strong>네 가지 까닭</strong>을 들어 말할 수 있다.</li>
+                    <li>시뮬레이션 결과와 현실이 <strong>왜 같지 않은지</strong> 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-flask text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">시뮬레이션이란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-emerald-600 transition">시뮬레이션</a>
+            <a href="#why" class="hover:text-emerald-600 transition">왜 하는가</a>
+            <a href="#where" class="hover:text-emerald-600 transition">어디에 쓰이나</a>
+            <a href="#trust" class="hover:text-emerald-600 transition">얼마나 믿나</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 시뮬레이션 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">시뮬레이션</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅲ단원에서는 <strong>이미 일어난 일</strong>을 다뤘습니다. 쌓인 기록을 읽어 무슨 일이
+                있었는지 알아냈습니다. 그런데 우리가 정말 알고 싶은 것은 대개
+                <strong>「이렇게 하면 어떻게 될까」</strong>입니다. 아직 일어나지 않은 일에는 기록이 없습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">시뮬레이션(simulation)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    현실의 한 조각을 <strong>규칙으로 옮겨 컴퓨터 안에서 돌려 보는</strong> 것입니다.
+                    실제로 해 보지 않고도 <strong>「이렇게 하면 이렇게 되겠다」</strong>를 미리 볼 수 있습니다.
+                    우리말로는 <strong>모의 실험</strong>이라고 합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                돌려 보려면 먼저 <strong>모형</strong>이 있어야 합니다. 종이비행기를 접어 날려 보는 것도
+                일종의 모형 실험입니다. 다른 점은 <strong>종이 대신 규칙으로</strong> 만든다는 것뿐입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 226" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="현실 세계 상자에서 규칙으로 옮기기를 거쳐 모형이 되고, 모형을 돌려 결과가 나오며, 그 결과를 현실의 말로 되읽는 흐름이 그려져 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">현실을 규칙으로 옮겨 돌린다</text>
+
+                    <rect x="12" y="56" width="128" height="76" rx="14" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>
+                    <text x="76" y="88" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">현실 세계</text>
+                    <text x="76" y="112" font-size="16" fill="#334155" text-anchor="middle">너무 복잡하다</text>
+
+                    <path d="M146 94 L164 94" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M160 86 L172 94 L160 102 Z" fill="#94a3b8"/>
+                    <text x="159" y="150" font-size="16" fill="#475569" text-anchor="middle">덜어 낸다</text>
+
+                    <rect x="180" y="56" width="128" height="76" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <text x="244" y="88" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">모형</text>
+                    <text x="244" y="112" font-size="16" fill="#1d4ed8" text-anchor="middle">규칙 몇 개뿐</text>
+
+                    <path d="M314 94 L332 94" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M328 86 L340 94 L328 102 Z" fill="#94a3b8"/>
+                    <text x="327" y="150" font-size="16" fill="#475569" text-anchor="middle">돌린다</text>
+
+                    <rect x="348" y="56" width="128" height="76" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="412" y="88" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">결과</text>
+                    <text x="412" y="112" font-size="16" fill="#92400e" text-anchor="middle">숫자와 그림</text>
+
+                    <path d="M482 94 L500 94" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M496 86 L508 94 L496 102 Z" fill="#94a3b8"/>
+
+                    <rect x="452" y="152" width="112" height="56" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="508" y="186" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">되읽기</text>
+                    <path d="M516 138 L516 146" stroke="#94a3b8" stroke-width="3"/>
+
+                    <text x="240" y="196" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">덜어 낸 만큼 결과도 현실과 다르다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 번째 화살표의 <strong>「덜어 낸다」</strong>가 이 단원 전체의 열쇠입니다. 현실을 그대로
+                옮기면 <strong>현실만큼 복잡해져서</strong> 돌릴 수도, 이해할 수도 없습니다.
+                <strong>무엇을 남기고 무엇을 버릴지 정하는 것</strong>이 모형을 만드는 일입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">앞 단원에서 이미 해 본 일이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    Ⅱ단원의 더위 밴드에서 <strong>온도와 습도를 하나의 숫자로 합치는 식</strong>을 만들었습니다.
+                    그것이 <strong>「더위」라는 현실의 모형</strong>이었습니다. 바람도 햇볕도 옷차림도
+                    덜어 내고 두 값만 남긴 것입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그때 <strong>「수업용으로 지어낸 식」</strong>이라고 밝혔던 까닭도 같습니다. 모형은
+                    현실이 아니라 <strong>현실에 대한 우리의 생각</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>지도</strong>도 현실의 모형입니다. 지도를 만들 때 <strong>덜어 낸 것</strong>을
+                세 가지만 말해 보세요. 실제 땅과 똑같은 지도가 있다면 어떤 문제가 생길까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 왜 하는가 ══════════ -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">왜 하는가</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                실제로 해 보는 편이 언제나 낫습니다. <strong>진짜니까요.</strong> 그런데 실제로 해 볼 수
+                없는 자리가 있습니다. 네 가지입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 292" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="네 개의 칸이 두 줄 두 칸으로 놓여 있다. 왼쪽 위 위험해서, 오른쪽 위 비싸서, 왼쪽 아래 오래 걸려서, 오른쪽 아래 되돌릴 수 없어서이며 칸마다 이름과 보기가 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">실제로 해 볼 수 없는 네 가지 자리</text>
+
+                    <rect x="16" y="44" width="266" height="106" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+                    <text x="149" y="80" font-size="19" fill="#7f1d1d" font-weight="700" text-anchor="middle">위험해서</text>
+                    <text x="149" y="108" font-size="16" fill="#991b1b" text-anchor="middle">사람이 다칠 수 있는 일은</text>
+                    <text x="149" y="130" font-size="16" fill="#991b1b" text-anchor="middle">한 번도 해 볼 수 없다</text>
+
+                    <rect x="294" y="44" width="266" height="106" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="427" y="80" font-size="19" fill="#78350f" font-weight="700" text-anchor="middle">비싸서</text>
+                    <text x="427" y="108" font-size="16" fill="#92400e" text-anchor="middle">건물을 열 번 지어 보고</text>
+                    <text x="427" y="130" font-size="16" fill="#92400e" text-anchor="middle">고를 수는 없다</text>
+
+                    <rect x="16" y="162" width="266" height="106" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <text x="149" y="198" font-size="19" fill="#1e3a8a" font-weight="700" text-anchor="middle">오래 걸려서</text>
+                    <text x="149" y="226" font-size="16" fill="#1d4ed8" text-anchor="middle">30년 뒤를 보려고</text>
+                    <text x="149" y="248" font-size="16" fill="#1d4ed8" text-anchor="middle">30년을 기다릴 수 없다</text>
+
+                    <rect x="294" y="162" width="266" height="106" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <text x="427" y="198" font-size="19" fill="#4c1d95" font-weight="700" text-anchor="middle">되돌릴 수 없어서</text>
+                    <text x="427" y="226" font-size="16" fill="#5b21b6" text-anchor="middle">한 번 갈아엎은 숲은</text>
+                    <text x="427" y="248" font-size="16" fill="#5b21b6" text-anchor="middle">되돌려 놓을 수 없다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 가지에 공통점이 있습니다. 모두 <strong>「여러 번 해 볼 수 없다」</strong>는 것입니다.
+                한 번만 할 수 있는 일은 <strong>고를 수가 없습니다.</strong> 시뮬레이션이 주는 것은
+                결국 <strong>여러 번 해 볼 기회</strong>입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">여러 번 해 볼 수 있으면 달라지는 것</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>고를 수 있다</strong> &mdash; 셋을 돌려 보고 가장 나은 것을 고른다.</li>
+                    <li><strong>극단을 볼 수 있다</strong> &mdash; 「최악이면 어디까지 나빠지나」를 실제
+                        피해 없이 확인한다.
+                    </li>
+                    <li><strong>왜 그런지 알 수 있다</strong> &mdash; 조건 하나만 바꿔 가며 돌리면
+                        <strong>무엇이 결과를 움직이는지</strong>가 드러난다.
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    세 번째가 특히 값집니다. 현실에서는 조건 하나만 바꾸기가 거의 불가능합니다.
+                    <strong>모형 안에서는 나머지를 다 붙들어 놓을 수 있습니다.</strong>
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그래서 절약되는 것</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                시뮬레이션을 하면 <strong>돈과 시간</strong>이 덜 듭니다. 그런데 더 중요한 것이 있습니다.
+                <strong>안 써도 되는 자원을 안 쓰게</strong> 됩니다. 시험 삼아 지었다가 허무는 건물이 없고,
+                해 보고 아니어서 되돌리는 공사가 없습니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이것이 시뮬레이션을 <strong>지속 가능한 발전과 이어 말하는</strong> 까닭입니다. 아껴 쓰자는
+                구호보다 <strong>애초에 헛되이 쓸 일을 줄이는</strong> 쪽이 힘이 셉니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                학교에서 <strong>「한 번밖에 못 하는 일」</strong>을 하나 떠올려 보세요. 미리 돌려 볼 수
+                있다면 무엇을 확인해 보고 싶은가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 어디에 쓰이나 ══════════ -->
+    <section id="where" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어디에 쓰이나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 가지 까닭에 걸리는 자리는 생각보다 많습니다. 다섯 분야만 보겠습니다. 읽으면서
+                <strong>어느 까닭에 해당하는지</strong> 짚어 보세요.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">분야별 시뮬레이션 활용 사례와 그 까닭</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">분야</th>
+                        <th>무엇을 돌려 보나</th>
+                        <th class="w-36">어느 까닭인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">건설</td>
+                        <td>다리와 건물이 <strong>바람과 흔들림</strong>에 어떻게 버티는지. 짓기 전에
+                            기둥의 굵기와 자리를 바꿔 가며 돌린다.
+                        </td>
+                        <td>비싸서 &middot; 위험해서</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">전력</td>
+                        <td>더운 날 오후에 <strong>전기가 얼마나 필요할지.</strong> 모자라면 어디부터
+                            끊길지도 함께 본다.
+                        </td>
+                        <td>되돌릴 수 없어서</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">교통</td>
+                        <td>신호 주기를 몇 초로 바꾸면 <strong>줄이 얼마나 짧아지는지.</strong>
+                            실제로 바꿔 보면 그날 하루가 엉킨다.
+                        </td>
+                        <td>되돌릴 수 없어서</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">농업</td>
+                        <td>물과 거름을 언제 얼마나 주면 <strong>수확이 어떻게 달라지는지.</strong>
+                            한 해에 한 번밖에 못 지어 본다.
+                        </td>
+                        <td>오래 걸려서</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">교육과 훈련</td>
+                        <td>다루기 어려운 장비를 <strong>망가뜨려 가며</strong> 익힌다. 잘못 다뤘을 때
+                            무슨 일이 생기는지까지 겪어 본다.
+                        </td>
+                        <td>위험해서 &middot; 비싸서</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">마지막 줄이 조금 다르다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞의 넷은 <strong>무엇이 일어날지 알아보려고</strong> 돌립니다. 마지막 하나는
+                    <strong>사람을 훈련시키려고</strong> 돌립니다. 목적이 다르므로 만드는 방법도 달라집니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    훈련용은 <strong>다루는 느낌이 실제와 같아야</strong> 합니다. 결과의 정확함보다
+                    <strong>손에 오는 감각</strong>이 중요합니다. 반대로 알아보려고 돌리는 것은
+                    화면이 투박해도 <strong>숫자만 맞으면</strong> 됩니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">게임도 시뮬레이션인가</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                도시를 짓거나 농장을 꾸리는 게임이 있습니다. 이것도 시뮬레이션일까요? <strong>구조는
+                똑같습니다</strong> &mdash; 규칙이 있고, 조건을 바꾸면 결과가 달라집니다. 다른 것은
+                <strong>목적</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">알아보려는 시뮬레이션과 게임의 차이</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">따져 볼 자리</th>
+                        <th>알아보려는 시뮬레이션</th>
+                        <th>게임</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">규칙을 정할 때</td>
+                        <td>현실과 <strong>맞는지</strong>를 따진다</td>
+                        <td><strong>재미있는지</strong>를 따진다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">결과가 뜻밖이면</td>
+                        <td>모형이 틀렸는지 <strong>의심한다</strong></td>
+                        <td>뜻밖인 것이 <strong>오히려 좋다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">쓰는 사람이 원하는 것</td>
+                        <td>현실에서 <strong>쓸 판단</strong></td>
+                        <td>그 안에서의 <strong>경험</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그래서 게임으로 배운 것을 <strong>현실의 근거로 쓰면 위험합니다.</strong> 재미있게
+                만들려고 <strong>일부러 현실과 다르게 정한 규칙</strong>이 곳곳에 있기 때문입니다.
+                다만 <strong>「규칙이 결과를 만든다」는 감각</strong>을 익히는 데는 게임이 아주 좋습니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                해 본 게임 가운데 <strong>「현실과 다르게 정해 둔 규칙」</strong>을 하나 찾아보세요.
+                왜 그렇게 정했을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 얼마나 믿나 ══════════ -->
+    <section id="trust" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">얼마나 믿나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                시뮬레이션 결과는 <strong>화면에 또렷한 숫자와 그림으로</strong> 나옵니다. 그래서 실제로
+                일어난 일처럼 보입니다. 이것이 시뮬레이션의 가장 큰 함정입니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">모형은 우리가 정한 규칙만큼만 안다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    모형 안에는 <strong>우리가 넣은 것만</strong> 있습니다. 넣지 않은 것은
+                    <strong>없는 것이 아니라 「고려되지 않은 것」</strong>입니다. 그런데 결과 화면에는
+                    그 차이가 나타나지 않습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    예를 들어 교통 시뮬레이션에 <strong>공사 구간을 넣지 않았다면</strong>, 그 모형은
+                    「공사가 없다」고 말한 것이 아니라 <strong>공사를 아예 모르는</strong> 것입니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">그러면 무엇을 믿을 수 있나</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">시뮬레이션 결과에서 믿을 수 있는 것과 없는 것</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">쓰는 방법</th>
+                        <th>믿을 만한가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">두 조건을 나란히 놓기</td>
+                        <td><strong>대체로 믿을 만하다.</strong> 「A가 B보다 낫다」는 모형이 틀려도
+                            방향은 맞는 경우가 많다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">무엇이 크게 영향을 주는지 보기</td>
+                        <td><strong>쓸 만하다.</strong> 조건 하나만 바꿔 결과가 크게 달라진다면
+                            현실에서도 그 조건이 중요할 가능성이 높다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">정확한 값을 그대로 쓰기</td>
+                        <td><strong>믿기 어렵다.</strong> 「37분 걸린다」를 그대로 옮겨 적으면 안 된다.
+                            <strong>「30분대」</strong> 정도가 모형이 말할 수 있는 것이다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                요령은 하나입니다 &mdash; <strong>모형은 「얼마인가」보다 「어느 쪽인가」에 강합니다.</strong>
+                Ⅲ단원에서 <strong>「함께 움직였다와 원인은 다르다」</strong>고 한 것과 짝을 이루는
+                주의사항입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">모형을 시험하는 방법 &mdash; 아는 답으로 맞춰 보기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    모형을 믿어도 되는지 확인하는 좋은 방법이 있습니다. <strong>이미 답을 아는 상황을
+                    넣어 보는</strong> 것입니다. 지난해의 조건을 넣었을 때 <strong>지난해와 비슷한 결과</strong>가
+                    나오면, 그 모형은 적어도 <strong>아는 자리에서는</strong> 맞습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    맞지 않는다면 <strong>덜어 낸 것 가운데 중요한 것</strong>이 있다는 뜻입니다.
+                    되돌아가 하나를 더 넣어 봅니다. 이렇게 <strong>맞춰 가며 고치는 일</strong>이
+                    모형을 만드는 시간의 대부분입니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다만 <strong>아는 자리에서 맞는다고 모르는 자리에서도 맞는 것은 아닙니다.</strong>
+                지난 열 해를 잘 맞힌 모형이 <strong>전에 없던 상황</strong>에서는 크게 어긋날 수 있습니다.
+                이것은 모형을 더 잘 만들어도 남는 한계입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「지난해 조건으로 돌렸더니 지난해와 똑같이 나왔다」는 모형이 있습니다. 그래도
+                <strong>안심할 수 없는 까닭</strong>은 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">시뮬레이션</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>현실의 한 조각을 <strong>규칙으로 옮겨 돌려 보는</strong> 것이다.</li>
+                    <li>열쇠는 <strong>「덜어 낸다」</strong>다. 무엇을 남기고 무엇을 버릴지 정하는 것이
+                        모형을 만드는 일이다.
+                    </li>
+                    <li>모형은 현실이 아니라 <strong>현실에 대한 우리의 생각</strong>이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">왜 하는가</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>위험해서 &middot; 비싸서 &middot; 오래 걸려서 &middot; 되돌릴 수 없어서.</strong></li>
+                    <li>넷의 공통점은 <strong>「여러 번 해 볼 수 없다」</strong>는 것이다.</li>
+                    <li>모형 안에서는 <strong>조건 하나만 바꿀 수</strong> 있다. 현실에서는 거의 불가능하다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">어디에 쓰이나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>건설 &middot; 전력 &middot; 교통 &middot; 농업은 <strong>알아보려고</strong> 돌린다.</li>
+                    <li>훈련용은 <strong>다루는 느낌</strong>이 중요하고, 알아보려는 것은 <strong>숫자</strong>가 중요하다.</li>
+                    <li>게임은 구조가 같지만 <strong>규칙을 재미로 정한다.</strong> 현실의 근거로 쓰면 위험하다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">얼마나 믿나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>넣지 않은 것은 <strong>「없는 것」이 아니라 「모르는 것」</strong>이다.</li>
+                    <li>모형은 <strong>「얼마인가」보다 「어느 쪽인가」에 강하다.</strong></li>
+                    <li><strong>아는 답으로 맞춰 보는</strong> 것이 모형을 시험하는 방법이다.
+                        다만 모르는 자리까지 보장하지는 않는다.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    모형을 만들 때 <strong>가장 중요한 판단</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '현실을 그대로 옮기면 현실만큼 복잡해져 돌릴 수도 이해할 수도 없습니다.')">
+                    ① 현실을 빠짐없이 그대로 옮기기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 무엇을 남기고 무엇을 덜어 낼지 정하는 것이 모형을 만드는 일입니다.')">
+                    ② 무엇을 남기고 무엇을 덜어 낼지 정하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면이 예쁜 것과 모형의 좋고 나쁨은 관계가 없습니다.')">
+                    ③ 화면을 예쁘게 꾸미기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '빠른 것이 목적은 아닙니다. 무엇을 담을지가 먼저입니다.')">
+                    ④ 되도록 빠르게 돌아가게 하기
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    시뮬레이션을 쓰는 네 가지 까닭의 <strong>공통점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어렵다고 다 시뮬레이션을 쓰지는 않습니다. 어려워도 여러 번 해 볼 수 있으면 해 보는 편이 낫습니다.')">
+                    ① 모두 아주 어려운 일이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 모두 「여러 번 해 볼 수 없는」 일이고, 한 번만 할 수 있는 일은 고를 수가 없습니다.')">
+                    ② 모두 여러 번 해 볼 수 없는 일이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '컴퓨터가 필요한지는 까닭이 아니라 방법 쪽 이야기입니다.')">
+                    ③ 모두 컴퓨터가 있어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람이 못 하는 일이라서가 아닙니다. 사람이 할 수 있어도 여러 번은 못 합니다.')">
+                    ④ 모두 사람이 할 수 없는 일이다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    시뮬레이션 결과를 <strong>가장 믿고 쓸 수 있는</strong> 방법은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '「37분」 같은 값을 그대로 옮기면 모형이 말할 수 없는 것까지 말하게 됩니다.')">
+                    ① 나온 값을 그대로 보고서에 옮겨 적는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 모형은 「얼마인가」보다 「어느 쪽인가」에 강합니다.')">
+                    ② 두 조건을 돌려 어느 쪽이 나은지 본다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 번 돌린 결과를 결론으로 삼으면 여러 번 해 볼 수 있다는 장점을 버리는 셈입니다.')">
+                    ③ 한 번 돌린 결과를 결론으로 삼는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과가 마음에 드는지로 고르면 모형을 쓰는 뜻이 없어집니다.')">
+                    ④ 마음에 드는 결과가 나올 때까지 돌린다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    교통 모형에 <strong>공사 구간을 넣지 않았다면</strong> 그 모형은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '「공사가 없다」고 말한 것이 아닙니다. 그것도 하나의 판단인데, 모형은 그런 판단을 하지 않았습니다.')">
+                    ① 공사가 없다고 판단한 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 넣지 않은 것은 「없는 것」이 아니라 모형이 아예 모르는 것입니다.')">
+                    ② 공사를 아예 모르는 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '알아서 채워 주지 않습니다. 프로그램은 시킨 것만 합니다.')">
+                    ③ 알아서 적당히 채워 넣는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오류가 나지 않습니다. 조용히 결과가 나오기 때문에 더 위험합니다.')">
+                    ④ 오류가 나서 멈춘다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

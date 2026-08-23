@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웨어러블 장치란 무엇인가</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-hand-holding-heart absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-shirt absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            웨어러블 장치란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            들고 다니는 것과<br><strong>지니고 다니는 것</strong>은 다릅니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>웨어러블 장치가 손에 드는 기기와 <strong>무엇이 다른지</strong> 설명할 수 있다.</li>
+                    <li>몸에 붙는 장치를 만들 때의 <strong>제약 다섯 가지</strong>를 들어 말할 수 있다.</li>
+                    <li>몸에서 읽은 값을 다룰 때 <strong>지켜야 할 선</strong>을 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-hand-holding-heart text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">웨어러블 장치란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-emerald-600 transition">웨어러블</a>
+            <a href="#why" class="hover:text-emerald-600 transition">붙어 있으면</a>
+            <a href="#limit" class="hover:text-emerald-600 transition">다섯 가지 제약</a>
+            <a href="#care" class="hover:text-emerald-600 transition">몸의 값 다루기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 웨어러블 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">웨어러블</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                스마트폰도 늘 가지고 다닙니다. 그런데 <strong>가방 안에 있고, 주머니에 있고, 책상 위에
+                놓여 있습니다.</strong> 쓰려면 꺼내야 합니다. 몸에 <strong>붙어 있는</strong> 것과
+                가지고 <strong>다니는</strong> 것은 생각보다 큰 차이가 있습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">웨어러블 장치(wearable device)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>몸에 걸치거나 붙인 채로 쓰는</strong> 컴퓨팅 장치입니다. 손목에 차는 것,
+                    옷에 꿰맨 것, 신발에 넣은 것, 귀에 끼우는 것이 모두 여기에 듭니다. 공통점은
+                    <strong>꺼내지 않아도 이미 그 자리에 있다</strong>는 것입니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-100 border border-slate-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-slate-900">손에 드는 기기</p>
+                    <div class="overflow-x-auto">
+                        <svg viewBox="0 0 480 180" class="w-full h-auto mx-auto" style="min-width:480px;max-width:480px"
+                             role="img" aria-label="가방 안의 기기에서 꺼내기, 켜기, 확인하기 세 단계를 거쳐야 값을 보는 그림이다. 각 단계에 이름이 적혀 있다.">
+                            <rect x="14" y="60" width="100" height="60" rx="12" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="64" y="96" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">가방 안</text>
+                            <path d="M120 90 L138 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M134 82 L146 90 L134 98 Z" fill="#94a3b8"/>
+                            <rect x="150" y="60" width="94" height="60" rx="12" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="197" y="96" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">꺼낸다</text>
+                            <path d="M250 90 L268 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M264 82 L276 90 L264 98 Z" fill="#94a3b8"/>
+                            <rect x="280" y="60" width="88" height="60" rx="12" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="324" y="96" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">켠다</text>
+                            <path d="M374 90 L392 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M388 82 L400 90 L388 98 Z" fill="#94a3b8"/>
+                            <rect x="404" y="60" width="62" height="60" rx="12" fill="#cbd5e1" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="435" y="96" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">본다</text>
+                            <text x="240" y="152" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">내가 마음먹어야 시작된다</text>
+                        </svg>
+                    </div>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-emerald-900">몸에 붙는 기기</p>
+                    <div class="overflow-x-auto">
+                        <svg viewBox="0 0 480 180" class="w-full h-auto mx-auto" style="min-width:480px;max-width:480px"
+                             role="img" aria-label="손목에 붙은 기기가 계속 읽고 필요할 때 알린다는 그림이다. 사람과 기기가 가까이 붙어 있고 화살표가 양쪽으로 오간다.">
+                            <circle cx="110" cy="90" r="32" fill="#059669"/>
+                            <text x="110" y="152" font-size="16" fill="#065f46" font-weight="700" text-anchor="middle">몸</text>
+                            <rect x="170" y="56" width="120" height="68" rx="14" fill="#a7f3d0" stroke="#047857" stroke-width="3"/>
+                            <text x="230" y="97" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">장치</text>
+                            <text x="230" y="152" font-size="16" fill="#065f46" font-weight="700" text-anchor="middle">붙어 있다</text>
+                            <path d="M146 76 L162 76" stroke="#047857" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M158 68 L170 76 L158 84 Z" fill="#047857"/>
+                            <path d="M170 108 L154 108" stroke="#047857" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M158 100 L146 108 L158 116 Z" fill="#047857"/>
+                            <rect x="322" y="56" width="144" height="68" rx="14" fill="#d1fae5" stroke="#047857" stroke-width="3"/>
+                            <text x="394" y="86" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">계속 읽고</text>
+                            <text x="394" y="110" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">필요할 때 알린다</text>
+                            <text x="240" y="176" font-size="16" fill="#047857" font-weight="700" text-anchor="middle">장치가 먼저 말을 건다</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 그림의 차이는 <strong>「누가 먼저 말을 거는가」</strong>입니다. 왼쪽은 내가 마음먹어야
+                시작되고, 오른쪽은 <strong>장치가 먼저</strong> 알려 옵니다. 이 차이 때문에 웨어러블은
+                <strong>「알아채지 못하는 것」을 다루는 데</strong> 알맞습니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                안경은 웨어러블 장치일까요? <strong>어떤 조건이 갖추어져야</strong> 웨어러블 장치라고
+                부를 수 있을지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 붙어 있으면 ══════════ -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">붙어 있으면</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                몸에 붙어 있으면 <strong>세 가지</strong>가 새로 가능해집니다. 앞 단원의
+                <strong>「무엇이 새로 가능해졌는가」</strong>를 여기서도 그대로 물어보겠습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-infinity text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-emerald-900">끊기지 않는 기록</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        병원에서 측정한 값은 <strong>그 순간 한 점</strong>입니다. 몸에 붙은 장치는
+                        <strong>자는 동안까지</strong> 이어서 읽습니다. 한 점으로는 안 보이던 흐름이 보입니다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-hands text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">손을 쓰지 않아도 된다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        일하는 중에도, 운동하는 중에도, <strong>양손이 다른 일을 하고 있어도</strong>
+                        읽고 알립니다. 손이 자유로워야 하는 일에서 특히 값집니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-user-lock text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">나에게만 알린다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        살짝 떨리는 진동은 <strong>옆 사람에게 들리지 않습니다.</strong> 앞 차시에서
+                        「한 사람에게만 알리는 넷째 방법」을 물었는데, 그 답이 여기 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 가지를 묶으면 웨어러블이 잘하는 일이 보입니다. <strong>본인도 알아채지 못하는 변화를,
+                하던 일을 멈추지 않고, 남에게 알리지 않으면서</strong> 짚어 주는 일입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">늘 붙어 있다는 것의 다른 얼굴</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>끊기지 않는 기록</strong>은 <strong>끊기지 않는 감시</strong>이기도 합니다.
+                    스스로 차는 것이면 내가 정한 일이지만, <strong>학교나 일터가 채워 주는 것</strong>이라면
+                    이야기가 달라집니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이때 갈리는 것은 기술이 아니라 <strong>「끌 수 있는가」와 「누가 결과를 보는가」</strong>입니다.
+                    웨어러블을 기획할 때는 이 둘을 반드시 정해 두어야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                운동부 학생 모두에게 <strong>같은 밴드를 채우자</strong>는 제안이 나왔습니다.
+                <strong>「끌 수 있는가」와 「누가 결과를 보는가」</strong>를 어떻게 정하면 좋을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 다섯 가지 제약 ══════════ -->
+    <section id="limit" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다섯 가지 제약</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                책상에 놓는 장치는 크기가 좀 커도, 전기를 좀 먹어도, 뜨끈해져도 괜찮습니다.
+                <strong>몸에 붙이는 순간</strong> 이 모든 것이 문제가 됩니다. 웨어러블을 만들 때 부딪히는
+                제약 다섯 가지를 미리 알아 두겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">웨어러블 장치를 만들 때의 다섯 가지 제약</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">제약</th>
+                        <th>왜 생기나</th>
+                        <th class="w-44">기획에 미치는 영향</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">크기와 무게</td>
+                        <td>거추장스러우면 <strong>아무리 좋아도 벗어 놓습니다.</strong> 벗어 놓은 장치는
+                            아무 값도 읽지 못합니다.
+                        </td>
+                        <td>기능을 늘리기보다 <strong>줄이는 쪽</strong>으로 정해야 한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">전기</td>
+                        <td>큰 전지를 달 수 없습니다. 화면을 늘 켜 두거나 <strong>1초마다 읽으면</strong>
+                            반나절도 못 갑니다.
+                        </td>
+                        <td>얼마나 자주 읽을지, 언제 잠들지를 <strong>기획 단계에서</strong> 정한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">안전</td>
+                        <td>피부에 닿아 있습니다. <strong>열이 나거나, 눌리거나, 쓸리는</strong> 것이
+                            그대로 몸에 옵니다.
+                        </td>
+                        <td>모터처럼 힘을 내는 부품은 <strong>몸 쪽에 두지 않는다</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">움직임과 땀</td>
+                        <td>사람은 움직이고 땀을 흘리고 비를 맞습니다. 옷이라면 <strong>빨기도</strong> 합니다.</td>
+                        <td>선이 흔들려 빠지지 않게 하고, <strong>떼어 낼 수 있게</strong> 만든다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">값이 흔들린다</td>
+                        <td>몸에 닿은 센서는 <strong>조금만 움직여도</strong> 값이 튑니다. 가만히 있는
+                            책상 위와 전혀 다릅니다.
+                        </td>
+                        <td>한 번 읽은 값을 믿지 말고 <strong>여러 번 읽어 고르게</strong> 만든다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">마지막 제약이 가장 자주 발목을 잡는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    책상 위에서 잘 되던 것이 손목에 차는 순간 <strong>엉뚱한 값을 뿜기</strong> 시작합니다.
+                    앞 차시의 「잠깐 넘는 값을 걸러 내기」가 여기서도 필요합니다. 방법은 두 가지입니다.
+                </p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>여러 번 읽어 가운데 값을 쓴다</strong> &mdash; 다섯 번 읽어 가장 크고
+                        가장 작은 것을 버리면 튄 값이 사라집니다.
+                    </li>
+                    <li><strong>이어질 때만 인정한다</strong> &mdash; 앞 차시에서 쓴 방법입니다. 한 번
+                        넘었다고 반응하지 않습니다.
+                    </li>
+                </ul>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">제약이 오히려 기획을 낫게 한다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                제약을 불편한 것으로만 보면 아쉽습니다. <strong>「전기를 아껴야 한다」</strong>는 제약은
+                <strong>「정말 필요할 때만 알려라」</strong>는 좋은 설계로 이어집니다.
+                <strong>「크면 벗어 놓는다」</strong>는 제약은 <strong>「기능을 하나만 남겨라」</strong>로
+                이어집니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                실제로 오래 쓰이는 웨어러블은 대개 <strong>하는 일이 아주 적습니다.</strong> 많은 것을
+                하려던 장치는 무겁고 자주 충전해야 해서 서랍에 들어갑니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                다섯 제약 가운데 <strong>「빨 수 있어야 한다」</strong>가 특히 어려운 것은 어떤 형태의
+                웨어러블일까요? 그리고 그것을 어떻게 풀 수 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 몸의 값 다루기 ══════════ -->
+    <section id="care" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">몸의 값 다루기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                웨어러블이 읽는 것은 대개 <strong>몸에서 나온 값</strong>입니다. 이런 값은 다른 데이터와
+                다르게 다루어야 합니다. <strong>두 가지 선</strong>을 반드시 지켜야 합니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">첫째 선 &mdash; 측정한 값은 진단이 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학생이 만든 장치가 심장 박동을 읽었다고 해서 <strong>「심장에 문제가 있다」고 말할 수는
+                    없습니다.</strong> 그것은 의사가 여러 정보를 종합해 내리는 판단입니다. 우리가 만드는
+                    것은 <strong>「지금 값이 이렇다」를 보여 주는 것</strong>까지입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 선을 넘으면 두 가지가 잘못됩니다. 아픈 사람이 <strong>「괜찮다고 나왔으니」 병원에
+                    안 가고</strong>, 멀쩡한 사람이 <strong>겁을 먹습니다.</strong> 둘 다 장치가 없을 때보다
+                    나쁩니다.
+                </p>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-violet-900">둘째 선 &mdash; 몸의 값은 남에게 함부로 넘기지 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    몸에서 나온 값은 <strong>바꿀 수도 없고 되돌릴 수도 없습니다.</strong> 비밀번호는
+                    새로 만들 수 있지만 <strong>내 몸의 기록은 새로 만들 수 없습니다.</strong> 그래서
+                    한 번 새어 나가면 되돌릴 방법이 없습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    학교에서 만드는 장치라면 원칙은 간단합니다 &mdash; <strong>기록을 장치 밖으로 내보내지
+                    않는 것</strong>이 가장 안전합니다. 꼭 보내야 한다면
+                    <strong>「누구의 것인지 알 수 없게」</strong> 만들고, <strong>본인이 지울 수 있게</strong> 합니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그래서 어떻게 말해야 하나</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">장치가 화면에 띄우는 문장을 고쳐 쓴 예</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">어떻게 적었나</th>
+                        <th>문장</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-rose-800">넘은 쪽</td>
+                        <td>「심박이 불안정합니다. 부정맥이 의심됩니다.」 &mdash; <strong>병을 말하고 있다.</strong>
+                            우리가 할 수 없는 말이다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">지킨 쪽</td>
+                        <td>「지난 10분 동안 심박이 평소 범위를 벗어난 때가 있었습니다. <strong>계속
+                            신경 쓰인다면 어른께 말해 주세요.</strong>」 &mdash; 값을 알리고
+                            <strong>다음 걸음을 사람에게</strong> 넘긴다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                아래쪽 문장이 <strong>덜 대단해 보이지만</strong> 이것이 옳습니다. 앞 단원에서 기대 효과를
+                부풀리지 않는 법을 배웠는데, <strong>몸을 다루는 자리에서는 더 엄하게</strong> 지켜야 합니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 두 선을 지키는 문장 만들기</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>내가 만들고 싶은 웨어러블이 <strong>화면에 띄울 문장</strong>을 하나 적어 보세요.</li>
+                    <li>그 문장이 <strong>병이나 상태를 단정하고 있지 않은지</strong> 살핍니다.
+                        「~입니다」로 끝났다면 다시 봅니다.
+                    </li>
+                    <li><strong>다음 걸음을 누가 정하는지</strong>가 문장 안에 들어 있는지 확인합니다.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「비밀번호는 새로 만들 수 있지만 <strong>몸의 기록은 새로 만들 수 없다</strong>」고 했습니다.
+                이 말이 왜 중요한지, 앞 단원에서 배운 개인화의 문제와 이어서 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">웨어러블</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>몸에 걸치거나 붙인 채로</strong> 쓰는 컴퓨팅 장치다.</li>
+                    <li>손에 드는 기기는 내가 마음먹어야 시작되고, 웨어러블은 <strong>장치가 먼저</strong> 말을 건다.</li>
+                    <li>그래서 <strong>알아채지 못하는 것</strong>을 다루는 데 알맞다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">붙어 있으면</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>끊기지 않는 기록 &middot; 손을 쓰지 않아도 됨 &middot; 나에게만 알림</strong>
+                        셋이 새로 가능해진다.
+                    </li>
+                    <li>끊기지 않는 기록은 <strong>끊기지 않는 감시</strong>이기도 하다.</li>
+                    <li>갈리는 것은 기술이 아니라 <strong>「끌 수 있는가」와 「누가 결과를 보는가」</strong>다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다섯 가지 제약</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>크기와 무게 &middot; 전기 &middot; 안전 &middot; 움직임과 땀 &middot;
+                        <strong>값이 흔들린다.</strong></li>
+                    <li>몸에 닿은 센서는 값이 튄다. <strong>여러 번 읽어 고르거나 이어질 때만</strong> 인정한다.</li>
+                    <li>제약은 오히려 기획을 낫게 한다. <strong>오래 쓰이는 것은 대개 하는 일이 적다.</strong></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-rose-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">몸의 값 다루기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>측정한 값은 진단이 아니다.</strong> 선을 넘으면 병원에 안 가거나 겁을 먹는다.</li>
+                    <li>몸의 기록은 <strong>새로 만들 수 없다.</strong> 새어 나가면 되돌릴 방법이 없다.</li>
+                    <li>학교에서는 <strong>장치 밖으로 내보내지 않는 것</strong>이 가장 안전하다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    웨어러블 장치가 손에 드는 기기와 <strong>가장 크게 다른 점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '크기가 작다고 웨어러블이 되지는 않습니다. 아주 작은 손전등도 있습니다.')">
+                    ① 크기가 작다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 손에 드는 기기는 내가 마음먹어야 시작되고, 웨어러블은 장치가 먼저 말을 겁니다.')">
+                    ② 내가 꺼내지 않아도 장치가 먼저 알려 온다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면이 있는 웨어러블도 많습니다. 화면 여부는 기준이 아닙니다.')">
+                    ③ 화면이 없다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 싼 것과는 관계가 없습니다.')">
+                    ④ 값이 훨씬 싸다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「거추장스러우면 벗어 놓는다」는 제약이 <strong>기획에 미치는 영향</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기능을 늘리면 무거워지고, 무거워지면 벗어 놓게 됩니다. 반대 방향입니다.')">
+                    ① 기능을 되도록 많이 넣어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 오래 쓰이는 웨어러블은 대개 하는 일이 아주 적습니다.')">
+                    ② 기능을 줄여 가볍게 만들어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면을 크게 하면 무겁고 전기도 더 먹습니다.')">
+                    ③ 화면을 크게 만들어야 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 싼지는 이 제약과 직접 관련이 없습니다.')">
+                    ④ 되도록 값싼 부품만 써야 한다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    학생이 만든 장치가 <strong>해서는 안 되는 말</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 어떤지 알리는 것은 우리가 할 수 있는 일입니다.')">
+                    ① 「지금 심박이 이 정도입니다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '평소 범위를 벗어났다고 알리는 것도 값에 대한 이야기입니다.')">
+                    ② 「평소 범위를 벗어난 때가 있었습니다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 병을 말하는 것은 여러 정보를 종합해 의사가 내리는 판단입니다. 우리가 할 수 있는 말이 아닙니다.')">
+                    ③ 「부정맥이 의심됩니다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어른께 말해 보라고 권하는 것은 다음 걸음을 사람에게 넘기는 알맞은 문장입니다.')">
+                    ④ 「신경 쓰인다면 어른께 말해 주세요」
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    몸에서 나온 값을 특별히 조심해야 하는 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '자리를 많이 차지해서가 아닙니다. 숫자 몇 개일 뿐입니다.')">
+                    ① 저장할 자리를 많이 차지해서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 비밀번호는 새로 만들 수 있지만 몸의 기록은 새로 만들 수 없어, 새어 나가면 되돌릴 수 없습니다.')">
+                    ② 새어 나가도 새로 바꿀 수 없어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '읽기 어려운 것이 문제가 아닙니다. 오히려 잘 읽힙니다.')">
+                    ③ 다른 사람이 읽기 어려워서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값이 자주 바뀌는 것은 다루기 까다로운 점이지만, 조심해야 하는 근본 까닭은 아닙니다.')">
+                    ④ 값이 자주 바뀌어서
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

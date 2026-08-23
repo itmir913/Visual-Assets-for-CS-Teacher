@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>더위를 알려 주는 밴드 만들기</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-temperature-high absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-stopwatch absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            더위를 알려 주는 밴드 만들기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            몸에 차는 순간<br><strong>값이 흔들리기 시작합니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>웨어러블 하나를 <strong>다섯 칸으로 계획해</strong> 만들 수 있다.</li>
+                    <li>흔들리는 값을 <strong>여러 번 읽어 가운데 값으로</strong> 고를 수 있다.</li>
+                    <li>단계가 <strong>올라갈 때만 알리도록</strong> 만들어 알림이 시끄러워지지 않게 할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-temperature-high text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">더위를 알려 주는 밴드 만들기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#plan" class="hover:text-emerald-600 transition">무엇을 만드나</a>
+            <a href="#steady" class="hover:text-emerald-600 transition">흔들림 다루기</a>
+            <a href="#level" class="hover:text-emerald-600 transition">단계 매기기</a>
+            <a href="#make" class="hover:text-emerald-600 transition">완성과 다듬기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 무엇을 만드나 ══════════ -->
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                더운 날 운동장에 나가면 <strong>스스로는 잘 못 느끼는 사이</strong>에 몸이 힘들어집니다.
+                땀이 나는데도 계속 뛰고, 그늘에 앉을 때를 놓칩니다. 이번에 만들 것은
+                <strong>「지금 쉬어 갈 때가 되었다」를 손목에서 알려 주는</strong> 밴드입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">더위 밴드를 다섯 칸으로 계획한 표</caption>
+                    <tbody>
+                    <tr>
+                        <td class="w-40 font-bold text-slate-800">하고 싶은 일</td>
+                        <td>운동하는 동안 <strong>쉬어 갈 때를 놓치지 않게</strong> 하고 싶다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">무엇을 읽나</td>
+                        <td>「힘들다」는 못 읽는다. 대신 <strong>주변의 온도와 습도</strong>를 읽는다.
+                            습도가 높으면 땀이 잘 마르지 않아 더 힘들어지기 때문이다. &rarr; 온습도 센서
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">어떻게 판단하나</td>
+                        <td>온도와 습도를 함께 보아 <strong>0부터 3까지 단계</strong>를 매긴다. 값이
+                            흔들리므로 <strong>여러 번 읽어 가운데 값</strong>을 쓴다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">무엇으로 답하나</td>
+                        <td>밴드의 <strong>색</strong>으로 늘 보여 주고, <strong>단계가 올라가는 그
+                            순간에만</strong> 짧게 소리를 낸다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">틀릴 수 있는 자리</td>
+                        <td>읽는 것은 <strong>주변 공기</strong>이지 <strong>내 몸이 아니다.</strong>
+                            같은 자리에 있어도 사람마다 힘든 정도가 다르다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">앞 차시의 두 선을 여기서 지킨다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 밴드는 <strong>건강 상태를 판단하지 않습니다.</strong> 「지금 이 자리의 공기가 이런
+                    단계다」를 알릴 뿐입니다. 그래서 붉은빛이 떴다고 <strong>「위험합니다」라고 하지
+                    않습니다.</strong> 「쉬어 가는 것을 생각해 보세요」라고 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    또 이 밴드는 <strong>아무 기록도 밖으로 보내지 않습니다.</strong> 읽은 값은 판단에
+                    쓰고 버립니다. 누가 언제 어디에 있었는지 남지 않습니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">준비물과 연결</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">밴드의 준비물과 연결할 핀</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">부품</th>
+                        <th class="w-32">신호선을 꽂을 핀</th>
+                        <th>몸에 차는 것이라 달라지는 점</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">빛 띠</td>
+                        <td><code>GP0</code></td>
+                        <td>알을 <strong>넷만</strong> 쓴다. 손목에 두르려면 길면 안 된다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">온습도 센서</td>
+                        <td><code>GP22</code></td>
+                        <td><strong>피부에 닿지 않게</strong> 바깥쪽을 향해 붙인다. 몸에 닿으면 체온을 읽는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">버저</td>
+                        <td><code>GP15</code></td>
+                        <td>아주 짧게만 쓴다. 소리는 <strong>주변에도 들린다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                오른쪽 열이 앞 실습과 달라진 부분입니다. 벽에 거는 작품에서는 신경 쓰지 않던 것들이
+                <strong>몸에 차는 순간 전부 문제</strong>가 됩니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                센서가 <strong>피부에 닿으면</strong> 어떤 값이 읽힐까요? 그리고 그 값으로 판단하면
+                어떤 일이 벌어질지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 흔들림 다루기 ══════════ -->
+    <section id="steady" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">흔들림 다루기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                책상 위에서는 값이 얌전했습니다. 손목에 차고 뛰면 <strong>같은 자리에서도 값이 오르내립니다.</strong>
+                손이 몸에 가까워졌다 멀어지고, 바람이 스쳤다 말고, 팔을 들었다 놓기 때문입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 216" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="다섯 번 읽은 값이 점으로 찍혀 있고 그중 가장 높은 값과 가장 낮은 값에 버림이라고 표시되어 있으며, 가운데 값에 이 값을 쓴다고 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">다섯 번 읽고 가운데 값을 쓴다</text>
+
+                    <path d="M40 170 L544 170" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+
+                    <circle cx="96" cy="120" r="11" fill="#94a3b8"/>
+                    <text x="96" y="196" font-size="16" fill="#64748b" text-anchor="middle">28</text>
+
+                    <circle cx="192" cy="66" r="11" fill="#fca5a5"/>
+                    <text x="192" y="196" font-size="16" fill="#b91c1c" text-anchor="middle">33 버림</text>
+
+                    <circle cx="288" cy="112" r="13" fill="#059669"/>
+                    <text x="288" y="196" font-size="16" fill="#047857" font-weight="700" text-anchor="middle">29 쓴다</text>
+
+                    <circle cx="384" cy="104" r="11" fill="#94a3b8"/>
+                    <text x="384" y="196" font-size="16" fill="#64748b" text-anchor="middle">30</text>
+
+                    <circle cx="480" cy="150" r="11" fill="#fca5a5"/>
+                    <text x="480" y="196" font-size="16" fill="#b91c1c" text-anchor="middle">25 버림</text>
+
+                    <text x="288" y="52" font-size="16" fill="#475569" text-anchor="middle">크게 튄 값 하나가 평균을 통째로 끌고 간다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다섯 번 읽어 <strong>25 &middot; 28 &middot; 29 &middot; 30 &middot; 33</strong>이 나왔다고
+                합시다. 평균을 내면 29입니다. 그런데 33 대신 <strong>50이 튀어 들어왔다면</strong> 평균은
+                32가 됩니다. <strong>값 하나가 결과를 통째로 끌고 갑니다.</strong>
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가운데 값은 다릅니다. 33이 50으로 바뀌어도 <strong>가운데는 여전히 29</strong>입니다.
+                크기순으로 늘어놓고 한가운데 것을 고르므로, <strong>양쪽 끝에서 튄 값은 저절로
+                버려집니다.</strong>
+            </p>
+
+            <pre><code class="language-python" data-src="code/2-2-2.더위-밴드.py#가운데값"></code></pre>
+
+            <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                <li><code>sorted(values)</code>는 값을 <strong>작은 것부터 늘어놓은 새 목록</strong>을
+                    만들어 줍니다. 원래 목록은 그대로 둡니다.
+                </li>
+                <li><code>len(ordered) // 2</code>는 <strong>가운데 자리의 번호</strong>입니다.
+                    다섯 개면 <code>5 // 2</code>가 2가 되고, 번호는 0부터 세므로 셋째 값을 가리킵니다.
+                </li>
+                <li><strong>홀수 개를 읽어야</strong> 가운데가 하나로 딱 정해집니다. 그래서 다섯 번입니다.</li>
+            </ul>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">가운데 값이 늘 나은 것은 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    값이 <strong>정말로 빠르게 오르고 있을 때</strong>는 가운데 값이 오히려 늦게 따라옵니다.
+                    갑자기 뜨거워진 상황을 <strong>한 박자 늦게</strong> 알아채는 것입니다. 흔들림을
+                    잠재우는 것과 빨리 알아채는 것은 <strong>서로 맞바꾸는 관계</strong>입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 밴드에서는 <strong>흔들림을 잠재우는 쪽</strong>을 골랐습니다. 몇 초 늦어도 되는
+                    일이고, 잘못 울리는 알림이 훨씬 성가시기 때문입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>빨리 알아채는 것이 더 중요한</strong> 장치를 하나 떠올려 보세요. 그런 장치라면
+                흔들림을 어떻게 다루어야 할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 단계 매기기 ══════════ -->
+    <section id="level" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">단계 매기기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 실습에서는 값 하나(습도)로 색을 정했습니다. 이번에는 <strong>값이 둘</strong>입니다.
+                온도만 봐도 안 되고 습도만 봐도 안 됩니다. 같은 30도라도 <strong>습도가 높으면 훨씬
+                힘듭니다.</strong> 땀이 마르면서 몸을 식혀 주는데, 습도가 높으면 잘 마르지 않기 때문입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                둘을 함께 보려면 <strong>하나의 숫자로 합쳐야</strong> 합니다. 여기서는 아주 단순하게
+                합치겠습니다.
+            </p>
+
+            <pre><code class="language-python" data-src="code/2-2-2.더위-밴드.py#단계"></code></pre>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">이 셈은 우리가 지어낸 것이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <code>temperature + (humidity - 40) * 0.1</code>이라는 식은
+                    <strong>수업에서 원리를 확인하려고 만든 것</strong>이지 공식 지표가 아닙니다. 실제로
+                    쓰이는 지표는 훨씬 복잡하고, 나라와 기관마다 기준도 다릅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래도 이 식으로 배울 수 있는 것이 있습니다 &mdash; <strong>「습도 10퍼센트가
+                    온도 1도만큼 힘들게 한다」</strong>고 정한 셈이라는 점입니다. 이 <strong>0.1이라는
+                    숫자가 곧 우리의 판단</strong>이고, 바꾸면 밴드의 성격이 달라집니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">온도와 습도 조합에 따른 단계 계산 예</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">온도</th>
+                        <th class="w-28">습도</th>
+                        <th class="w-32">합친 값</th>
+                        <th>단계</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>28도</td>
+                        <td>40%</td>
+                        <td>28 + 0 = 28.0</td>
+                        <td><strong>1단계</strong> &mdash; 슬슬 더움</td>
+                    </tr>
+                    <tr>
+                        <td>28도</td>
+                        <td>80%</td>
+                        <td>28 + 4 = 32.0</td>
+                        <td><strong>2단계</strong> &mdash; 조심. 온도는 같은데 단계가 올랐다</td>
+                    </tr>
+                    <tr>
+                        <td>32도</td>
+                        <td>30%</td>
+                        <td>32 &minus; 1 = 31.0</td>
+                        <td><strong>2단계</strong> &mdash; 조심. 건조하면 조금 낫다고 본 셈이다</td>
+                    </tr>
+                    <tr>
+                        <td>32도</td>
+                        <td>75%</td>
+                        <td>32 + 3.5 = 35.5</td>
+                        <td><strong>3단계</strong> &mdash; 쉬어 가기</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                둘째 줄과 셋째 줄을 비교해 보세요. <strong>온도가 4도나 차이 나는데 같은 단계</strong>가
+                나왔습니다. 이것이 「둘을 함께 본다」는 말의 뜻입니다. 이 결과가 그럴듯한지 아닌지를
+                <strong>실제로 차 보고 판단</strong>해서 0.1을 고쳐 나가면 됩니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">숫자를 코드 곳곳에 흩어 두지 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 프로그램에서 <code>READ_EVERY</code> &middot; <code>SAMPLES</code> &middot;
+                    <code>COUNT</code>처럼 <strong>대문자 이름을 맨 위에 모아</strong> 두었습니다.
+                    고칠 일이 생기면 <strong>맨 위만 보면 되기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    단계를 가르는 27 &middot; 30 &middot; 33도 같은 이유로 위로 뺄 수 있습니다. 지금은
+                    <strong>식과 함께 읽는 편이 이해하기 쉬워서</strong> 그대로 두었습니다. 이런 판단도
+                    만드는 사람의 몫입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                식의 <strong>0.1을 0.3으로</strong> 바꾸면 밴드는 어떻게 달라질까요? 위 표의 둘째 줄로
+                직접 계산해 보고 답해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 완성과 다듬기 ══════════ -->
+    <section id="make" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">완성과 다듬기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 전체를 이어 붙입니다. 앞 실습과 <strong>알리는 방식이 하나 다릅니다.</strong>
+                거기서는 「높은 값이 이어질 때」 울렸고, 여기서는 <strong>「단계가 올라갈 때」</strong> 울립니다.
+            </p>
+
+            <pre><code class="language-python" data-src="code/2-2-2.더위-밴드.py"></code></pre>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">알림 조건이 하는 일</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">코드</th>
+                        <th>하는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800"><code>if level &gt; last_level:</code></td>
+                        <td>지난번보다 <strong>단계가 올라갔을 때만</strong> 울린다. 그대로이거나 내려갔으면
+                            조용하다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800"><code>last_level = level</code></td>
+                        <td>이번 단계를 <strong>다음번의 비교 대상</strong>으로 남겨 둔다. 이 줄이 없으면
+                            늘 0과 비교하게 되어 <strong>계속 울린다.</strong>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 방식의 좋은 점은 <strong>3단계에 오래 머물러도 한 번만 울린다</strong>는 것입니다.
+                아쉬운 점도 있습니다 &mdash; <strong>3단계가 계속되는데도 다시 알려 주지 않습니다.</strong>
+                무엇을 고를지는 <strong>쓰는 사람이 어떤 상황인지</strong>에 달렸습니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">시험해 보는 법</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>먼저 <strong><code>level_of()</code>만 따로</strong> 시험합니다. 코드를 보드에
+                        올리기 전에, 위 표의 네 줄을 손으로 계산해 값이 맞는지 확인합니다.
+                    </li>
+                    <li>보드에 올려 <strong>현재 단계를 화면에 찍어</strong> 봅니다. 색과 단계가 맞게
+                        짝지어졌는지 봅니다.
+                    </li>
+                    <li>단계를 억지로 올려 봅니다. <strong>손을 오므려 센서를 감싸고 입김을 불면</strong>
+                        온도와 습도가 함께 오릅니다.
+                    </li>
+                    <li>소리가 <strong>한 번만</strong> 났는지 확인합니다. 여러 번 났다면
+                        <code>last_level</code>을 갱신하는 줄을 빠뜨린 것입니다.
+                    </li>
+                    <li>기다리는 시간이 길어 답답하면 <code>READ_EVERY</code>와 <code>SAMPLES</code>를
+                        잠깐 줄이고, <strong>확인이 끝나면 되돌려 놓습니다.</strong>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 내 밴드로 고치기</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>단계를 <strong>넷이 아니라 셋</strong>으로 줄여 보세요. 손목에서 색을 구별하기가
+                        더 쉬워집니다. 대신 무엇을 잃게 되나요?
+                    </li>
+                    <li>3단계가 <strong>10분 넘게 이어지면</strong> 한 번 더 알리도록 고쳐 보세요.
+                        앞 실습의 <code>high_streak</code>를 떠올리면 됩니다.
+                    </li>
+                    <li>소리를 아예 빼고 <strong>빛이 천천히 깜빡이게</strong> 바꿔 보세요. 운동장에서는
+                        소리가 잘 안 들리기도 합니다.
+                    </li>
+                    <li><strong>설명 카드</strong>를 만듭니다. 무엇을 읽는지, 무엇은 읽지 않는지,
+                        <strong>기록을 남기지 않는다는 것</strong>을 적습니다.
+                    </li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    마지막 항목을 빠뜨리지 마세요. 몸에 차는 물건을 남에게 건넬 때
+                    <strong>「이것이 나에 대해 무엇을 아는가」</strong>는 누구나 궁금해합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <code>last_level = level</code> 줄을 지우면 어떤 일이 벌어질까요? 코드를 따라가며
+                <strong>말로 설명해</strong> 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">무엇을 만드나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>운동 중에 <strong>쉬어 갈 때를 놓치지 않게</strong> 알려 주는 손목 밴드다.</li>
+                    <li>읽는 것은 <strong>주변 공기</strong>이지 내 몸이 아니다. 건강을 판단하지 않는다.</li>
+                    <li>몸에 차는 순간 <strong>알의 개수 &middot; 센서의 방향 &middot; 소리의 길이</strong>가
+                        전부 문제가 된다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">흔들림 다루기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>몸에 닿은 센서는 값이 튄다. <strong>여러 번 읽어 가운데 값</strong>을 쓴다.</li>
+                    <li>평균은 <strong>튄 값 하나에 통째로 끌려가지만</strong> 가운데 값은 버틴다.</li>
+                    <li>흔들림을 잠재우는 것과 빨리 알아채는 것은 <strong>맞바꾸는 관계</strong>다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">단계 매기기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>값이 둘이면 <strong>하나의 숫자로 합쳐</strong> 판단한다.</li>
+                    <li>합치는 식은 <strong>수업용으로 지어낸 것</strong>이다. 공식 지표가 아니다.</li>
+                    <li>식 안의 <strong>0.1이 곧 우리의 판단</strong>이다. 바꾸면 밴드의 성격이 달라진다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">완성과 다듬기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>단계가 올라갈 때만</strong> 알리면 오래 머물러도 한 번만 울린다.</li>
+                    <li>대신 <strong>계속되는데도 다시 알리지 않는</strong> 아쉬움이 남는다.</li>
+                    <li>몸에 차는 물건에는 <strong>「무엇을 아는가」를 밝히는 설명 카드</strong>가 필요하다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다섯 번 읽어 <strong>가운데 값</strong>을 쓰는 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '더 빨리 판단하려는 것이 아닙니다. 오히려 시간이 더 걸립니다.')">
+                    ① 더 빨리 판단하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 크기순으로 늘어놓고 한가운데를 고르면 양쪽 끝에서 튄 값이 저절로 버려집니다.')">
+                    ② 크게 튄 값이 결과를 끌고 가지 않게 하려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전기를 아끼는 것과는 반대입니다. 여러 번 읽으면 오히려 더 먹습니다.')">
+                    ③ 전기를 아끼려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '센서 개수와는 관계가 없습니다. 센서는 하나뿐입니다.')">
+                    ④ 센서를 여러 개 쓰려고
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    같은 28도인데 <strong>습도가 높을 때 단계가 오르는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '습도가 높다고 온도가 오르지는 않습니다. 온도는 그대로 28도입니다.')">
+                    ① 습도가 높으면 온도도 함께 오르기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 땀이 마르면서 몸을 식히는데, 습도가 높으면 잘 마르지 않아 더 힘들어집니다.')">
+                    ② 땀이 잘 마르지 않아 몸이 식지 않기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '센서가 헷갈리는 것이 아닙니다. 두 값 모두 제대로 읽고 있습니다.')">
+                    ③ 센서가 습도를 온도로 잘못 읽기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전기와는 관계가 없습니다.')">
+                    ④ 습도가 높으면 전기가 더 들기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <code>last_level = level</code> 줄을 지우면?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '빛은 그대로 나옵니다. 색을 정하는 부분과는 상관이 없습니다.')">
+                    ① 빛이 켜지지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 비교 대상이 늘 0으로 남아, 1단계만 되어도 읽을 때마다 계속 울립니다.')">
+                    ② 단계가 0보다 크기만 하면 읽을 때마다 계속 울린다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아예 안 울리는 것이 아니라 너무 많이 울립니다.')">
+                    ③ 소리가 아예 나지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '프로그램이 멈추지는 않습니다. 조용히 시끄러워질 뿐입니다.')">
+                    ④ 프로그램이 오류로 멈춘다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    이 밴드의 판단 식에 대해 <strong>바르게 말한 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '공식 지표가 아닙니다. 실제 지표는 훨씬 복잡하고 기관마다 다릅니다.')">
+                    ① 나라에서 정한 공식 지표를 그대로 쓴 것이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 수업에서 원리를 확인하려고 지어낸 식이고, 안의 0.1이 곧 우리의 판단입니다.')">
+                    ② 수업에서 원리를 확인하려고 지어낸 식이다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '건강을 판단하는 근거로 쓰면 안 됩니다. 그것이 앞 차시에서 배운 첫째 선입니다.')">
+                    ③ 건강 상태를 진단하는 데 쓸 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '고칠 수 없는 것이 아닙니다. 오히려 차 보고 고쳐 나가라고 만든 식입니다.')">
+                    ④ 한번 정하면 고칠 수 없는 값이다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

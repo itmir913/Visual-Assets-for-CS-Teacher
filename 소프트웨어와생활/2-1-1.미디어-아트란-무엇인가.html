@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미디어 아트란 무엇인가</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-palette absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-wand-magic-sparkles absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            미디어 아트란 무엇인가
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            컴퓨터로 그린 그림이 아니라<br><strong>답을 하는 작품</strong>입니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>미디어 아트가 <strong>기술을 도구로 쓴 예술과 어떻게 다른지</strong> 설명할 수 있다.</li>
+                    <li>작품이 관람자와 <strong>주고받는 관계</strong>로 바뀌면서 무엇이 달라지는지 말할 수 있다.</li>
+                    <li>작품 하나를 <strong>무엇을 받아 무엇으로 답하는가</strong>로 읽어 낼 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-palette text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">미디어 아트란 무엇인가</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-emerald-600 transition">미디어 아트</a>
+            <a href="#change" class="hover:text-emerald-600 transition">무엇이 달라지나</a>
+            <a href="#kinds" class="hover:text-emerald-600 transition">갈래</a>
+            <a href="#read" class="hover:text-emerald-600 transition">작품 읽는 법</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 미디어 아트 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">미디어 아트</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 단원에서 <strong>도구로 쓰는 것과 융합은 다르다</strong>고 했습니다. 예술에서도 똑같은
+                구별이 필요합니다. 태블릿으로 그린 그림은 <strong>연필 대신 태블릿을 쓴</strong> 것입니다.
+                그린 사람도, 보는 방식도, 완성된 뒤 바뀌지 않는다는 점도 종이 그림과 같습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">미디어 아트(media art)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빛 &middot; 소리 &middot; 화면 &middot; 움직임 같은 <strong>디지털 매체 자체를 재료로
+                    삼는</strong> 예술입니다. 물감이 그림의 재료이듯, 여기서는
+                    <strong>「센서가 읽은 값」과 「그에 따라 달라지는 반응」</strong>이 재료가 됩니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                가르는 기준은 <strong>「완성된 뒤에도 작품이 달라지는가」</strong>입니다. 종이에 그린
+                그림은 다 그린 순간 멈춥니다. 미디어 아트는 <strong>전시가 열려 있는 동안 계속
+                달라집니다.</strong> 관람자가 다가서면 다가선 만큼, 밖이 어두워지면 어두워진 만큼.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 200" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="왼쪽에는 관람자에서 작품으로 향하는 화살표 하나만 있는 그림이 있고, 오른쪽에는 관람자와 작품 사이에 양쪽으로 화살표가 있는 그림이 있다. 각각 완성된 뒤 멈추는 작품과 계속 달라지는 작품이라고 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">화살표가 한쪽인가 양쪽인가</text>
+
+                    <rect x="10" y="44" width="270" height="140" rx="16" fill="#f1f5f9" stroke="#64748b" stroke-width="3"/>
+                    <text x="145" y="72" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">완성된 뒤 멈추는 작품</text>
+                    <circle cx="60" cy="120" r="16" fill="#94a3b8"/>
+                    <text x="60" y="164" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">관람자</text>
+                    <rect x="180" y="98" width="66" height="46" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="2.5"/>
+                    <text x="213" y="164" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">작품</text>
+                    <path d="M86 120 L162 120" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M158 112 L172 120 L158 128 Z" fill="#64748b"/>
+                    <text x="124" y="106" font-size="16" fill="#475569" text-anchor="middle">본다</text>
+
+                    <rect x="296" y="44" width="270" height="140" rx="16" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="431" y="72" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">계속 달라지는 작품</text>
+                    <circle cx="346" cy="120" r="16" fill="#059669"/>
+                    <text x="346" y="164" font-size="16" fill="#065f46" font-weight="700" text-anchor="middle">관람자</text>
+                    <rect x="466" y="98" width="66" height="46" rx="6" fill="#ffffff" stroke="#059669" stroke-width="2.5"/>
+                    <text x="499" y="164" font-size="16" fill="#065f46" font-weight="700" text-anchor="middle">작품</text>
+                    <path d="M372 108 L448 108" stroke="#059669" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M444 100 L458 108 L444 116 Z" fill="#059669"/>
+                    <path d="M456 136 L380 136" stroke="#059669" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M384 128 L370 136 L384 144 Z" fill="#059669"/>
+                    <text x="414" y="98" font-size="16" fill="#047857" text-anchor="middle">움직인다</text>
+                    <text x="414" y="158" font-size="16" fill="#047857" text-anchor="middle">답한다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                오른쪽 그림에서 <strong>아래쪽 화살표가 핵심</strong>입니다. 작품이 관람자에게 답을 합니다.
+                그러려면 작품 안에 <strong>「무엇을 보고 어떻게 답할지」를 적어 둔 것</strong>이 있어야
+                합니다. 그것이 소프트웨어입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">작가가 만드는 것이 달라진다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    화가는 <strong>결과 한 장</strong>을 만듭니다. 미디어 아트 작가는 결과가 아니라
+                    <strong>「이러면 저렇게 한다」는 규칙</strong>을 만듭니다. 그래서 작가 자신도
+                    <strong>전시가 어떤 모습이 될지 다 알지 못합니다.</strong> 관람자가 어떻게 움직일지
+                    모르기 때문입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                커다란 화면에 영상을 계속 틀어 두는 작품이 있다고 합시다. <strong>이것은 미디어 아트일까요?</strong>
+                「완성된 뒤에도 달라지는가」를 기준으로 판단해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 무엇이 달라지나 ══════════ -->
+    <section id="change" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇이 달라지나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                작품이 답을 하게 되면 <strong>예술을 둘러싼 것들이 줄줄이 달라집니다.</strong>
+                세 가지만 짚어 보겠습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-person-walking text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-emerald-900">관람자가 작품의 일부가 된다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        사람이 없으면 작품이 <strong>아무 일도 하지 않습니다.</strong> 그림은 아무도 없는
+                        전시장에서도 그림이지만, 이런 작품은 사람이 와야 켜집니다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-shuffle text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">같은 작품을 다르게 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        두 사람이 같은 시각에 들어가도 <strong>본 것이 다릅니다.</strong> 「어제 본 그 장면」을
+                        다시 보여 달라고 할 수 없습니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-city text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">전시장을 벗어난다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        건물 벽, 광장 바닥, 지하철역, 다리 난간. <strong>사람이 지나다니는 곳</strong>이
+                        오히려 좋은 자리가 됩니다. 지나가는 사람이 곧 재료이기 때문입니다.
+                    </p>
+                </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그래서 새로 생기는 어려움</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                좋은 점만 있는 것은 아닙니다. 답을 하는 작품에는 <strong>그림에는 없던 문제</strong>가
+                따라옵니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">답을 하는 작품에 따라오는 어려움</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">어려움</th>
+                        <th>무슨 일이 생기나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">고장 나면 멈춘다</td>
+                        <td>센서 하나가 죽으면 작품이 <strong>돌은 있으나 답은 없는</strong> 물건이 된다.
+                            그림은 못이 하나 빠져도 그림이다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">오래 보존하기 어렵다</td>
+                        <td>부품과 프로그램은 몇 해 지나면 구하기 어려워진다. <strong>백 년 뒤에도
+                            같은 작품을 켤 수 있을지</strong>가 미술관의 숙제가 된다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">사람을 읽는다</td>
+                        <td>움직임을 읽는다는 것은 <strong>사람의 위치를 읽는다</strong>는 뜻이다.
+                            무엇을 남기고 무엇을 남기지 않을지 정해야 한다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">누구는 답을 못 받는다</td>
+                        <td>키가 작거나 휠체어를 탄 관람자를 <strong>센서가 못 알아보면</strong>
+                            그 사람에게만 작품이 조용하다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 줄은 앞 단원의 <strong>「누구에게 좋아지는가」</strong>와 같은 이야기입니다. 작품을
+                만들 때도 <strong>누가 답을 받지 못하는지</strong>를 함께 생각해야 합니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「오래 보존하기 어렵다」를 줄이려면 미술관이 <strong>무엇을 함께 보관해</strong> 두어야
+                할까요? 작품 자체 말고 무엇이 더 필요할지 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 갈래 ══════════ -->
+    <section id="kinds" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">갈래</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                미디어 아트 안에도 여러 갈래가 있습니다. 갈래를 나누는 기준은 <strong>「무엇이 작품을
+                움직이는가」</strong>입니다. 셋만 보겠습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">인터랙티브 아트(interactive art)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>관람자가 움직이면</strong> 작품이 답합니다. 다가서기 &middot; 손 흔들기 &middot;
+                    소리 내기 &middot; 발 딛기가 입력이 됩니다. 관람자가 없으면 작품은 조용합니다.
+                </p>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-violet-900">키네틱 아트(kinetic art)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    작품 자체가 <strong>실제로 움직입니다.</strong> 화면 속에서가 아니라 눈앞에서 돌고,
+                    펴지고, 오르내립니다. 모터와 관절이 재료가 되고, 그 움직임의 <strong>차례와 속도</strong>가
+                    작가가 짜는 것입니다.
+                </p>
+            </div>
+
+            <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-sky-900">데이터를 보여 주는 작품</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사람이 아니라 <strong>바깥에서 계속 들어오는 숫자</strong>가 작품을 움직입니다.
+                    그날의 공기 상태, 바람의 세기, 물의 온도 같은 것입니다. 관람자는 조작하지 않고
+                    <strong>「지금 어떤지」를 봅니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                셋은 <strong>서로 배타적이지 않습니다.</strong> 데이터로 색이 정해지면서 사람이 다가서면
+                모양이 바뀌고, 그 바뀜을 모터가 실제 움직임으로 보여 주는 작품이 있을 수 있습니다.
+                갈래는 <strong>작품을 뜯어볼 때 쓰는 이름</strong>이지 서랍이 아닙니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">무엇이 작품을 움직이는가로 갈라 보기</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">세 갈래를 움직이는 것과 없을 때의 모습으로 비교한 표</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">갈래</th>
+                        <th class="w-44">무엇이 움직이게 하나</th>
+                        <th>그것이 없으면</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">인터랙티브 아트</td>
+                        <td>관람자의 행동</td>
+                        <td>아무 일도 일어나지 않는다. 빈 전시장에서는 조용하다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">키네틱 아트</td>
+                        <td>정해 둔 움직임의 차례</td>
+                        <td>사람이 없어도 계속 움직인다. 전원이 끊기면 멈춘다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-sky-800">데이터를 보여 주는 작품</td>
+                        <td>바깥에서 들어오는 숫자</td>
+                        <td>숫자가 끊기면 <strong>마지막 값에 멈춰 선다.</strong> 멈춘 줄도 모르기 쉽다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                오른쪽 열이 중요합니다. <strong>「무엇이 끊기면 어떻게 되는가」</strong>를 보면 그 작품이
+                무엇에 기대고 있는지가 드러납니다. 특히 마지막 줄처럼 <strong>고장인지 아닌지
+                구별되지 않는</strong> 경우가 가장 다루기 까다롭습니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                데이터를 보여 주는 작품에서 <strong>숫자가 끊겼다는 것을 관람자가 알게 하려면</strong>
+                어떻게 하면 좋을까요? 작품을 망치지 않으면서 알리는 방법을 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 작품 읽는 법 ══════════ -->
+    <section id="read" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">작품 읽는 법</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                미디어 아트를 볼 때 <strong>「신기하다」에서 멈추지 않으려면</strong> 물어볼 것을 정해
+                두는 편이 좋습니다. 네 가지면 충분합니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 176" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="네 개의 상자가 왼쪽에서 오른쪽으로 이어진다. 무엇을 받나, 어떻게 판단하나, 무엇으로 답하나, 무엇을 말하려 하나 순서로 이름이 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">작품에 물어볼 네 가지</text>
+
+                    <rect x="10" y="52" width="126" height="76" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <text x="73" y="84" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">무엇을</text>
+                    <text x="73" y="108" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">받나</text>
+
+                    <path d="M142 90 L156 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M152 82 L164 90 L152 98 Z" fill="#94a3b8"/>
+
+                    <rect x="168" y="52" width="126" height="76" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="231" y="84" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">어떻게</text>
+                    <text x="231" y="108" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">판단하나</text>
+
+                    <path d="M300 90 L314 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M310 82 L322 90 L310 98 Z" fill="#94a3b8"/>
+
+                    <rect x="326" y="52" width="112" height="76" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="382" y="84" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">무엇으로</text>
+                    <text x="382" y="108" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">답하나</text>
+
+                    <path d="M444 90 L458 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M454 82 L466 90 L454 98 Z" fill="#94a3b8"/>
+
+                    <rect x="470" y="52" width="96" height="76" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <text x="518" y="84" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">무엇을</text>
+                    <text x="518" y="108" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">말하려 하나</text>
+
+                    <text x="288" y="162" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">앞의 셋은 구조, 마지막 하나는 뜻</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞의 셋은 <strong>작품이 어떻게 만들어졌는지</strong>를 묻습니다. 마지막 하나는
+                <strong>왜 그렇게 만들었는지</strong>를 묻습니다. 셋만 보면 작품이 아니라 장치를 본 것이 되고,
+                마지막만 보면 <strong>무엇을 보고 그렇게 해석했는지</strong> 근거가 없어집니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">해 본 보기 &mdash; 계단에 놓인 빛</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="text-base text-slate-700 leading-relaxed">
+                    지하철 계단 옆 벽에 긴 띠 모양의 빛이 있습니다. 사람이 계단을 오를 때는 빛이
+                    <strong>천천히 따라 올라오고</strong>, 뛰어 내려갈 때는 <strong>확 흩어졌다가</strong>
+                    다시 모입니다. 아무도 없을 때는 아주 희미하게 숨 쉬듯 밝기가 오르내립니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">계단의 빛 작품을 네 물음으로 읽어 본 표</caption>
+                        <tbody>
+                        <tr>
+                            <td class="w-40 font-bold text-blue-800">무엇을 받나</td>
+                            <td>계단 옆에 늘어놓은 센서가 <strong>사람이 지나간 자리와 시각</strong>을 읽는다.
+                                누구인지는 읽지 않는다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-amber-800">어떻게 판단하나</td>
+                            <td>이웃한 센서가 <strong>얼마나 짧은 간격으로 이어 반응했는지</strong>로 빠르기를 가늠한다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-emerald-800">무엇으로 답하나</td>
+                            <td>띠에 박힌 낱개의 빛을 <strong>켜는 순서와 밝기</strong>로 답한다. 소리는 내지 않는다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-violet-800">무엇을 말하려 하나</td>
+                            <td>서두를수록 빛이 흩어지는 것을 보며 <strong>자기 걸음의 속도를 알아차리게</strong>
+                                하려는 듯하다. 다만 이것은 <strong>보는 사람의 해석</strong>이지 정답은 아니다.
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    마지막 칸에 <strong>「정답은 아니다」</strong>를 붙인 것에 주목하세요. 작품의 뜻은
+                    작가가 밝히지 않는 한 확정되지 않습니다. 그럴 때는 <strong>내가 무엇을 보고 그렇게
+                    읽었는지</strong>를 함께 말하면 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 내가 본 작품 읽기</p>
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>주변에서 <strong>사람에게 반응하는 것</strong>을 하나 찾습니다. 전시된 작품이 아니어도
+                        됩니다. 자동문도, 센서 등도 괜찮습니다.
+                    </li>
+                    <li>네 물음으로 표를 채웁니다. <strong>앞의 셋은 관찰로</strong> 채우고, 넷째는 추측으로
+                        채우되 <strong>「무엇을 보고 그렇게 읽었는지」</strong>를 붙입니다.
+                    </li>
+                    <li>넷째 칸을 채우다 보면 <strong>「이건 작품이 아니라 그냥 장치인데」</strong> 싶어질 수
+                        있습니다. 그 차이가 무엇인지 한 줄로 적어 보세요.
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                계단의 빛이 <strong>「누구인지는 읽지 않는다」</strong>고 했습니다. 만약 누구인지까지
+                읽는다면 무엇이 더 가능해지고, 무엇을 내려놓게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">미디어 아트</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>빛 &middot; 소리 &middot; 움직임 같은 <strong>디지털 매체 자체를 재료로 삼는</strong> 예술이다.</li>
+                    <li>가르는 기준은 <strong>「완성된 뒤에도 작품이 달라지는가」</strong>다.</li>
+                    <li>작가가 만드는 것은 결과가 아니라 <strong>「이러면 저렇게 한다」는 규칙</strong>이다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">무엇이 달라지나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>관람자가 작품의 일부가 되고, 같은 작품을 사람마다 다르게 본다.</li>
+                    <li>사람이 지나다니는 곳이 <strong>오히려 좋은 자리</strong>가 된다.</li>
+                    <li>대신 고장 &middot; 보존 &middot; 사람을 읽는 문제 &middot; <strong>답을 못 받는
+                        관람자</strong>라는 어려움이 따라온다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">갈래</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>인터랙티브 아트</strong>는 관람자가, <strong>키네틱 아트</strong>는 정해 둔
+                        차례가, <strong>데이터 작품</strong>은 바깥 숫자가 움직인다.
+                    </li>
+                    <li>갈래는 서랍이 아니라 <strong>뜯어볼 때 쓰는 이름</strong>이다. 겹칠 수 있다.</li>
+                    <li>「무엇이 끊기면 어떻게 되는가」를 물으면 그 작품이 무엇에 기대는지 드러난다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-slate-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">작품 읽는 법</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>무엇을 받나 &middot; 어떻게 판단하나 &middot; 무엇으로 답하나 &middot;
+                        무엇을 말하려 하나.</strong></li>
+                    <li>앞의 셋은 구조, 마지막 하나는 뜻이다. <strong>한쪽만 보면 반쪽만 본 것</strong>이다.</li>
+                    <li>뜻은 확정되지 않는다. <strong>무엇을 보고 그렇게 읽었는지</strong>를 함께 말한다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    미디어 아트와 <strong>디지털 도구로 그린 그림</strong>을 가르는 기준은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '컴퓨터를 썼는지는 기준이 되지 못합니다. 태블릿으로 그린 그림도 컴퓨터를 씁니다.')">
+                    ① 컴퓨터를 썼는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 완성된 뒤에도 계속 달라지는지가 기준입니다.')">
+                    ② 완성된 뒤에도 작품이 계속 달라지는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전시 장소는 기준이 아닙니다. 갤러리 안의 미디어 아트도 많습니다.')">
+                    ③ 갤러리 밖에서 전시하는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '크기와는 상관이 없습니다. 손바닥만 한 미디어 아트도 있습니다.')">
+                    ④ 작품의 크기가 큰가
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    미디어 아트 작가가 만드는 것은 무엇인가요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과 한 장을 만드는 것은 그림에 가깝습니다.')">
+                    ① 완성된 결과 한 장면
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 「이러면 저렇게 한다」는 규칙을 만들기 때문에 작가도 결과를 다 알지 못합니다.')">
+                    ② 무엇을 보고 어떻게 답할지에 대한 규칙
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '관람자가 볼 순서를 강제로 정하는 것이 아닙니다. 오히려 관람자가 어떻게 움직일지 모릅니다.')">
+                    ③ 관람자가 볼 순서를 정한 안내판
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '부품 목록은 만드는 과정에 필요할 뿐 작품의 핵심이 아닙니다.')">
+                    ④ 사용한 부품의 목록
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>데이터를 보여 주는 작품</strong>에서 가장 다루기 까다로운 상황은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '관람자가 없어도 이 갈래는 계속 움직입니다. 사람이 움직이는 것은 인터랙티브 쪽입니다.')">
+                    ① 관람자가 아무도 오지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 숫자가 끊기면 마지막 값에 멈춰 서는데, 멈춘 줄도 모르기 쉽습니다.')">
+                    ② 들어오던 숫자가 끊겨 마지막 값에 멈춰 선다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전원이 끊기면 아예 꺼지므로 오히려 알아채기 쉽습니다.')">
+                    ③ 전원이 끊겨 아예 꺼진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '색이 자주 바뀌는 것은 그 갈래의 자연스러운 모습입니다.')">
+                    ④ 색이 자주 바뀐다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    작품의 <strong>뜻을 말할 때</strong> 함께 해야 할 일은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '작가의 설명이 없으면 말할 수 없다고 하면 아무 이야기도 시작되지 않습니다.')">
+                    ① 작가가 설명해 줄 때까지 아무 말도 하지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 뜻은 확정되지 않으므로, 무엇을 보고 그렇게 읽었는지 근거를 함께 말합니다.')">
+                    ② 무엇을 보고 그렇게 읽었는지 근거를 함께 말한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 많은 사람이 말한 해석이 정답이 되지는 않습니다.')">
+                    ③ 가장 많은 사람이 말한 해석을 정답으로 삼는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '쓰인 부품만 적으면 구조는 보여도 뜻은 남지 않습니다.')">
+                    ④ 쓰인 부품을 빠짐없이 적는다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

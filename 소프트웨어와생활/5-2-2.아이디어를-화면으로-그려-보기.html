@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이디어를 화면으로 그려 보기</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-pen-ruler absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-mobile-screen absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            아이디어를 화면으로 그려 보기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            만들기 전에 종이 위에서<br><strong>먼저 써 보게 합니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>만들기 전에 그려 보는 것이 <strong>왜 이득인지</strong> 설명할 수 있다.</li>
+                    <li>아이디어를 <strong>화면 흐름도</strong>로 그릴 수 있다.</li>
+                    <li>종이 화면을 남에게 <strong>써 보게 하고</strong> 그 결과로 고칠 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-pen-ruler text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">아이디어를 화면으로 그려 보기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#why" class="hover:text-emerald-600 transition">왜 먼저 그리나</a>
+            <a href="#flow" class="hover:text-emerald-600 transition">화면 흐름도</a>
+            <a href="#test" class="hover:text-emerald-600 transition">써 보게 하기</a>
+            <a href="#fix" class="hover:text-emerald-600 transition">고쳐서 다시</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 왜 먼저 그리나 ══════════ -->
+    <section id="why" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">왜 먼저 그리나</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 시간에 <strong>아이디어를 좁혔습니다.</strong> 이제 만들 차례 같지만, 그 사이에
+                한 걸음이 더 있습니다. <strong>종이에 화면을 그려 남에게 써 보게 하는</strong>
+                일입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그릴 것도 없이 바로 만들면 안 될까요? <strong>고치는 값이 언제 드러나느냐</strong>가
+                다릅니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 260" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="네 단계가 왼쪽에서 오른쪽으로 놓여 있고 그 위의 막대가 점점 높아진다. 종이에 그렸을 때 · 화면만 만들었을 때 · 돌아가게 만들었을 때 · 사람들이 쓰기 시작했을 때 순서이며, 고치는 값이 점점 커진다는 뜻이다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">잘못을 늦게 찾을수록 고치는 값이 커진다</text>
+
+                    <line x1="46" y1="176" x2="546" y2="176" stroke="#94a3b8" stroke-width="2.5"/>
+
+                    <rect x="56" y="158" width="96" height="18" rx="4" fill="#a7f3d0" stroke="#047857" stroke-width="2.5"/>
+                    <text x="104" y="200" font-size="16" fill="#064e3b" font-weight="700" text-anchor="middle">종이에</text>
+                    <text x="104" y="220" font-size="16" fill="#064e3b" font-weight="700" text-anchor="middle">그렸을 때</text>
+                    <text x="104" y="146" font-size="16" fill="#047857" font-weight="700" text-anchor="middle">지우개</text>
+
+                    <rect x="180" y="126" width="96" height="50" rx="4" fill="#bae6fd" stroke="#0284c7" stroke-width="2.5"/>
+                    <text x="228" y="200" font-size="16" fill="#075985" font-weight="700" text-anchor="middle">화면만</text>
+                    <text x="228" y="220" font-size="16" fill="#075985" font-weight="700" text-anchor="middle">만들었을 때</text>
+                    <text x="228" y="114" font-size="16" fill="#0284c7" font-weight="700" text-anchor="middle">하루</text>
+
+                    <rect x="304" y="86" width="96" height="90" rx="4" fill="#fde68a" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="352" y="200" font-size="16" fill="#78350f" font-weight="700" text-anchor="middle">돌아가게</text>
+                    <text x="352" y="220" font-size="16" fill="#78350f" font-weight="700" text-anchor="middle">만들었을 때</text>
+                    <text x="352" y="74" font-size="16" fill="#b45309" font-weight="700" text-anchor="middle">한 주</text>
+
+                    <rect x="428" y="50" width="96" height="126" rx="4" fill="#fecaca" stroke="#dc2626" stroke-width="2.5"/>
+                    <text x="476" y="200" font-size="16" fill="#7f1d1d" font-weight="700" text-anchor="middle">사람들이</text>
+                    <text x="476" y="220" font-size="16" fill="#7f1d1d" font-weight="700" text-anchor="middle">쓰기 시작했을 때</text>
+                    <text x="476" y="38" font-size="16" fill="#dc2626" font-weight="700" text-anchor="middle">다시 처음부터</text>
+
+                    <text x="288" y="248" font-size="16" fill="#64748b" text-anchor="middle">막대 높이는 느낌을 나타낸 것이지 측정한 값이 아니다</text>
+                </svg>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">그래서 가장 싼 자리에서 틀려 둔다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    종이는 <strong>지우면 끝</strong>입니다. 그러니 <strong>일부러 종이에서 많이
+                    틀려 보는</strong> 것이 이득입니다. 이것은 Ⅳ단원의 생각과 같습니다 &mdash;
+                    실제로 해 보기 어려우니 <strong>먼저 모형에서 해 봤던</strong> 것 말입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다만 <strong>종이에서 찾을 수 있는 문제는 정해져 있습니다.</strong>
+                    <strong>「어디를 눌러야 할지 몰라 헤매는」</strong> 문제는 찾을 수 있지만,
+                    <strong>「느려서 짜증 나는」</strong> 문제는 찾을 수 없습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                종이로는 <strong>찾을 수 없는 문제</strong>를 하나 더 들어 보세요. 그런 문제는
+                언제 드러날까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 화면 흐름도 ══════════ -->
+    <section id="flow" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">화면 흐름도</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                먼저 <strong>화면 하나하나를 예쁘게 그리려 하지 않습니다.</strong> 그 대신
+                <strong>어디서 어디로 가는지</strong>를 그립니다. 이것을 화면 흐름도라고 하겠습니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞 시간에 좁혀 둔 <strong>급식 줄 알림</strong>으로 그려 보겠습니다. 남긴 기능은
+                <strong>「지금 줄이 얼마나 긴지 보기」</strong> 하나였습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 300" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="네 개의 화면 상자가 화살표로 이어져 있다. 첫 화면에서 지금 줄 보기 화면으로 가고, 거기서 되돌아오거나 알려 주기 설정 화면으로 갈 수 있다. 아래에는 값을 못 받았을 때 화면이 따로 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">급식 줄 알림 &mdash; 화면 흐름도</text>
+
+                    <rect x="20" y="72" width="132" height="82" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="2.5"/>
+                    <text x="86" y="104" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">첫 화면</text>
+                    <text x="86" y="130" font-size="16" fill="#475569" text-anchor="middle">큰 단추 하나</text>
+
+                    <rect x="222" y="72" width="132" height="82" rx="10" fill="#a7f3d0" stroke="#047857" stroke-width="3"/>
+                    <text x="288" y="98" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">지금 줄 보기</text>
+                    <text x="288" y="122" font-size="16" fill="#065f46" text-anchor="middle">몇 명 · 몇 분</text>
+                    <text x="288" y="144" font-size="16" fill="#065f46" text-anchor="middle">언제 측정한 값인지</text>
+
+                    <rect x="424" y="72" width="132" height="82" rx="10" fill="#e0e7ff" stroke="#4338ca" stroke-width="2.5"/>
+                    <text x="490" y="104" font-size="17" fill="#312e81" font-weight="700" text-anchor="middle">알려 주기 설정</text>
+                    <text x="490" y="130" font-size="16" fill="#4338ca" text-anchor="middle">몇 명 아래면</text>
+
+                    <rect x="222" y="206" width="132" height="66" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2.5"/>
+                    <text x="288" y="234" font-size="17" fill="#7f1d1d" font-weight="700" text-anchor="middle">값을 못 받음</text>
+                    <text x="288" y="258" font-size="16" fill="#991b1b" text-anchor="middle">다시 시도 단추</text>
+
+                    <path d="M152 100 L216 100" stroke="#334155" stroke-width="2.5" marker-end="url(#a521)"/>
+                    <text x="184" y="90" font-size="16" fill="#334155" font-weight="700" text-anchor="middle">누름</text>
+
+                    <path d="M216 132 L156 132" stroke="#334155" stroke-width="2.5" marker-end="url(#a521)"/>
+                    <text x="186" y="150" font-size="16" fill="#334155" text-anchor="middle">뒤로</text>
+
+                    <path d="M354 100 L418 100" stroke="#334155" stroke-width="2.5" marker-end="url(#a521)"/>
+                    <text x="386" y="90" font-size="16" fill="#334155" text-anchor="middle">톱니</text>
+
+                    <path d="M418 132 L358 132" stroke="#334155" stroke-width="2.5" marker-end="url(#a521)"/>
+                    <text x="388" y="150" font-size="16" fill="#334155" text-anchor="middle">저장</text>
+
+                    <path d="M288 154 L288 200" stroke="#dc2626" stroke-width="2.5" marker-end="url(#r521)"/>
+                    <text x="374" y="184" font-size="16" fill="#dc2626" font-weight="700" text-anchor="middle">값이 안 올 때</text>
+
+                    <defs>
+                        <marker id="a521" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+                            <path d="M0 0 L9 4 L0 8 z" fill="#334155"/>
+                        </marker>
+                        <marker id="r521" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+                            <path d="M0 0 L9 4 L0 8 z" fill="#dc2626"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">빨간 상자가 핵심이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「잘 될 때」만 그리면 흐름도가 반쪽</strong>입니다. 실제로 무너지는 자리는
+                    거의 언제나 <strong>「값이 안 올 때 &middot; 아무도 없을 때 &middot; 너무 많을 때」</strong>
+                    입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    Ⅱ단원에서 센서 값이 안 나올 때 무엇을 보여 줄지 정했던 것과 같습니다.
+                    <strong>흐름도를 그렸으면 상자마다 「여기서 잘못되면?」을 한 번씩 물어 보세요.</strong>
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그릴 때의 규칙 넷</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">화면 흐름도를 그릴 때의 규칙</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-40">규칙</th>
+                        <th>왜</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">색을 쓰지 않는다</td>
+                        <td>색을 정하기 시작하면 <strong>흐름 이야기가 색 이야기로</strong> 바뀝니다.
+                            지금 정할 것은 흐름입니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">화살표에 이름을 붙인다</td>
+                        <td><strong>무엇을 눌러서 옮겨 가는지</strong> 적습니다. 안 적으면 「어디를
+                            눌러야 하지?」가 남습니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">돌아오는 길도 그린다</td>
+                        <td>들어가는 화살표만 있고 <strong>나오는 화살표가 없는 화면</strong>은
+                            갇히는 화면입니다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">화면 수를 세어 본다</td>
+                        <td>다섯을 넘으면 <strong>기능을 덜 좁힌</strong> 것일 수 있습니다. 앞 시간의
+                            좁히기로 돌아갑니다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 모둠 아이디어의 흐름도를 그려 보세요. 그린 뒤에 <strong>나오는 화살표가 없는
+                화면</strong>이 있는지 확인하세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 써 보게 하기 ══════════ -->
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">써 보게 하기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                흐름도를 그렸으면 <strong>화면을 종이 한 장에 하나씩</strong> 그립니다. 예쁘게 그릴
+                필요는 없습니다. <strong>무엇이 어디에 있는지</strong>만 알아보면 됩니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그리고 <strong>모둠 밖 사람</strong>을 데려와 써 보게 합니다. 이때
+                <strong>지키기 어려운 규칙이 하나</strong> 있습니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">설명하지 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「여기 이 단추를 누르시면요」라고 말하는 순간 <strong>시험은 끝난 것</strong>입니다.
+                    실제로 쓸 때는 <strong>옆에서 설명해 줄 사람이 없기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    할 일은 <strong>시키기</strong>뿐입니다. <strong>「지금 급식 줄이 얼마나 긴지
+                    알아보세요」</strong>라고 말하고, <strong>입을 다물고 봅니다.</strong>
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">시험할 때 해도 되는 말과 하면 안 되는 말</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">해도 되는 말</th>
+                        <th>하면 안 되는 말</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">「~을 해 보세요」</td>
+                        <td class="text-rose-800">「여기를 누르세요」 &mdash; 답을 알려 준 것입니다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">「지금 무슨 생각을 하고 계세요?」</td>
+                        <td class="text-rose-800">「쉽죠?」 &mdash; 어렵다고 말하기 어려워집니다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">「그렇게 하신 까닭이 뭐예요?」</td>
+                        <td class="text-rose-800">「그건 그런 뜻이 아니고요」 &mdash; 잘못 읽은 것이 자료입니다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">(아무 말 없이 기다리기)</td>
+                        <td class="text-rose-800">「어때요, 괜찮아요?」 &mdash; 괜찮다는 답만 돌아옵니다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">한 사람이 종이를 넘기는 역할을 맡는다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                종이는 눌러도 바뀌지 않으므로, 모둠원 하나가 <strong>화면 노릇</strong>을 합니다.
+                쓰는 사람이 어딘가를 손가락으로 누르면 <strong>흐름도에 그려 둔 대로</strong>
+                다음 종이를 올려놓습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-800">화면 노릇</p>
+                    <p class="text-base text-slate-700 leading-relaxed">종이를 넘긴다. <strong>말은 하지
+                        않는다.</strong> 흐름도에 없는 곳을 누르면 그냥 가만히 있는다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-800">시키는 사람</p>
+                    <p class="text-base text-slate-700 leading-relaxed">할 일을 말하고 기다린다.
+                        <strong>도와주고 싶어도 참는다.</strong>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-base text-slate-800">적는 사람</p>
+                    <p class="text-base text-slate-700 leading-relaxed"><strong>한 일과 한 말을 그대로</strong>
+                        적는다. 해석은 나중에 한다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">흐름도에 없는 곳을 누르는 것이 가장 값진 자료</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    화면 노릇을 맡은 사람이 <strong>가만히 있어야</strong> 하는 까닭이 여기 있습니다.
+                    엉뚱한 곳을 눌렀다는 것은 <strong>그 사람이 거기에 무언가 있을 것이라 생각했다</strong>는
+                    뜻입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그 자리에 정말로 무언가를 두어야 할지 <strong>나중에 판단</strong>하면 됩니다.
+                    지금은 <strong>어디를 눌렀는지 적기</strong>만 합니다. 앞 시간에 배운
+                    <strong>「그대로 적은 말」과 「읽어 낸 것」을 나누는</strong> 방식 그대로입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「쉽죠?」라고 물으면 <strong>왜 괜찮다는 답만 돌아올까요?</strong> 상대의 처지에서
+                생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 고쳐서 다시 ══════════ -->
+    <section id="fix" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">고쳐서 다시</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                적어 둔 것을 놓고 무엇을 고칠지 정합니다. 세 사람에게 써 보게 했다고 하고,
+                <strong>수업에서 원리를 확인하려고 지어낸 기록</strong>으로 해 보겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">시험 기록과 그로부터 정한 고칠 거리</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">누가</th>
+                        <th>본 것 (그대로)</th>
+                        <th class="w-44">고칠 거리</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 A</td>
+                        <td>첫 화면에서 3초 멈췄다가 큰 단추를 눌렀다</td>
+                        <td>문제 없음</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 B</td>
+                        <td>숫자를 보고 <strong>「이거 지금 건가?」</strong>라고 말했다</td>
+                        <td>언제 측정한 값인지 <strong>더 크게</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 C</td>
+                        <td>숫자를 <strong>손가락으로 눌러</strong> 봤다</td>
+                        <td>누르면 <strong>최근 흐름</strong>을 보여 줄까?</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 B &middot; C</td>
+                        <td>둘 다 톱니 그림을 <strong>한 번도 안 눌렀다</strong></td>
+                        <td>설정이 정말 필요한지 다시 보기</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">셋째 줄은 고칠 거리가 아니라 물음이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한 사람이 숫자를 눌렀다고 해서 <strong>바로 기능을 붙이면</strong> 앞 시간에
+                    좁혀 놓은 것이 다시 늘어납니다. 「누르면 흐름 보기」는
+                    <strong>앞 시간의 사분면으로 되돌아가</strong> 다시 걸러야 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>본 것이 곧 할 일은 아닙니다.</strong> 한 번 본 것은 물음이고,
+                    <strong>여럿에게서 같은 것이 나오면</strong> 그때 할 일이 됩니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">그러면 넷째 줄은?</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                둘 다 톱니를 안 눌렀습니다. 두 사람이 같았으니 <strong>할 일에 가깝습니다.</strong>
+                다만 <strong>「눈에 안 띈 것」인지 「필요가 없는 것」인지</strong>는 아직 모릅니다.
+                다음 시험에서 <strong>「몇 명 아래면 알려 주도록 맞춰 보세요」</strong>라고 시켜 보면
+                갈립니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다음 시험 결과에 따른 판단</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-52">시켰더니</th>
+                        <th>그러면</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">한참 헤매다 찾았다</td>
+                        <td><strong>눈에 안 띈 것.</strong> 톱니 그림을 글자로 바꿔 본다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">찾았지만 「이걸 왜 하죠?」 했다</td>
+                        <td><strong>필요가 없는 것.</strong> 화면을 통째로 뺄지 살펴본다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">한 바퀴로 끝나지 않는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>그린다 → 써 보게 한다 → 고친다</strong>를 <strong>두세 바퀴</strong> 돕니다.
+                    종이는 값이 싸므로 여러 번 돌 수 있습니다. 이것이
+                    <strong>앞 시간의 다섯 단계 가운데 「되짚기」</strong>를 실제로 하는 방법입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>남는 어려움</strong> &mdash; 매번 <strong>다른 사람</strong>을 데려와야
+                    합니다. 같은 사람은 두 번째부터 이미 길을 알고 있어서
+                    <strong>헤매는 자리가 안 보입니다.</strong> 그런데 학교에서는 데려올 사람이
+                    많지 않습니다. <strong>몇 명까지 돌 수 있는지 미리 정해</strong> 두고 시작하세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                같은 사람에게 두 번 시험하면 <strong>무엇을 못 보게</strong> 될까요? 그래도 같은
+                사람에게 다시 해 볼 만한 경우가 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">왜 먼저 그리나</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>늦게 찾을수록 고치는 값이 커진다.</strong></li>
+                    <li>종이는 지우면 끝이니 <strong>거기서 많이 틀려 둔다.</strong></li>
+                    <li>종이로 찾을 수 있는 문제는 <strong>정해져 있다</strong> &mdash; 헤매는 것은 보이고
+                        느린 것은 안 보인다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">화면 흐름도</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>예쁘게가 아니라 <strong>어디서 어디로</strong>를 그린다.</li>
+                    <li><strong>잘못될 때의 화면</strong>을 반드시 넣는다.</li>
+                    <li>색 안 쓰기 &middot; 화살표에 이름 &middot; 돌아오는 길 &middot; 화면 수 세기.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">써 보게 하기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>설명하지 않는다.</strong> 시키고 입을 다문다.</li>
+                    <li>「쉽죠?」는 <strong>괜찮다는 답만</strong> 부른다.</li>
+                    <li><strong>흐름도에 없는 곳을 누르는 것</strong>이 가장 값진 자료다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">고쳐서 다시</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>본 것이 곧 할 일은 아니다.</strong> 한 번은 물음, 여럿이면 할 일.</li>
+                    <li>안 눌렀다면 <strong>안 띄었는지 필요 없는지</strong> 다음 시험으로 가른다.</li>
+                    <li>두세 바퀴 돈다. 다만 <strong>매번 다른 사람</strong>이 필요하다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    만들기 전에 <strong>종이에 그려 보는 까닭</strong>으로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '종이로는 빠른지 느린지를 알 수 없습니다.')">
+                    ① 얼마나 빠른지 알아보려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 늦게 찾을수록 고치는 값이 커지므로 가장 싼 자리에서 틀려 둡니다.')">
+                    ② 잘못을 가장 값싸게 찾으려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '종이 그림은 발표용이 아니라 고치기 위한 것입니다.')">
+                    ③ 발표할 때 보여 주려고
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오히려 흐름을 정하는 단계라 색은 쓰지 않습니다.')">
+                    ④ 화면 색을 미리 정하려고
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    화면 흐름도에서 <strong>빠뜨리기 쉬운 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '첫 화면은 대개 가장 먼저 그립니다.')">
+                    ① 첫 화면
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 값이 안 올 때 · 아무도 없을 때 같은 화면을 빠뜨리면 흐름도가 반쪽입니다.')">
+                    ② 잘못됐을 때 보여 줄 화면
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 중요한 기능은 아이디어의 중심이라 빠뜨리기 어렵습니다.')">
+                    ③ 가장 중요한 기능의 화면
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면 제목은 흐름도 단계에서 그리 중요하지 않습니다.')">
+                    ④ 화면 제목
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    종이 화면을 써 보게 할 때 <strong>해도 되는 말</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '누를 곳을 알려 주면 그 순간 시험이 끝납니다.')">
+                    ① 「여기 이 단추를 누르시면 돼요」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '쉽냐고 물으면 어렵다고 말하기 어려워집니다.')">
+                    ② 「쉽죠?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 할 일을 시키고 기다리는 것이 규칙입니다.')">
+                    ③ 「지금 줄이 얼마나 긴지 알아보세요」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '잘못 읽었다고 바로잡아 주면 그 잘못이 자료로 남지 않습니다.')">
+                    ④ 「그건 그런 뜻이 아니고요」
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    한 사람이 어떤 곳을 눌러 봤다는 기록을 <strong>어떻게 다뤄야</strong> 하나?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '한 사람이 눌렀다고 바로 기능을 붙이면 좁혀 둔 것이 다시 늘어납니다.')">
+                    ① 바로 그 기능을 만든다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 한 번 본 것은 물음이고, 여럿에게서 같은 것이 나올 때 할 일이 됩니다.')">
+                    ② 물음으로 남겨 두고 다시 걸러 본다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '엉뚱한 곳을 누른 기록은 오히려 값진 자료입니다.')">
+                    ③ 잘못 누른 것이므로 적지 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '흐름도에 없는 곳을 눌렀다는 사실 자체가 뜻이 있습니다.')">
+                    ④ 흐름도에 없으니 없던 일로 한다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이디어를 다듬는 다섯 단계</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-clipboard-list absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-comment-dots absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            아이디어를 다듬는 다섯 단계
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            묻는 법이 다르면<br><strong>전혀 다른 답이 돌아옵니다</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>아이디어를 다듬는 <strong>다섯 단계</strong>를 차례대로 설명할 수 있다.</li>
+                    <li>쓸 사람에게 <strong>제대로 묻는 법</strong>을 알고 나쁜 물음을 고칠 수 있다.</li>
+                    <li>기능을 <strong>하나로 좁히는</strong> 기준을 대어 볼 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-clipboard-list text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">아이디어를 다듬는 다섯 단계</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#steps" class="hover:text-emerald-600 transition">다섯 단계</a>
+            <a href="#ask" class="hover:text-emerald-600 transition">묻는 법</a>
+            <a href="#narrow" class="hover:text-emerald-600 transition">좁히기</a>
+            <a href="#value" class="hover:text-emerald-600 transition">평가까지가 한 단계</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 다섯 단계 ══════════ -->
+    <section id="steps" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">다섯 단계</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                아이디어가 떠오르면 바로 만들고 싶어집니다. 그런데 앞 시간에 본
+                <strong>가장 흔한 실패</strong>가 「원하는 사람이 없었다」였습니다. 이 실패를 막는 순서가
+                있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 234" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="다섯 개의 번호 붙은 상자가 이어진다. 알아보기, 고르기, 좁히기, 만들기, 되짚기 순서이며 마지막에서 첫째로 돌아가는 화살표가 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">아이디어는 이 순서로 다듬는다</text>
+
+                    <rect x="8" y="76" width="102" height="70" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <circle cx="28" cy="94" r="11" fill="#059669"/>
+                    <text x="28" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+                    <text x="59" y="130" font-size="16" fill="#064e3b" font-weight="700" text-anchor="middle">알아보기</text>
+
+                    <path d="M116 111 L126 111" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M122 103 L134 111 L122 119 Z" fill="#94a3b8"/>
+
+                    <rect x="138" y="76" width="94" height="70" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <circle cx="158" cy="94" r="11" fill="#2563eb"/>
+                    <text x="158" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+                    <text x="185" y="130" font-size="16" fill="#1e3a8a" font-weight="700" text-anchor="middle">고르기</text>
+
+                    <path d="M238 111 L248 111" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M244 103 L256 111 L244 119 Z" fill="#94a3b8"/>
+
+                    <rect x="260" y="76" width="94" height="70" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <circle cx="280" cy="94" r="11" fill="#d97706"/>
+                    <text x="280" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+                    <text x="307" y="130" font-size="16" fill="#78350f" font-weight="700" text-anchor="middle">좁히기</text>
+
+                    <path d="M360 111 L370 111" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M366 103 L378 111 L366 119 Z" fill="#94a3b8"/>
+
+                    <rect x="382" y="76" width="88" height="70" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <circle cx="402" cy="94" r="11" fill="#7c3aed"/>
+                    <text x="402" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+                    <text x="426" y="130" font-size="16" fill="#4c1d95" font-weight="700" text-anchor="middle">만들기</text>
+
+                    <path d="M476 111 L486 111" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M482 103 L494 111 L482 119 Z" fill="#94a3b8"/>
+
+                    <rect x="480" y="76" width="88" height="70" rx="12" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+                    <circle cx="500" cy="94" r="11" fill="#dc2626"/>
+                    <text x="500" y="100" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+                    <text x="524" y="130" font-size="16" fill="#7f1d1d" font-weight="700" text-anchor="middle">되짚기</text>
+
+                    <path d="M524 168 L524 198 L59 198 L59 168" fill="none" stroke="#94a3b8" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M52 176 L59 164 L66 176 Z" fill="#94a3b8"/>
+                    <text x="292" y="222" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">되짚은 것이 다음 알아보기의 재료가 된다</text>
+                </svg>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다섯 단계에서 하는 일과 넘어가도 되는 조건</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>하는 일</th>
+                        <th class="w-44">넘어가도 되는 때</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">1. 알아보기</td>
+                        <td>쓸 만한 사람들에게 <strong>지금 어떻게 하고 있는지</strong> 묻는다.
+                            여러 주제를 넓게 본다.
+                        </td>
+                        <td>같은 불편을 <strong>세 사람 이상</strong>에게서 들었을 때</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">2. 고르기</td>
+                        <td>여러 후보 가운데 <strong>여섯 물음</strong>으로 하나를 고른다.</td>
+                        <td>고른 까닭을 <strong>말로 설명할 수</strong> 있을 때</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">3. 좁히기</td>
+                        <td>떠오른 기능을 다 적은 뒤 <strong>하나만</strong> 남긴다.</td>
+                        <td>남긴 하나로도 <strong>문제가 덜어지는지</strong> 설명될 때</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">4. 만들기</td>
+                        <td>화면을 그리고, 만들 수 있는 만큼 만든다.
+                            <strong>종이로만 만들어도</strong> 된다.
+                        </td>
+                        <td>남에게 <strong>보여 줄 수 있을</strong> 때</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-rose-800">5. 되짚기</td>
+                        <td>세 가지 눈으로 <strong>스스로 따져</strong> 본다. 잘 돌아가는지만 보지 않는다.</td>
+                        <td>고칠 것과 <strong>남는 문제</strong>가 적혔을 때</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">건너뛰기 쉬운 것은 1번</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아이디어가 이미 있으니 <strong>2번부터 시작하고 싶어집니다.</strong> 그러면
+                    <strong>내가 겪은 불편 하나</strong>로 시작하게 되는데, 그것이 나만의 불편일 수도
+                    있습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    1번을 거치면 <strong>「나만 그런 게 아니었구나」</strong>거나 <strong>「나만
+                    그랬구나」</strong>를 알게 됩니다. 어느 쪽이든 <strong>만들기 전에 아는 편이</strong>
+                    낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                1번의 넘어가는 조건이 <strong>「세 사람 이상」</strong>인 까닭은 무엇일까요? 한 사람이면
+                왜 부족한가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 묻는 법 ══════════ -->
+    <section id="ask" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">묻는 법</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                1번 단계의 알맹이는 <strong>묻는 법</strong>입니다. 잘못 물으면 <strong>듣고 싶은 답만
+                듣고</strong> 그대로 만들었다가 아무도 안 쓰는 일이 생깁니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">사람들은 친절해서 「좋다」고 말한다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「이런 앱이 있으면 쓰시겠어요?」</strong>라고 물으면 거의 모두
+                    <strong>「그럼요, 좋겠네요」</strong>라고 합니다. 나쁜 뜻이 아니라
+                    <strong>거절하기 어색하기</strong> 때문입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그 답을 근거로 만들면 <strong>「좋다더니 왜 안 써?」</strong>가 됩니다. 앞으로의
+                    일을 묻지 말고 <strong>이미 있었던 일</strong>을 물어야 합니다.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">나쁜 물음과 고친 물음</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">이렇게 묻지 말고</th>
+                        <th>이렇게 묻는다</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="text-rose-800">「이런 게 있으면 쓰시겠어요?」</td>
+                        <td class="text-emerald-800"><strong>「최근에 그런 상황이 있었나요? 그때 어떻게
+                            하셨어요?」</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-rose-800">「급식 줄이 불편하지 않으세요?」</td>
+                        <td class="text-emerald-800"><strong>「어제 점심에 몇 시에 나가셨어요? 왜 그때
+                            나가셨어요?」</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-rose-800">「이 기능 어때요?」</td>
+                        <td class="text-emerald-800"><strong>「이걸로 ○○을 한번 해 보시겠어요?」</strong>
+                            &mdash; 말 대신 <strong>해 보게</strong> 한다
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-rose-800">「얼마면 사시겠어요?」</td>
+                        <td class="text-emerald-800"><strong>「비슷한 일에 돈이나 시간을 쓴 적이
+                            있으세요?」</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">규칙은 하나 &mdash; 앞일이 아니라 지난 일을 묻는다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞일에 대한 답은 <strong>짐작</strong>이고, 지난 일에 대한 답은 <strong>사실</strong>입니다.
+                    「쓰시겠어요?」는 짐작을 묻고, 「어떻게 하셨어요?」는 사실을 묻습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그리고 사실 쪽이 <strong>훨씬 많은 것을 알려 줍니다.</strong> 「어제는 그냥 늦게
+                    갔어요」라는 답에는 <strong>「불편하지만 참을 만하다」</strong>가 들어 있습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">듣고 나서 하는 일</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다섯 사람에게 물었으면 <strong>답을 그대로 적어</strong> 둡니다. 요약하지 말고
+                <strong>그 사람이 쓴 말 그대로</strong> 적는 것이 좋습니다. 나중에 다시 읽을 때
+                <strong>요약하면서 빠뜨린 것</strong>이 보이기 때문입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">들은 답을 정리하는 표의 예</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">누구</th>
+                        <th class="w-44">그대로 적은 말</th>
+                        <th>여기서 읽어 낸 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 A</td>
+                        <td>「어차피 늦게 가요. 줄 서는 게 싫어서」</td>
+                        <td>줄을 <strong>피하려고 이미 행동을 바꾸고</strong> 있다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 B</td>
+                        <td>「친구가 먼저 가서 봐 주고 알려 줘요」</td>
+                        <td><strong>사람이 대신 하고 있는 일</strong>이 있다. 좋은 신호다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">학생 C</td>
+                        <td>「별생각 없이 그냥 나가요」</td>
+                        <td>이 사람에게는 <strong>아픈 문제가 아니다</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>학생 B의 답이 가장 값집니다.</strong> 사람이 손으로 대신 하고 있는 일이 있다면,
+                그것은 <strong>필요한데 방법이 없어서</strong> 그렇게 하고 있다는 뜻입니다. 이런 자리가
+                만들기 좋은 자리입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                내 아이디어에 대해 물을 <strong>「지난 일을 묻는 물음」</strong>을 두 개 만들어 보세요.
+                「~하시겠어요」가 들어가면 다시 씁니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 좁히기 ══════════ -->
+    <section id="narrow" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">좁히기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                문제를 골랐으면 <strong>어떻게 풀지</strong>가 떠오릅니다. 대개 <strong>여러 개가 한꺼번에</strong>
+                떠오릅니다. 이 단계에서 할 일은 <strong>보태는 것이 아니라 덜어 내는</strong> 것입니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">먼저 다 적는다</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-base text-slate-900">급식 줄 문제에 떠오른 기능들</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    지금 줄 길이 보여 주기 &middot; 몇 분 뒤에 짧아질지 알려 주기 &middot; 오늘 메뉴 보여 주기
+                    &middot; 알림 보내기 &middot; 친구랑 같이 갈 시간 정하기 &middot; 요일별 통계 보기
+                    &middot; 자리 예약하기 &middot; 남은 메뉴 알려 주기 &middot; 급식 평가하기
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                아홉 개입니다. 다 만들면 좋겠지만 <strong>다 만들다 아무것도 못 끝냅니다.</strong>
+                앞 시간에 본 <strong>두 번째 실패</strong>가 그것입니다. 하나만 남겨야 합니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">두 가지로 갈라 본다</p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 300" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="가로축은 만들기 쉬운 정도, 세로축은 문제를 더는 정도인 사분면 그림이다. 오른쪽 위 칸이 먼저 만들 것, 왼쪽 위는 나중에, 오른쪽 아래는 나중에 곁들이기, 왼쪽 아래는 하지 않기로 표시되어 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">문제를 얼마나 더는가 &times; 얼마나 쉬운가</text>
+
+                    <rect x="70" y="46" width="222" height="106" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="181" y="94" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">많이 덜지만 어렵다</text>
+                    <text x="181" y="122" font-size="16" fill="#92400e" text-anchor="middle">나중에 &mdash; 지금은 무리</text>
+
+                    <rect x="296" y="46" width="222" height="106" rx="10" fill="#a7f3d0" stroke="#047857" stroke-width="3"/>
+                    <text x="407" y="94" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">많이 덜고 쉽다</text>
+                    <text x="407" y="122" font-size="16" fill="#065f46" font-weight="700" text-anchor="middle">여기서 하나 고른다</text>
+
+                    <rect x="70" y="156" width="222" height="106" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2.5"/>
+                    <text x="181" y="204" font-size="17" fill="#334155" font-weight="700" text-anchor="middle">조금 덜고 어렵다</text>
+                    <text x="181" y="232" font-size="16" fill="#475569" text-anchor="middle">하지 않는다</text>
+
+                    <rect x="296" y="156" width="222" height="106" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+                    <text x="407" y="204" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">조금 덜지만 쉽다</text>
+                    <text x="407" y="232" font-size="16" fill="#1d4ed8" text-anchor="middle">여유가 있으면 곁들인다</text>
+
+                    <text x="288" y="288" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">오른쪽으로 갈수록 쉽고, 위로 갈수록 문제를 많이 던다</text>
+                </svg>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">떠오른 기능을 두 기준으로 나눠 본 표</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-44">기능</th>
+                        <th class="w-36">문제를 더는가</th>
+                        <th>만들기 쉬운가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">지금 줄 길이 보여 주기</td>
+                        <td><strong>많이</strong> &mdash; 이것만으로 언제 갈지 정할 수 있다</td>
+                        <td><strong>쉽다</strong> &mdash; 세는 방법만 있으면 된다</td>
+                    </tr>
+                    <tr>
+                        <td>몇 분 뒤에 짧아질지</td>
+                        <td>많이</td>
+                        <td>어렵다 &mdash; 지난 기록을 쌓아 헤아려야 한다</td>
+                    </tr>
+                    <tr>
+                        <td>오늘 메뉴 보여 주기</td>
+                        <td>조금 &mdash; 이미 다른 데서 볼 수 있다</td>
+                        <td>쉽다</td>
+                    </tr>
+                    <tr>
+                        <td>자리 예약하기</td>
+                        <td>조금 &mdash; 줄 문제와는 다른 문제다</td>
+                        <td>어렵다 &mdash; 지키지 않는 사람을 어떻게 할지도 정해야 한다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">고른 하나 &mdash; 「지금 줄 길이 보여 주기」</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    많이 덜면서 쉽습니다. 그리고 중요한 점이 하나 더 있습니다 &mdash;
+                    <strong>이것 하나만으로도 쓸모가 있습니다.</strong> 다른 기능이 없어도 문제가 덜어집니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이것이 좁힐 때의 기준입니다. <strong>「이것만 있어도 쓸까?」</strong>에 그렇다고
+                    답할 수 있어야 합니다. 「이건 다른 것과 같이 있어야 뜻이 있다」면
+                    <strong>아직 좁힌 것이 아닙니다.</strong>
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                나머지 여덟 개는 <strong>지우지 말고 목록으로 남겨</strong> 둡니다. Ⅱ단원의
+                「다루지 않을 것」, Ⅳ단원의 「뺀 것」과 같은 자리입니다. <strong>나중에 뭘 할지 이미
+                정해져 있는</strong> 셈이기도 합니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                내 아이디어의 기능을 <strong>다섯 개 이상</strong> 적고 네 칸으로 나눠 보세요.
+                오른쪽 위 칸에 무엇이 들어가나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 평가까지가 한 단계 ══════════ -->
+    <section id="value" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">평가까지가 한 단계</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                만들고 나면 끝난 것 같지만, 마지막에 <strong>되짚는 단계</strong>가 남아 있습니다.
+                여기서 보는 것은 <strong>「잘 돌아가는가」만이 아닙니다.</strong>
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-gear text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">되는가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        하려던 일을 <strong>실제로 해내는가.</strong> 오류 없이 도는가, 쓰는 사람이
+                        설명 없이 할 수 있는가.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>가장 확인하기 쉬운</strong> 눈입니다.
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-people-group text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-emerald-900">누구에게 좋은가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>누가 나아지고 누가 그대로인가.</strong> 못 쓰는 사람은 없는가,
+                        오히려 불리해지는 사람은 없는가.
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        Ⅰ단원의 <strong>「누구에게 좋아지는가」</strong>가 여기 다시 나옵니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-scale-balanced text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">해도 되는가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        무엇을 모으고 있는가, 알리지 않고 하는 일은 없는가,
+                        <strong>사람을 줄 세우지는 않는가.</strong>
+                    </p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>가장 자주 빠뜨리는</strong> 눈입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900">세 눈은 서로를 대신하지 못한다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>잘 돌아가는데 해서는 안 되는 것</strong>이 있습니다. 반대로
+                    <strong>뜻은 좋은데 잘 안 돌아가서 아무도 못 쓰는 것</strong>도 있습니다.
+                    <strong>한 눈으로 다른 눈을 채울 수 없습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    특히 세 번째를 조심합니다. 「기능이 좋으니까」로 넘어가기 쉽지만,
+                    <strong>기능이 좋을수록 문제도 커집니다.</strong> 잘 안 되는 것은 문제를 일으킬
+                    힘도 없습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">급식 줄 알림에 세 눈을 대어 보면</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">급식 줄 알림을 세 가지 눈으로 되짚어 본 표</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">눈</th>
+                        <th>따져 본 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-sky-800">되는가</td>
+                        <td>줄 길이가 <strong>실제와 맞는가.</strong> 늦게 갱신되면 오히려 헛걸음하게 된다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">누구에게 좋은가</td>
+                        <td>화면을 볼 수 없는 사람은 어떻게 되나? <strong>모두가 늦게 가면</strong>
+                            오히려 나중에 몰릴 수도 있다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">해도 되는가</td>
+                        <td>줄을 세느라 <strong>사람을 찍고 있지는 않은가.</strong> 사람 수만 세고
+                            <strong>누구인지는 남기지 않아야</strong> 한다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">두 번째 줄이 뜻밖이다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>모두에게 알려 주면 모두가 같은 판단</strong>을 합니다. 「지금 기니까 나중에
+                    가자」를 다 같이 하면, <strong>나중에 다 같이 몰립니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    Ⅳ단원에서 다룰 만한 이야기입니다 &mdash; <strong>낱낱이 합리적으로 골랐는데 전체가
+                    나빠지는</strong> 그 구조입니다. 만든 것을 되짚을 때 이런 자리를 찾는 것이
+                    두 번째 눈이 하는 일입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「모두가 나중에 가서 나중에 몰린다」를 막으려면 <strong>무엇을 보여 주면</strong>
+                좋을까요? 줄 길이 말고 다른 것을 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">다섯 단계</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>알아보기 &rarr; 고르기 &rarr; 좁히기 &rarr; 만들기 &rarr; 되짚기.</strong></li>
+                    <li>건너뛰기 쉬운 것은 <strong>1번</strong>이다. 아이디어가 이미 있으면 2번부터 하고 싶어진다.</li>
+                    <li>1번을 거치면 <strong>「나만 그런 게 아니었구나」</strong>를 만들기 전에 안다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">묻는 법</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>사람들은 친절해서 <strong>「좋다」고 말한다.</strong> 그 답으로 만들면 안 된다.</li>
+                    <li>규칙은 하나 &mdash; <strong>앞일이 아니라 지난 일을 묻는다.</strong></li>
+                    <li><strong>사람이 손으로 대신 하고 있는 일</strong>을 찾으면 좋은 신호다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">좁히기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>기능을 <strong>「문제를 더는가」와 「만들기 쉬운가」</strong>로 나눠 본다.</li>
+                    <li>고르는 기준은 <strong>「이것만 있어도 쓸까?」</strong>다.</li>
+                    <li>나머지는 지우지 말고 <strong>목록으로 남긴다.</strong></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">평가까지가 한 단계</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>되는가 &middot; 누구에게 좋은가 &middot; 해도 되는가</strong> 세 눈으로 본다.</li>
+                    <li>세 눈은 <strong>서로를 대신하지 못한다.</strong> 잘 돌아가는데 해서는 안 되는 것도 있다.</li>
+                    <li>기능이 좋을수록 <strong>문제도 커진다.</strong> 세 번째 눈을 특히 조심한다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    쓸 사람에게 물을 때 <strong>알맞은 물음</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '앞일을 묻는 물음입니다. 거의 모두 「좋겠다」고 답합니다.')">
+                    ① 「이런 앱이 있으면 쓰시겠어요?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 지난 일을 묻는 물음이라 짐작이 아니라 사실이 돌아옵니다.')">
+                    ② 「어제 점심에는 몇 시에 나가셨어요? 왜요?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이것도 앞일을 묻는 물음이고, 값을 정하는 것은 훨씬 나중 일입니다.')">
+                    ③ 「얼마면 사시겠어요?」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '불편한지 물으면 대개 「불편하다」고 답합니다. 얼마나 불편한지는 알 수 없습니다.')">
+                    ④ 「이거 불편하지 않으세요?」
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「친구가 먼저 가서 봐 주고 알려 줘요」라는 답이 <strong>좋은 신호인 까닭</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '친구가 많다는 것과는 관계가 없습니다.')">
+                    ① 친구가 많은 사람이라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사람이 손으로 대신 하고 있다는 것은 필요한데 방법이 없어서 그렇다는 뜻입니다.')">
+                    ② 필요한데 방법이 없어 사람이 대신 하고 있다는 뜻이라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이미 해결된 것이 아닙니다. 사람이 수고하고 있을 뿐입니다.')">
+                    ③ 이미 해결된 문제라서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아픈 문제가 아니라는 신호는 「별생각 없이 그냥 나간다」 쪽입니다.')">
+                    ④ 아픈 문제가 아니라는 뜻이라서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    기능을 하나로 좁힐 때 <strong>고르는 기준</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가장 만들기 쉬운 것만 고르면 문제가 덜어지지 않을 수 있습니다.')">
+                    ① 가장 만들기 쉬운 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 「이것만 있어도 쓸까?」에 그렇다고 답할 수 있어야 좁힌 것입니다.')">
+                    ② 그것만 있어도 쓸 만한 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '멋있어 보이는 것은 기준이 아닙니다.')">
+                    ③ 발표할 때 가장 멋있어 보이는 것
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '다른 것과 같이 있어야 뜻이 있다면 아직 좁힌 것이 아닙니다.')">
+                    ④ 다른 기능들과 잘 어울리는 것
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    되짚기의 세 눈 가운데 <strong>가장 자주 빠뜨리는</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '잘 돌아가는지는 가장 확인하기 쉽고, 그래서 대개 확인합니다.')">
+                    ① 되는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '누구에게 좋은지도 빠뜨리기 쉽지만, 가장 자주 빠뜨리는 것은 따로 있습니다.')">
+                    ② 누구에게 좋은가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 「기능이 좋으니까」로 넘어가기 쉽지만, 기능이 좋을수록 문제도 커집니다.')">
+                    ③ 해도 되는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '세 눈은 서로를 대신하지 못하므로 하나만 보면 안 됩니다.')">
+                    ④ 셋 중 하나만 보면 된다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

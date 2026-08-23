@@ -2,7 +2,7 @@
 
 [![Build & Deploy](https://github.com/itmir913/Visual-Assets-for-CS-Teacher/actions/workflows/deploy.yml/badge.svg)](https://github.com/itmir913/Visual-Assets-for-CS-Teacher/actions/workflows/deploy.yml)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![오프라인 zip](https://img.shields.io/badge/오프라인%20zip-내려받기-blue?logo=files&logoColor=white)](https://github.com/itmir913/Visual-Assets-for-CS-Teacher/releases/download/offline-latest/lecture-notes-offline.zip)
+[![오프라인 zip](https://img.shields.io/badge/오프라인%20zip-내려받기-blue?logo=files&logoColor=white)](https://github.com/itmir913/Visual-Assets-for-CS-Teacher/releases/tag/offline-latest)
 
 프로그래밍과 컴퓨터 과학 개념을 수업에서 직관적으로 설명할 수 있도록 만든 웹 강의노트입니다. 모든 자료는 웹페이지 형태로 제공되며, 별도의 설치 없이 브라우저에서 바로 수업에 사용할 수 있습니다.
 

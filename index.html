@@ -196,7 +196,8 @@
             컴퓨터 과학의 세계로 오신 것을 환영합니다. <br class="hidden md:block">프로그래밍과 알고리즘 개념을 직관적인 시각 자료로 만나보세요.
         </p>
 
-        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher/releases/download/offline-latest/lecture-notes-offline.zip"
+        <a id="offline-download"
+           href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher/releases/tag/offline-latest"
            class="inline-flex items-center gap-2 mt-6 bg-white text-indigo-700 hover:bg-indigo-50 font-bold px-6 py-3 rounded-full shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5">
             <i class="fa-solid fa-download"></i>
             <span>오프라인 버전 내려받기</span>
@@ -1363,16 +1364,24 @@
 </script>
 
 <script>
-    // 오프라인 번들의 빌드 시각 표시. 다운로드 링크 자체는 고정 URL이라
-    // 이 fetch가 실패해도(오프라인, API 요청 제한 등) 버튼은 그대로 동작한다.
+    // 오프라인 번들의 빌드 시각을 표시하고, 버튼을 zip 직접 주소로 바꾼다.
+    //
+    // zip 이름에는 빌드 시각이 붙어 있어(`lecture-notes-offline-20260823-1530.zip`)
+    // **주소를 미리 적어 둘 수 없다.** 그래서 버튼의 기본 href는 릴리즈 페이지이고,
+    // 이 fetch가 성공했을 때만 한 번에 받는 직접 주소로 바뀐다.
+    // 실패해도(오프라인, API 요청 제한 등) 릴리즈 페이지에서 받을 수 있다.
     (function () {
         const el = document.getElementById('offline-build-time');
+        const link = document.getElementById('offline-download');
         if (!el) return;
         fetch('https://api.github.com/repos/itmir913/Visual-Assets-for-CS-Teacher/releases/tags/offline-latest')
             .then(res => res.ok ? res.json() : Promise.reject(res.status))
             .then(data => {
-                const asset = (data.assets || []).find(a => a.name === 'lecture-notes-offline.zip');
+                const asset = (data.assets || [])
+                    .filter(a => a.name.startsWith('lecture-notes-offline') && a.name.endsWith('.zip'))
+                    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
                 if (!asset) throw new Error('asset not found');
+                if (link) link.href = asset.browser_download_url;
                 const built = new Date(asset.updated_at);
                 const formatted = built.toLocaleString('ko-KR', {
                     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -1381,7 +1390,7 @@
                 el.textContent = `최신 빌드: ${formatted}`;
             })
             .catch(() => {
-                el.textContent = '빌드 정보를 불러오지 못했습니다';
+                el.textContent = '빌드 정보를 불러오지 못했습니다 · 버튼을 누르면 내려받는 곳이 열립니다';
             });
     })();
 </script>

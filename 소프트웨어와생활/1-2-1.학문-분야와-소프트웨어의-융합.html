@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학문 분야와 소프트웨어의 융합</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-atom absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-puzzle-piece absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            학문 분야와 소프트웨어의 융합
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            도구로 쓰는 것과 융합은 다릅니다<br>무엇이 <strong>새로 가능해졌는가</strong>로 가릅니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>소프트웨어를 <strong>도구로 쓰는 것</strong>과 <strong>융합</strong>이 어떻게 다른지 설명할 수 있다.</li>
+                    <li>인문 · 사회 · 과학 · 예술에서 소프트웨어와 융합한 사례를 하나씩 들 수 있다.</li>
+                    <li>융합이 이루어지려면 <strong>어떤 단계를 거쳐야 하는지</strong> 차례대로 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-puzzle-piece text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">학문 분야와 소프트웨어의 융합</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#what" class="hover:text-emerald-600 transition">융합이란</a>
+            <a href="#fields" class="hover:text-emerald-600 transition">네 분야에서</a>
+            <a href="#how" class="hover:text-emerald-600 transition">융합의 단계</a>
+            <a href="#mine" class="hover:text-emerald-600 transition">내 분야에서</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 융합이란 ══════════ -->
+    <section id="what" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">융합이란</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                「소프트웨어 융합」이라는 말은 요즘 아주 흔합니다. 그런데 이 말을 너무 넓게 쓰면
+                <strong>아무 뜻도 없는 말</strong>이 됩니다. 수업 자료를 문서 편집기로 만들었다고 해서
+                국어와 소프트웨어가 융합했다고 하지는 않습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">소프트웨어 융합</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    어떤 분야의 문제를 <strong>소프트웨어와 함께 풀어, 그 분야만으로는 할 수 없던 일을
+                    새로 해내는</strong> 것입니다. 요점은 「소프트웨어를 썼는가」가 아니라
+                    <strong>「무엇이 새로 가능해졌는가」</strong>입니다.
+                </p>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">도구로 쓰기와 무엇이 다른가</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-slate-100 border border-slate-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-slate-900">도구로 쓰기</p>
+                    <div class="overflow-x-auto">
+                        <svg viewBox="0 0 480 190" class="w-full h-auto mx-auto" style="min-width:480px;max-width:480px"
+                             role="img" aria-label="원래 하던 일이라는 상자에서 화살표가 나가 같은 일이라는 상자로 이어지고, 가운데에 소프트웨어 상자가 얹혀 있다. 결과 상자에는 더 빠르고 깔끔하게라고 적혀 있다.">
+                            <rect x="14" y="70" width="136" height="60" rx="12" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="82" y="96" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">원래 하던 일</text>
+                            <text x="82" y="118" font-size="16" fill="#334155" text-anchor="middle">감상문 쓰기</text>
+
+                            <path d="M156 100 L182 100" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M178 92 L190 100 L178 108 Z" fill="#94a3b8"/>
+
+                            <rect x="196" y="26" width="88" height="44" rx="10" fill="#cbd5e1" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="240" y="54" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">문서 편집기</text>
+                            <path d="M240 82 L240 74" stroke="#94a3b8" stroke-width="3"/>
+
+                            <path d="M290 100 L316 100" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M312 92 L324 100 L312 108 Z" fill="#94a3b8"/>
+
+                            <rect x="330" y="70" width="136" height="60" rx="12" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
+                            <text x="398" y="96" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">같은 일</text>
+                            <text x="398" y="118" font-size="16" fill="#334155" text-anchor="middle">더 빠르고 깔끔하게</text>
+
+                            <text x="240" y="168" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">할 수 있는 일의 종류는 그대로다</text>
+                        </svg>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        손으로 쓰던 감상문을 문서 편집기로 씁니다. <strong>고치기 쉽고 보기 좋아지지만,
+                        하는 일 자체는 같습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-emerald-900">융합</p>
+                    <div class="overflow-x-auto">
+                        <svg viewBox="0 0 480 190" class="w-full h-auto mx-auto" style="min-width:480px;max-width:480px"
+                             role="img" aria-label="원래 하던 일 상자와 소프트웨어 상자가 만나 새로 가능해진 일이라는 상자로 이어진다. 결과 상자에는 백 년치 소설의 낱말 쓰임 흐름 보기라고 적혀 있다.">
+                            <rect x="14" y="30" width="136" height="54" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="2.5"/>
+                            <text x="82" y="52" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">원래 하던 일</text>
+                            <text x="82" y="74" font-size="16" fill="#065f46" text-anchor="middle">소설 읽고 해석하기</text>
+
+                            <rect x="14" y="108" width="136" height="54" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="2.5"/>
+                            <text x="82" y="130" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">소프트웨어</text>
+                            <text x="82" y="152" font-size="16" fill="#065f46" text-anchor="middle">낱말 세고 비교하기</text>
+
+                            <path d="M156 57 L196 88" stroke="#059669" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M188 78 L204 94 L182 92 Z" fill="#059669"/>
+                            <path d="M156 135 L196 104" stroke="#059669" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M188 114 L204 98 L182 100 Z" fill="#059669"/>
+
+                            <rect x="212" y="58" width="254" height="76" rx="14" fill="#a7f3d0" stroke="#047857" stroke-width="3"/>
+                            <text x="339" y="86" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">새로 가능해진 일</text>
+                            <text x="339" y="112" font-size="16" fill="#065f46" text-anchor="middle">백 년 치 소설에서 낱말 쓰임의 흐름 보기</text>
+
+                            <text x="240" y="176" font-size="16" fill="#047857" font-weight="700" text-anchor="middle">혼자서는 평생 걸릴 일이 가능해진다</text>
+                        </svg>
+                    </div>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 사람이 소설 만 권을 읽을 수는 없습니다. 그런데 낱말을 세는 일을 프로그램에
+                        맡기면 <strong>전에는 물을 수 없던 질문</strong>을 물을 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                두 그림의 차이는 <strong>오른쪽 끝</strong>에 있습니다. 왼쪽은 결과의 모양이 좋아졌고,
+                오른쪽은 <strong>질문 자체가 달라졌습니다.</strong> 「이 소설이 무엇을 말하는가」에서
+                「백 년 동안 사람들이 쓰는 말이 어떻게 바뀌었는가」로 넘어간 것입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">도구로 쓰는 것이 못한 일은 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    도구로 쓰는 것도 충분히 값진 일입니다. 다만 <strong>이름을 갈라 두어야</strong>
+                    「우리도 융합했다」는 말이 헐거워지지 않습니다. 이 절에서 융합이라고 부를 때는
+                    늘 <strong>새로 가능해진 일이 무엇인지</strong> 한 줄로 댈 수 있어야 합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                체육 시간에 <strong>기록을 표 계산 프로그램에 적어 평균을 내는 것</strong>은 도구로 쓰기일까요,
+                융합일까요? 「새로 가능해진 일」을 댈 수 있는지로 판단해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 네 분야에서 ══════════ -->
+    <section id="fields" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">네 분야에서</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 네 분야를 하나씩 보겠습니다. 읽으면서 <strong>「무엇이 새로 가능해졌는가」</strong>에
+                밑줄을 그어 보세요. 그 한 줄이 없으면 융합이라고 부를 수 없습니다.
+            </p>
+
+            <div class="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-rose-900"><i class="fa-solid fa-book-open mr-2"></i>인문 &mdash; 손으로 쓴 옛 문서를 찾아 읽기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    옛 기록은 대부분 손으로 쓰였습니다. 무엇이 적혀 있는지 알려면 사람이 한 장씩 읽어야
+                    하고, 그래서 <strong>어느 창고에 무엇이 있는지조차</strong> 다 알지 못합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    글자 모양을 보고 어떤 글자인지 알아맞히는 일은 규칙으로 적기 어렵습니다. 사람마다
+                    글씨가 다르기 때문입니다. 그래서 <strong>이미 판독이 끝난 문서를 예시로 보여 주어</strong>
+                    나머지를 읽게 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>새로 가능해진 일</strong> &mdash; 낱말 하나로 수십만 장을 한꺼번에 뒤져,
+                    어느 해 어느 지방에서 그 말이 쓰였는지 찾아볼 수 있게 되었습니다.
+                </p>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 border-l-4 border-l-blue-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-blue-900"><i class="fa-solid fa-people-roof mr-2"></i>사회 &mdash; 대피가 정말 되는지 미리 보기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    건물이나 경기장을 지을 때 대피 계획을 세웁니다. 그런데 그 계획이 제대로 도는지는
+                    <strong>실제로 사고가 나 봐야</strong> 알 수 있습니다. 사람을 모아 놓고 연습할 수는
+                    있어도 정말 급한 상황을 만들 수는 없습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그래서 사람 한 명 한 명을 <strong>화면 속에서 움직이게</strong> 만듭니다. 출구가 몇 개인지,
+                    복도가 얼마나 넓은지를 바꿔 가며 몇 분 만에 다 빠져나가는지를 봅니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>새로 가능해진 일</strong> &mdash; 짓기 전에 계획을 여러 번 고쳐 볼 수 있게
+                    되었습니다. 사고가 난 뒤에 고치는 것이 아니라 <strong>나기 전에</strong> 고칩니다.
+                </p>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-200 border-l-4 border-l-teal-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-teal-900"><i class="fa-solid fa-dove mr-2"></i>과학 &mdash; 숲에서 어떤 새가 우는지 세기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    어떤 새가 얼마나 사는지 알려면 사람이 숲에 들어가 눈으로 세거나 귀로 들어야 합니다.
+                    사람이 있는 동안만, 사람이 있는 자리에서만 셀 수 있습니다.
+                    <strong>밤이나 궂은 날은 사실상 비어 있습니다.</strong>
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    녹음기를 여러 곳에 두고 밤낮없이 녹음한 뒤, 울음소리를 듣고 어떤 새인지 가려내는 일을
+                    프로그램에 맡깁니다. 새 울음의 규칙을 적어 줄 수는 없으니 <strong>사람이 이미 이름을
+                    붙여 둔 소리</strong>를 잔뜩 보여 주어 배우게 합니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>새로 가능해진 일</strong> &mdash; 한 해 내내, 사람이 못 가는 시각까지 이어 붙인
+                    기록으로 <strong>수가 늘고 주는 흐름</strong>을 볼 수 있게 되었습니다.
+                </p>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-violet-900"><i class="fa-solid fa-masks-theater mr-2"></i>예술 &mdash; 관객이 움직이면 무대가 답하기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    그림과 조각은 <strong>완성된 뒤에는 바뀌지 않습니다.</strong> 보는 사람이 무엇을 하든
+                    작품은 그대로 있습니다. 이것은 결함이 아니라 오랫동안 당연한 조건이었습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    전시장 바닥에 사람의 위치를 읽는 장치를 깔고, 사람이 다가서면 벽에 뜨는 그림의
+                    색과 소리가 달라지게 만듭니다. 작가는 그림 한 장이 아니라
+                    <strong>「어떻게 반응할지」라는 규칙</strong>을 만든 셈입니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>새로 가능해진 일</strong> &mdash; 작품이 사람마다 다르게 펼쳐집니다.
+                    <strong>같은 전시를 두 사람이 다르게 보고</strong> 나옵니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 사례를 나란히 놓으면 닮은 데가 보입니다. 모두 <strong>「사람이 하기에는 너무 많거나,
+                너무 오래 걸리거나, 아예 해 볼 수 없는 일」</strong>이 있었고, 그 자리를 소프트웨어가
+                맡았습니다. 융합의 자리는 대개 여기입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 사례 가운데 <strong>「아예 해 볼 수 없던 일」</strong>에 가장 가까운 것은 어느 것일까요?
+                그리고 그 일을 해 볼 수 없게 막고 있던 것은 무엇이었나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 융합의 단계 ══════════ -->
+    <section id="how" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">융합의 단계</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞의 네 사례는 분야가 전혀 다르지만 <strong>거쳐 간 단계는 같습니다.</strong> 그 단계를
+                알아 두면 내 분야에서도 융합할 자리를 찾을 수 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 208" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="네 개의 상자가 왼쪽에서 오른쪽으로 화살표로 이어진다. 물음 정하기, 숫자로 바꾸기, 계산 맡기기, 분야의 말로 되읽기 순서이며 각 상자에 번호와 이름이 적혀 있다. 마지막 상자에서 첫 상자로 되돌아가는 화살표가 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">어느 분야든 이 네 단계를 지난다</text>
+
+                    <rect x="10" y="52" width="128" height="76" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <circle cx="34" cy="72" r="13" fill="#059669"/>
+                    <text x="34" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+                    <text x="80" y="104" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">물음 정하기</text>
+
+                    <path d="M144 90 L160 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M156 82 L168 90 L156 98 Z" fill="#94a3b8"/>
+
+                    <rect x="172" y="52" width="128" height="76" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <circle cx="196" cy="72" r="13" fill="#2563eb"/>
+                    <text x="196" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+                    <text x="242" y="104" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">숫자로 바꾸기</text>
+
+                    <path d="M306 90 L322 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M318 82 L330 90 L318 98 Z" fill="#94a3b8"/>
+
+                    <rect x="334" y="52" width="112" height="76" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <circle cx="358" cy="72" r="13" fill="#d97706"/>
+                    <text x="358" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+                    <text x="390" y="104" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">계산 맡기기</text>
+
+                    <path d="M452 90 L468 90" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M464 82 L476 90 L464 98 Z" fill="#94a3b8"/>
+
+                    <rect x="452" y="52" width="114" height="76" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <circle cx="476" cy="72" r="13" fill="#7c3aed"/>
+                    <text x="476" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+                    <text x="509" y="104" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">되읽기</text>
+
+                    <path d="M509 134 L509 164 L74 164 L74 134" fill="none" stroke="#94a3b8" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M67 142 L74 130 L81 142 Z" fill="#94a3b8"/>
+                    <text x="292" y="188" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">되읽은 결과에서 다음 물음이 나온다</text>
+                </svg>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">융합의 네 단계와 각 단계에서 하는 일</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">단계</th>
+                        <th>무엇을 하는가</th>
+                        <th class="w-44">막히기 쉬운 자리</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">1. 물음 정하기</td>
+                        <td>그 분야에서 <strong>정말 궁금한 것</strong>을 한 문장으로 만든다. 「데이터를
+                            분석해 본다」는 물음이 아니다.
+                        </td>
+                        <td>물음이 너무 커서 무엇을 세어야 할지 정해지지 않는다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">2. 숫자로 바꾸기</td>
+                        <td>물음에 답하려면 <strong>무엇을 세거나 측정해야 하는지</strong> 정한다.
+                            글씨는 그림으로, 소리는 파형으로 바꾼다.
+                        </td>
+                        <td>세기로 한 것이 물음과 어긋난다. 여기서 어긋나면 뒤가 다 헛돈다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">3. 계산 맡기기</td>
+                        <td>세고, 비교하고, 모으는 일을 프로그램에 맡긴다. <strong>사람이 하면 오래 걸릴
+                            일</strong>이 여기로 온다.
+                        </td>
+                        <td>다루는 방법을 잘못 골라도 <strong>결과는 그럴듯하게</strong> 나온다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">4. 되읽기</td>
+                        <td>나온 숫자를 <strong>그 분야의 말로 되돌려</strong> 읽는다. 「무슨 뜻인가」를
+                            판단하는 자리다.
+                        </td>
+                        <td>숫자만 보고 뜻을 넘겨짚는다. 분야를 아는 사람이 꼭 있어야 한다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">두 사람이 있어야 한다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                표의 오른쪽 열을 보면 <strong>2단계와 4단계는 그 분야를 아는 사람이 아니면 할 수
+                없습니다.</strong> 무엇을 세어야 하는지, 나온 숫자가 무슨 뜻인지는 분야의 지식입니다.
+                반대로 3단계는 소프트웨어를 아는 사람의 자리입니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                그래서 융합은 대개 <strong>혼자 하는 일이 아닙니다.</strong> 한 사람이 둘을 다 알면 가장
+                좋지만, 그렇지 않을 때는 <strong>서로의 말을 알아들을 만큼만</strong> 상대 분야를 알면
+                됩니다. 이 과목이 프로그래밍만 가르치지 않는 까닭이기도 합니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>2단계에서 어긋나면 뒤가 다 헛돈다</strong>고 했습니다. 「우리 학교에서 가장 인기
+                있는 동아리는?」이라는 물음에서, 무엇을 세면 어긋나게 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 내 분야에서 ══════════ -->
+    <section id="mine" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">내 분야에서</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 내가 좋아하는 분야에서 융합할 자리를 찾아보겠습니다. 앞 절의 <strong>네 단계</strong>를
+                그대로 따라가면 됩니다. 어려운 것은 3단계가 아니라 <strong>1단계와 2단계</strong>입니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">먼저 보기 &mdash; 학교 급식</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">학교 급식을 소재로 네 단계를 채운 예시</caption>
+                        <thead>
+                        <tr>
+                            <th class="w-36">단계</th>
+                            <th>적은 내용</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold text-emerald-800">1. 물음</td>
+                            <td>어떤 날에 잔반이 유독 많이 남을까? 그날의 무엇이 그것과 함께 움직일까?</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-blue-800">2. 숫자로</td>
+                            <td>날짜별 <strong>잔반 무게</strong>, 그날의 <strong>메뉴 이름</strong>,
+                                <strong>요일</strong>, <strong>급식 시각의 기온</strong>. 무게는 이미
+                                측정하고 있으므로 새로 만들 것이 적다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-amber-800">3. 계산</td>
+                            <td>메뉴별 평균 잔반량을 구하고, 요일별 &middot; 기온대별로 나누어 본다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-violet-800">4. 되읽기</td>
+                            <td>「국 종류가 나온 날 잔반이 더 많았다」가 나왔다면, <strong>정말 국이 문제인지</strong>
+                                아니면 국이 나온 날이 대체로 더운 날이었는지를 따져 본다.
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    4단계에 적은 마지막 문장이 중요합니다. <strong>함께 움직인다는 것과 원인이라는 것은
+                    다릅니다.</strong> 숫자만 보면 이 둘이 똑같이 생겼으므로, 되읽는 사람이 반드시
+                    갈라 주어야 합니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">해 보기 &mdash; 나의 네 단계</p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>내가 좋아하는 분야를 하나 고릅니다. <strong>교과 과목이어도 좋고 취미여도 좋습니다.</strong></li>
+                    <li>그 분야에서 <strong>「사람이 하기에 너무 많거나 오래 걸리는 일」</strong>을 하나 찾습니다.
+                        이것이 융합의 자리입니다.
+                    </li>
+                    <li>위 표와 같이 네 단계를 채웁니다. <strong>2단계에서 「무엇을 셀지」를 구체적으로</strong>
+                        적어야 합니다. 「데이터를 모은다」는 아직 아무것도 정한 것이 아닙니다.
+                    </li>
+                    <li>마지막으로 <strong>「새로 가능해진 일」</strong>을 한 줄로 적습니다. 이 줄을 쓸 수
+                        없다면 도구로 쓰는 데 그친 것입니다. 2단계로 돌아갑니다.
+                    </li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    짝과 바꿔 읽을 때는 <strong>2단계만 집중해서</strong> 읽어 주세요. 「그것을 세면 정말
+                    1단계의 물음에 답할 수 있는가」를 묻는 것이 가장 도움이 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                내가 적은 <strong>「새로 가능해진 일」</strong>을 소리 내어 읽어 보세요. 그 문장에서
+                소프트웨어라는 말을 빼도 뜻이 통한다면, 아직 융합이 아닐 수 있습니다. 왜 그럴까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">융합이란</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>어떤 분야의 문제를 소프트웨어와 함께 풀어 <strong>그 분야만으로는 할 수 없던 일을
+                        새로 해내는</strong> 것이다.
+                    </li>
+                    <li>가르는 기준은 「소프트웨어를 썼는가」가 아니라 <strong>「무엇이 새로 가능해졌는가」</strong>다.</li>
+                    <li>도구로 쓰기는 결과의 모양이 좋아지고, 융합은 <strong>물을 수 있는 질문이 달라진다.</strong></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">네 분야에서</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>옛 문서를 읽어 검색하게 만들고, 대피 계획을 짓기 전에 돌려 본다.</li>
+                    <li>사람이 못 가는 시각의 새 울음을 세고, 관객의 움직임에 작품이 답하게 한다.</li>
+                    <li>네 사례 모두 <strong>사람이 하기에 너무 많거나 오래 걸리거나 해 볼 수 없던 일</strong>이
+                        있던 자리다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">융합의 단계</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>물음 정하기 &rarr; 숫자로 바꾸기 &rarr; 계산 맡기기 &rarr; 되읽기</strong>의 네 단계다.</li>
+                    <li>2단계에서 어긋나면 <strong>뒤가 다 헛돈다.</strong> 그런데도 결과는 그럴듯하게 나온다.</li>
+                    <li>2단계와 4단계는 <strong>분야를 아는 사람</strong>의 자리다. 그래서 융합은 대개
+                        혼자 하는 일이 아니다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">내 분야에서</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>어려운 것은 계산이 아니라 <strong>물음을 정하고 무엇을 셀지 고르는</strong> 앞 두 단계다.</li>
+                    <li>「데이터를 모은다」는 아직 아무것도 정한 것이 아니다. <strong>무엇을 셀지</strong>까지 적는다.</li>
+                    <li>되읽을 때 <strong>함께 움직이는 것과 원인은 다르다</strong>는 점을 반드시 갈라 준다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    소프트웨어를 <strong>도구로 쓴 것</strong>과 <strong>융합</strong>을 가르는 기준은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어려운 프로그램을 썼는지는 기준이 아닙니다. 아주 간단한 계산으로도 융합이 될 수 있습니다.')">
+                    ① 얼마나 어려운 프로그램을 썼는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 전에는 할 수 없던 일이 가능해졌는지, 물을 수 있는 질문이 달라졌는지가 기준입니다.')">
+                    ② 그 분야만으로는 할 수 없던 일이 새로 가능해졌는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람 수는 기준이 아닙니다. 혼자서도 융합할 수 있습니다.')">
+                    ③ 몇 사람이 함께 했는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과가 보기 좋아진 것은 도구로 쓴 쪽의 특징입니다.')">
+                    ④ 결과물이 보기 좋아졌는가
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    융합의 네 단계 가운데 <strong>어긋나면 뒤가 다 헛도는데도 결과는 그럴듯하게 나오는</strong> 단계는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '물음이 잘못되면 대개 곧바로 막힙니다. 무엇을 셀지조차 정할 수 없기 때문입니다.')">
+                    ① 물음 정하기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 세기로 한 것이 물음과 어긋나도 숫자는 나옵니다. 그래서 알아채기가 가장 어렵습니다.')">
+                    ② 숫자로 바꾸기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산에서 막히면 대개 오류로 드러나거나 결과가 나오지 않습니다.')">
+                    ③ 계산 맡기기
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '되읽기는 마지막 단계라 뒤에 남은 것이 없습니다. 여기서 잘못하면 그 해석만 틀립니다.')">
+                    ④ 되읽기
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    숲에서 새 울음을 녹음해 어떤 새인지 가려내는 일에서 <strong>새로 가능해진 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '녹음 자체는 예전에도 할 수 있었습니다. 문제는 쌓인 녹음을 사람이 다 들을 수 없다는 데 있었습니다.')">
+                    ① 숲에서 소리를 녹음할 수 있게 되었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 사람이 갈 수 없는 시각까지 이어 붙인 기록으로 수가 늘고 주는 흐름을 볼 수 있게 되었습니다.')">
+                    ② 사람이 못 가는 시각까지 이어진 기록으로 흐름을 볼 수 있게 되었다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '새를 더 늘리는 일과는 관계가 없습니다. 세는 방법이 달라진 것입니다.')">
+                    ③ 숲에 사는 새의 수가 늘어났다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람이 필요 없어진 것이 아닙니다. 이름을 붙여 둔 소리를 만드는 일은 사람이 합니다.')">
+                    ④ 새를 연구하는 사람이 필요 없어졌다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「국이 나온 날 잔반이 많았다」는 결과를 <strong>되읽을 때</strong> 가장 먼저 따져야 할 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '숫자를 더 모으기 전에, 그 숫자가 무엇을 뜻하는지부터 따져야 합니다.')">
+                    ① 더 많은 날짜의 자료를 모은다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 국이 나온 날이 대체로 더운 날이었을 수도 있습니다. 함께 움직이는 것과 원인은 다릅니다.')">
+                    ② 국이 나온 날에 다른 무엇이 함께 있었는지 살핀다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '결과를 바로 대책으로 옮기면 원인을 잘못 짚은 채 국만 없애게 될 수 있습니다.')">
+                    ③ 곧바로 국을 메뉴에서 뺀다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '계산이 틀렸는지 확인하는 것도 필요하지만, 여기서 갈릴 문제는 계산이 아니라 해석입니다.')">
+                    ④ 계산 프로그램을 다른 것으로 바꿔 본다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

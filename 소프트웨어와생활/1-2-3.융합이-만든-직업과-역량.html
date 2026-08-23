@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>융합이 만든 직업과 역량</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-user-gear absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-briefcase absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            융합이 만든 직업과 역량
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            직업이 사라진다는 말보다<br><strong>일감이 어떻게 갈리는가</strong>를 봅니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>소프트웨어가 들어올 때 직업이 <strong>어떻게 갈리는지</strong> 세 갈래로 설명할 수 있다.</li>
+                    <li>새로 생긴 직업의 이름이 <strong>어떤 짜임으로</strong> 만들어지는지 알고 스스로 이름을 지어 볼 수 있다.</li>
+                    <li>융합에 필요한 역량이 <strong>어느 단계에서 왜 필요한지</strong> 연결해 말할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-user-gear text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">융합이 만든 직업과 역량</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#split" class="hover:text-emerald-600 transition">일감이 갈린다</a>
+            <a href="#naming" class="hover:text-emerald-600 transition">새 직업의 이름</a>
+            <a href="#skills" class="hover:text-emerald-600 transition">필요한 역량</a>
+            <a href="#mine" class="hover:text-emerald-600 transition">내 진로에 대어 보기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 일감이 갈린다 ══════════ -->
+    <section id="split" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">일감이 갈린다</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                「소프트웨어 때문에 직업이 사라진다」는 말을 자주 듣습니다. 이 말은 틀리지는 않지만
+                <strong>너무 거칠어서 쓸모가 없습니다.</strong> 실제로 벌어지는 일을 보려면 직업이 아니라
+                <strong>「일감」 단위로</strong> 내려가야 합니다.
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                직업 하나는 여러 일감으로 이루어져 있습니다. 소프트웨어가 들어오면 그 일감들이
+                <strong>한꺼번에 사라지는 것이 아니라 세 갈래로 갈립니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 268" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="왼쪽에 직업 하나라는 상자가 있고 오른쪽으로 세 갈래 화살표가 나뉜다. 각각 기계로 넘어가는 일감, 내용이 바뀌는 일감, 새로 생기는 일감이라고 적혀 있고 아래에 보기가 붙어 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">직업이 아니라 일감이 갈린다</text>
+
+                    <rect x="12" y="106" width="122" height="60" rx="14" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>
+                    <text x="73" y="132" font-size="17" fill="#0f172a" font-weight="700" text-anchor="middle">직업 하나</text>
+                    <text x="73" y="154" font-size="16" fill="#334155" text-anchor="middle">여러 일감의 묶음</text>
+
+                    <path d="M140 128 L176 66" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M168 78 L184 56 L182 78 Z" fill="#94a3b8"/>
+                    <path d="M140 136 L176 136" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M172 128 L184 136 L172 144 Z" fill="#94a3b8"/>
+                    <path d="M140 144 L176 206" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M168 194 L184 216 L182 194 Z" fill="#94a3b8"/>
+
+                    <rect x="190" y="34" width="376" height="60" rx="14" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+                    <text x="378" y="60" font-size="17" fill="#7f1d1d" font-weight="700" text-anchor="middle">기계로 넘어가는 일감</text>
+                    <text x="378" y="82" font-size="16" fill="#991b1b" text-anchor="middle">차례가 정해져 있고 늘 같던 것</text>
+
+                    <rect x="190" y="106" width="376" height="60" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="378" y="132" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">내용이 바뀌는 일감</text>
+                    <text x="378" y="154" font-size="16" fill="#92400e" text-anchor="middle">직접 하던 것에서 결과를 판단하는 것으로</text>
+
+                    <rect x="190" y="178" width="376" height="60" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="378" y="204" font-size="17" fill="#064e3b" font-weight="700" text-anchor="middle">새로 생기는 일감</text>
+                    <text x="378" y="226" font-size="16" fill="#065f46" text-anchor="middle">전에는 아예 없던 일</text>
+
+                    <text x="288" y="260" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">가운데 칸이 가장 크다</text>
+                </svg>
+            </div>
+
+            <p class="font-black text-lg text-slate-800">번역하는 일로 보기</p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">번역 일감이 소프트웨어 도입 뒤 세 갈래로 갈리는 모습</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-36">갈래</th>
+                        <th>어떤 일감이 여기로 가나</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-rose-800">기계로 넘어간다</td>
+                        <td>설명서나 안내문처럼 <strong>표현이 정해져 있고 같은 문장이 자주 나오는</strong>
+                            글을 초벌로 옮기는 일.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">내용이 바뀐다</td>
+                        <td>직접 옮기는 대신 <strong>기계가 옮긴 것을 읽고 고치는</strong> 일로 바뀐다.
+                            무엇이 어색한지 알아채는 힘이 더 중요해진다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-emerald-800">새로 생긴다</td>
+                        <td>어떤 말투로 옮길지 <strong>기준을 만들어 기계에 알려 주는</strong> 일,
+                            나온 결과가 특정 집단을 낮잡아 부르지 않는지 <strong>살피는</strong> 일.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 칸을 나란히 보면 <strong>가운데 칸이 가장 큽니다.</strong> 직업이 통째로 없어지는 일보다
+                <strong>같은 이름의 직업이 다른 일을 하게 되는</strong> 경우가 훨씬 흔합니다. 그래서
+                「그 직업이 남을까」보다 <strong>「내가 할 일감이 어느 칸으로 갈까」</strong>를 묻는 편이
+                답을 얻기 쉽습니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">가운데 칸이 편한 것만은 아니다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    일감의 내용이 바뀐다는 것은 <strong>지금까지 쌓은 솜씨의 일부가 값을 잃는다</strong>는
+                    뜻이기도 합니다. 오래 훈련한 사람일수록 그 손해가 큽니다. 「새로운 일이 생기니
+                    괜찮다」고 넘기면, 바뀌는 동안 겪는 사람의 어려움이 지워집니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>사진을 찍는 일</strong>을 세 칸으로 갈라 보세요. 어떤 일감이 기계로 넘어갔고,
+                어떤 일감이 내용만 바뀌었을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 새 직업의 이름 ══════════ -->
+    <section id="naming" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">새 직업의 이름</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                융합으로 생겨난 직업의 이름을 여럿 늘어놓고 외우는 것은 별 도움이 되지 않습니다.
+                <strong>몇 해 지나면 이름이 또 바뀌기</strong> 때문입니다. 대신 <strong>이름이 만들어지는
+                짜임</strong>을 알아 두면, 처음 보는 이름도 뜻을 짐작할 수 있고 스스로 지어 볼 수도 있습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 190" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="분야 이름 상자와 다루는 방식 상자가 더하기 기호로 이어지고 그 아래에 새 직업 이름 상자가 있다. 아래에 보기로 하천 더하기 자료 분석은 하천 데이터 분석가라고 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">새 직업 이름의 짜임</text>
+
+                    <rect x="34" y="44" width="196" height="54" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <text x="132" y="77" font-size="18" fill="#1e3a8a" font-weight="700" text-anchor="middle">어느 분야인가</text>
+
+                    <text x="288" y="80" font-size="26" fill="#475569" font-weight="700" text-anchor="middle">+</text>
+
+                    <rect x="346" y="44" width="196" height="54" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <text x="444" y="77" font-size="18" fill="#78350f" font-weight="700" text-anchor="middle">무엇을 다루는가</text>
+
+                    <path d="M288 104 L288 122" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M280 118 L288 130 L296 118 Z" fill="#94a3b8"/>
+
+                    <rect x="120" y="132" width="336" height="46" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <text x="288" y="162" font-size="18" fill="#064e3b" font-weight="700" text-anchor="middle">새 직업의 이름</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                앞자리에는 <strong>분야</strong>가 오고, 뒷자리에는 <strong>그 분야의 무엇을 어떻게
+                다루는지</strong>가 옵니다. 뒷자리에 자주 오는 말은 몇 개 안 됩니다 &mdash;
+                자료를 읽는 일, 모형을 만들어 돌려 보는 일, 장치를 다루는 일, 사람과 기계 사이를 잇는 일.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">앞자리와 뒷자리를 조합해 만든 직업 이름의 예</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">앞자리</th>
+                        <th class="w-40">뒷자리</th>
+                        <th>무엇을 하는 사람인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">하천</td>
+                        <td>자료를 읽는 일</td>
+                        <td>여러 지점의 수질 값을 모아 흐름을 읽고, 이상이 생긴 구간을 찾아낸다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">공연장</td>
+                        <td>모형을 돌려 보는 일</td>
+                        <td>관객이 빠져나가는 길을 화면 속에서 여러 번 돌려 보고 좌석 배치를 고친다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">과수원</td>
+                        <td>장치를 다루는 일</td>
+                        <td>나무 사이를 도는 장치를 띄워 잎의 상태를 찍고, 물과 양분 계획을 세운다.</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">박물관</td>
+                        <td>사람과 기계를 잇는 일</td>
+                        <td>관람객의 움직임에 전시가 어떻게 답할지 규칙을 짜고, 헷갈리는 자리를 고친다.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 줄을 읽어 보면 알 수 있듯이, <strong>앞자리는 대개 오래된 분야</strong>입니다. 하천도
+                과수원도 박물관도 새로 생긴 것이 아닙니다. 새로 생긴 것은 뒷자리이고, 그래서
+                <strong>새 직업이라 해도 앞자리 분야를 모르면 할 수 없습니다.</strong>
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">해 보기 &mdash; 이름 지어 보기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    앞자리에 <strong>내가 좋아하는 분야</strong>를 넣고, 뒷자리에 위 네 가지 가운데 하나를
+                    붙여 이름을 지어 보세요. 그런 다음 <strong>「무엇을 하는 사람인가」를 한 문장으로</strong>
+                    적습니다. 이 문장이 안 써지면 그 조합은 아직 일이 아닙니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>앞자리 분야를 모르면 그 직업을 할 수 없다</strong>고 했습니다. 그렇다면 소프트웨어만
+                아주 잘하는 사람은 이 직업들을 못 할까요? 어떻게 하면 될까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 필요한 역량 ══════════ -->
+    <section id="skills" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">필요한 역량</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                필요한 역량을 늘어놓으면 대개 <strong>창의력 &middot; 협업 능력 &middot; 문제 해결력</strong>
+                같은 말이 나옵니다. 틀린 말은 아니지만 이렇게만 적으면 <strong>어느 직업에나 붙는 말</strong>이
+                되어 버립니다. 그래서 여기서는 <strong>「어느 자리에서 왜 필요한가」</strong>로 붙여 두겠습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">융합의 각 단계에서 필요한 역량과 그 까닭</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">단계</th>
+                        <th class="w-40">여기서 필요한 힘</th>
+                        <th>왜 그 자리에서 필요한가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-emerald-800">1. 물음 정하기</td>
+                        <td>분야를 아는 힘, 불편을 알아채는 힘</td>
+                        <td>그 분야에서 <strong>무엇이 정말 문제인지</strong>는 바깥에서 보이지 않는다.
+                            남이 정해 준 물음으로는 좋은 답이 나오지 않는다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-blue-800">2. 숫자로 바꾸기</td>
+                        <td>가려내는 힘</td>
+                        <td>세고 싶은 것과 셀 수 있는 것은 다르다. <strong>둘 사이의 거리를 가늠하는
+                            판단</strong>이 여기에 든다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-amber-800">3. 계산 맡기기</td>
+                        <td>디지털 문해력</td>
+                        <td>직접 프로그램을 짜지 않더라도, <strong>무엇을 맡길 수 있고 무엇은 못 맡기는지</strong>
+                            알아야 부탁을 할 수 있다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-violet-800">4. 되읽기</td>
+                        <td>해석하는 힘, 남을 헤아리는 힘</td>
+                        <td>숫자가 무슨 뜻인지 판단하고, <strong>그 판단이 누구에게 어떻게 닿을지</strong>
+                            까지 생각해야 한다.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">단계 전체</td>
+                        <td>함께 일하는 힘</td>
+                        <td>2 &middot; 4단계와 3단계를 <strong>같은 사람이 다 하기는 어렵다.</strong>
+                            서로의 말을 알아듣는 만큼만 상대 분야를 알면 된다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                표를 세로로 읽으면 눈에 띄는 점이 있습니다. <strong>다섯 줄 가운데 소프트웨어를 다루는 힘은
+                한 줄뿐</strong>입니다. 그렇다고 그 한 줄이 덜 중요하다는 뜻은 아닙니다. 다만 나머지 네 줄이
+                없으면 <strong>그 한 줄을 쓸 자리가 생기지 않습니다.</strong>
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">「창의력」을 그대로 적지 않기</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    진로 보고서에 「창의력이 필요하다」고 적으면 읽는 사람에게 아무것도 남지 않습니다.
+                    <strong>「어느 단계에서 무엇을 못 해서 필요한가」</strong>로 바꿔 적어 보세요.
+                    예를 들어 「셀 수 없는 것을 어떻게 셀지 궁리하는 힘」이라고 적으면 훨씬 또렷합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「협업 능력이 필요하다」를 <strong>어느 단계에서 왜 필요한지로</strong> 바꿔 적어 보세요.
+                표의 마지막 줄을 근거로 삼으면 됩니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 내 진로에 대어 보기 ══════════ -->
+    <section id="mine" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">내 진로에 대어 보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 앞의 셋을 내 진로에 대어 보겠습니다. <strong>「이 직업이 사라질까」</strong>를 묻지
+                마세요. 그 물음에는 아무도 답할 수 없고, 답을 들어도 할 일이 남지 않습니다.
+                <strong>일감 단위로</strong> 물으면 다릅니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">먼저 보기 &mdash; 요리하는 일</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">요리하는 일을 세 갈래와 역량으로 정리한 예시</caption>
+                        <tbody>
+                        <tr>
+                            <td class="w-40 font-bold text-rose-800">기계로 갈 일감</td>
+                            <td>재료를 얼마나 주문할지 계산하기, 남은 재료가 언제까지인지 살피기,
+                                손님 수를 요일별로 가늠하기.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-amber-800">내용이 바뀔 일감</td>
+                            <td>메뉴를 정하는 일. 감으로 정하던 것에서 <strong>남긴 양과 재주문 기록을
+                                보고</strong> 정하는 일로 바뀐다. 여전히 정하는 사람은 요리사다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-emerald-800">새로 생길 일감</td>
+                            <td>알레르기와 종교, 채식 여부에 따라 <strong>먹을 수 있는지 자동으로 걸러</strong>
+                                주는 규칙을 만들고 손보는 일.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-700">그래서 기를 힘</td>
+                            <td>「무엇을 세면 남긴 양을 알 수 있을까」를 정하는 힘(2단계), 나온 숫자를 보고
+                                <strong>메뉴를 바꿀지 판단하는 힘</strong>(4단계).
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    가장 아래 칸이 이 표의 목적입니다. 위 세 칸은 <strong>아래 칸을 쓰기 위한 재료</strong>입니다.
+                    「그래서 나는 무엇을 기를까」가 나오지 않으면 표를 채운 보람이 없습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">해 보기 &mdash; 나의 표</p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>관심 있는 직업을 하나 고르고, <strong>그 사람이 하루에 하는 일을 대여섯 개</strong>
+                        적습니다. 직업 이름이 아니라 일감을 적는 것이 핵심입니다.
+                    </li>
+                    <li>일감을 <strong>세 갈래로</strong> 나눕니다. 어느 칸에 넣을지 헷갈리면 「차례를 적어
+                        줄 수 있는가」를 물어보세요.
+                    </li>
+                    <li>가운데 칸을 보고 <strong>「무엇이 더 중요해지는가」</strong>를 한 줄로 적습니다.</li>
+                    <li>마지막에 <strong>「그래서 나는 무엇을 기를까」</strong>를 적습니다. 「창의력」처럼
+                        두루뭉술한 말 대신 <strong>어느 단계에서 무엇을 하는 힘인지</strong>로 적습니다.
+                    </li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    짝과 바꿔 읽을 때는 <strong>세 갈래로 나눈 곳이 맞는지</strong>를 봐 주세요. 특히
+                    「기계로 갈 일감」에 넣은 것 가운데 <strong>정말 차례를 적어 줄 수 있는지</strong>
+                    따져 보면 이야기가 깊어집니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                내가 적은 일감 가운데 <strong>어느 칸에도 넣기 어려운 것</strong>이 있었나요? 그것이
+                무엇이었고, 왜 넣기 어려웠는지 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">일감이 갈린다</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>직업이 통째로 사라지기보다 <strong>일감이 세 갈래로 갈린다</strong> &mdash;
+                        기계로 넘어가고, 내용이 바뀌고, 새로 생긴다.
+                    </li>
+                    <li><strong>가운데 칸이 가장 크다.</strong> 같은 이름의 직업이 다른 일을 하게 된다.</li>
+                    <li>내용이 바뀐다는 것은 <strong>쌓은 솜씨의 일부가 값을 잃는다</strong>는 뜻이기도 하다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">새 직업의 이름</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>이름은 대개 <strong>「어느 분야인가」 + 「무엇을 다루는가」</strong>로 이루어진다.</li>
+                    <li>이름을 외우기보다 <strong>짜임을 알아 두면</strong> 처음 보는 이름도 뜻을 짐작할 수 있다.</li>
+                    <li>앞자리는 대개 <strong>오래된 분야</strong>다. 그래서 그 분야를 모르면 할 수 없다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">필요한 역량</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>역량은 늘어놓지 말고 <strong>어느 단계에서 왜 필요한지</strong>로 붙여 적는다.</li>
+                    <li>다섯 줄 가운데 소프트웨어를 다루는 힘은 한 줄뿐이다. 다만 나머지가 없으면
+                        <strong>그 한 줄을 쓸 자리가 없다.</strong></li>
+                    <li>「창의력」 대신 <strong>「셀 수 없는 것을 어떻게 셀지 궁리하는 힘」</strong>처럼 적는다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">내 진로에 대어 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>「이 직업이 사라질까」는 답을 얻어도 할 일이 남지 않는 물음이다.</li>
+                    <li>직업 이름이 아니라 <strong>하루에 하는 일감</strong>을 적는 데서 시작한다.</li>
+                    <li>표의 목적은 마지막 줄, <strong>「그래서 나는 무엇을 기를까」</strong>다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    소프트웨어가 들어올 때 <strong>가장 흔하게 일어나는</strong> 일은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '직업이 통째로 없어지는 경우는 생각보다 드뭅니다. 대개 안의 일감만 갈립니다.')">
+                    ① 직업 하나가 통째로 사라진다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 세 갈래 가운데 가운데 칸이 가장 큽니다. 이름은 그대로인데 하는 일이 달라집니다.')">
+                    ② 같은 이름의 직업이 다른 일을 하게 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '완전히 새 직업만 생기는 것이 아닙니다. 새로 생기는 칸은 셋 중 하나일 뿐입니다.')">
+                    ③ 완전히 새로운 직업만 생겨난다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무것도 바뀌지 않는다면 융합이라 부를 이유가 없습니다.')">
+                    ④ 아무것도 바뀌지 않는다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    새 직업의 이름에서 <strong>앞자리가 대개 오래된 분야인 까닭</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '옛것을 기리려고 붙이는 이름이 아닙니다. 실제로 그 분야의 문제를 다루기 때문입니다.')">
+                    ① 옛 이름을 기리기 위해서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 새로 생긴 것은 다루는 방식이고, 풀어야 할 문제는 그 분야에 원래 있던 것입니다.')">
+                    ② 풀어야 할 문제가 원래 그 분야에 있던 것이기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '이름이 짧아지지도 않습니다. 오히려 두 낱말이 붙어 길어집니다.')">
+                    ③ 이름이 짧아지기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '소프트웨어 쪽에 이름이 부족해서가 아닙니다.')">
+                    ④ 소프트웨어 쪽에는 쓸 만한 이름이 없기 때문에
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    진로 보고서에 역량을 적을 때 <strong>더 나은 쪽</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어느 직업에나 붙는 말이라 읽는 사람에게 남는 것이 없습니다.')">
+                    ① 「창의력과 문제 해결력이 필요하다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 어느 단계에서 무엇을 하는 힘인지가 드러나야 읽는 사람에게 남습니다.')">
+                    ② 「셀 수 없는 것을 어떻게 셀지 궁리하는 힘이 필요하다」
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '많이 적는다고 좋아지지 않습니다. 어느 것도 또렷해지지 않습니다.')">
+                    ③ 알려진 역량을 되도록 많이 늘어놓는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '역량을 적지 않으면 무엇을 준비할지 알 수 없습니다.')">
+                    ④ 역량은 사람마다 다르므로 적지 않는다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    어떤 일감이 <strong>기계로 넘어갈 쪽</strong>인지 가릴 때 물어볼 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 차례를 적어 줄 수 있는 일감이 먼저 기계로 넘어갑니다.')">
+                    ① 그 일의 차례를 적어 줄 수 있는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '힘든 일이라고 기계로 넘어가지는 않습니다. 힘들어도 차례를 적기 어려운 일이 많습니다.')">
+                    ② 그 일이 힘들고 지치는가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오래된 일인지는 상관이 없습니다. 아주 오래된 일도 차례가 분명하면 넘어갑니다.')">
+                    ③ 그 일이 오래전부터 있던 일인가
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '사람이 몇 명 하는지는 기준이 아닙니다.')">
+                    ④ 그 일을 하는 사람이 많은가
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

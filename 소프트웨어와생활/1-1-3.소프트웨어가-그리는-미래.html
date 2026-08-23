@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소프트웨어가 그리는 미래</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-binoculars absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-tower-broadcast absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            소프트웨어가 그리는 미래
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            예측은 왜 맞고 왜 빗나갈까<br>그리고 <strong>나는 무엇을 그릴까</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>지난날의 미래 예측이 <strong>어떤 것은 맞고 어떤 것은 빗나갔는지</strong> 까닭을 들어 설명할 수 있다.</li>
+                    <li>스마트 도시 · 스마트 그리드 · 만물 인터넷이 각각 무엇을 가리키는지 구별해 말할 수 있다.</li>
+                    <li>지금 있는 것에서 출발해 <strong>소프트웨어를 얹은 상품이나 서비스</strong>를 하나 기획할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-binoculars text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">소프트웨어가 그리는 미래</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#past" class="hover:text-emerald-600 transition">빗나간 예측</a>
+            <a href="#how" class="hover:text-emerald-600 transition">예측을 세우는 법</a>
+            <a href="#city" class="hover:text-emerald-600 transition">자주 나오는 그림</a>
+            <a href="#plan" class="hover:text-emerald-600 transition">기획해 보기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 빗나간 예측 ══════════ -->
+    <section id="past" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">빗나간 예측</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                백 년쯤 전에도 사람들은 미래를 그렸습니다. 잡지와 엽서에 「백 년 뒤의 세상」을 그린 그림이
+                실렸습니다. 지금 그 그림을 보면 재미있습니다. <strong>놀랄 만큼 맞힌 것</strong>도 있고,
+                <strong>전혀 오지 않은 것</strong>도 있기 때문입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-emerald-900">맞힌 쪽</p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li><strong>주머니에 넣고 다니는 백과사전</strong> &mdash; 검색으로 왔다. 궁금한 것을
+                            서가에서 찾지 않는다.
+                        </li>
+                        <li><strong>보고 싶은 영화를 그 자리에서 골라 보기</strong> &mdash; 방송 시각에 맞추던
+                            일이 사라졌다.
+                        </li>
+                        <li><strong>말로 시키면 알아듣는 기계</strong> &mdash; 완벽하지는 않지만 일상에 들어왔다.</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-100 border border-slate-300 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-base text-slate-900">오지 않은 쪽</p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                        <li><strong>종이가 완전히 사라진 사무실</strong> &mdash; 오래전부터 예고되었지만
+                            종이는 줄기만 했다.
+                        </li>
+                        <li><strong>알약 하나로 끝나는 식사</strong> &mdash; 오지 않았고, 오기를 바라지도 않게 되었다.</li>
+                        <li><strong>출퇴근이 사라진 세상</strong> &mdash; 멀리서 일할 수 있게 된 뒤에도
+                            사무실은 남았다.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                무엇이 두 칸을 갈랐을까요? <strong>「기술이 어려워서」만으로는 설명되지 않습니다.</strong>
+                종이 없는 사무실은 필요한 기술이 오래전에 다 갖추어졌는데도 오지 않았습니다. 반대로 검색은
+                기술이 그리 대단해서 온 것이 아니라, <strong>저장 장치와 통신 값이 충분히 싸졌기
+                때문에</strong> 왔습니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 246" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="왼쪽에 예측이라는 상자가 있고 오른쪽으로 두 갈래 길이 나뉜다. 위쪽 길에는 널리 쓰이게 된 것, 아래쪽 길에는 오지 않은 것이라고 적혀 있으며 각 길에 통과해야 할 관문 세 개의 이름이 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">예측이 현실이 되려면 관문 셋을 지나야 한다</text>
+
+                    <rect x="12" y="98" width="104" height="56" rx="12" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>
+                    <text x="64" y="132" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">예측</text>
+
+                    <path d="M122 126 L146 126" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M142 118 L154 126 L142 134 Z" fill="#94a3b8"/>
+
+                    <rect x="158" y="94" width="112" height="64" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <text x="214" y="122" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">만들 수</text>
+                    <text x="214" y="144" font-size="17" fill="#1e3a8a" font-weight="700" text-anchor="middle">있는가</text>
+
+                    <path d="M276 126 L298 126" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M294 118 L306 126 L294 134 Z" fill="#94a3b8"/>
+
+                    <rect x="310" y="94" width="112" height="64" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="3"/>
+                    <text x="366" y="122" font-size="17" fill="#7c2d12" font-weight="700" text-anchor="middle">값이</text>
+                    <text x="366" y="144" font-size="17" fill="#7c2d12" font-weight="700" text-anchor="middle">맞는가</text>
+
+                    <path d="M428 126 L450 126" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M446 118 L458 126 L446 134 Z" fill="#94a3b8"/>
+
+                    <rect x="462" y="94" width="102" height="64" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <text x="513" y="122" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">사람들이</text>
+                    <text x="513" y="144" font-size="17" fill="#4c1d95" font-weight="700" text-anchor="middle">받아들이는가</text>
+
+                    <text x="288" y="196" font-size="17" fill="#334155" font-weight="700" text-anchor="middle">셋을 다 지나야 널리 쓰인다</text>
+                    <text x="288" y="222" font-size="16" fill="#64748b" text-anchor="middle">하나라도 막히면 「만들 수는 있는데 안 쓰는 것」으로 남는다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                종이 없는 사무실은 앞의 두 관문을 지나고도 <strong>세 번째에서 막혔습니다.</strong>
+                손으로 짚어 가며 읽고, 여백에 적고, 나란히 펼쳐 놓는 일을 사람들이 놓지 않았습니다.
+                알약 식사는 만들 수야 있어도 <strong>애초에 원하는 사람이 없었습니다.</strong> 예측이
+                빗나가는 자리는 대개 두 번째와 세 번째 관문입니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>기술은 이미 있는데 널리 쓰이지 않는 것</strong>을 하나 떠올려 보세요. 세 관문 가운데
+                어디에서 막혀 있다고 생각하나요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 예측을 세우는 법 ══════════ -->
+    <section id="how" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">예측을 세우는 법</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                미래를 그리라고 하면 대개 <strong>없던 것을 상상하려</strong> 합니다. 그런데 지난 예측들을
+                놓고 보면, 맞힌 것들은 대개 <strong>이미 있던 것에서 출발</strong>했습니다. 주머니 속
+                백과사전은 두꺼운 사전이 있었기에 그릴 수 있었고, 말로 시키는 기계는 사람에게
+                말로 시키던 일이 있었기에 그릴 수 있었습니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">세 가지 물음으로 시작한다</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-won-sign text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-emerald-900">지금 비싼 것이 싸지면?</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        값이 십분의 일이 되면 <strong>쓰는 자리가 완전히 달라집니다.</strong> 카메라가
+                        싸지자 사람이 아니라 기계가 보게 되었습니다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-gauge-high text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-sky-900">지금 오래 걸리는 것이 빨라지면?</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        하루 걸리던 것이 일 초가 되면 <strong>아예 다른 쓰임</strong>이 생깁니다. 미리
+                        해 두던 일을 그때그때 하게 됩니다.
+                    </p>
+                </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 space-y-2">
+                    <div class="w-11 h-11 bg-violet-500 rounded-xl flex items-center justify-center text-white shadow-sm">
+                        <i class="fa-solid fa-hand text-lg"></i>
+                    </div>
+                    <p class="font-black text-base text-violet-900">지금 사람이 꼭 해야 하는 일은?</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        누군가 계속 지켜보거나 옮겨 적어야 하는 일이 있다면, <strong>그 자리가 다음에
+                        바뀔 자리</strong>입니다.
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                세 물음 모두 <strong>지금을 자세히 보는 데서</strong> 시작합니다. 그래서 미래를 잘 그리는
+                사람은 상상력이 뛰어난 사람이라기보다 <strong>지금 무엇이 불편한지 잘 아는 사람</strong>에
+                가깝습니다.
+            </p>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">예측과 사실을 갈라 적는다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                미래를 이야기할 때 조심할 것이 하나 있습니다. <strong>「~할 것이다」와 「~이다」를 섞어
+                쓰지 않는 것</strong>입니다. 아래 두 문장은 아주 달라 보이지 않지만, 읽는 사람에게는
+                전혀 다르게 들립니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">예측을 사실처럼 적었을 때와 예측으로 적었을 때의 비교</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">어떻게 적었나</th>
+                        <th>문장</th>
+                        <th class="w-44">읽는 사람에게는</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">사실처럼</td>
+                        <td>「앞으로는 모든 자동차가 스스로 달린다.」</td>
+                        <td>이미 정해진 일로 읽힌다. <strong>따져 볼 여지가 없어진다.</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">예측으로</td>
+                        <td>「스스로 달리는 자동차가 늘어날 것이라고 보는 사람이 많다. 다만 안전을 어디까지
+                            보장할지가 아직 정해지지 않았다.」
+                        </td>
+                        <td>무엇이 정해졌고 무엇이 안 정해졌는지가 보인다. <strong>내 생각을 얹을 수 있다.</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 과목에서 미래를 다룰 때는 늘 뒤쪽처럼 적겠습니다. 여러분이 보고서를 쓸 때도 마찬가지입니다.
+                <strong>예측에는 「누가 그렇게 보는가」와 「아직 정해지지 않은 것」을 함께</strong> 적으면
+                훨씬 믿을 만한 글이 됩니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                「10년 뒤에는 학교에서 종이 시험지가 사라진다」를 <strong>예측으로 다시 적어</strong> 보세요.
+                아직 정해지지 않은 것 한 가지를 반드시 넣습니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 자주 나오는 그림 ══════════ -->
+    <section id="city" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">자주 나오는 그림</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                미래를 이야기하는 글에는 자주 나오는 낱말이 몇 개 있습니다. 뜻을 모른 채 지나가면 그냥
+                멋있는 말로만 들리므로, 세 개만 <strong>무엇을 가리키는 말인지</strong> 짚고 가겠습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">스마트 도시(smart city)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    도시 곳곳에서 <strong>데이터를 모아 도시 운영에 되먹이는</strong> 도시를 이릅니다.
+                    교통량을 모아 신호를 조절하고, 전기 사용량을 모아 공급을 맞추고, 사고를 빨리 알아채
+                    대응합니다. 「기계가 많은 도시」가 아니라 <strong>「모은 것을 실제로 쓰는 도시」</strong>가
+                    요점입니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">스마트 그리드(smart grid)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    전기를 보내는 길에 <strong>정보가 함께 오가도록</strong> 만든 전력망입니다. 예전 전력망은
+                    발전소에서 집으로 <strong>한 방향</strong>으로만 흘렀습니다. 스마트 그리드에서는 어디서
+                    얼마나 쓰는지가 실시간으로 올라오고, 집에서 만든 전기가 거꾸로 나가기도 합니다.
+                </p>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-200 border-l-4 border-l-violet-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-violet-900">만물 인터넷(Internet of Everything, IoE)</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사물뿐 아니라 <strong>사람과 데이터와 처리 과정까지 한데 이어진</strong> 모습을 가리키는
+                    말입니다. 사물 인터넷을 더 넓게 잡은 이름이라고 보면 됩니다. 다만 이 말은
+                    <strong>정해진 규격이 아니라 방향을 가리키는 이름</strong>이라, 쓰는 사람마다 범위가
+                    조금씩 다릅니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                셋을 한 그림에 놓으면 관계가 보입니다. 만물 인터넷은 <strong>이어 놓는 쪽</strong>이고,
+                스마트 그리드는 그중 <strong>전기라는 한 갈래</strong>이며, 스마트 도시는 이렇게 모인 것을
+                <strong>도시 운영에 쓰는 쪽</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 300" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="아래에 센서와 계량기와 카메라가 있고, 그 위에 만물 인터넷 층, 그 위에 스마트 그리드와 교통과 안전이라는 세 갈래, 맨 위에 스마트 도시 운영이 놓여 있다. 모든 상자에 이름이 적혀 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">모으는 층 &middot; 잇는 층 &middot; 쓰는 층</text>
+
+                    <rect x="118" y="44" width="340" height="50" rx="12" fill="#a7f3d0" stroke="#059669" stroke-width="3"/>
+                    <text x="288" y="76" font-size="19" fill="#064e3b" font-weight="700" text-anchor="middle">스마트 도시 운영</text>
+
+                    <path d="M180 118 L180 98" stroke="#94a3b8" stroke-width="3.5"/>
+                    <path d="M173 106 L180 94 L187 106 Z" fill="#94a3b8"/>
+                    <path d="M288 118 L288 98" stroke="#94a3b8" stroke-width="3.5"/>
+                    <path d="M281 106 L288 94 L295 106 Z" fill="#94a3b8"/>
+                    <path d="M396 118 L396 98" stroke="#94a3b8" stroke-width="3.5"/>
+                    <path d="M389 106 L396 94 L403 106 Z" fill="#94a3b8"/>
+
+                    <rect x="106" y="120" width="148" height="48" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="180" y="150" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">스마트 그리드</text>
+                    <rect x="266" y="120" width="44" height="48" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="288" y="150" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">교통</text>
+                    <rect x="322" y="120" width="148" height="48" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+                    <text x="396" y="150" font-size="17" fill="#78350f" font-weight="700" text-anchor="middle">안전과 방재</text>
+
+                    <path d="M288 192 L288 172" stroke="#94a3b8" stroke-width="3.5"/>
+                    <path d="M281 180 L288 168 L295 180 Z" fill="#94a3b8"/>
+
+                    <rect x="66" y="194" width="444" height="48" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <text x="288" y="224" font-size="19" fill="#4c1d95" font-weight="700" text-anchor="middle">만물 인터넷 &mdash; 사람 &middot; 사물 &middot; 데이터를 잇는다</text>
+
+                    <path d="M288 266 L288 246" stroke="#94a3b8" stroke-width="3.5"/>
+                    <path d="M281 254 L288 242 L295 254 Z" fill="#94a3b8"/>
+
+                    <rect x="30" y="268" width="152" height="24" rx="7" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+                    <text x="106" y="286" font-size="16" fill="#0f172a" font-weight="700" text-anchor="middle">교통량 센서</text>
+                    <rect x="212" y="268" width="152" height="24" rx="7" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+                    <text x="288" y="286" font-size="16" fill="#0f172a" font-weight="700" text-anchor="middle">전기 계량기</text>
+                    <rect x="394" y="268" width="152" height="24" rx="7" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+                    <text x="470" y="286" font-size="16" fill="#0f172a" font-weight="700" text-anchor="middle">안전 카메라</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이런 그림이 좋아 보이기만 하는 것은 아닙니다. <strong>모은 것을 쓰는 도시는, 모으는 도시이기도
+                합니다.</strong> 누가 어디로 다니는지가 계속 쌓입니다. 그래서 스마트 도시를 계획하는 자리에는
+                기술만이 아니라 <strong>무엇을 모으지 않을지 정하는 논의</strong>가 함께 있어야 합니다.
+            </p>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                우리 학교를 <strong>「스마트 학교」</strong>로 만든다면 무엇을 모아야 할까요? 그리고
+                <strong>모으지 않기로 정할 것</strong>은 무엇일까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 기획해 보기 ══════════ -->
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">기획해 보기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                이제 직접 하나 그려 보겠습니다. 대단한 것을 떠올리려 애쓰지 마세요. 앞 절의 세 물음
+                가운데 하나를 잡고, <strong>이미 있는 물건에 소프트웨어를 얹는</strong> 데서 시작하면 충분합니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">먼저 보기 하나</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">소프트웨어를 얹은 상품 기획서 예시</caption>
+                        <thead>
+                        <tr>
+                            <th class="w-36">칸</th>
+                            <th>적은 내용</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold text-slate-800">출발한 물음</td>
+                            <td>지금 사람이 꼭 해야 하는 일은? &mdash; 우산을 챙길지 매일 아침 스스로 판단해야 한다.</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-800">이름</td>
+                            <td>알려 주는 우산꽂이</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-800">왜 필요한가</td>
+                            <td>일기 예보를 확인하는 것을 잊어 비를 맞는 일이 잦다. 예보를 본다 해도
+                                <strong>나갈 때 다시 떠올리지 못한다.</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-800">무엇을 하는가</td>
+                            <td>현관의 우산꽂이가 오늘 강수 예보를 받아, 비 소식이 있으면 <strong>불빛으로</strong>
+                                알린다. 문을 열 때 눈에 들어오는 자리에 둔다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-800">기존과 무엇이 다른가</td>
+                            <td>예보 앱은 <strong>내가 열어야</strong> 보이지만, 이것은 <strong>나가는 길목에</strong>
+                                놓여 있어 따로 확인하지 않아도 된다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-800">필요한 기술</td>
+                            <td>예보를 받아 오는 통신, 불빛을 켜는 아주 작은 제어 프로그램</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-800">걸리는 점</td>
+                            <td>예보가 빗나가면 <strong>믿지 않게 된다.</strong> 또 집에 인터넷이 없으면 쓸 수 없다.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    마지막 <strong>「걸리는 점」</strong> 칸이 중요합니다. 이 칸을 비워 두면 기획이 아니라
+                    광고가 됩니다. 좋은 점만 적힌 기획서는 <strong>읽는 사람이 믿지 않습니다.</strong>
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">해 보기 &mdash; 나의 기획서</p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li>앞 절의 <strong>세 물음 가운데 하나</strong>를 고릅니다. 값 &middot; 속도 &middot;
+                        사람 손 가운데 무엇에서 출발할지 정하는 것입니다.
+                    </li>
+                    <li>그 물음에 걸리는 <strong>일상의 장면 하나</strong>를 적습니다. 교실 &middot; 집
+                        &middot; 등굣길 어디든 좋습니다.
+                    </li>
+                    <li>위 표와 같은 일곱 칸을 채웁니다. <strong>「걸리는 점」은 반드시</strong> 채웁니다.</li>
+                    <li>짝과 기획서를 바꿔 읽고, 상대의 <strong>「걸리는 점」에 한 줄을 더해</strong> 줍니다.
+                        내가 못 본 것을 남이 봅니다.
+                    </li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다 쓰고 나면 1절의 <strong>관문 셋</strong>을 대어 보세요. 만들 수 있는가, 값이 맞는가,
+                    사람들이 받아들이는가. 어디에서 막힐 것 같은지 한 줄로 적으면 기획서가 완성됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                내가 적은 <strong>「걸리는 점」</strong>이 만약 해결되지 않는다면, 그래도 이 기획은 쓸모가
+                있을까요? 없다면 어디를 고쳐야 할까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">빗나간 예측</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>예측이 현실이 되려면 <strong>만들 수 있는가 &middot; 값이 맞는가 &middot; 사람들이
+                        받아들이는가</strong> 세 관문을 지나야 한다.
+                    </li>
+                    <li>빗나가는 자리는 대개 <strong>두 번째와 세 번째</strong>다. 기술이 어려워서가 아니다.</li>
+                    <li>「만들 수는 있는데 안 쓰는 것」이 그래서 생긴다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">예측을 세우는 법</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>맞힌 예측은 대개 <strong>이미 있던 것에서 출발</strong>했다.</li>
+                    <li>세 물음 &mdash; 지금 비싼 것이 싸지면, 오래 걸리는 것이 빨라지면, 사람이 꼭 해야
+                        하는 일은 무엇인지.
+                    </li>
+                    <li>예측은 <strong>예측으로 적는다.</strong> 아직 정해지지 않은 것을 함께 적어야
+                        읽는 사람이 자기 생각을 얹을 수 있다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">자주 나오는 그림</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>스마트 도시</strong>는 모은 데이터를 도시 운영에 되먹이는 도시다.</li>
+                    <li><strong>스마트 그리드</strong>는 전기와 정보가 함께 오가는 전력망이다. 한 방향이던
+                        흐름이 양쪽으로 바뀐다.
+                    </li>
+                    <li><strong>만물 인터넷</strong>은 사람 &middot; 사물 &middot; 데이터까지 잇는 방향을
+                        가리키는 이름이다. 규격이 아니다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-slate-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">기획해 보기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>없던 것을 상상하기보다 <strong>이미 있는 물건에 소프트웨어를 얹는</strong> 데서 시작한다.</li>
+                    <li>기획서에는 <strong>「걸리는 점」을 반드시</strong> 적는다. 없으면 광고가 된다.</li>
+                    <li>다 쓰고 나서 <strong>관문 셋</strong>을 대어 보면 어디에서 막힐지 보인다.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「종이가 사라진 사무실」이 <strong>오지 않은 까닭</strong>에 가장 가까운 설명은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '기술은 이미 다 있습니다. 첫 관문은 오래전에 지났습니다.')">
+                    ① 종이 없이 일할 기술이 아직 없어서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 만들 수도 있고 값도 싸지만, 사람들이 종이를 놓지 않았습니다. 세 번째 관문에서 막힌 경우입니다.')">
+                    ② 기술도 값도 갖추어졌지만 사람들이 종이를 놓지 않아서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '화면이 종이보다 비싸서 막힌 것이 아닙니다. 값은 이미 오래전에 맞았습니다.')">
+                    ③ 화면으로 보는 것이 종이보다 훨씬 비싸서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '상상한 사람이 없어서가 아닙니다. 아주 오래전부터 나온 예측입니다.')">
+                    ④ 아무도 그런 것을 상상하지 않아서
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    미래를 그릴 때 <strong>출발점으로 알맞은 것</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '아무도 못 본 것을 떠올리려 애쓸수록 오히려 막힙니다. 맞힌 예측은 대개 있던 것에서 출발했습니다.')">
+                    ① 지금 세상에 전혀 없는 것을 떠올린다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 값·속도·사람 손이라는 세 물음은 모두 지금을 자세히 보는 데서 시작합니다.')">
+                    ② 지금 비싸거나 느리거나 사람 손이 가는 자리를 찾는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '멋진 이름은 기획의 마지막에 붙여도 됩니다. 출발점이 될 수는 없습니다.')">
+                    ③ 먼저 멋진 이름을 정한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '남이 그린 것을 옮겨 적으면 왜 그런지 설명할 수 없습니다.')">
+                    ④ 다른 나라가 발표한 계획을 그대로 옮겨 적는다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>스마트 그리드</strong>가 예전 전력망과 다른 점은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전기의 양이 아니라 정보가 함께 흐르는지가 핵심입니다.')">
+                    ① 보내는 전기의 양이 훨씬 많다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 전기와 함께 정보가 오가고, 흐름이 한 방향에서 양쪽으로 바뀝니다.')">
+                    ② 전기와 함께 사용 정보가 오가고 흐름이 양쪽으로 바뀐다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '전선을 없앤 것이 아닙니다. 같은 전선 위에 정보가 함께 흐르는 것입니다.')">
+                    ③ 전선을 쓰지 않고 전기를 보낸다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '발전소가 사라지지는 않습니다. 어디서 얼마나 쓰는지를 알게 되는 것이 요점입니다.')">
+                    ④ 발전소가 필요 없어진다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    기획서에서 <strong>「걸리는 점」 칸을 반드시 채우는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분량을 채우려고 쓰는 칸이 아닙니다. 없으면 기획의 성격 자체가 달라집니다.')">
+                    ① 정해진 칸 수를 채워야 하기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 좋은 점만 적힌 글은 기획이 아니라 광고가 되고, 읽는 사람이 믿지 않습니다.')">
+                    ② 좋은 점만 적으면 기획이 아니라 광고가 되기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '스스로 낮추라는 뜻이 아닙니다. 무엇이 남는지 알고 있어야 다음 판단을 할 수 있다는 뜻입니다.')">
+                    ③ 자기 아이디어를 낮춰 말하는 것이 예의이기 때문에
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실패할 것을 미리 정해 두려는 것이 아닙니다. 어디에서 막힐지 알고 고치려는 것입니다.')">
+                    ④ 어차피 이루어지지 않을 일이기 때문에
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

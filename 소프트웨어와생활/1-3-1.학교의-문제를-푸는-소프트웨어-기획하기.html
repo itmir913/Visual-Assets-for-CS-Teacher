@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학교의 문제를 푸는 소프트웨어 기획하기</title>
+    <link rel="stylesheet" href="/src/styles/software-life.css">
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: clamp(1.25rem, 4vw, 2.5rem);
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .quiz-btn.correct {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #ecfdf5;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #9a3412;
+            background: #ffedd5;
+            border: 1px solid #fdba74;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 흐름 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-diagram-project absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-school absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">소프트웨어와 생활</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            학교의 문제를 푸는 소프트웨어 기획하기
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            만들지는 않습니다<br><strong>무엇을 만들지</strong>를 정합니다
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>학교에서 겪는 불편을 모아 <strong>기준을 세워 하나를 고를</strong> 수 있다.</li>
+                    <li>고른 문제를 <strong>다룰 것과 다루지 않을 것</strong>으로 갈라 기획의 범위를 정할 수 있다.</li>
+                    <li>기획서를 쓰고 <strong>서로의 것을 정해진 눈으로</strong> 읽어 고칠 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-diagram-project text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">학교의 문제를 푸는 소프트웨어 기획하기</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#overview" class="hover:text-emerald-600 transition">무엇을 하는가</a>
+            <a href="#find" class="hover:text-emerald-600 transition">찾고 고르기</a>
+            <a href="#scope" class="hover:text-emerald-600 transition">범위를 긋기</a>
+            <a href="#share" class="hover:text-emerald-600 transition">나누고 다듬기</a>
+            <a href="#quiz" class="hover:text-emerald-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
+
+    <!-- ══════════ 1. 무엇을 하는가 ══════════ -->
+    <section id="overview" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 하는가</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                Ⅰ단원을 마무리하며 <strong>기획을 하나</strong> 해 보겠습니다. 프로그램을 만드는 것이
+                아닙니다. <strong>무엇을 만들지 정하는 일</strong>입니다. 이 일이 만드는 일보다 쉬워 보이지만,
+                실은 여기서 잘못 정하면 <strong>아무리 잘 만들어도 쓰이지 않습니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <svg viewBox="0 0 576 216" class="w-full h-auto max-w-xl mx-auto" style="min-width:576px"
+                     role="img" aria-label="다섯 개의 번호가 붙은 상자가 왼쪽에서 오른쪽으로 이어진다. 문제 모으기, 하나 고르기, 범위 긋기, 기획서 쓰기, 나누고 다듬기 순서다. 마지막 상자에서 세 번째 상자로 되돌아가는 화살표가 있다.">
+                    <text x="288" y="26" font-size="18" fill="#0f172a" font-weight="700" text-anchor="middle">기획은 다섯 걸음으로 한다</text>
+
+                    <rect x="8" y="52" width="104" height="72" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+                    <circle cx="30" cy="72" r="12" fill="#059669"/>
+                    <text x="30" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+                    <text x="60" y="104" font-size="16" fill="#064e3b" font-weight="700" text-anchor="middle">문제 모으기</text>
+
+                    <path d="M118 88 L130 88" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M126 80 L138 88 L126 96 Z" fill="#94a3b8"/>
+
+                    <rect x="142" y="52" width="104" height="72" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+                    <circle cx="164" cy="72" r="12" fill="#2563eb"/>
+                    <text x="164" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+                    <text x="194" y="104" font-size="16" fill="#1e3a8a" font-weight="700" text-anchor="middle">하나 고르기</text>
+
+                    <path d="M252 88 L264 88" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M260 80 L272 88 L260 96 Z" fill="#94a3b8"/>
+
+                    <rect x="276" y="52" width="104" height="72" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                    <circle cx="298" cy="72" r="12" fill="#d97706"/>
+                    <text x="298" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+                    <text x="328" y="104" font-size="16" fill="#78350f" font-weight="700" text-anchor="middle">범위 긋기</text>
+
+                    <path d="M386 88 L398 88" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M394 80 L406 88 L394 96 Z" fill="#94a3b8"/>
+
+                    <rect x="410" y="52" width="72" height="72" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+                    <circle cx="430" cy="72" r="12" fill="#7c3aed"/>
+                    <text x="430" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+                    <text x="446" y="104" font-size="16" fill="#4c1d95" font-weight="700" text-anchor="middle">기획서</text>
+
+                    <path d="M488 88 L496 88" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M494 80 L506 88 L494 96 Z" fill="#94a3b8"/>
+
+                    <rect x="504" y="52" width="64" height="72" rx="14" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+                    <circle cx="524" cy="72" r="12" fill="#dc2626"/>
+                    <text x="524" y="78" font-size="16" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+                    <text x="536" y="104" font-size="16" fill="#7f1d1d" font-weight="700" text-anchor="middle">다듬기</text>
+
+                    <path d="M536 148 L536 176 L328 176 L328 148" fill="none" stroke="#94a3b8" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M321 156 L328 144 L335 156 Z" fill="#94a3b8"/>
+                    <text x="288" y="202" font-size="16" fill="#475569" font-weight="700" text-anchor="middle">다듬다 보면 범위를 다시 긋게 된다</text>
+                </svg>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                다섯 걸음 가운데 <strong>학생들이 가장 빨리 지나가는 곳은 2번</strong>입니다. 떠오른 것을
+                덥석 잡고 4번으로 달려갑니다. 그런데 2번과 3번을 대충 하면 기획서가 아무리 예뻐도
+                <strong>「그래서 무엇을 만들겠다는 거지?」</strong>라는 물음에 답할 수 없습니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 border-l-4 border-l-emerald-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-emerald-900">이 프로젝트에서 만들어 낼 것</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li>고른 문제 하나와 <strong>그것을 고른 까닭</strong></li>
+                    <li>다룰 것과 <strong>다루지 않을 것</strong>의 목록</li>
+                    <li>기획서 한 장 &mdash; 무엇을 &middot; 누구에게 &middot; 어떻게</li>
+                    <li>다른 모둠에게 받은 <strong>남는 어려움</strong> 한 줄</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                <strong>「잘 만들었는데 아무도 쓰지 않는 것」</strong>을 하나 떠올려 보세요. 무엇을 잘못
+                정해서 그렇게 되었을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. 찾고 고르기 ══════════ -->
+    <section id="find" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">찾고 고르기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="font-black text-lg text-slate-800">1걸음 &mdash; 문제를 많이 모은다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                좋은 문제를 곧바로 떠올리려 하지 마세요. <strong>먼저 많이 모으는 것</strong>이 요령입니다.
+                모둠원이 각자 <strong>열 개씩</strong>, 아주 사소한 것까지 적습니다. 「이건 소프트웨어로
+                안 될 것 같은데」 싶은 것도 그냥 적습니다. 거르는 일은 2걸음에서 합니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-base text-slate-900">모으는 요령 &mdash; 자리를 옮겨 가며 묻기</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li><strong>시간으로</strong> &mdash; 등교할 때, 쉬는 시간, 점심시간, 하교할 때 각각 무엇이 불편한가</li>
+                    <li><strong>장소로</strong> &mdash; 교실, 복도, 급식실, 운동장, 화장실, 특별실</li>
+                    <li><strong>사람으로</strong> &mdash; 나 말고 <strong>선생님 &middot; 조리원 &middot; 경비 &middot; 후배</strong>는
+                        무엇이 불편할까
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    세 번째 줄을 꼭 해 보세요. <strong>내가 겪지 않는 불편</strong>이 오히려 아무도 손대지
+                    않은 문제인 경우가 많습니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">2걸음 &mdash; 기준을 세워 하나를 고른다</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                모은 것 가운데 하나를 고를 때 <strong>「제일 재미있어 보이는 것」으로 고르지 않습니다.</strong>
+                기준을 먼저 정하고, 그 기준으로 점수를 매깁니다. 기준을 적어 두면
+                <strong>나중에 왜 그것을 골랐는지 설명할 수 있습니다.</strong>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">문제를 고를 때 쓰는 네 가지 기준</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">기준</th>
+                        <th>무엇을 묻는가</th>
+                        <th class="w-44">낮으면 생기는 일</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">겪는 사람</td>
+                        <td>몇 사람이 얼마나 자주 겪는가</td>
+                        <td>만들어도 쓰는 사람이 몇 안 된다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">셀 수 있나</td>
+                        <td>무엇을 세면 이 문제를 나타낼 수 있는가</td>
+                        <td>나아졌는지 알 길이 없다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">우리 손 안인가</td>
+                        <td>학교 안에서 정할 수 있는 일인가</td>
+                        <td>기획해도 실행할 사람이 없다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">소프트웨어의 몫</td>
+                        <td>소프트웨어가 맡을 자리가 있는가</td>
+                        <td>사람이 마음먹으면 되는 일에 프로그램을 붙이게 된다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">네 번째 기준이 가장 자주 걸린다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    「복도에서 뛰지 않게 하자」는 좋은 문제입니다. 그런데 여기에 소프트웨어를 붙이면
+                    대개 <strong>감시하는 장치</strong>가 됩니다. 문제는 남고 감시만 늘어나는 것입니다.
+                    소프트웨어의 몫이 <strong>「사람을 지켜보는 것」밖에 없다면</strong> 다른 문제를
+                    고르는 편이 낫습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                네 기준 가운데 <strong>「셀 수 있나」</strong>가 왜 들어 있을까요? 앞 차시의 융합 네 단계와
+                이어서 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. 범위를 긋기 ══════════ -->
+    <section id="scope" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">범위를 긋기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                문제를 골랐다면 이제 <strong>어디까지 다룰지</strong> 선을 긋습니다. 이 걸음을 건너뛰면
+                기획이 점점 커져서 <strong>무엇 하나 또렷하지 않은 것</strong>이 됩니다. 선을 긋는 요령은
+                간단합니다 &mdash; <strong>다루지 않을 것을 먼저 적는</strong> 것입니다.
+            </p>
+
+            <p class="font-black text-lg text-slate-800">보기 &mdash; 급식 줄이 한꺼번에 몰린다</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <caption class="sr-only">급식 대기 문제의 범위를 다룰 것과 다루지 않을 것으로 나눈 표</caption>
+                        <thead>
+                        <tr>
+                            <th class="w-40">칸</th>
+                            <th>적은 내용</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="font-bold text-rose-800">문제</td>
+                            <td>점심시간 시작 직후 5분에 사람이 몰려 줄이 복도까지 늘어선다. 뒤에 온 학생은
+                                <strong>먹는 시간이 짧아진다.</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-blue-800">무엇을 세나</td>
+                            <td>1분 단위로 <strong>줄에 선 사람 수</strong>, 학년별로 급식실에 도착한 시각,
+                                수업이 끝난 교실의 위치.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-emerald-800">다룰 것</td>
+                            <td>지금 줄이 얼마나 긴지 <strong>교실에서 볼 수 있게</strong> 하고, 몇 분 뒤에
+                                가면 짧아질지 <strong>지난 기록으로 알려</strong> 준다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-slate-700">다루지 않을 것</td>
+                            <td>메뉴를 바꾸는 일, 급식실을 넓히는 일, <strong>학년별 순서를 강제로 정하는
+                                일.</strong> 앞의 둘은 우리 손 안이 아니고, 마지막은 소프트웨어 없이도 되는
+                                일이라 이 기획의 몫이 아니다.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold text-amber-800">나아졌다고 볼 근거</td>
+                            <td>가장 긴 줄의 길이가 줄어드는가, 마지막 학생이 배식을 받는 시각이 당겨지는가.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>「다루지 않을 것」 칸에 까닭을 함께 적은</strong> 데 주목하세요. 그냥 빼면
+                    빠뜨린 것처럼 보이지만, 까닭을 적으면 <strong>일부러 뺀 것</strong>이 됩니다. 읽는 사람이
+                    받는 느낌이 전혀 다릅니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">4걸음 &mdash; 기획서 한 장</p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                범위를 그었으면 기획서는 금방 써집니다. 길게 쓰지 말고 <strong>한 장</strong>에 담으세요.
+                한 장에 안 들어간다면 범위가 아직 넓은 것입니다.
+            </p>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+                <ol class="space-y-2 text-base text-slate-700 list-decimal list-outside pl-5 leading-relaxed">
+                    <li><strong>이름</strong> &mdash; 무엇인지 짐작되는 이름. 멋보다 알아듣기가 먼저다.</li>
+                    <li><strong>누가 쓰나</strong> &mdash; 「학생」이 아니라 <strong>「급식실에서 먼 교실의
+                        학생」</strong>처럼 좁혀 적는다.
+                    </li>
+                    <li><strong>무엇을 보여 주나</strong> &mdash; 화면에 무엇이 뜨는지 말로 적는다. 그림을
+                        곁들이면 더 좋다.
+                    </li>
+                    <li><strong>무엇을 세어 그걸 아나</strong> &mdash; 앞 표의 「무엇을 세나」를 옮긴다.</li>
+                    <li><strong>다루지 않을 것</strong> &mdash; 까닭과 함께.</li>
+                    <li><strong>남는 어려움</strong> &mdash; 이 기획이 안고 있는, 아직 풀지 못한 것.</li>
+                </ol>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여섯 칸 가운데 <strong>2번과 5번, 6번</strong>이 이 수업에서 새로 배운 것입니다.
+                    나머지는 여러분이 이미 할 줄 아는 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                급식 보기에서 <strong>「학년별 순서를 강제로 정하는 일」을 뺀 까닭</strong>은 앞의 둘과
+                다릅니다. 어떻게 다른가요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. 나누고 다듬기 ══════════ -->
+    <section id="share" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">나누고 다듬기</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                마지막 걸음은 <strong>서로의 기획서를 읽어 주는</strong> 일입니다. 그냥 읽으면 「좋은 것
+                같아요」로 끝납니다. <strong>무엇을 볼지 정해 놓고</strong> 읽어야 도움이 됩니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <caption class="sr-only">다른 모둠의 기획서를 읽을 때 쓰는 네 가지 눈</caption>
+                    <thead>
+                    <tr>
+                        <th class="w-32">읽는 눈</th>
+                        <th>물어볼 것</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold text-slate-800">쓸 사람</td>
+                        <td>이 사람이 <strong>정말 이것을 열어 볼까?</strong> 언제, 어디서 열까?</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">셀 수 있나</td>
+                        <td>적어 놓은 것을 정말 셀 수 있나? <strong>누가 어떻게</strong> 세나?</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">빠진 사람</td>
+                        <td>이것이 생기면 <strong>불리해지는 사람</strong>이 있나? 못 쓰는 사람은?</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-slate-800">남는 어려움</td>
+                        <td>6번 칸에 적힌 것 말고 <strong>내가 보기에 하나 더</strong> 있다면 무엇인가?</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                네 눈 가운데 <strong>세 번째</strong>가 가장 값집니다. 만든 사람은 대개 자기가 도우려는
+                사람만 떠올리기 때문입니다. 앞 차시에서 본
+                <strong>「자료가 없는 곳이 뒤로 밀리는 고리」</strong>도 여기서 걸립니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500 rounded-2xl p-6 space-y-3">
+                <p class="font-black text-lg text-amber-900">받은 지적으로 무엇을 하나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    받은 지적을 전부 반영하려 하지 마세요. 그러면 기획이 다시 커집니다. 셋 중 하나를 고릅니다
+                    &mdash; <strong>고친다 &middot; 「다루지 않을 것」으로 옮긴다 &middot; 「남는 어려움」에
+                    적는다.</strong> 셋 다 성실한 답입니다. 나쁜 답은 <strong>못 들은 척하는 것</strong>뿐입니다.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <p class="font-black text-lg text-slate-800">스스로 점검하기</p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5 leading-relaxed">
+                    <li>고른 문제를 <strong>왜 골랐는지</strong> 기준을 들어 말할 수 있는가</li>
+                    <li>「다루지 않을 것」을 <strong>까닭과 함께</strong> 적었는가</li>
+                    <li>「무엇을 세나」에 적은 것이 <strong>정말 셀 수 있는 것</strong>인가</li>
+                    <li>「남는 어려움」이 <strong>비어 있지 않은가</strong></li>
+                    <li>기획서가 <strong>한 장</strong>에 들어가는가</li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    다섯 줄 가운데 <strong>세 줄 이상에 그렇다고 답할 수 있으면</strong> 이 단원에서
+                    배우려던 것은 충분히 익힌 것입니다. 나머지는 다음 단원에서 이어서 다듬습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-sky-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                받은 지적을 <strong>「남는 어려움」에 적는 것</strong>도 성실한 답이라고 했습니다. 그것이
+                왜 회피가 아닌지 설명해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 핵심 정리 ══════════ -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-emerald-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">무엇을 하는가</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>만드는 것이 아니라 <strong>무엇을 만들지 정하는</strong> 일이다.</li>
+                    <li>다섯 걸음 &mdash; 문제 모으기 &middot; 하나 고르기 &middot; 범위 긋기 &middot;
+                        기획서 &middot; 다듬기.
+                    </li>
+                    <li>가장 빨리 지나가기 쉬운 곳이 <strong>2 &middot; 3걸음</strong>이고, 거기서 대충 하면
+                        뒤가 무너진다.
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-sky-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">찾고 고르기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>좋은 것을 바로 떠올리려 하지 말고 <strong>먼저 많이 모은다.</strong></li>
+                    <li>시간 &middot; 장소 &middot; 사람으로 자리를 옮겨 가며 묻는다. 특히
+                        <strong>내가 겪지 않는 불편</strong>을 찾는다.
+                    </li>
+                    <li>네 기준 &mdash; 겪는 사람 &middot; 셀 수 있나 &middot; 우리 손 안인가 &middot;
+                        <strong>소프트웨어의 몫이 있나.</strong></li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-amber-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">범위를 긋기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>선을 긋는 요령은 <strong>다루지 않을 것을 먼저 적는</strong> 것이다.</li>
+                    <li>까닭을 함께 적으면 <strong>빠뜨린 것이 아니라 일부러 뺀 것</strong>이 된다.</li>
+                    <li>기획서는 <strong>한 장</strong>이다. 한 장에 안 들어가면 범위가 아직 넓다.</li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500 space-y-3">
+                <p class="font-black text-lg text-slate-800">나누고 다듬기</p>
+                <ul class="space-y-2 text-base text-slate-600 list-disc list-outside pl-5 leading-relaxed">
+                    <li>무엇을 볼지 <strong>정해 놓고</strong> 읽어야 도움이 된다.</li>
+                    <li>가장 값진 눈은 <strong>「빠진 사람」</strong>이다. 만든 사람은 도우려는 사람만 떠올린다.</li>
+                    <li>받은 지적은 <strong>고치거나 &middot; 범위 밖으로 옮기거나 &middot; 남는 어려움에
+                        적는다.</strong> 셋 다 성실한 답이다.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 확인 퀴즈 ══════════ -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    문제를 모을 때 <strong>「선생님 · 조리원 · 후배는 무엇이 불편할까」</strong>를 묻는 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '예의를 갖추려고 묻는 것이 아닙니다. 찾는 범위를 넓히려는 것입니다.')">
+                    ① 여러 사람에게 예의를 갖추기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 내가 겪지 않는 불편은 아무도 손대지 않은 문제일 때가 많습니다.')">
+                    ② 내가 겪지 않는 불편이 아직 손대지 않은 문제일 때가 많아서
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '어른의 허락을 받으려는 절차가 아닙니다.')">
+                    ③ 어른의 허락을 미리 받아 두기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '개수를 채우려는 것이 아닙니다. 종류가 다른 문제를 찾는 것이 목적입니다.')">
+                    ④ 문제의 개수를 정해진 만큼 채우기 위해
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「복도에서 뛰는 문제」에 소프트웨어를 붙일 때 <strong>조심할 점</strong>은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '만들기 어려워서가 아닙니다. 만들기는 오히려 쉬운 쪽입니다.')">
+                    ① 만들기가 너무 어렵다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 소프트웨어의 몫이 사람을 지켜보는 것밖에 없다면 문제는 남고 감시만 늘어납니다.')">
+                    ② 소프트웨어의 몫이 사람을 지켜보는 것밖에 없기 쉽다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '겪는 사람이 적어서 문제가 되는 것이 아닙니다. 오히려 모두가 겪습니다.')">
+                    ③ 겪는 사람이 너무 적다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '학교 밖의 일이 아닙니다. 우리 손 안에 있는 문제입니다.')">
+                    ④ 학교 밖에서 정해지는 일이다
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    「다루지 않을 것」에 <strong>까닭을 함께 적는</strong> 까닭은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 까닭이 있으면 빠뜨린 것이 아니라 일부러 뺀 것이 됩니다.')">
+                    ① 빠뜨린 것이 아니라 일부러 뺀 것임을 보이기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '분량을 늘리려는 것이 아닙니다. 기획서는 한 장이 목표입니다.')">
+                    ② 기획서 분량을 늘리기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '나중에 다루겠다는 약속이 아닙니다. 이 기획의 몫이 아니라는 뜻입니다.')">
+                    ③ 나중에 반드시 다루겠다고 약속하기 위해
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '지적을 막으려는 것이 아닙니다. 오히려 어디를 봐 달라고 알려 주는 셈입니다.')">
+                    ④ 다른 모둠이 지적하지 못하게 막기 위해
+                </button>
+            </div>
+        </div>
+
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q4
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    다른 모둠의 기획서를 읽을 때 <strong>가장 값진 눈</strong>으로 든 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q4">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '쓸 사람을 따져 보는 것도 중요하지만, 만든 사람이 이미 떠올린 쪽입니다.')">
+                    ① 쓸 사람이 정말 열어 볼지 묻는 눈
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '셀 수 있는지도 중요하지만, 만든 사람이 이미 적어 둔 칸입니다.')">
+                    ② 적어 놓은 것을 정말 셀 수 있는지 묻는 눈
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 만든 사람은 대개 도우려는 사람만 떠올리므로, 불리해지거나 못 쓰는 사람은 밖에서만 보입니다.')">
+                    ③ 불리해지거나 못 쓰는 사람이 있는지 묻는 눈
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '남는 어려움을 더해 주는 것도 도움이 되지만, 셋째 눈이 없으면 그 어려움 자체가 보이지 않습니다.')">
+                    ④ 남는 어려움을 하나 더 적어 주는 눈
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #059669; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

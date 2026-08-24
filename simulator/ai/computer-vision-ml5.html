@@ -239,7 +239,7 @@
                     각각의 밝기와 색상을 나타내는 0~255 사이의 <strong>숫자(데이터)</strong>로 읽어 들입니다.</p>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <p class="text-xs text-slate-500 font-medium"><i
-                            class="fa-solid fa-circle-info mr-1 text-blue-500"></i> 옆의 격자에 마우스를 올려보세요! 픽셀이 숫자로 변환되는 과정을
+                            class="fa-solid fa-circle-info mr-1 text-blue-500"></i> 격자의 칸을 눌러 보세요(마우스라면 올려도 됩니다). 픽셀이 숫자로 변환되는 과정을
                         시각화했습니다.</p>
                 </div>
             </div>
@@ -499,29 +499,46 @@
     for (let i = 0; i < 25; i++) {
         const cell = document.createElement('div');
 
-        cell.className = 'pixel-cell flex items-center justify-center text-[10px] font-mono font-bold text-transparent cursor-crosshair';
+        cell.className = 'pixel-cell flex items-center justify-center text-[10px] font-mono font-bold text-transparent cursor-pointer';
 
         const randomColorIdx = Math.floor(Math.random() * colors.length);
         const value = Math.round((randomColorIdx / (colors.length - 1)) * 255);
 
         pixelValues.push(value); // 👈 생성된 숫자를 배열에 추가
 
-        if (randomColorIdx >= 4) {
-            cell.classList.add('hover:text-slate-900');
-        } else {
-            cell.classList.add('hover:text-white');
-        }
+        /* 밝은 칸에는 어두운 글자, 어두운 칸에는 흰 글자를 얹는다.
+           **hover 로만 드러내면 터치 기기에서는 숫자를 영영 못 본다** —
+           휴대전화에는 hover 가 없기 때문이다. 그래서 색을 CSS 가 아니라
+           여기서 쥐고, 마우스를 올릴 때와 **누를 때** 둘 다 드러낸다. */
+        const revealColor = randomColorIdx >= 4 ? '#0f172a' : '#ffffff';
 
         cell.style.backgroundColor = colors[randomColorIdx];
         cell.innerText = value;
 
-        cell.addEventListener('mouseenter', function () {
-            this.style.transform = 'scale(1.1)';
-            this.style.zIndex = '10';
+        const show = () => {
+            cell.style.color = revealColor;
+            cell.style.transform = 'scale(1.1)';
+            cell.style.zIndex = '10';
+        };
+        const hide = () => {
+            cell.style.color = '';
+            cell.style.transform = 'scale(1)';
+            cell.style.zIndex = '1';
+        };
+
+        cell.addEventListener('mouseenter', show);
+        cell.addEventListener('mouseleave', () => {
+            if (!cell.dataset.pinned) hide();
         });
-        cell.addEventListener('mouseleave', function () {
-            this.style.transform = 'scale(1)';
-            this.style.zIndex = '1';
+        // 누르면 켜진 채로 둔다. 손가락을 떼도 숫자가 남아야 읽을 수 있다.
+        cell.addEventListener('click', () => {
+            if (cell.dataset.pinned) {
+                delete cell.dataset.pinned;
+                hide();
+            } else {
+                cell.dataset.pinned = '1';
+                show();
+            }
         });
         pixelGrid.appendChild(cell);
     }

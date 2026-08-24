@@ -58,8 +58,14 @@ function bind() {
         btn.addEventListener('click', () => {
             const el = targetOf(btn);
             if (!el) return;
-            if (document.fullscreenElement) document.exitFullscreen();
-            else if (el.requestFullscreen) el.requestFullscreen();
+            /* **`fullscreenEnabled` 가 참이어도 요청은 거부될 수 있다.** 다른 페이지에
+               iframe 으로 얹혔을 때가 그렇다 — 위의 가로막기는 통과하는데 부름은
+               「Permissions check failed」로 거부된다. 받아 주는 데가 없으면
+               학생 화면의 콘솔에 붉은 오류가 남으므로 여기서 삼킨다.
+               못 켜면 그냥 안 켜지는 것이 맞다. */
+            const ignore = () => {};
+            if (document.fullscreenElement) Promise.resolve(document.exitFullscreen()).catch(ignore);
+            else if (el.requestFullscreen) Promise.resolve(el.requestFullscreen()).catch(ignore);
         });
     });
 

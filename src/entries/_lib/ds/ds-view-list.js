@@ -14,8 +14,7 @@
  */
 
 import {DS_COLORS} from './ds-view-cells.js';
-
-const SVG_NS = 'http://www.w3.org/2000/svg';
+import {svgEl} from './svg.js';
 
 /* 마디 하나의 크기. 두 자리 숫자와 링크 칸이 들어갈 만큼은 되어야 한다. */
 const NH = 50;
@@ -33,12 +32,6 @@ const VALUE_FONT_PX = 15;
 const SMALL_FONT_PX = 13;
 
 let uid = 0;
-
-function svgEl(tag, attrs = {}) {
-    const el = document.createElementNS(SVG_NS, tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-    return el;
-}
 
 /**
  * @param {HTMLElement} host 그림이 들어갈 빈 상자

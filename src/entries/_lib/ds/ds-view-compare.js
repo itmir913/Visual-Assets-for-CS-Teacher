@@ -68,7 +68,7 @@ export function createDsCompareView(host) {
     /* 표는 그림 아래에 둔다. **재는 것이 그림과 다른 이야기**이므로 섞지 않는다. */
     const tableNote = box('p', {
         fontWeight: '700', color: '#0f172a', margin: '4px 0 6px',
-    }, '개수를 키워 가며 잰 작업량 (접근 + 이동 + 링크)');
+    }, '개수를 키워 가며 측정한 작업량 (접근 + 이동 + 링크)');
     const tableWrap = box('div', {width: '100%', overflowX: 'auto'});
     const table = document.createElement('table');
     Object.assign(table.style, {width: '100%', borderCollapse: 'collapse', minWidth: '480px'});

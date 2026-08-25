@@ -67,7 +67,7 @@ export function createTreeCompareView(host) {
 
     const tableNote = box('p', {
         fontWeight: '700', color: '#0f172a', margin: '4px 0 6px',
-    }, '개수를 키워 가며 잰 트리 높이');
+    }, '개수를 키워 가며 측정한 트리 높이');
     const tableWrap = box('div', {width: '100%', overflowX: 'auto'});
     const table = document.createElement('table');
     Object.assign(table.style, {width: '100%', borderCollapse: 'collapse', minWidth: '480px'});

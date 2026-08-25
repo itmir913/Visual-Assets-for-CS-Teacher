@@ -99,7 +99,7 @@ function arrayReadAt(rec, i) {
 function arrayFind(rec, v) {
     rec.clearFlag();
     for (let i = 0; i < rec.size; i++) {
-        rec.say(`${i}번과 ${sortNum(v, '을를')} 견주어 봅니다.`);
+        rec.say(`${i}번과 ${sortNum(v, '을를')} 비교해 봅니다.`);
         const it = rec.at(i);
         if (it.v === v) {
             rec.cursor('i', i);
@@ -296,7 +296,7 @@ function listFind(rec, v) {
     let nd = rec.nodeById(rec.head);
     let seen = 0;
     while (nd) {
-        rec.say(`이 마디의 값과 ${sortNum(v, '을를')} 견주어 봅니다.`);
+        rec.say(`이 마디의 값과 ${sortNum(v, '을를')} 비교해 봅니다.`);
         rec.walk(nd.id, 'p');
         seen++;
         if (nd.v === v) {

@@ -150,16 +150,25 @@ export function mountDsSimulator() {
         $('group-name').textContent = group ? group.name : ' ';
         setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
 
+        /* **배지의 뜻을 화면에 낸다.** 예전에는 `title`(마우스 툴팁)에만 있어
+           교실 화면과 터치 기기에서는 보이지 않았다 — 색만 보고 뜻을 짐작하게 된다. */
         const badges = $('struct-badges');
         badges.textContent = '';
         for (const f of struct.facts || []) {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex flex-col sm:flex-row items-stretch sm:items-baseline '
+                + 'gap-x-2 gap-y-0.5 min-w-0';
             const el = document.createElement('span');
-            el.className = 'px-3 py-1 rounded-full font-bold border '
+            el.className = 'px-3 py-1 rounded-full font-bold border shrink-0 text-center '
                 + (f.on ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                     : 'bg-slate-100 border-slate-300 text-slate-600');
             el.textContent = f.text;
-            el.title = f.hint;
-            badges.appendChild(el);
+            const why = document.createElement('span');
+            why.className = 'text-slate-500 font-medium min-w-0';
+            why.textContent = f.hint;
+            wrap.appendChild(el);
+            wrap.appendChild(why);
+            badges.appendChild(wrap);
         }
 
         const table = $('struct-cost');
@@ -218,7 +227,7 @@ export function mountDsSimulator() {
         if (kind === 'compare') {
             lines.push('위는 **배열**, 아래는 **단일 연결 리스트**입니다. 같은 값을 담고 같은 연산을 받습니다.');
             lines.push('작업량(접근 + 이동 + 링크)을 똑같이 나눠 주므로 **먼저 「끝」이 붙은 쪽이 일을 덜 한 것**입니다.');
-            lines.push('아래 표는 개수를 키워 가며 잰 것입니다. **굵고 진한 쪽이 그 개수에서 값이 싼 쪽**입니다.');
+            lines.push('아래 표는 개수를 키워 가며 측정한 것입니다. **굵고 진한 쪽이 그 개수에서 값이 싼 쪽**입니다.');
         } else if (kind === 'list') {
             lines.push('마디는 **값 칸과 링크 칸**으로 되어 있습니다. 링크도 마디에 담긴 값 하나입니다.');
             lines.push('링크 칸의 **빗금**은 가리킬 것이 없다(`null`)는 뜻입니다.');

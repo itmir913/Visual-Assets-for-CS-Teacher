@@ -21,7 +21,7 @@ import {TREE_VALUE_MAX} from './tree-ops.js';
 
 const TREE_LEGEND = [
     {key: 'idle', label: '그대로 있는 것'},
-    {key: 'focus', label: '지금 견주는 마디'},
+    {key: 'focus', label: '지금 비교하는 마디'},
     {key: 'moving', label: '방금 움직인 것'},
     {key: 'newborn', label: '아직 매달리지 않은 새 마디'},
     {key: 'doomed', label: '곧 떼어 낼 것'},
@@ -52,6 +52,16 @@ function treeButton(cls, text, onClick) {
 export function mountTreeSimulator() {
     let struct = TREE_STRUCTS[0];
     let order = [...TREE_START];   // **넣은 차례.** 담긴 값이 아니다
+    /* **탭마다 제 상태를 들고 있는다.**
+     *
+     * 넣은 차례로 다시 세우는 것은 «넣기만» 했을 때에만 같은 모양을 준다. 빼기는 값을
+     * 맞바꿔 마디를 지우므로, 남은 차례로 다시 세우면 **다른 트리**가 된다 — 실제로
+     * 아무 연산도 하지 않고 탭만 왕복해도 높이가 3에서 4로 늘었다. 높이는 이 페이지가
+     * 머리에 크게 띄우는 단 하나의 잣대인데 그것이 몰래 바뀌면 안 된다.
+     *
+     * 그래서 한 번 보인 트리는 그대로 두고, **담긴 값이 실제로 달라졌을 때만** 다른 탭의
+     * 것을 버린다(자료가 바뀌었으니 다시 세우는 것이 맞다). */
+    const kept = new Map();
     let state = null;
     let pair = null;
     let player = null;
@@ -108,16 +118,25 @@ export function mountTreeSimulator() {
         $('group-name').textContent = group ? group.name : ' ';
         setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
 
+        /* **배지의 뜻을 화면에 낸다.** 예전에는 `title`(마우스 툴팁)에만 있어
+           교실 화면과 터치 기기에서는 보이지 않았다 — 색만 보고 뜻을 짐작하게 된다. */
         const badges = $('struct-badges');
         badges.textContent = '';
         for (const f of struct.facts || []) {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex flex-col sm:flex-row items-stretch sm:items-baseline '
+                + 'gap-x-2 gap-y-0.5 min-w-0';
             const el = document.createElement('span');
-            el.className = 'px-3 py-1 rounded-full font-bold border '
+            el.className = 'px-3 py-1 rounded-full font-bold border shrink-0 text-center '
                 + (f.on ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                     : 'bg-slate-100 border-slate-300 text-slate-600');
             el.textContent = f.text;
-            el.title = f.hint;
-            badges.appendChild(el);
+            const why = document.createElement('span');
+            why.className = 'text-slate-500 font-medium min-w-0';
+            why.textContent = f.hint;
+            wrap.appendChild(el);
+            wrap.appendChild(why);
+            badges.appendChild(wrap);
         }
 
         const table = $('struct-cost');
@@ -174,7 +193,7 @@ export function mountTreeSimulator() {
         if (kind === 'compare') {
             lines.push('위는 **이진 탐색 트리**, 아래는 **AVL 트리**입니다. 같은 값을 같은 차례로 받습니다.');
             lines.push('작업량(비교 + 이동 + 링크)을 똑같이 나눠 주므로 **먼저 「끝」이 붙은 쪽이 일을 덜 한 것**입니다.');
-            lines.push('아래 표는 개수를 키워 가며 잰 **높이**입니다. 굵고 진한 쪽이 그 개수에서 낮은 쪽입니다.');
+            lines.push('아래 표는 개수를 키워 가며 측정한 **높이**입니다. 굵고 진한 쪽이 그 개수에서 낮은 쪽입니다.');
         } else if (kind === 'heap') {
             lines.push('**위 트리와 아래 배열은 같은 것입니다.** 마디 위의 작은 수가 배열의 자리 번호입니다.');
             lines.push('부모는 `(자리 − 1) ÷ 2`, 자식은 `2 × 자리 + 1`과 `2 × 자리 + 2`입니다. **링크가 없습니다.**');
@@ -213,10 +232,21 @@ export function mountTreeSimulator() {
         $('arg-row').classList.toggle('hidden', need !== 'value');
     }
 
-    function readArg() {
-        const raw = Number($('value-input').value);
-        const v = Number.isFinite(raw) && raw >= 0 && raw <= TREE_VALUE_MAX
-            ? Math.round(raw) : Math.floor(Math.random() * TREE_VALUE_MAX) + 1;
+    /** 적어 넣은 값을 읽는다. **말없이 다른 값으로 바꿔치지 않는다.**
+     *
+     *  예전에는 범위 밖이면 무작위 값을 대신 넣었다. 150을 적었는데 트리에 7이 들어가면
+     *  학생은 자기가 무엇을 잘못했는지가 아니라 **트리가 이상하다**고 배운다.
+     *  바로 아래 「직접 넣기」는 같은 값을 또박또박 막고 있었으니 한 페이지가 두 규칙으로 논 셈이다.
+     *
+     *  @returns {object|null} 쓸 수 없으면 `null`. 그때는 까닭을 화면에 적어 둔다. */
+    function readArg(op) {
+        if (op && op.arg !== 'value') return {v: 0};
+        const raw = $('value-input').value.trim();
+        const v = Number(raw);
+        if (raw === '' || !Number.isInteger(v) || v < 0 || v > TREE_VALUE_MAX) {
+            $('input-error').textContent = `값은 0부터 ${TREE_VALUE_MAX}까지의 정수여야 합니다.`;
+            return null;
+        }
         return {v};
     }
 
@@ -337,12 +367,17 @@ export function mountTreeSimulator() {
     function doOperation(op) {
         lastOp = op;
         paintArgRow();
-        const arg = readArg();
         $('input-error').textContent = ' ';
+        const arg = readArg(op);
+        if (!arg) return;
 
         if (struct.id === 'compare') {
+            /* 간판 단추는 **빈 트리에서 시작한다** → `tree-ops.js`의 `clears`. */
+            if (op.clears) pair = treeComparePair([]);
             const built = buildTreeCompare(op, pair, arg);
             pair = {bst: built.runs[0].out.state, avl: built.runs[1].out.state};
+            kept.set('compare', pair);
+            dropOthers();
             syncOrder(treeValues(pair.bst));
             ensureView('compare');
             paintReadNotes('compare');
@@ -359,10 +394,12 @@ export function mountTreeSimulator() {
             return;
         }
 
+        const before = treeValues(state).join(',');
         const out = runTreeOperation(op, state, arg);
         state = out.state;
+        kept.set(struct.id, state);
+        if (treeValues(state).join(',') !== before) dropOthers();
         syncOrder(treeValues(state));
-        refillValue();
 
         ensureView(struct.view);
         paintReadNotes(struct.view);
@@ -381,16 +418,35 @@ export function mountTreeSimulator() {
     }
 
     function paintState() {
-        const st = struct.id === 'compare' ? pair.bst : state;
-        $('size-label').textContent = `${st.size}개`;
-        $('height-label').textContent = `${treeHeight(st)}`;
+        if (struct.id === 'compare') {
+            /* **어느 트리의 높이인지 밝힌다.** 두 줄을 나란히 놓은 탭에서 수 하나만
+               띄워 두면 어느 쪽 것인지 알 수가 없다. */
+            $('size-label').textContent = `${pair.bst.size}개`;
+            $('height-label').textContent =
+                `이진 탐색 ${treeHeight(pair.bst)} · AVL ${treeHeight(pair.avl)}`;
+            return;
+        }
+        $('size-label').textContent = `${state.size}개`;
+        $('height-label').textContent = `${treeHeight(state)}`;
     }
 
     /* ---- 자료 ---- */
 
     function rebuildState() {
-        if (struct.id === 'compare') { pair = treeComparePair(order); return; }
-        state = struct.makeState(order);
+        if (struct.id === 'compare') {
+            pair = kept.get('compare') || treeComparePair(order);
+            kept.set('compare', pair);
+            return;
+        }
+        state = kept.get(struct.id) || struct.makeState(order);
+        kept.set(struct.id, state);
+    }
+
+    /** 담긴 값이 달라졌으면 **다른 탭의 것을 버린다.** 지금 탭 것은 그대로 둔다. */
+    function dropOthers() {
+        const mine = kept.get(struct.id);
+        kept.clear();
+        if (mine) kept.set(struct.id, mine);
     }
 
     function selectStruct(id) {
@@ -399,8 +455,14 @@ export function mountTreeSimulator() {
         struct = next;
         lastOp = struct.ops[0];
         if (struct.id === 'heap' && order.length > HEAP_CAP) {
+            /* **되돌아와도 안 돌아온다는 것을 밝힌다.** 「앞의 15개만 옮겼습니다」는
+               나머지가 어딘가 남아 있다는 뜻으로 읽히는데, 실제로는 넣은 차례가 잘린다. */
+            const lost = order.length - HEAP_CAP;
             order = order.slice(0, HEAP_CAP);
-            $('input-error').textContent = `힙은 칸이 ${HEAP_CAP}개라 앞의 ${HEAP_CAP}개만 옮겼습니다.`;
+            kept.clear();
+            $('input-error').textContent =
+                `힙은 칸이 ${HEAP_CAP}개뿐이라 뒤의 ${lost}개를 **버렸습니다.** `
+                + '다른 탭으로 돌아가도 그 값은 돌아오지 않습니다.';
         }
         rebuildState();
         paintTabs();
@@ -411,6 +473,8 @@ export function mountTreeSimulator() {
 
     function applyOrder(vals) {
         order = vals;
+        kept.clear();
+        refillValue();
         rebuildState();
         runIdle();
     }

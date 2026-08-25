@@ -45,8 +45,12 @@ export function treeLinkedState(values = [], {balanced = false} = {}) {
 
 /** 화면 밖에서 트리를 세울 때 쓴다. **기록을 남기지 않는다** — 처음 상태를 만들거나
  *  검사가 기대값을 따로 구할 때만 부른다. 회전은 하지 않으므로 AVL의 처음 상태는
- *  값을 넣은 차례 그대로의 모양이 된다. */
+ *  값을 넣은 차례 그대로의 모양이 된다.
+ *
+ *  **같은 값은 넣지 않는다.** 화면의 연산(`bstInsert`)이 그렇게 막으므로 여기서만
+ *  다르게 굴면, 이 함수를 쓰는 날 두 곳이 어긋난 트리를 만든다. */
 export function treePlainInsert(s, v) {
+    if (byId(s, s.root) && treeInorder(s).includes(v)) return null;
     const nd = {id: nextNodeId++, v, left: null, right: null, parent: null, height: 1, floating: false};
     s.nodes.push(nd);
     s.size++;

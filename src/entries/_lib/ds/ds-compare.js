@@ -79,7 +79,7 @@ export function buildDsCompare(op, states, arg) {
                 say: stuckList.length === 2
                     ? `${who} 이 연산을 할 수 없어 **아무 일도 일어나지 않았습니다.**`
                     : `${who} 이 연산을 할 수 없습니다. **그래서 두 쪽 모두 하지 않았습니다** — `
-                      + '한쪽만 하면 담긴 것이 달라져 더는 견줄 수 없기 때문입니다.',
+                      + '한쪽만 하면 담긴 것이 달라져 더는 비교할 수 없기 때문입니다.',
             }],
             runs,
             blocked: true,

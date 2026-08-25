@@ -61,7 +61,7 @@ function bstInsert(rec, v) {
     rec.say(`${spot.parent.v}의 ${spot.side === 'left' ? '왼쪽' : '오른쪽'} 링크를 새 마디로 겁니다.`);
     rec.link(spot.parent.id, nd.id, spot.side);
     rec.settle(nd.id);
-    return `${sortNum(v, '을를')} 넣었습니다. **견준 횟수가 곧 내려간 깊이**입니다.`;
+    return `${sortNum(v, '을를')} 넣었습니다. **비교한 횟수가 곧 내려간 깊이**입니다.`;
 }
 
 function bstSearch(rec, v) {
@@ -80,7 +80,7 @@ function bstSearch(rec, v) {
         if (d === 0) {
             rec.say(`${sortNum(v, '을를')} 찾았습니다.`);
             rec.mark('found');
-            return `${steps}번 견주어 찾았습니다. **트리 높이가 ${treeHeight(rec.state)}이므로 아무리 깊어도 그만큼입니다.**`;
+            return `${steps}번 비교해 찾았습니다. **트리 높이가 ${treeHeight(rec.state)}이므로 아무리 깊어도 그만큼입니다.**`;
         }
         const side = d < 0 ? 'left' : 'right';
         rec.say(d < 0
@@ -91,7 +91,7 @@ function bstSearch(rec, v) {
     }
     rec.say(`더 내려갈 곳이 없습니다. ${sortNum(v, '은는')} 트리에 없습니다.`);
     rec.mark('missing');
-    return `${sortNum(v, '은는')} 없습니다. **${steps}번 견주고 끝났습니다** — 없다는 것도 이만큼이면 알 수 있습니다.`;
+    return `${sortNum(v, '은는')} 없습니다. **${steps}번 비교하고 끝났습니다** — 없다는 것도 이만큼이면 알 수 있습니다.`;
 }
 
 /** 오른쪽 가지에서 **가장 작은 마디**. 지우려는 값의 바로 다음 값이다. */
@@ -136,8 +136,13 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
        실제 구현도 대개 이렇게 한다 — 옮기는 것은 값 하나뿐이다. */
     if (target.left !== null && target.right !== null) {
         const succ = successorOf(rec, target);
+        /* **이 장에서 트리는 잠깐 이진 탐색 트리가 아니다.** 값을 맞바꾸는 순간
+           옮겨 간 값이 제자리를 벗어난다(화면에서도 가로 차례가 어긋나 보인다).
+           곧 그 마디를 떼어 내므로 끝나고 나면 성질이 돌아온다 —
+           **그 「잠깐」을 밝히지 않으면 자막이 화면을 부정한다.** */
         rec.say(`${target.v} 자리에 **${sortNum(succ.v, '을를')}** 올려놓습니다. `
-            + '이렇게 하면 왼쪽은 다 작고 오른쪽은 다 큰 성질이 그대로 지켜집니다.');
+            + `옮겨 온 자리(${target.v}이 있던 곳)에는 이제 ${succ.v}이 두 번 있는 셈이라 `
+            + '**잠깐 규칙이 어긋납니다** — 곧 아래쪽 마디를 떼어 내면 제자리로 돌아옵니다.');
         rec.swapValues(target.id, succ.id);
         target = succ;   // 이제 지울 것은 «다음 값»이 옮겨 간 마디다
     }
@@ -197,9 +202,10 @@ function traverse(rec, order) {
     /* **세는 값이 셋 다 0인 것에 뜻이 있다.** 순회는 값을 견주지도 옮기지도 링크를
        고치지도 않는다 — 이미 만들어진 모양대로 지나갈 뿐이다. 그 0을 밝혀 주지 않으면
        학생은 화면이 고장 났다고 읽는다. */
-    const zero = ' 순회는 값을 **견주지 않습니다** — 이미 만들어진 모양대로 지나갈 뿐이라 세는 값이 모두 0입니다.';
+    const zero = ' 순회는 값을 **비교하지 않습니다** — 이미 만들어진 모양대로 지나갈 뿐이라 세는 값이 모두 0입니다.';
     return (order === 'in'
-        ? '중위 순회로 나온 값이 **오름차순**입니다. 이진 탐색 트리에 담아 두고 중위로 훑으면 정렬된 결과가 나옵니다.'
+        ? '중위 순회로 나온 값이 **오름차순**입니다. 왼쪽은 작고 오른쪽은 크다는 규칙을 '
+          + '지키는 트리라면 언제나 그렇습니다 — 돌리고 난 뒤에도 마찬가지입니다.'
         : `${name} 순회가 끝났습니다. 나온 차례를 중위 순회와 대 보세요.`) + zero;
 }
 
@@ -307,6 +313,15 @@ function heapInsert(rec, v) {
         rec.mark('full');
         return '꽉 차서 넣지 못했습니다.';
     }
+    /* **같은 값을 두 번 넣지 않는다.** 이진 탐색 트리 쪽은 막는데 힙만 안 막았더니,
+       겹친 값이 들어간 뒤 탭을 옮기는 순간 «넣은 차례»에서 하나가 걸러져
+       **값이 말없이 사라졌다.** 두 곳의 규칙이 같아야 한다. */
+    if (rec.state.slots.slice(0, rec.size).some((it) => it && it.v === v)) {
+        rec.flag(`${sortNum(v, '은는')} 이미 들어 있습니다. 이 시뮬레이터는 `
+            + '**같은 값을 두 번 넣지 않습니다.**');
+        rec.mark('duplicate');
+        return `${sortNum(v, '은는')} 이미 있습니다.`;
+    }
     const at = rec.size;
     rec.say(`새 값은 **배열의 맨 끝(${at}번 칸)**에 놓습니다. 트리로 보면 마지막 자리입니다.`);
     rec.heapWrite(at, v);
@@ -392,8 +407,14 @@ function heapFind(rec, v) {
         if (rec.heapCompareValue(i, v) === 0) {
             rec.say(`${i}번 칸에서 찾았습니다.`);
             rec.mark('found');
-            return `${i + 1}칸째에서 찾았습니다. **이진 탐색 트리와 달리 하나씩 다 봐야 합니다** — `
-                + '힙이 잘하는 것은 「가장 큰 것 꺼내기」이지 「찾기」가 아닙니다.';
+            /* **일찍 찾은 판에 「다 봐야 한다」고 말하지 않는다.** 학생이 맨 먼저 찾아보는
+               값은 대개 화면에서 가장 큰 값인데, 그것은 늘 0번 칸이라 한 번에 걸린다.
+               계수기에 「비교 1」이 떠 있는데 글이 「다 봐야 합니다」라고 하면 어긋난다. */
+            return i === 0
+                ? '뿌리에 있어 한 번에 찾았습니다. **가장 큰 값이라서 그렇습니다** — '
+                  + '다른 값을 찾아보면 앞에서부터 하나씩 봐야 합니다.'
+                : `${i + 1}칸째에서 찾았습니다. **가지를 버릴 수가 없어 앞에서부터 하나씩 봅니다** — `
+                  + '힙이 잘하는 것은 「가장 큰 것 꺼내기」이지 「찾기」가 아닙니다.';
         }
     }
     rec.say(`${sortNum(v, '은는')} 없습니다.`);
@@ -408,13 +429,13 @@ function heapFind(rec, v) {
 export const bstOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 넣을 자리를 **뿌리에서부터 견주어** 찾아 내려갑니다.`,
+        opening: (rec, {v}) => `${sortNum(v, '을를')} 넣을 자리를 **뿌리에서부터 비교하며** 찾아 내려갑니다.`,
         run: (rec, {v}) => bstInsert(rec, v),
         cost: () => 'O(높이)',
     },
     {
         id: 'search', name: '찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '이가')} 있는지 **뿌리에서부터** 견주며 내려갑니다.`,
+        opening: (rec, {v}) => `${sortNum(v, '이가')} 있는지 **뿌리에서부터** 비교하며 내려갑니다.`,
         run: (rec, {v}) => bstSearch(rec, v),
         cost: () => 'O(높이)',
     },
@@ -474,7 +495,7 @@ export const avlOps = [
 export const heapOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **배열 맨 끝에 놓고 부모와 견주며 올라갑니다.**`,
+        opening: (rec, {v}) => `${sortNum(v, '을를')} **배열 맨 끝에 놓고 부모와 비교하며 올라갑니다.**`,
         run: (rec, {v}) => heapInsert(rec, v),
         cost: () => 'O(log n)',
     },
@@ -498,10 +519,9 @@ export const heapOps = [
 
 /** 한 번에 여러 개를 넣는다. **오름차순으로 넣어 봐야 두 트리가 갈린다.** */
 function insertMany(rec, values, {rebalance}) {
-    let out = '';
     for (const v of values) {
         rec.say(`${sortNum(v, '을를')} 넣습니다.`);
-        out = rebalance ? avlInsert(rec, v) : bstInsert(rec, v);
+        if (rebalance) avlInsert(rec, v); else bstInsert(rec, v);
     }
     const h = treeHeight(rec.state);
     return `${values.length}개를 넣었습니다. **높이가 ${h}입니다.**`;
@@ -510,16 +530,22 @@ function insertMany(rec, values, {rebalance}) {
 /** 비용 비교 탭이 쓰는 연산. `pair`에 이진 탐색 트리용·AVL용이 들어 있다. */
 export const treeCompareOps = [
     {
-        id: 'insert-asc', name: '오름차순으로 여덟 개 넣기', arg: null,
-        opening: () => '**이미 정렬된 자료**를 차례대로 넣어 봅니다. 흔한 일입니다 — '
-            + '학번 · 날짜 · 번호는 대개 정렬된 채로 들어옵니다.',
+        id: 'insert-asc', name: '비우고 오름차순으로 여덟 개 넣기', arg: null,
+        /* **빈 트리에서 시작한다.** 이미 값이 든 트리에 여덟 개를 더 넣으면 한 줄이
+           되지 않는다 — 새 값들이 기존 마디 아래로 흩어져 매달리기 때문이다.
+           그런데 이 단추가 보이려는 장면이 바로 「한 줄로 늘어진다」이므로,
+           **비우지 않으면 카드가 말한 것과 정반대 화면이 나온다.**
+           그래서 비우는 것을 단추 이름에 적고 화면에서도 그렇게 한다. */
+        clears: true,
+        opening: () => '두 트리를 **비우고** 시작합니다. **이미 정렬된 자료**를 차례대로 '
+            + '넣어 봅니다 — 흔한 일입니다. 학번 · 날짜 · 번호는 대개 정렬된 채로 들어옵니다.',
         pair: {
             bst: {
-                run: (rec) => insertMany(rec, ascBatch(rec), {rebalance: false}),
+                run: (rec) => insertMany(rec, ASC_BATCH, {rebalance: false}),
                 opening: () => '이진 탐색 트리에 오름차순으로 넣습니다.',
             },
             avl: {
-                run: (rec) => insertMany(rec, ascBatch(rec), {rebalance: true}),
+                run: (rec) => insertMany(rec, ASC_BATCH, {rebalance: true}),
                 opening: () => 'AVL 트리에 오름차순으로 넣습니다.',
             },
         },
@@ -534,7 +560,7 @@ export const treeCompareOps = [
     },
     {
         id: 'search', name: '찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 두 트리에서 함께 찾습니다. **견주는 횟수를 보세요.**`,
+        opening: (rec, {v}) => `${sortNum(v, '을를')} 두 트리에서 함께 찾습니다. **비교 횟수를 보세요.**`,
         pair: {
             bst: {run: (rec, {v}) => bstSearch(rec, v)},
             avl: {run: (rec, {v}) => bstSearch(rec, v)},
@@ -542,15 +568,8 @@ export const treeCompareOps = [
     },
 ];
 
-/** 지금 트리에 없는 값으로 오름차순 여덟 개를 만든다. 이미 있는 값은 건너뛴다. */
-function ascBatch(rec) {
-    const have = new Set(rec.state.nodes.map((n) => n.v));
-    const out = [];
-    for (let v = 10; v <= TREE_VALUE_MAX && out.length < 8; v += 10) {
-        if (!have.has(v)) out.push(v);
-    }
-    return out;
-}
+/** 간판 단추가 넣는 여덟 개. **늘 같은 값이다** — 볼 때마다 달라지면 견줄 수가 없다. */
+export const ASC_BATCH = [10, 20, 30, 40, 50, 60, 70, 80];
 
 /* ---------------------------------------------------------------
    처음 상태 세우기

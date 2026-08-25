@@ -252,12 +252,18 @@ function searchWorkAt(build, ops, n) {
 }
 
 for (const spec of LINKED) {
-    const small = searchWorkAt(spec.build, spec.ops, GROW[0]);
-    const big = searchWorkAt(spec.build, spec.ops, GROW[GROW.length - 1]);
-    /* 여덟 배로 키웠는데 견주는 횟수가 세 배를 넘으면 log n으로 자라는 것이 아니다. */
-    if (big > small * 3) {
-        bad(`${spec.name} · 찾기 — 개수를 8→64로 키우니 견주는 횟수가 ${small}→${big}이 되었다`);
+    /* **재는 크기를 다 쓴다.** 양 끝만 보면 가운데가 어떻게 자랐는지 알 수 없다. */
+    const seen = GROW.map((n) => searchWorkAt(spec.build, spec.ops, n));
+    for (let k = 1; k < GROW.length; k++) {
+        /* 개수를 두 배로 키웠는데 견주는 횟수가 두 배 넘게 늘면 log n이 아니다.
+           (log n이면 두 배마다 «1»씩 는다 — 여유를 두어 2배로 잡는다.) */
+        if (seen[k] > Math.max(2, seen[k - 1] * 2)) {
+            bad(`${spec.name} · 찾기 — 개수를 ${GROW[k - 1]}→${GROW[k]}로 키우니 `
+                + `견주는 횟수가 ${seen[k - 1]}→${seen[k]}이 되었다`);
+        }
     }
+    console.log(`  ${spec.name} 찾기의 견주는 횟수 — `
+        + GROW.map((n, k) => `${n}개 ${seen[k]}`).join(' · '));
 }
 
 /* **오름차순으로 넣으면 이진 탐색 트리는 한 줄이 되어야 하고 AVL은 아니어야 한다.**
@@ -277,7 +283,12 @@ measured.sizes.forEach((n, k) => {
         bad(`비용 표 — 오름차순 ${n}개에서 AVL이 더 낮지 않다`
             + ` (이진 탐색 ${ascRow.bst[k]} · AVL ${ascRow.avl[k]})`);
     }
-    if (shuffleRow.bst[k] > n) bad(`비용 표 — 섞어 넣은 ${n}개의 높이가 ${shuffleRow.bst[k]}다`);
+    /* **섞어 넣으면 오름차순보다 낮아야 한다.** 예전에는 `높이 > n`을 보았는데,
+       높이는 마디 수를 넘을 수 없으므로 **정의상 걸릴 수 없는 줄**이었다. */
+    if (n >= 8 && !(shuffleRow.bst[k] < ascRow.bst[k])) {
+        bad(`비용 표 — ${n}개에서 섞어 넣은 높이(${shuffleRow.bst[k]})가 `
+            + `오름차순(${ascRow.bst[k]})보다 낮지 않다`);
+    }
 });
 
 /* **「섞어 넣으면 이진 탐색 트리도 충분히 반듯하다」**고 화면이 말한다.
@@ -302,20 +313,59 @@ for (const op of TREE_COMPARE.ops) {
             bst: treeWorkOf(runTreeOperation({...op, ...op.pair.bst}, states.bst, arg).counts),
             avl: treeWorkOf(runTreeOperation({...op, ...op.pair.avl}, states.avl, arg).counts),
         };
-        const {frames} = buildTreeCompare(op, states, arg);
+        const built = buildTreeCompare(op, states, arg);
+        const {frames} = built;
         raceChecks++;
 
         const doneAt = (k) => frames.findIndex((f) => f.lanes[k].done);
         const a = doneAt(0);
         const b = doneAt(1);
         if (a < 0 || b < 0) { bad(`비용 비교 · ${op.name} — 끝나지 않는 줄이 있다`); continue; }
-        if (trueWork.bst < trueWork.avl && a > b) {
-            bad(`비용 비교 · ${op.name} — 이진 탐색 트리가 일을 덜 했는데`
-                + `(${trueWork.bst} < ${trueWork.avl}) 늦게 끝난다`);
+
+        /* **끝나는 차례를 작업량과 대 보는 것은 뜻이 없다.**
+         *
+         * 배지는 `done: t >= r.total`로 붙고 장은 `t = 0…maxWork`로 만든다. 그러니
+         * 「끝 배지가 붙는 장 번호」는 **정의상 작업량과 같은 수**이고, 그것을 작업량과
+         * 견주는 판정은 `x < y && x > y`가 되어 **닿을 수 없는 가지**였다. 실제로 장을
+         * 넘기는 규칙을 통째로 없애 놓아도 검사가 「전부 통과」를 냈다.
+         *
+         * 그래서 견줄 것을 바꾼다 — **「같은 작업량만큼씩 나눠 준다」는 규칙 자체**다.
+         * 어느 장에서든 각 줄이 보이는 것은 «그때까지 한 일이 t 이하인 마지막 장»이어야 한다.
+         * 이것이 참이라야 「먼저 끝난 쪽이 일을 덜 했다」가 비로소 뜻을 가진다. */
+        for (let t = 0; t < frames.length; t++) {
+            for (let k = 0; k < 2; k++) {
+                const runFrames = built.runs[k].out.frames;
+                const shown = runFrames.indexOf(frames[t].lanes[k].frame);
+                if (shown < 0) {
+                    bad(`비용 비교 · ${op.name} ${t}장 — 그 줄에 없는 장을 보이고 있다`);
+                    break;
+                }
+                if (treeWorkOf(runFrames[shown].counts) > t) {
+                    bad(`비용 비교 · ${op.name} ${t}장 — 아직 ${t}만큼 일하지 않았는데 `
+                        + `작업량 ${treeWorkOf(runFrames[shown].counts)}짜리 장을 보인다`);
+                    break;
+                }
+                const next = runFrames[shown + 1];
+                if (next && treeWorkOf(next.counts) <= t) {
+                    bad(`비용 비교 · ${op.name} ${t}장 — ${t}만큼 일했는데 다음 장`
+                        + `(작업량 ${treeWorkOf(next.counts)})으로 넘어가지 않았다`);
+                    break;
+                }
+            }
         }
-        if (trueWork.avl < trueWork.bst && b > a) {
-            bad(`비용 비교 · ${op.name} — AVL이 일을 덜 했는데`
-                + `(${trueWork.avl} < ${trueWork.bst}) 늦게 끝난다`);
+        /* 끝 장은 두 줄 다 «그 줄의 마지막 장»이어야 한다. */
+        for (let k = 0; k < 2; k++) {
+            const runFrames = built.runs[k].out.frames;
+            if (frames[frames.length - 1].lanes[k].frame !== runFrames[runFrames.length - 1]) {
+                bad(`비용 비교 · ${op.name} — ${k === 0 ? '이진 탐색' : 'AVL'} 줄이 끝까지 가지 않았다`);
+            }
+        }
+        /* 배지가 붙는 차례와 실제 작업량의 차례가 같아야 한다(같은 값이면 아무 쪽이나 좋다). */
+        if (trueWork.bst !== trueWork.avl) {
+            const first = trueWork.bst < trueWork.avl ? 0 : 1;
+            if ((first === 0 ? a : b) > (first === 0 ? b : a)) {
+                bad(`비용 비교 · ${op.name} — 일을 덜 한 쪽에 「끝」이 늦게 붙는다`);
+            }
         }
         // 두 줄 다 성해야 한다.
         for (const lane of frames[frames.length - 1].lanes) {
@@ -324,7 +374,53 @@ for (const op of TREE_COMPARE.ops) {
         }
     }
 }
-console.log(`비용 비교 ${raceChecks}판 — 끝나는 차례가 작업량의 차례와 같은지 대조했다`);
+console.log(`비용 비교 ${raceChecks}판 — 나눠 주는 규칙과 끝나는 차례를 대조했다`);
+
+/* ================================================================
+   AVL 빼기의 **연쇄 회전**
+
+   카드는 「뺄 때의 펴기 · O(log n)곳 · 뿌리까지 올라가며 봐야 한다」고 한다.
+   그런데 앞 절들은 마디 열몇 개짜리 트리에 빼기를 한 번씩만 걸어, **한 번 돌고 멈추어도
+   통과했다.** 실제로 `avlRebalanceUp`이 첫 회전 뒤 곧바로 멈추게 고쳐 놓고 돌렸더니
+   검사가 「전부 통과」를 냈다 — 카드가 내세우는 바로 그 성질이 검증되지 않고 있었다.
+
+   그래서 **깊은 트리에서 여러 번 뺀다.** 곁들여 한 번의 빼기가 두 곳 이상 편 판이
+   실제로 나오는지도 센다. 나오지 않으면 이 절 자체가 헛돈 것이므로 그것도 결함이다.
+   ================================================================ */
+
+let chainChecks = 0;
+let deepestChain = 0;
+for (let trial = 0; trial < 25; trial++) {
+    const values = distinct(24 + Math.floor(rnd() * 12));
+    let state = avlBuild(values);
+    const remove = avlOps.find((o) => o.id === 'remove');
+    const left = [...values];
+    while (left.length > 2) {
+        const pick = left.splice(Math.floor(rnd() * left.length), 1)[0];
+        const out = runTreeOperation(remove, state, {v: pick});
+        chainChecks++;
+        const fault = treeStateFault(out.state);
+        if (fault) {
+            bad(`AVL 빼기 연쇄 — ${pick}을(를) 뺀 뒤 성하지 않다: ${fault}`
+                + ` (넣은 차례 ${values.join(' ')})`);
+            break;
+        }
+        if (treeHeight(out.state) > avlBound(out.state.size)) {
+            bad(`AVL 빼기 연쇄 — n=${out.state.size}인데 높이가 ${treeHeight(out.state)}다`);
+            break;
+        }
+        // 한 번의 빼기가 몇 곳을 폈는가 — 「돌립니다」 장을 센다.
+        const spins = out.frames.filter((f) => f.act.kind === 'rotate').length;
+        deepestChain = Math.max(deepestChain, spins);
+        state = out.state;
+    }
+}
+if (deepestChain < 2) {
+    bad(`AVL 빼기 연쇄 — 한 번의 빼기가 두 번 넘게 돈 판이 하나도 없다(최대 ${deepestChain}번).`
+        + ' 연쇄를 태우지 못했으므로 이 절이 헛돈다');
+}
+console.log(`AVL 빼기 ${chainChecks}판 — 깊은 트리에서 이어 빼며 균형이 지켜지는지 보았다`
+    + ` (한 판에서 가장 많이 돈 횟수 ${deepestChain})`);
 
 /* ================================================================
    6. 페이지를 띄워 **트리마다 실제로 눌러 본다**
@@ -343,6 +439,19 @@ function screenSick(sim) {
         }
     }
     return null;
+}
+
+/** 화면에 **보이는** 마디 수. `opacity="0"`으로 물려 둔 것은 세지 않는다. */
+function visibleNodes(sim) {
+    let n = 0;
+    const walk = (el) => {
+        if (el.tagName === 'G' && (el.children || []).some((c) => c.tagName === 'CIRCLE')) {
+            if (String(el.getAttribute('opacity')) !== '0') n++;
+        }
+        for (const c of el.children || []) walk(c);
+    };
+    for (const c of sim.el('view-host').children) walk(c);
+    return n;
 }
 
 function drawn(sim) {
@@ -377,7 +486,16 @@ for (const group of [...page.el('group-tabs').children]) {
         const tally = drawn(page);
         const marks = (tally.CIRCLE || 0) + (tally.G || 0);
         if (marks < 3) bad(`${name} — 트리가 거의 그려지지 않았다 (${JSON.stringify(tally)})`);
-        pageRows.push(`${name}: ${JSON.stringify(tally)}`);
+
+        /* **개수까지 맞춰 본다.** 동그라미는 `setup()`에서 다 만들어지므로 «몇 개
+           그렸나»만으로는 `render()`가 아무 일도 안 해도 통과한다. 화면에 «보이는»
+           마디 수가 담긴 값의 개수와 같은지를 본다 — 그것은 render 가 정하는 값이다. */
+        const shown = visibleNodes(page);
+        const size = Number(page.el('size-label').textContent.replace(/[^\d]/g, '')) || 0;
+        if (name !== '나란히 놓기' && shown !== size) {
+            bad(`${name} — 화면에 보이는 마디가 ${shown}개인데 담긴 값은 ${size}개다`);
+        }
+        pageRows.push(`${name}: 보이는 마디 ${shown}/${size} · ${JSON.stringify(tally)}`);
     }
 }
 console.log('페이지를 띄워 트리·연산을 모두 눌러 보았다');
@@ -427,6 +545,9 @@ for (const [raw, why] of [
     ['가나다', '숫자가 아닌 것'],
 ]) {
     const before = page.errors.length;
+    /* **앞 판이 남긴 문구를 지우고 본다.** 안 지우면 이번 판이 조용히 통과해도
+       앞의 빨간 글씨가 가려 준다 — 검사가 헛돈다. */
+    page.el('input-error').textContent = ' ';
     page.el('input-text').value = raw;
     page.el('btn-apply-input').click();
     for (const e of page.errors.slice(before)) bad(`직접 넣기(${why}) — 죽었다: ${e}`);

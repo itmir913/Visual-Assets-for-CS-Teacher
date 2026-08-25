@@ -132,6 +132,11 @@ export function mountDsSimulator() {
                     rebuildState();
                     paintImpl();
                     paintOps();
+                    /* **개수 표시도 함께 고친다.** 담는 방식이 바뀌면 칸 수라는 개념이
+                       생기거나 없어진다 — 배열은 「5 / 10개」, 마디는 「5개」다.
+                       이것을 빠뜨리면 다음 연산을 누를 때까지 앞 방식의 표기가 남아,
+                       칸 수가 없는 리스트에 상한이 붙거나 꽉 차 가는 배열의 상한이 사라진다. */
+                    paintOpsState();
                     runIdle();
                 },
             ));

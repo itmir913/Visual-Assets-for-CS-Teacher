@@ -23,6 +23,7 @@ import {quickSortAlgo} from './algo/quick.js';
 import {heapSortAlgo} from './algo/heap.js';
 import {countingSortAlgo} from './algo/counting.js';
 import {radixSortAlgo} from './algo/radix.js';
+import {bucketSortAlgo} from './algo/bucket.js';
 
 export const SORT_GROUPS = [
     {
@@ -53,8 +54,10 @@ export const SORT_GROUPS = [
         id: 'distribution',
         name: '분배 정렬',
         badge: 'O(n+k)',
-        blurb: '값끼리 비교하는 대신 값 자체를 자리의 이름으로 씁니다. '
-            + '그래서 비교 정렬의 한계인 O(n log n)이 여기에는 걸리지 않습니다.',
+        blurb: '값끼리 비교하는 대신 값 자체를 칸의 이름으로 씁니다. '
+            + '그래서 비교 정렬의 한계인 O(n log n)이 여기에는 걸리지 않습니다. '
+            + '계수·기수 정렬은 비교를 한 번도 하지 않고, '
+            + '버킷 정렬만 칸 «안»을 정리할 때 비교합니다.',
     },
     {
         id: 'race',
@@ -77,6 +80,7 @@ export const SORT_ALGOS = [
     quickSortAlgo,
     countingSortAlgo,
     radixSortAlgo,
+    bucketSortAlgo,
 ];
 
 /* **겨루기는 알고리즘이 아니다.** 그래도 탭에는 나와야 하므로 종목처럼 생긴 항목을

@@ -344,6 +344,30 @@ export function createSortRecorder(values, opts = {}) {
             return rec;
         },
 
+        /** 칸 «안»의 둘을 비교한다. 버킷 정렬이 칸 하나를 정리할 때 쓴다. */
+        stripCmpIn(key, k1, k2) {
+            counts.compare++;
+            counts.access += 2;
+            const cell = strip.cells.find((c) => c.key === key);
+            strip.focus = key;
+            const d = cell.items[k1].v - cell.items[k2].v;
+            snap({kind: 'strip-compare-in', key, a: k1, b: k2, result: d});
+            return d;
+        },
+
+        /** 칸 안에서 원소 하나를 뽑아 앞자리에 **끼워 넣는다.**
+         *  옮긴 값은 밀려난 칸 수만큼 센다 — 실제로 그만큼 이동하기 때문이다. */
+        stripMoveIn(key, from, to) {
+            const cell = strip.cells.find((c) => c.key === key);
+            const [item] = cell.items.splice(from, 1);
+            cell.items.splice(to, 0, item);
+            counts.move += Math.abs(from - to);
+            counts.access += Math.abs(from - to) + 1;
+            strip.focus = key;
+            snap({kind: 'strip-move-in', key, from, to});
+            return rec;
+        },
+
         stripClose() { strip = null; return rec; },
 
         /** 아무 일도 없지만 한 장 남긴다. 설명만 바뀌는 자리에 쓴다. */

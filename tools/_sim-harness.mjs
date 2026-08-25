@@ -125,11 +125,31 @@ export function makeElementClass(state) {
            불어나 받침대가 메모리를 다 쓰고 죽었고, 그리기 전에는 개수를 세는 검사가
            엉뚱한 값을 봤다. 진짜 DOM 과 다르게 굴면 검사가 없느니만 못하다. */
         get textContent() { return this._text; }
-        set textContent(v) { this._text = String(v); this.children = []; }
+        set textContent(v) { this._setText(String(v)); }
         get innerText() { return this._text; }
-        set innerText(v) { this._text = String(v); this.children = []; }
+        set innerText(v) { this._setText(String(v)); }
         get innerHTML() { return this._html; }
-        set innerHTML(v) { this._html = String(v); this.children = []; }
+
+        /* **`innerHTML` 을 넣으면 `textContent` 도 따라 바뀐다.** 진짜 DOM 이 그렇다.
+           둘을 따로 들고 있었더니, 굵은 글씨를 넣으려고 `innerHTML` 로 쓰는 자리에서
+           **검사가 빈 글자를 보고 「글이 안 나왔다」고 헛짚었다.**
+           태그를 걷어 내고 엔티티 몇 개만 되돌린다 — 파서를 흉내 낼 일은 아니다. */
+        set innerHTML(v) {
+            this._html = String(v);
+            this.children = [];
+            this._text = this._html
+                .replace(/<[^>]*>/g, '')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&');
+        }
+
+        _setText(v) {
+            this._text = v;
+            this._html = v;
+            this.children = [];
+        }
 
         /* 상자 크기. **`clientWidth` 와 `getBoundingClientRect()` 는 다른 값이다** —
            rect 는 테두리까지 세고 소수로 나온다. 캔버스를 재는 쪽이 어느 것을 쓰는지가
@@ -141,6 +161,17 @@ export function makeElementClass(state) {
 
         get clientWidth() { return Math.round(state.box.w); }
         get clientHeight() { return Math.round(state.box.h); }
+
+        /* 진짜 DOM 에 있는 것은 다 있어야 한다 — 없으면 **페이지가 멀쩡한데** 검사가 죽는다.
+           `firstChild` 가 없어 겨루기 뷰가 그 자리에서 넘어졌다.
+           (진짜 DOM 은 글자 마디도 세지만 이 받침대는 요소만 담는다.) */
+        get firstChild() { return this.children[0] ?? null; }
+
+        get lastChild() { return this.children[this.children.length - 1] ?? null; }
+
+        get firstElementChild() { return this.children[0] ?? null; }
+
+        get lastElementChild() { return this.children[this.children.length - 1] ?? null; }
 
         appendChild(c) { c.parentElement = this; this.children.push(c); return c; }
         removeChild(c) { this.children = this.children.filter((x) => x !== c); return c; }

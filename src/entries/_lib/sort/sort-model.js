@@ -48,6 +48,9 @@ export function createSortItems(values) {
  * @returns 기록기. 알고리즘은 `run(rec)` 안에서 이것만 쓴다.
  */
 export function createSortRecorder(values, opts = {}) {
+    /* `countOnly` 는 **장을 한 장도 남기지 않는다.** 겨루기 탭이 n을 키워 가며
+       비교 횟수만 재려고 쓴다 — n=1000짜리 여덟 종목의 장을 다 들고 있을 이유가 없다. */
+    const countOnly = opts.countOnly === true;
     const a = createSortItems(values);
     const n = a.length;
     let frames = [];
@@ -58,6 +61,7 @@ export function createSortRecorder(values, opts = {}) {
     const done = new Set();
 
     let auxBlocks = null;      // [{label, items, base}]
+    let strip = null;          // 값으로 자리를 정하는 칸 줄(계수·기수 정렬)
     let ranges = [];           // [{lo, hi, depth, state}]
     let cursors = {};          // {이름: 자리}
     let held = null;           // 임시 저장한 원소 {item, from}
@@ -69,6 +73,7 @@ export function createSortRecorder(values, opts = {}) {
     /** @param {boolean} force 처음과 끝 장은 간격과 상관없이 반드시 남긴다. */
     function snap(act, force = false) {
         seq++;
+        if (countOnly) { compareMark = null; movingMark = []; return; }
         if (!force && seq % stride !== 0) {
             // 남기지 않더라도 **한 장짜리 표시는 꺼야 한다.** 안 그러면 다음에 남는 장에
             // 엉뚱한 자리가 「지금 비교하는 중」으로 찍힌다.
@@ -80,6 +85,14 @@ export function createSortRecorder(values, opts = {}) {
             a: [...a],
             aux: auxBlocks
                 ? auxBlocks.map((b) => ({label: b.label, items: [...b.items], base: b.base, used: b.used || 0}))
+                : null,
+            strip: strip
+                ? {
+                    label: strip.label,
+                    kind: strip.kind,
+                    focus: strip.focus,
+                    cells: strip.cells.map((c) => ({key: c.key, count: c.count, items: [...c.items]})),
+                }
                 : null,
             act,
             marks: {
@@ -273,6 +286,66 @@ export function createSortRecorder(values, opts = {}) {
             return rec;
         },
 
+        /* ---- 값으로 자리를 정하는 칸 줄 ----
+           비교 정렬은 «원소끼리» 대 보지만 분배 정렬은 **값 자체를 칸의 이름으로** 쓴다.
+           그 차이가 화면에 드러나야 「비교 정렬의 한계가 여기엔 걸리지 않는다」가
+           말이 아니라 그림이 된다. */
+
+        /** @param {string} kind `'count'`(개수를 센다) 또는 `'bucket'`(원소를 담는다) */
+        stripOpen(label, kind, keys) {
+            strip = {
+                label, kind, focus: null,
+                cells: keys.map((key) => ({key, count: 0, items: []})),
+            };
+            snap({kind: 'strip-open'});
+            return rec;
+        },
+        stripFocus(key) { strip.focus = key; return rec; },
+        stripCell: (key) => strip.cells.find((c) => c.key === key),
+
+        /** 자리 하나를 세어 **그 값의 칸에 하나 올린다.** 원소는 배열에 그대로 둔다.
+         *  다시 쓸 때 어느 원소였는지 알아야 하므로 칸이 원소도 함께 들고 있는다. */
+        stripCount(i) {
+            counts.access++;
+            counts.move++;
+            const cell = strip.cells.find((c) => c.key === a[i].v);
+            cell.count++;
+            cell.items.push(a[i]);
+            strip.focus = cell.key;
+            movingMark = [i];
+            snap({kind: 'strip-count', i, key: cell.key});
+            return rec;
+        },
+
+        /** 자리의 원소를 **칸으로 옮긴다.** 그 자리는 빈칸이 된다(기수·버킷 정렬). */
+        stripPut(key, i) {
+            counts.access++;
+            counts.move++;
+            const cell = strip.cells.find((c) => c.key === key);
+            cell.items.push(a[i]);
+            cell.count++;
+            a[i] = null;
+            strip.focus = key;
+            snap({kind: 'strip-put', i, key});
+            return rec;
+        },
+
+        /** 칸에서 **맨 앞 원소를 꺼내 배열에 쓴다.** 앞에서부터 꺼내야 안정 정렬이 된다. */
+        stripTake(key, i) {
+            counts.access++;
+            counts.move++;
+            const cell = strip.cells.find((c) => c.key === key);
+            const item = cell.items.shift();
+            cell.count--;
+            a[i] = item;
+            strip.focus = key;
+            movingMark = [i];
+            snap({kind: 'strip-take', i, key});
+            return rec;
+        },
+
+        stripClose() { strip = null; return rec; },
+
         /** 아무 일도 없지만 한 장 남긴다. 설명만 바뀌는 자리에 쓴다. */
         mark(kind = 'mark') { snap({kind}); return rec; },
     };
@@ -290,6 +363,7 @@ export function createSortRecorder(values, opts = {}) {
             ranges = [];
             cursors = {};
             pivot = null;
+            strip = null;
             snap({kind: 'finish'}, true);
             return {frames, counts: {...counts}, stride, steps: seq, n};
         },
@@ -301,15 +375,16 @@ export function createSortRecorder(values, opts = {}) {
  * **여기서 배열이 실제로 정렬되는지도 함께 본다** — 스냅샷만 그럴듯하고 결과가 틀린
  * 알고리즘은 화면으로는 알아채기 어렵다.
  */
-export function runSortAlgorithm(algo, values) {
-    const {rec, finish} = createSortRecorder(values);
+export function runSortAlgorithm(algo, values, opts = {}) {
+    const {rec, finish} = createSortRecorder(values, opts);
     algo.run(rec);
     const result = finish();
     const last = result.frames[result.frames.length - 1];
-    const out = last ? last.a.map((it) => (it ? it.v : NaN)) : [];
+    // `countOnly` 로 돌린 판은 장이 없다. 그때는 세는 값만 쓸모가 있다.
+    const out = last ? last.a.map((it) => (it ? it.v : NaN)) : null;
     const want = [...values].sort((x, y) => x - y);
-    result.sorted = out.length === want.length && out.every((v, i) => v === want[i]);
-    result.values = out;
+    result.sorted = out !== null && out.length === want.length && out.every((v, i) => v === want[i]);
+    result.values = out || [];
     return result;
 }
 

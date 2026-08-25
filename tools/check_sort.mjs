@@ -27,6 +27,10 @@ function frameIsSound(frame, ids) {
     const seen = [];
     for (const it of frame.a) if (it) seen.push(it.id);
     for (const b of frame.aux || []) for (const it of b.items) if (it) seen.push(it.id);
+    // 분배 정렬은 원소가 **칸 줄**에 가 있는 동안 배열이 비어 있다. 그것도 세야 한다.
+    for (const c of (frame.strip && frame.strip.cells) || []) {
+        for (const it of c.items) if (it) seen.push(it.id);
+    }
     // 임시 배열은 **복사해 온 것**이라 주 배열과 겹칠 수 있다. 겹침을 걷어 내고 센다.
     const uniq = new Set(seen);
     for (const id of uniq) if (!ids.has(id)) return `없던 원소 ${id}`;
@@ -52,7 +56,7 @@ for (const algo of SORT_ALGOS) {
     for (const preset of SORT_PRESETS) {
         for (const n of SIZES) {
             for (const seed of SEEDS) {
-                const values = makeSortData(preset.id, n, seed);
+                const values = makeSortData(preset.id, n, seed, algo.valueMax ?? null);
                 const out = runSortAlgorithm(algo, values);
                 runs++;
                 maxFrames = Math.max(maxFrames, out.frames.length);
@@ -200,9 +204,14 @@ for (const group of [...page.el('group-tabs').children]) {
             const sick = screenSick(page);
             if (sick) bad(`${name} · ${label} — 화면에 성하지 않은 값: ${sick}`);
 
+            /* 끝 장의 말이 「끝났다」인가. 겨루기는 정렬이 아니라 판이 끝나는 것이므로
+               제 나름의 말을 쓴다 — 낱말 하나로 묶어 둘 다 받는다. */
             const say = page.el('say').textContent;
-            if (!say.includes('정렬이 끝났습니다')) {
-                bad(`${name} · ${label} — 끝까지 갔는데 「정렬이 끝났습니다」가 아니다: ${say.slice(0, 40)}`);
+            if (!say.includes('끝났습니다')) {
+                bad(`${name} · ${label} — 끝까지 갔는데 끝났다는 말이 없다: ${say.slice(0, 40)}`);
+            }
+            if (!page.el('btn-next').disabled) {
+                bad(`${name} · ${label} — 「끝으로」를 눌렀는데 「앞으로」가 아직 살아 있다`);
             }
 
             const tally = drawn(page);
@@ -225,6 +234,11 @@ for (const group of [...page.el('group-tabs').children]) {
 function heightMap(sim) {
     const out = new Map();
     const walk = (el, path) => {
+        /* **자리에서 띄워 놓은 상자는 세지 않는다.** 막대는 `position: absolute` 라
+           높이가 바뀌어도 바깥 흐름을 밀지 않는다 — 겨루기 줄에서는 막대 높이가
+           «곧 그림»이므로 그것까지 잡으면 검사가 헛돈다. 흐름을 미는 것,
+           곧 자리를 잡고 있는 상자만 본다. */
+        if (el.style.position === 'absolute') return;
         const h = el.style.height || '';
         if (h) out.set(path, h);
         (el.children || []).forEach((c, i) => walk(c, `${path}/${i}`));
@@ -291,7 +305,7 @@ for (const group of [...page.el('group-tabs').children]) {
    비교 색이 피벗 색을 덮어써서 보라색이 한 번도 뜨지 않았다. */
 const toneSeen = new Set(['idle']);
 for (const algo of SORT_ALGOS) {
-    const out = runSortAlgorithm(algo, makeSortData('random', SORT_N_DEFAULT, 7));
+    const out = runSortAlgorithm(algo, makeSortData('random', SORT_N_DEFAULT, 7, algo.valueMax ?? null));
     for (const f of out.frames) {
         if (f.marks.compare) toneSeen.add('compare');
         if (f.marks.moving.length) toneSeen.add('moving');

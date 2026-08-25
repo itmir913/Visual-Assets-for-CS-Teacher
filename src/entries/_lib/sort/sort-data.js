@@ -47,7 +47,10 @@ export const SORT_V_MAX = 99;
 /** **원소가 많으면 값의 범위도 넓혀야 한다.** 1~99에 1000개를 담으면 열 개씩 값이
  *  겹쳐 「역순」이 참된 역순이 되지 못하고, 그러면 최악을 보여 주려던 자료가
  *  최악이 아니게 된다. 겹침을 일부러 만드는 「값이 몇 종류뿐」은 이 규칙 밖이다. */
-function sortValueMax(n) {
+function sortValueMax(n, cap) {
+    // 알고리즘이 값의 범위를 못박아 두었으면 그쪽이 이긴다.
+    // 계수 정렬은 값의 크기만큼 칸이 늘어나므로 0~9만 다룬다.
+    if (cap !== undefined && cap !== null) return cap;
     return Math.max(SORT_V_MAX, Math.min(999, n));
 }
 
@@ -91,20 +94,22 @@ export function sortRandom(seed) {
  * @param {number} n         원소 수
  * @param {number} seed      씨앗. 같으면 같은 자료가 나온다
  */
-export function makeSortData(presetId, n, seed = Date.now()) {
+export function makeSortData(presetId, n, seed = Date.now(), cap = null) {
     const rnd = sortRandom(seed);
-    const span = sortValueMax(n) - SORT_V_MIN;
-    const randVal = () => SORT_V_MIN + Math.floor(rnd() * (span + 1));
+    const vMin = cap !== null && cap < SORT_V_MAX ? 0 : SORT_V_MIN;
+    const vMax = sortValueMax(n, cap);
+    const span = vMax - vMin;
+    const randVal = () => vMin + Math.floor(rnd() * (span + 1));
 
     if (presetId === 'reversed') {
         // 값이 겹치지 않아야 「완전한 역순」이 된다. 고르게 깔고 뒤집는다.
         const step = span / Math.max(1, n - 1);
-        return Array.from({length: n}, (_, i) => Math.round(sortValueMax(n) - i * step));
+        return Array.from({length: n}, (_, i) => Math.round(vMax - i * step));
     }
 
     if (presetId === 'nearly') {
         const step = span / Math.max(1, n - 1);
-        const out = Array.from({length: n}, (_, i) => Math.round(SORT_V_MIN + i * step));
+        const out = Array.from({length: n}, (_, i) => Math.round(vMin + i * step));
         if (n < 2) return out;      // 어긋뜨릴 이웃이 없다. 없는 자리를 건드리면 배열이 늘어난다.
         // 어긋난 자리를 몇 군데만 둔다. 너무 많으면 그냥 무작위가 된다.
         const swaps = Math.max(1, Math.round(n / 8));
@@ -117,7 +122,10 @@ export function makeSortData(presetId, n, seed = Date.now()) {
 
     if (presetId === 'fewUnique') {
         // 종류를 넷으로 줄인다. 겹치는 값이 있어야 안정성이 눈에 보인다.
-        const kinds = [12, 34, 56, 78];
+        // 값의 범위가 좁은 종목(계수 정렬)에서는 그 안에서 넷을 고른다.
+        const kinds = span >= 78
+            ? [12, 34, 56, 78]
+            : [0, 1, 2, 3].map((q) => vMin + Math.round((span * (q + 1)) / 5));
         return Array.from({length: n}, () => kinds[Math.floor(rnd() * kinds.length)]);
     }
 

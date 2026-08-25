@@ -6,6 +6,8 @@
 import {
     SORT_ALGOS, sortAlgoById, sortAlgosOfGroup, sortGroupById, sortGroupsInUse,
 } from './sort-registry.js';
+import {buildSortRace, measureSortWork, RACE_MAX_N} from './sort-race.js';
+import {createSortRaceView} from './sort-view-race.js';
 import {runSortAlgorithm} from './sort-model.js';
 import {createSortPlayer, SORT_SPEEDS} from './sort-player.js';
 import {createSortArrayView, SORT_COLORS} from './sort-view-array.js';
@@ -54,14 +56,16 @@ export function mountSortSimulator() {
     function ensureView(kind) {
         if (viewKind === kind) return;
         viewKind = kind;
-        view = kind === 'heap' ? createSortHeapView($('bars-host')) : createSortArrayView($('bars-host'));
+        if (kind === 'race') view = createSortRaceView($('bars-host'));
+        else if (kind === 'heap') view = createSortHeapView($('bars-host'));
+        else view = createSortArrayView($('bars-host'));
     }
 
     let algo = SORT_ALGOS[0];
     let presetId = SORT_PRESETS[0].id;
     let n = SORT_N_DEFAULT;
     let seed = 20260825;
-    let values = makeSortData(presetId, n, seed);
+    let values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
     let player = null;
 
     /* ---- 위쪽: 무리 탭과 알고리즘 칩 ---- */
@@ -110,7 +114,7 @@ export function mountSortSimulator() {
 
         const badges = $('algo-badges');
         badges.textContent = '';
-        const spec = [
+        const spec = algo.stable === null ? [] : [
             algo.stable
                 ? {on: true, text: '안정 정렬', hint: '값이 같은 것끼리 앞뒤 차례가 지켜집니다'}
                 : {on: false, text: '안정 정렬 아님', hint: '값이 같은 것끼리 앞뒤가 뒤바뀔 수 있습니다'},
@@ -188,15 +192,76 @@ export function mountSortSimulator() {
 
     /* ---- 돌리기 ---- */
 
+    /** 곡선은 자료의 생김새와 씨앗만 타므로 한 번 재어 두고 다시 쓴다. */
+    let workCache = null;
+    let workKey = '';
+
+    function raceWork() {
+        const key = `${presetId}:${seed}`;
+        if (workKey !== key) {
+            workKey = key;
+            workCache = measureSortWork((size) => makeSortData(presetId, size, seed, null));
+        }
+        return workCache;
+    }
+
+    /** 겨루기 한 판. 걸음을 하나도 솎지 않아야 공정하므로 크기에 천장이 있다. */
+    function rebuildRace() {
+        const raceN = Math.min(n, RACE_MAX_N);
+        const raceValues = makeSortData(presetId, raceN, seed, null);
+        const {frames} = buildSortRace(raceValues);
+
+        ensureView('race');
+        view.setup(frames, raceWork());
+        $('tally-row').style.display = 'none';
+        $('input-error').textContent = ' ';
+        $('record-note').textContent = n > RACE_MAX_N
+            ? `겨루기는 ${RACE_MAX_N}개까지만 합니다. 걸음을 하나라도 솎으면 겨루기가 공정하지 않기 때문입니다`
+              + ` (지금 고른 ${n}개 대신 ${raceN}개로 돌렸습니다).`
+            : ' ';
+
+        const scrub = $('scrub');
+        scrub.max = String(Math.max(0, frames.length - 1));
+        scrub.min = '0';
+        scrub.value = '0';
+
+        player = createSortPlayer({
+            frames,
+            render: (frame, prev, o) => {
+                view.render(frame, prev, o);
+                setRich($('say'), frame.say || ' ');
+            },
+            onState: paintPlayerState,
+        });
+        player.setSpeed(currentSpeedMs());
+        player.start();
+    }
+
+    function paintPlayerState({index, total, playing, atEnd}) {
+        $('scrub').value = String(index);
+        $('step-label').textContent = `${index} / ${Math.max(0, total - 1)} 단계`;
+        $('btn-play').innerHTML = playing
+            ? '<i class="fa-solid fa-pause"></i> 멈춤'
+            : (atEnd ? '<i class="fa-solid fa-rotate-right"></i> 다시' : '<i class="fa-solid fa-play"></i> 재생');
+        $('btn-prev').disabled = index === 0;
+        $('btn-first').disabled = index === 0;
+        $('btn-next').disabled = atEnd;
+        $('btn-last').disabled = atEnd;
+    }
+
     function rebuild() {
         player?.destroy();
+        if (algo.view === 'race') { rebuildRace(); return; }
+        $('tally-row').style.display = '';
 
         const why = checkSortInput(algo, values);
         if (why) {
             // 막기만 하지 않는다 — **제약 자체가 그 알고리즘의 성질**이라 까닭을 함께 준다.
-            $('say').textContent = why;
-            $('input-error').textContent = why;
-            values = values.map((v) => Math.abs(v) % 100);
+            /* **값을 억지로 접어 넣지 않는다.** 예전에는 `% 100`으로 구겨 넣었는데,
+               그러면 학생이 넣은 자료와도 프리셋과도 달라 화면에 뜬 것이 무엇인지
+               아무도 모르는 상태가 되었다. 그 범위에 맞는 자료를 새로 만들어 준다. */
+            values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
+            $('input-error').textContent = `${why} 그 범위로 자료를 새로 만들었습니다.`;
         } else {
             $('input-error').textContent = ' ';
         }
@@ -224,22 +289,13 @@ export function mountSortSimulator() {
             frames: out.frames,
             render: (frame, prev, o) => {
                 view.render(frame, prev, o);
-                $('say').textContent = frame.say || ' ';
+                // **설명글도 굵게 새겨 넣는다.** `textContent`로 넣으면 별표가 그대로 찍힌다.
+                setRich($('say'), frame.say || ' ');
                 $('count-compare').textContent = String(frame.counts.compare);
                 $('count-move').textContent = String(frame.counts.move);
                 $('count-access').textContent = String(frame.counts.access);
             },
-            onState: ({index, total, playing, atEnd}) => {
-                $('scrub').value = String(index);
-                $('step-label').textContent = `${index} / ${Math.max(0, total - 1)} 단계`;
-                $('btn-play').innerHTML = playing
-                    ? '<i class="fa-solid fa-pause"></i> 멈춤'
-                    : (atEnd ? '<i class="fa-solid fa-rotate-right"></i> 다시' : '<i class="fa-solid fa-play"></i> 재생');
-                $('btn-prev').disabled = index === 0;
-                $('btn-first').disabled = index === 0;
-                $('btn-next').disabled = atEnd;
-                $('btn-last').disabled = atEnd;
-            },
+            onState: paintPlayerState,
         });
         player.setSpeed(currentSpeedMs());
         player.start();
@@ -247,7 +303,7 @@ export function mountSortSimulator() {
 
     function reshuffle() {
         seed = (seed * 1103515245 + 12345) >>> 0;
-        values = makeSortData(presetId, n, seed);
+        values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
         paintPresets();
         rebuild();
     }
@@ -298,7 +354,7 @@ export function mountSortSimulator() {
             $('n-label').textContent = String(n);
         });
         slider.addEventListener('change', () => {
-            values = makeSortData(presetId, n, seed);
+            values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
             rebuild();
         });
 

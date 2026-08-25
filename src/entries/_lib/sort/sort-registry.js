@@ -21,6 +21,8 @@ import {shellSortAlgo} from './algo/shell.js';
 import {mergeSortAlgo} from './algo/merge.js';
 import {quickSortAlgo} from './algo/quick.js';
 import {heapSortAlgo} from './algo/heap.js';
+import {countingSortAlgo} from './algo/counting.js';
+import {radixSortAlgo} from './algo/radix.js';
 
 export const SORT_GROUPS = [
     {
@@ -54,6 +56,14 @@ export const SORT_GROUPS = [
         blurb: '값끼리 비교하는 대신 값 자체를 자리의 이름으로 씁니다. '
             + '그래서 비교 정렬의 한계인 O(n log n)이 여기에는 걸리지 않습니다.',
     },
+    {
+        id: 'race',
+        name: '겨루기',
+        badge: '전 종목',
+        blurb: '같은 자료를 열 종목에 한꺼번에 물려 한 걸음씩 똑같이 나눠 줍니다. '
+            + '먼저 끝난 쪽이 실제로 일을 덜 한 것입니다. '
+            + '아래 곡선은 원소 수를 키워 가며 잰 것으로, 한 걸음씩 넘겨서는 볼 수 없는 그림입니다.',
+    },
 ];
 
 export const SORT_ALGOS = [
@@ -65,14 +75,38 @@ export const SORT_ALGOS = [
     heapSortAlgo,
     mergeSortAlgo,
     quickSortAlgo,
+    countingSortAlgo,
+    radixSortAlgo,
 ];
 
+/* **겨루기는 알고리즘이 아니다.** 그래도 탭에는 나와야 하므로 종목처럼 생긴 항목을
+   하나 둔다. `SORT_ALGOS`에는 넣지 않는다 — 넣으면 겨루기가 자기 자신과 겨룬다. */
+export const SORT_RACE = {
+    id: 'race',
+    name: '전 종목 겨루기',
+    en: 'Race',
+    group: 'race',
+    view: 'race',
+    idea: '위에서 고른 자료를 **열 종목에 똑같이** 물리고 한 걸음씩 나란히 넘깁니다. '
+        + '한 종목만 볼 때는 숫자로만 남던 차이가, 나란히 놓으면 끝나는 차례로 드러납니다.',
+    complexity: {best: '—', avg: '—', worst: '—', space: '—'},
+    stable: null,
+    inPlace: null,
+    watch: '자료를 「거의 정렬됨」으로 바꿔 보세요. 삽입 정렬이 분할 정복보다 먼저 끝납니다. '
+        + '「역순」에서는 퀵 정렬이 꼴찌 가까이로 내려앉습니다 — '
+        + '**어느 정렬이 빠른가는 자료가 정합니다.** '
+        + '아래 곡선의 세로축은 로그 눈금입니다. 선의 «기울기»가 곧 복잡도의 차수입니다.',
+};
+
+/** 탭에 나오는 것 전부 — 진짜 종목 열에 겨루기를 더한 것. */
+export const SORT_TABS = [...SORT_ALGOS, SORT_RACE];
+
 export function sortAlgoById(id) {
-    return SORT_ALGOS.find((a) => a.id === id) || null;
+    return SORT_TABS.find((a) => a.id === id) || null;
 }
 
 export function sortAlgosOfGroup(groupId) {
-    return SORT_ALGOS.filter((a) => a.group === groupId);
+    return SORT_TABS.filter((a) => a.group === groupId);
 }
 
 export function sortGroupById(id) {

@@ -42,6 +42,9 @@ const RANGE_LEVEL_H = 12;    // 구간 띠 한 층
 const RANGE_GAP = 6;
 const AUX_H = 76;            // 임시 배열 칸
 const AUX_GAP = 10;
+const STRIP_HEAD = 36;       // 칸 줄의 이름표와 테두리
+const STRIP_ITEM_H = 15;     // 칸에 쌓이는 원소 한 줄
+const STRIP_MAX_SHOWN = 12;  // 이보다 많이 쌓이면 나머지는 「+N」으로 줄인다
 const INDEX_H = 20;          // 인덱스·커서 줄. 늘 비워 둔다 — 커서는 거의 모든 판에 있다
 
 function sortMakeBox(tag, style, text) {
@@ -69,6 +72,7 @@ export function createSortArrayView(host) {
     const barsRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '260px'});
     const indexRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '0px'});
     const auxRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '0px'});
+    const stripRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '0px'});
 
     host.textContent = '';
     stage.appendChild(rangeRow);
@@ -76,6 +80,7 @@ export function createSortArrayView(host) {
     stage.appendChild(barsRow);
     stage.appendChild(indexRow);
     stage.appendChild(auxRow);
+    stage.appendChild(stripRow);
     host.appendChild(stage);
 
     const slotLeft = (i) => `${(i * 100) / n}%`;
@@ -199,15 +204,29 @@ export function createSortArrayView(host) {
                움직이므로, 전체를 훑어 가장 높은 값을 찾아 그 자리를 비워 둔다. */
             let depth = 0;
             let hasAux = false;
+            let stripKind = null;
+            let stripStack = 0;
             for (const f of frames) {
                 for (const r of f.ranges || []) depth = Math.max(depth, (r.depth || 0) + 1);
                 if (f.aux && f.aux.length) hasAux = true;
+                if (f.strip) {
+                    stripKind = f.strip.kind;
+                    for (const c of f.strip.cells) {
+                        stripStack = Math.max(stripStack, Math.min(c.items.length, STRIP_MAX_SHOWN));
+                    }
+                }
             }
             rangeRow.style.height = depth ? `${depth * RANGE_LEVEL_H}px` : '0px';
             rangeRow.style.marginBottom = depth ? `${RANGE_GAP}px` : '0px';
             auxRow.style.height = hasAux ? `${AUX_H}px` : '0px';
             auxRow.style.marginTop = hasAux ? `${AUX_GAP}px` : '0px';
             indexRow.style.height = `${INDEX_H}px`;
+            /* 칸 줄도 같은 규칙 — 이 판에서 가장 높이 쌓이는 만큼을 미리 비워 둔다.
+               「개수만 세는」 줄은 숫자 한 줄이면 되므로 쌓임을 세지 않는다. */
+            const stripH = !stripKind ? 0
+                : STRIP_HEAD + (stripKind === 'count' ? STRIP_ITEM_H + 4 : stripStack * STRIP_ITEM_H + 4);
+            stripRow.style.height = `${stripH}px`;
+            stripRow.style.marginTop = stripH ? '12px' : '0px';
         },
 
         /**
@@ -290,6 +309,7 @@ export function createSortArrayView(host) {
 
             this.renderRanges(frame);
             this.renderAux(frame, dur);
+            this.renderStrip(frame);
             this.renderCursors(frame);
         },
 
@@ -376,6 +396,83 @@ export function createSortArrayView(host) {
                 });
                 auxRow.appendChild(wrap);
             }
+        },
+
+        /** **값으로 자리를 정하는 칸 줄.**
+         *  분배 정렬이 「원소끼리 대 보는」 대신 무엇을 하는지가 이 줄에 다 있다 —
+         *  칸의 이름이 곧 값이고, 원소는 자기 값이 적힌 칸으로 곧장 간다. */
+        renderStrip(frame) {
+            // 높이는 `setup`이 잡아 두었다. 여기서 손대면 단추가 움직인다.
+            stripRow.textContent = '';
+            const strip = frame.strip;
+            if (!strip) return;
+
+            const cells = strip.cells;
+            const w = 100 / Math.max(1, cells.length);
+            const box = sortMakeBox('div', {
+                position: 'absolute', inset: '0',
+                border: '1px dashed #94a3b8', borderRadius: '8px',
+                background: '#f8fafc', boxSizing: 'border-box',
+            });
+            box.appendChild(sortMakeBox('div', {
+                position: 'absolute', top: '-9px', left: '8px',
+                fontSize: '10px', fontWeight: '700', color: '#475569',
+                background: '#f8fafc', padding: '0 4px', whiteSpace: 'nowrap',
+            }, strip.label));
+
+            cells.forEach((c, k) => {
+                const on = strip.focus === c.key;
+                const cell = sortMakeBox('div', {
+                    position: 'absolute', top: '6px', bottom: '4px',
+                    left: `${k * w}%`, width: `${w}%`,
+                    padding: '0 2px', boxSizing: 'border-box',
+                    display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+                });
+                cell.appendChild(sortMakeBox('div', {
+                    textAlign: 'center', fontSize: '10px', fontWeight: '800',
+                    color: on ? '#be123c' : '#94a3b8', lineHeight: '14px',
+                }, String(c.key)));
+
+                const body = sortMakeBox('div', {
+                    flex: '1 1 auto',
+                    border: `1px solid ${on ? '#f43f5e' : '#cbd5e1'}`,
+                    background: on ? '#fff1f2' : '#ffffff',
+                    borderRadius: '4px',
+                    display: 'flex', flexDirection: 'column-reverse',
+                    alignItems: 'stretch', overflow: 'hidden',
+                });
+
+                if (strip.kind === 'count') {
+                    body.appendChild(sortMakeBox('div', {
+                        textAlign: 'center', fontWeight: '800',
+                        fontSize: '12px', lineHeight: `${STRIP_ITEM_H}px`,
+                        color: c.count ? '#0f172a' : '#cbd5e1',
+                    }, String(c.count)));
+                } else {
+                    /* **아래에서 위로 쌓는다.** 먼저 넣은 것이 아래에 남아 있어야
+                       「넣은 차례 그대로 꺼낸다」가 눈에 보인다. */
+                    const shown = c.items.slice(0, STRIP_MAX_SHOWN);
+                    shown.forEach((it) => {
+                        body.appendChild(sortMakeBox('div', {
+                            textAlign: 'center', fontSize: '10px', fontWeight: '700',
+                            lineHeight: `${STRIP_ITEM_H - 1}px`,
+                            color: '#3730a3', background: '#e0e7ff',
+                            borderTop: '1px solid #c7d2fe',
+                        }, String(it.v)));
+                    });
+                    if (c.items.length > STRIP_MAX_SHOWN) {
+                        body.appendChild(sortMakeBox('div', {
+                            textAlign: 'center', fontSize: '9px', fontWeight: '800',
+                            lineHeight: `${STRIP_ITEM_H - 1}px`, color: '#64748b',
+                        }, `+${c.items.length - STRIP_MAX_SHOWN}`));
+                    }
+                }
+
+                cell.appendChild(body);
+                box.appendChild(cell);
+            });
+
+            stripRow.appendChild(box);
         },
 
         /** i·j·k 같은 커서를 인덱스 줄에 이름표로 세운다. */

@@ -275,12 +275,16 @@ export function createDsListView(host) {
         }
     }
 
+    /** 마지막으로 그린 장. 창 크기가 바뀌면 이것을 그대로 다시 그린다. */
+    let last = null;
+
     return {
         setup(frames) {
             build(frames);
         },
 
         render(frame, prev, o = {}) {
+            last = {frame, prev};
             if (!svg) return;
             const st = frame.state;
             const m = frame.marks;
@@ -337,6 +341,14 @@ export function createDsListView(host) {
             }
         },
 
-        resize() {},
+        /* **창 크기가 바뀌면 다시 그린다.**
+         *
+         * 글자 크기는 «그릴 때 잰 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
+         * 브라우저가 알아서 줄여 주는데 **그 역수는 다시 계산되지 않아** 글자만 작아진다.
+         * 다시 그리는 것 말고는 고칠 길이 없으므로 마지막 장을 들고 있다가 그대로 다시 그린다.
+         * **움직여 그리지 않는다** — 창을 줄이는 것은 단계를 넘기는 것이 아니다. */
+        resize() {
+            if (last) this.render(last.frame, last.prev, {animate: false, ms: 0});
+        },
     };
 }

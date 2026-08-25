@@ -11,6 +11,10 @@ import {bubbleSortAlgo} from './algo/bubble.js';
 import {cocktailSortAlgo} from './algo/cocktail.js';
 import {selectionSortAlgo} from './algo/selection.js';
 import {insertionSortAlgo} from './algo/insertion.js';
+import {shellSortAlgo} from './algo/shell.js';
+import {mergeSortAlgo} from './algo/merge.js';
+import {quickSortAlgo} from './algo/quick.js';
+import {heapSortAlgo} from './algo/heap.js';
 
 export const SORT_GROUPS = [
     {
@@ -40,6 +44,10 @@ export const SORT_ALGOS = [
     cocktailSortAlgo,
     selectionSortAlgo,
     insertionSortAlgo,
+    shellSortAlgo,
+    mergeSortAlgo,
+    quickSortAlgo,
+    heapSortAlgo,
 ];
 
 export function sortAlgoById(id) {

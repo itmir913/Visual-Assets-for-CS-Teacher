@@ -102,7 +102,10 @@ export function createSortArrayView(host) {
         fill.appendChild(label);
         wrap.appendChild(fill);
         barsRow.appendChild(wrap);
-        return {wrap, fill, label, item};
+        /* `last`는 **마지막으로 실제로 써 넣은 값**이다. n=1000이면 한 장을 그릴 때마다
+           속성을 6천 번 쓰게 되는데(재 보니 70ms), 그중 대부분은 앞 장과 같은 값이다.
+           같은 값을 다시 쓰지 않는 것만으로 스크럽이 눈에 띄게 가벼워진다. */
+        return {wrap, fill, label, item, last: {}};
     }
 
     return {
@@ -153,7 +156,14 @@ export function createSortArrayView(host) {
                 holes.push(hole);
             }
 
-            for (const it of items) bars.set(it.id, makeBar(it));
+            for (const it of items) {
+                const bar = makeBar(it);
+                /* **높이는 여기서 한 번만 정한다.** 값과 최댓값이 정해지면 끝인데
+                   장마다 다시 쓸 이유가 없다. 천장을 88%로 두는 것은 들어올린 막대가
+                   줄 위로 떠야 하고, 가장 큰 막대가 모서리에 붙으면 잘려 보이기 때문이다. */
+                bar.fill.style.height = `${Math.max(6, (it.v / maxValue) * 88)}%`;
+                bars.set(it.id, bar);
+            }
 
             /* 자리 번호는 **늘 만들어 두고** 보일지는 그릴 때 정한다.
                창을 줄였다 늘였다 할 때마다 다시 만들 이유가 없다. */
@@ -202,39 +212,52 @@ export function createSortArrayView(host) {
 
             for (const [id, bar] of bars) {
                 const i = place.get(id);
-                const inAux = !place.has(id);
                 const isHeld = marks.held && marks.held.item.id === id;
 
                 if (i === undefined && !isHeld) {
-                    // 보조 칸으로 떠 간 알갱이. 주 배열 자리에서는 흐리게 남겨 둔다.
-                    bar.wrap.style.opacity = inAux ? '0.25' : '0';
+                    /* 보조 칸으로 떠 간 알갱이. **주 배열 쪽에는 아무것도 남기지 않는다.**
+                       흐리게 남겨 두었더니 같은 자리에 그려지는 「빈칸」 점선과 겹쳐
+                       칸이 빈 것인지 아닌지가 되레 헷갈렸다. 빈칸 점선과 보조 칸의
+                       막대, 둘이면 어디로 갔는지 말하기에 충분하다. */
+                    if (bar.last.opacity !== '0') { bar.wrap.style.opacity = '0'; bar.last.opacity = '0'; }
                     continue;
                 }
 
+                /* **피벗이 「지금 비교하는 것」보다 앞선다.** 퀵 정렬은 구간의 모든 칸을
+                   피벗과 비교하므로, 비교 색이 이기면 피벗은 언제나 노랑이 되어
+                   보라색이 화면에 한 번도 나타나지 않는다 —
+                   **범례에만 있고 화면에 없는 색이 생긴다.** 피벗은 그 구간 내내
+                   피벗이므로 제 색을 지키고, 짝이 되는 칸만 노랑으로 뜬다. */
                 let tone = SORT_COLORS.idle;
                 if (isHeld) tone = SORT_COLORS.held;
                 else if (moving.has(i)) tone = SORT_COLORS.moving;
-                else if (cmp.has(i)) tone = SORT_COLORS.compare;
                 else if (marks.pivot === i) tone = SORT_COLORS.pivot;
+                else if (cmp.has(i)) tone = SORT_COLORS.compare;
                 else if (done.has(i)) tone = SORT_COLORS.done;
 
                 const at = isHeld ? marks.held.from : i;
-                bar.wrap.style.opacity = '1';
-                bar.wrap.style.left = slotLeft(at);
-                bar.wrap.style.width = slotWidth();
-                bar.wrap.style.transition = dur ? `left ${dur}ms ease, transform ${dur}ms ease` : 'none';
+                const left = slotLeft(at);
+                const trans = dur ? `left ${dur}ms ease, transform ${dur}ms ease` : 'none';
                 // 들어올린 것은 줄에서 살짝 띄운다. 「빠져 있다」가 한눈에 보여야 한다.
-                bar.wrap.style.transform = isHeld ? 'translateY(-30px)' : 'translateY(0)';
+                const lift = isHeld ? 'translateY(-30px)' : 'translateY(0)';
+                const L0 = bar.last;
+                if (L0.opacity !== '1') { bar.wrap.style.opacity = '1'; L0.opacity = '1'; }
+                if (L0.left !== left) { bar.wrap.style.left = left; L0.left = left; }
+                if (L0.width !== n) { bar.wrap.style.width = slotWidth(); L0.width = n; }
+                if (L0.trans !== trans) { bar.wrap.style.transition = trans; L0.trans = trans; }
+                if (L0.lift !== lift) { bar.wrap.style.transform = lift; L0.lift = lift; }
 
-                // 천장을 88%로 둔다. 들어올린 막대가 줄 위로 떠야 하고,
-                // 가장 큰 막대가 상자 모서리에 딱 붙으면 잘린 것처럼 보인다.
-                bar.fill.style.height = `${Math.max(6, (bar.item.v / maxValue) * 88)}%`;
-                bar.fill.style.background = tone.bg;
-                bar.fill.style.borderColor = tone.bar;
-                bar.label.style.color = tone.text;
-                bar.label.style.fontSize = `${labelPx}px`;
-                bar.label.textContent = !showValue ? ''
+                const text = !showValue ? ''
                     : (showDup && dupIds.has(id) ? `${bar.item.v}·${id}` : String(bar.item.v));
+                const L = bar.last;
+                if (L.tone !== tone) {
+                    bar.fill.style.background = tone.bg;
+                    bar.fill.style.borderColor = tone.bar;
+                    bar.label.style.color = tone.text;
+                    L.tone = tone;
+                }
+                if (L.labelPx !== labelPx) { bar.label.style.fontSize = `${labelPx}px`; L.labelPx = labelPx; }
+                if (L.text !== text) { bar.label.textContent = text; L.text = text; }
             }
 
             this.renderRanges(frame);

@@ -11,7 +11,10 @@
 
 import {SORT_ALGOS} from '../src/entries/_lib/sort/sort-registry.js';
 import {runSortAlgorithm, sortIsStable} from '../src/entries/_lib/sort/sort-model.js';
-import {makeSortData, SORT_PRESETS, SORT_N_MAX} from '../src/entries/_lib/sort/sort-data.js';
+import {
+    makeSortData, SORT_PRESETS, SORT_N_MAX, SORT_SIZES, SORT_N_DEFAULT,
+} from '../src/entries/_lib/sort/sort-data.js';
+import {loadSim} from './_sim-harness.mjs';
 
 let fail = 0;
 const bad = (m) => { fail++; if (fail <= 30) console.log('  ✗ ' + m); };
@@ -59,8 +62,11 @@ for (const algo of SORT_ALGOS) {
                         + out.values.slice(0, 12).join(' '));
                     continue;
                 }
-                if (out.overflow) {
-                    bad(`${algo.id} · ${preset.id} n=${n} — 스냅샷 상한을 넘겼다`);
+                /* **솎아 기록한 판은 「한 단계 = 한 걸음」이 아니다.** 화면이 그 사실을
+                   밝히도록 `stride` 를 내보내고 있으니, 여기서는 그 값이 성한지만 본다. */
+                if (!(out.stride >= 1) || out.frames.length < 2) {
+                    bad(`${algo.id} · ${preset.id} n=${n} — 기록이 성하지 않다 `
+                        + `(장 ${out.frames.length}, 간격 ${out.stride})`);
                 }
 
                 /* 알고리즘이 스스로 신고한 안정성과 **실제로 벌어진 일**을 맞춰 본다. */
@@ -135,6 +141,123 @@ for (const r of rows) {
     console.log(`  ${r.name.padEnd(w)}  판 ${String(r.runs).padStart(3)} · `
         + `가장 긴 기록 ${String(r.maxFrames).padStart(5)}장   비교 횟수(n=${SORT_N_MAX}): ${c}`);
 }
+
+/* ================================================================
+   페이지를 띄워 **종목마다 실제로 눌러 본다**
+
+   위쪽 검사는 알고리즘의 계산만 본다. 그런데 종목마다 화면이 다르고(힙은 트리를
+   함께 그린다), 그 화면을 만드는 코드는 계산이 성해도 죽을 수 있다.
+   `check:sims` 는 **id 가 붙은 단추만** 눌러 보는데 종목을 고르는 칩에는 id 가 없어
+   기본 종목 하나만 열어 본다 — 나머지 일곱은 아무도 안 여는 셈이었다.
+   ================================================================ */
+
+const page = loadSim('cs/sort', {box: {w: 900, h: 700}});
+page.lifecycle();
+for (const e of page.errors) bad(`페이지를 띄우다가 — ${e}`);
+
+/** `#bars-host` 아래에 무엇이 몇 개 그려졌는지 센다. */
+function drawn(sim) {
+    const tally = {};
+    const walk = (el) => {
+        tally[el.tagName] = (tally[el.tagName] || 0) + 1;
+        for (const c of el.children || []) walk(c);
+    };
+    for (const c of sim.el('bars-host').children) walk(c);
+    return tally;
+}
+
+const SICK = /NaN|Infinity|undefined/;
+
+function screenSick(sim) {
+    for (const el of sim.byId.values()) {
+        for (const v of [el._text, el._html]) {
+            if (typeof v === 'string' && SICK.test(v)) return `#${el.id}: ${v.slice(0, 50)}`;
+        }
+    }
+    return null;
+}
+
+function setSize(sim, idx) {
+    const sl = sim.el('n-slider');
+    sl.value = String(idx);
+    sl.dispatchEvent({type: 'input', target: sl});
+    sl.dispatchEvent({type: 'change', target: sl});
+}
+
+const pageRows = [];
+for (const group of [...page.el('group-tabs').children]) {
+    group.click();
+    for (const chip of [...page.el('algo-tabs').children]) {
+        const name = chip.textContent;
+        for (const [label, idx] of [['기본', SORT_SIZES.indexOf(SORT_N_DEFAULT)], ['큰 배열', SORT_SIZES.length - 1]]) {
+            const before = page.errors.length;
+            chip.click();
+            setSize(page, idx);
+            page.el('btn-last').click();
+
+            for (const e of page.errors.slice(before)) bad(`${name} · ${label} — ${e}`);
+
+            const sick = screenSick(page);
+            if (sick) bad(`${name} · ${label} — 화면에 성하지 않은 값: ${sick}`);
+
+            const say = page.el('say').textContent;
+            if (!say.includes('정렬이 끝났습니다')) {
+                bad(`${name} · ${label} — 끝까지 갔는데 「정렬이 끝났습니다」가 아니다: ${say.slice(0, 40)}`);
+            }
+
+            const tally = drawn(page);
+            if (label === '기본') {
+                const n = SORT_N_DEFAULT;
+                /* 막대·빈칸·자리번호가 자리마다 하나씩. 뷰가 조용히 안 그리면 여기서 걸린다. */
+                if (!(tally.DIV >= n * 3)) bad(`${name} — 막대가 덜 그려졌다 (div ${tally.DIV || 0}개)`);
+                pageRows.push(`${name}: ${page.el('step-label').textContent} · ${JSON.stringify(tally)}`);
+            }
+        }
+    }
+}
+
+/* **힙 정렬은 트리가 실제로 그려져야 한다.** 이 종목의 요점이 「배열이 곧 트리」인데
+   트리가 없으면 그냥 배열 그림 하나짜리 종목이 된다. */
+for (const group of [...page.el('group-tabs').children]) {
+    group.click();
+    const chip = [...page.el('algo-tabs').children].find((c) => c.textContent === '힙 정렬');
+    if (!chip) continue;
+    chip.click();
+    setSize(page, SORT_SIZES.indexOf(SORT_N_DEFAULT));
+    const tally = drawn(page);
+    if (!tally.CIRCLE || tally.CIRCLE !== SORT_N_DEFAULT) {
+        bad(`힙 정렬 — 트리 마디가 ${tally.CIRCLE || 0}개다(있어야 할 것 ${SORT_N_DEFAULT}개)`);
+    }
+    if (!tally.LINE || tally.LINE !== SORT_N_DEFAULT - 1) {
+        bad(`힙 정렬 — 트리 가지가 ${tally.LINE || 0}개다(있어야 할 것 ${SORT_N_DEFAULT - 1}개)`);
+    }
+    // 마디가 많으면 트리를 그리지 않는다고 알려야 한다 — 조용히 사라지면 결함으로 보인다.
+    setSize(page, SORT_SIZES.length - 1);
+    const big = drawn(page);
+    if (big.CIRCLE) bad(`힙 정렬 — 1000개인데 트리 마디를 ${big.CIRCLE}개 그렸다`);
+}
+
+/* **범례에 있는 색은 화면에 나타나야 한다.**
+   쓰이지 않는 색이 범례에 남아 있으면 학생이 「아직 못 본 무언가가 있다」고 여기며
+   찾게 된다. 실제로 피벗 색이 그랬다 — 퀵 정렬은 구간의 모든 칸을 피벗과 비교하는데
+   비교 색이 피벗 색을 덮어써서 보라색이 한 번도 뜨지 않았다. */
+const toneSeen = new Set(['idle']);
+for (const algo of SORT_ALGOS) {
+    const out = runSortAlgorithm(algo, makeSortData('random', SORT_N_DEFAULT, 7));
+    for (const f of out.frames) {
+        if (f.marks.compare) toneSeen.add('compare');
+        if (f.marks.moving.length) toneSeen.add('moving');
+        if (f.marks.held) toneSeen.add('held');
+        if (f.marks.pivot !== null && f.marks.pivot !== undefined) toneSeen.add('pivot');
+        if (f.marks.done.length) toneSeen.add('done');
+    }
+}
+for (const key of ['idle', 'compare', 'moving', 'held', 'pivot', 'done']) {
+    if (!toneSeen.has(key)) bad(`범례의 「${key}」 색이 어느 종목에서도 쓰이지 않는다`);
+}
+
+console.log('페이지를 띄워 종목마다 끝까지 돌려 보았다');
+for (const r of pageRows) console.log('  ' + r);
 
 console.log(fail === 0 ? '전부 통과' : '어긋난 것 ' + fail + '건');
 process.exit(fail === 0 ? 0 : 1);

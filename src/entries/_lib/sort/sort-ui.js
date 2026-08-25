@@ -7,9 +7,10 @@ import {SORT_ALGOS, sortAlgoById, sortAlgosOfGroup, sortGroupsInUse} from './sor
 import {runSortAlgorithm} from './sort-model.js';
 import {createSortPlayer, SORT_SPEEDS} from './sort-player.js';
 import {createSortArrayView, SORT_COLORS} from './sort-view-array.js';
+import {createSortHeapView} from './sort-view-heap.js';
 import {
-    SORT_PRESETS, SORT_N_DEFAULT, SORT_N_MAX, SORT_N_MIN,
-    makeSortData, parseSortInput, checkSortInput,
+    SORT_PRESETS, SORT_SIZES, SORT_N_DEFAULT, SORT_N_MAX, SORT_N_MIN,
+    makeSortData, parseSortInput, checkSortInput, nearestSortSize,
 } from './sort-data.js';
 
 const SORT_LEGEND = [
@@ -33,7 +34,16 @@ function sortButton(cls, text, onClick) {
 }
 
 export function mountSortSimulator() {
-    const view = createSortArrayView($('bars-host'));
+    /* 그림은 알고리즘이 고른다. 힙 정렬만 트리를 함께 그려야 해서 다른 뷰를 쓴다.
+       **바뀔 때만 새로 만든다** — 알고리즘을 고를 때마다 다시 만들면 상자가 깜빡인다. */
+    let view = null;
+    let viewKind = null;
+
+    function ensureView(kind) {
+        if (viewKind === kind) return;
+        viewKind = kind;
+        view = kind === 'heap' ? createSortHeapView($('bars-host')) : createSortArrayView($('bars-host'));
+    }
 
     let algo = SORT_ALGOS[0];
     let presetId = SORT_PRESETS[0].id;
@@ -172,8 +182,17 @@ export function mountSortSimulator() {
             $('input-error').textContent = ' ';
         }
 
+        ensureView(algo.view);
         const out = runSortAlgorithm(algo, values);
         view.setup(out.frames[0] ? out.frames[0].a : []);
+
+        /* **솎아 기록했으면 반드시 밝힌다.** 모르면 학생이 「한 단계 = 비교 한 번」으로
+           읽고 화면의 숫자를 잘못 센다. 큰 배열에서는 모든 걸음을 들고 있을 수가 없다. */
+        $('record-note').textContent = out.stride > 1
+            ? `알갱이가 많아 ${out.stride}걸음마다 한 장씩만 기록했습니다`
+              + ` (실제 걸음 ${out.steps.toLocaleString('ko-KR')}번).`
+              + ' 한 걸음씩 모두 보려면 개수를 줄이세요.'
+            : ' ';
 
         const scrub = $('scrub');
         scrub.max = String(Math.max(0, out.frames.length - 1));
@@ -246,11 +265,15 @@ export function mountSortSimulator() {
         $('btn-last').addEventListener('click', () => player?.toEnd());
         $('scrub').addEventListener('input', (e) => player?.seek(Number(e.target.value) || 0));
 
+        /* **슬라이더는 개수가 아니라 목록의 자리를 고른다.** 2~1000을 고르게 펴면
+           수업에서 실제로 쓰는 2~20 구간이 슬라이더의 2%가 되어 집을 수가 없다. */
         const slider = $('n-slider');
-        slider.min = String(SORT_N_MIN);
-        slider.max = String(SORT_N_MAX);
+        slider.min = '0';
+        slider.max = String(SORT_SIZES.length - 1);
+        slider.step = '1';
+        slider.value = String(SORT_SIZES.indexOf(SORT_N_DEFAULT));
         slider.addEventListener('input', () => {
-            n = Number(slider.value) || SORT_N_DEFAULT;
+            n = SORT_SIZES[Number(slider.value)] ?? SORT_N_DEFAULT;
             $('n-label').textContent = String(n);
         });
         slider.addEventListener('change', () => {
@@ -265,7 +288,7 @@ export function mountSortSimulator() {
             if (error) { $('input-error').textContent = error; return; }
             values = got;
             n = got.length;
-            $('n-slider').value = String(Math.min(SORT_N_MAX, Math.max(SORT_N_MIN, n)));
+            $('n-slider').value = String(SORT_SIZES.indexOf(nearestSortSize(n)));
             $('n-label').textContent = String(n);
             rebuild();
         });

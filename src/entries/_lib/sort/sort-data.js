@@ -8,15 +8,48 @@
  * 같은 값 둘의 앞뒤가 뒤집히는지를 보는 것 말고는 안정성을 눈으로 확인할 길이 없다.
  */
 
-/** 한 종목을 볼 때의 알갱이 수. 되감기를 하려면 스냅샷을 전부 들고 있어야 해서 바닥이 있다.
- *  교실 화면에서 막대가 보이려면 어차피 이 언저리다. */
-export const SORT_N_MIN = 6;
-export const SORT_N_MAX = 64;
-export const SORT_N_DEFAULT = 24;
+/* **고를 수 있는 개수. 고르게 펴지 않는다.**
+ *
+ * 수업에서 실제로 쓰는 자리는 2~20이다 — 한 단계씩 넘겨 가며 무슨 일이 벌어지는지
+ * 보려면 그만큼이어야 한다. 그런데 2~1000을 고르게 편 슬라이더에서는 그 구간이
+ * 전체의 2%가 되어 **정작 쓸 값을 고를 수가 없다.** 그래서 작은 쪽을 촘촘히,
+ * 큰 쪽을 성기게 둔 목록에서 고른다.
+ *
+ * 큰 값도 열어 둔다. 1000개가 정리되어 가는 모습은 한 단계씩 보는 것과 **다른 것을**
+ * 가르친다 — 알고리즘마다 자료가 정돈되는 「모양」이 다르다는 것이다.
+ */
+export const SORT_SIZES = [
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 32,
+    48, 64, 96, 128, 192, 256, 384, 512, 768, 1000,
+];
+
+export const SORT_N_MIN = SORT_SIZES[0];
+export const SORT_N_MAX = SORT_SIZES[SORT_SIZES.length - 1];
+
+/** **기본값은 「한 판이 80단계 안에서 끝나는 크기」로 잡았다.**
+ *
+ *  여덟 종목 × 자료 넷 × 씨앗 다섯을 실제로 돌려 세어 보고 고른 값이다.
+ *  n=8이면 가장 긴 종목(병합 정렬)이 83단계, 나머지는 18~80단계다.
+ *  n=10이면 병합이 114, 삽입이 120까지 가고 n=24는 369~436단계가 된다 —
+ *  뒤엣것들은 수업 시간에 끝까지 넘겨 볼 수 있는 양이 아니다.
+ *  세는 법 → `npm run check:sort` */
+export const SORT_N_DEFAULT = 8;
+
+/** 목록에서 가장 가까운 값. 직접 넣은 자료의 개수를 슬라이더에 맞출 때 쓴다. */
+export function nearestSortSize(n) {
+    return SORT_SIZES.reduce((best, s) => (Math.abs(s - n) < Math.abs(best - n) ? s : best), SORT_SIZES[0]);
+}
 
 /** 값의 범위. 막대 높이로 비교하는 그림이라 0을 넣으면 보이지 않는다. */
 export const SORT_V_MIN = 1;
 export const SORT_V_MAX = 99;
+
+/** **알갱이가 많으면 값의 범위도 넓혀야 한다.** 1~99에 1000개를 담으면 열 개씩 값이
+ *  겹쳐 「역순」이 참된 역순이 되지 못하고, 그러면 최악을 보여 주려던 자료가
+ *  최악이 아니게 된다. 겹침을 일부러 만드는 「값이 몇 종류뿐」은 이 규칙 밖이다. */
+function sortValueMax(n) {
+    return Math.max(SORT_V_MAX, Math.min(999, n));
+}
 
 export const SORT_PRESETS = [
     {
@@ -32,12 +65,12 @@ export const SORT_PRESETS = [
     {
         id: 'reversed',
         name: '역순',
-        hint: '거꾸로 놓인 자료. 맨 앞을 피벗으로 잡는 퀵 정렬이 최악으로 무너진다.',
+        hint: '거꾸로 놓인 자료. 삽입 정렬과, 구간의 끝에서 피벗을 고르는 퀵 정렬이 나란히 최악이 된다.',
     },
     {
         id: 'fewUnique',
         name: '값이 몇 종류뿐',
-        hint: '같은 값이 잔뜩 겹친다. 계수 정렬이 빛나고, 안정 정렬과 아닌 것이 갈린다.',
+        hint: '같은 값이 잔뜩 겹친다. 정렬이 끝난 뒤 같은 값끼리 앞뒤가 지켜졌는지 보면 안정 정렬인지 알 수 있다.',
     },
 ];
 
@@ -60,13 +93,13 @@ export function sortRandom(seed) {
  */
 export function makeSortData(presetId, n, seed = Date.now()) {
     const rnd = sortRandom(seed);
-    const span = SORT_V_MAX - SORT_V_MIN;
+    const span = sortValueMax(n) - SORT_V_MIN;
     const randVal = () => SORT_V_MIN + Math.floor(rnd() * (span + 1));
 
     if (presetId === 'reversed') {
         // 값이 겹치지 않아야 「완전한 역순」이 된다. 고르게 깔고 뒤집는다.
         const step = span / Math.max(1, n - 1);
-        return Array.from({length: n}, (_, i) => Math.round(SORT_V_MAX - i * step));
+        return Array.from({length: n}, (_, i) => Math.round(sortValueMax(n) - i * step));
     }
 
     if (presetId === 'nearly') {
@@ -112,8 +145,7 @@ export function parseSortInput(text) {
     if (values.length > SORT_N_MAX) {
         return {
             values: [],
-            error: `숫자가 ${values.length}개입니다. 되감기를 하려면 모든 단계를 들고 있어야 해서 `
-                + `${SORT_N_MAX}개까지만 됩니다.`,
+            error: `숫자가 ${values.length}개입니다. 여기서는 ${SORT_N_MAX}개까지만 다룹니다.`,
         };
     }
     return {values, error: null};

@@ -118,13 +118,18 @@ export function makeElementClass(state) {
         get className() { return [...this._classes].join(' '); }
         set className(v) { this._classes = new Set(String(v).split(/\s+/).filter(Boolean)); }
 
-        // 진짜 DOM 은 문자열로 바꾼다. 스텁이 안 바꾸면 라벨 검사가 **가짜로 실패**한다.
+        /* 진짜 DOM 은 문자열로 바꾼다. 스텁이 안 바꾸면 라벨 검사가 **가짜로 실패**한다.
+           **`textContent`·`innerHTML` 을 넣으면 자식이 통째로 갈린다.** 예전에는 빈
+           문자열을 넣은 `innerHTML` 만 자식을 비웠는데, `textContent = ''` 로 상자를
+           비우는 페이지에서는 **자식이 지워지지 않고 계속 쌓였다** — 다시 그릴 때마다
+           불어나 받침대가 메모리를 다 쓰고 죽었고, 그리기 전에는 개수를 세는 검사가
+           엉뚱한 값을 봤다. 진짜 DOM 과 다르게 굴면 검사가 없느니만 못하다. */
         get textContent() { return this._text; }
-        set textContent(v) { this._text = String(v); }
+        set textContent(v) { this._text = String(v); this.children = []; }
         get innerText() { return this._text; }
-        set innerText(v) { this._text = String(v); }
+        set innerText(v) { this._text = String(v); this.children = []; }
         get innerHTML() { return this._html; }
-        set innerHTML(v) { this._html = String(v); if (v === '') this.children = []; }
+        set innerHTML(v) { this._html = String(v); this.children = []; }
 
         /* 상자 크기. **`clientWidth` 와 `getBoundingClientRect()` 는 다른 값이다** —
            rect 는 테두리까지 세고 소수로 나온다. 캔버스를 재는 쪽이 어느 것을 쓰는지가

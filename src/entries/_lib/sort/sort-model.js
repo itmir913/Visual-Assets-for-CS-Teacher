@@ -22,9 +22,19 @@
  *   `write` 칸에 값을 쓴다(제자리가 아니다) 병합 · 계수 · 기수
  */
 
-/** 스냅샷을 몇 장까지 쌓을지. 되감기를 하려면 전부 들고 있어야 하므로 바닥이 필요하다.
- *  n=64 버블 정렬이 4천 장 언저리라 넉넉하다. 넘치면 기록을 멈추고 그렇다고 알린다. */
-export const SORT_FRAME_CAP = 40000;
+/* **몇 장까지 쌓을 수 있는가 — 알갱이 수가 정한다.**
+ *
+ * 되감기를 하려면 장마다 배열을 통째로 들고 있어야 하므로, 드는 자리는 «장 수 × n»이다.
+ * n=1000짜리 버블 정렬은 걸음이 75만이라 다 남길 수가 없다.
+ *
+ * **그렇다고 큰 배열을 막지는 않는다.** 대신 걸음을 «솎아» 남긴다 — 예산을 넘길 때마다
+ * 가진 장을 반으로 줄이고 앞으로 남길 간격을 두 배로 늘린다. 그러면 어느 크기에서도
+ * 되감기와 스크럽이 그대로 되고, 다만 «한 단계»가 한 걸음이 아니게 된다.
+ * **그 사실은 화면에 밝힌다** — 모르면 학생이 비교를 빠뜨리고 세게 된다.
+ */
+export function sortFrameBudget(n) {
+    return Math.max(400, Math.min(6000, Math.round(300000 / Math.max(1, n))));
+}
 
 /** 값 목록을 알갱이로 바꾼다. `id`는 처음 자리이자 **끝까지 변하지 않는 이름**이다. */
 export function createSortItems(values) {
@@ -37,10 +47,13 @@ export function createSortItems(values) {
  * @param {number[]} values 처음 배열
  * @returns 기록기. 알고리즘은 `run(rec)` 안에서 이것만 쓴다.
  */
-export function createSortRecorder(values) {
+export function createSortRecorder(values, opts = {}) {
     const a = createSortItems(values);
     const n = a.length;
-    const frames = [];
+    let frames = [];
+    const budget = opts.maxFrames ?? sortFrameBudget(n);
+    let stride = 1;      // 몇 걸음마다 한 장을 남기는가
+    let seq = 0;         // 지금까지 몇 걸음 걸었는가
     const counts = {compare: 0, move: 0, access: 0};
     const done = new Set();
 
@@ -52,10 +65,17 @@ export function createSortRecorder(values) {
     let compareMark = null;    // 이 한 장에만 켜지는 표시
     let movingMark = [];
     let note = '';
-    let overflow = false;
 
-    function snap(act) {
-        if (frames.length >= SORT_FRAME_CAP) { overflow = true; return; }
+    /** @param {boolean} force 처음과 끝 장은 간격과 상관없이 반드시 남긴다. */
+    function snap(act, force = false) {
+        seq++;
+        if (!force && seq % stride !== 0) {
+            // 남기지 않더라도 **한 장짜리 표시는 꺼야 한다.** 안 그러면 다음에 남는 장에
+            // 엉뚱한 자리가 「지금 비교하는 중」으로 찍힌다.
+            compareMark = null;
+            movingMark = [];
+            return;
+        }
         frames.push({
             a: [...a],
             aux: auxBlocks ? auxBlocks.map((b) => ({label: b.label, items: [...b.items], base: b.base})) : null,
@@ -75,6 +95,12 @@ export function createSortRecorder(values) {
         // 한 장짜리 표시는 그리고 나면 끈다. 다음 장까지 남으면 어디를 보라는 건지 흐려진다.
         compareMark = null;
         movingMark = [];
+
+        if (frames.length > budget) {
+            // 반으로 솎고 앞으로의 간격을 두 배로. 처음 장(0번)은 늘 살아남는다.
+            frames = frames.filter((_, i) => i % 2 === 0);
+            stride *= 2;
+        }
     }
 
     const rec = {
@@ -192,12 +218,17 @@ export function createSortRecorder(values) {
             snap({kind: 'aux-open'});
             return rec;
         },
-        /** 주 배열의 한 칸을 보조 칸으로 **떠 온다.** 원본은 그대로 둔다. */
-        auxCopy(blockIdx, i) {
-            counts.move++;
-            counts.access += 2;
-            auxBlocks[blockIdx].items.push(a[i]);
-            snap({kind: 'aux-copy', block: blockIdx, i});
+        /** 주 배열의 한 구간을 보조 칸으로 **통째로 떠 온다.** 원본은 그대로 둔다.
+         *  **한 칸씩 한 장으로 남기지 않는다** — 떠 오는 것은 병합의 요점이 아니라 준비
+         *  과정인데, 칸마다 한 장을 쓰면 정작 봐야 할 「합치기」가 기록에 묻힌다.
+         *  옮긴 횟수는 칸 수만큼 정직하게 센다. */
+        auxFill(blockIdx, lo, hi) {
+            for (let i = lo; i <= hi; i++) {
+                counts.move++;
+                counts.access += 2;
+                auxBlocks[blockIdx].items.push(a[i]);
+            }
+            snap({kind: 'aux-fill', block: blockIdx, lo, hi});
             return rec;
         },
         auxAt: (blockIdx, k) => auxBlocks[blockIdx].items[k],
@@ -220,9 +251,19 @@ export function createSortRecorder(values) {
             snap({kind: 'aux-writeback', block: blockIdx, k, i});
             return rec;
         },
+        /** 보조 칸을 치운다. **장을 따로 남기지 않는다** — 다음에 남길 장에서
+         *  칸이 사라져 있는 것으로 충분하고, 그것만으로 한 장을 쓸 값어치가 없다. */
         auxClose() {
             auxBlocks = null;
-            snap({kind: 'aux-close'});
+            return rec;
+        },
+
+        /** 주 배열의 한 구간을 **비운다.** 병합 정렬이 두 조각을 보조 칸으로 떠 온 뒤,
+         *  그 구간을 처음부터 다시 채워 넣는다는 것을 그림으로 말해 준다.
+         *  세는 값은 늘지 않는다 — 실제로 옮기는 일이 아니라 화면에서만 비우는 것이다. */
+        vacate(lo, hi) {
+            for (let i = lo; i <= hi; i++) a[i] = null;
+            snap({kind: 'vacate', lo, hi});
             return rec;
         },
 
@@ -233,7 +274,7 @@ export function createSortRecorder(values) {
     /* **손대기 전 모습으로 한 장 시작한다.** 없으면 0단계가 이미 「첫 비교를 마친 뒤」라,
        되감기를 끝까지 해도 처음 자료를 볼 수 없다. */
     note = '처음 자료입니다. 재생을 누르거나 「앞으로」로 한 단계씩 넘겨 보세요.';
-    snap({kind: 'start'});
+    snap({kind: 'start'}, true);
 
     return {
         rec,
@@ -243,8 +284,8 @@ export function createSortRecorder(values) {
             ranges = [];
             cursors = {};
             pivot = null;
-            snap({kind: 'finish'});
-            return {frames, counts: {...counts}, overflow, n};
+            snap({kind: 'finish'}, true);
+            return {frames, counts: {...counts}, stride, steps: seq, n};
         },
     };
 }

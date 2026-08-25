@@ -32,6 +32,18 @@ const SLOT_FOR_VALUE = 20;   // 이만큼은 되어야 값 숫자가 들어간�
 const SLOT_FOR_DUP = 32;     // 겹친 값의 처음 자리(`5·3`)까지 붙이려면 더 넓어야 한다
 const SLOT_FOR_INDEX = 26;   // 인덱스 줄
 
+/* **그림 상자의 높이는 한 판이 시작될 때 정해 놓고 끝까지 붙든다.**
+   구간 띠와 임시 배열 칸은 단계에 따라 나타났다 사라지는데, 그때마다 상자가 늘었다
+   줄었다 하면 **그 아래에 있는 단추가 아래위로 움직인다.** 넘기는 동작은 같은 자리를
+   되풀이해 누르는 일이라, 단추가 움직이면 조작이 통째로 어긋난다.
+   그래서 이 판에서 «가장 높이 필요한 만큼»을 미리 재어 자리를 비워 둔다 —
+   쓰지 않는 단계에서는 그냥 빈 자리로 남는다. */
+const RANGE_LEVEL_H = 12;    // 구간 띠 한 층
+const RANGE_GAP = 6;
+const AUX_H = 76;            // 임시 배열 칸
+const AUX_GAP = 10;
+const INDEX_H = 20;          // 인덱스·커서 줄. 늘 비워 둔다 — 커서는 거의 모든 판에 있다
+
 function sortMakeBox(tag, style, text) {
     const el = document.createElement(tag);
     Object.assign(el.style, style);
@@ -110,10 +122,12 @@ export function createSortArrayView(host) {
 
     return {
         /**
-         * 원소 상자를 만든다. 자료가 바뀔 때마다 한 번.
-         * @param {{v:number,id:number}[]} items 처음 배열
+         * 원소 상자를 만들고 **이 판에서 쓸 높이를 미리 정한다.**
+         * @param {object[]} frames 스냅샷 열 전체. 첫 장에서 원소를 얻고,
+         *                          나머지는 «가장 높이 필요한 만큼»을 재는 데 쓴다.
          */
-        setup(items) {
+        setup(frames) {
+            const items = (frames[0] && frames[0].a) || [];
             barsRow.textContent = '';
             heldRow.textContent = '';
             indexRow.textContent = '';
@@ -180,6 +194,20 @@ export function createSortArrayView(host) {
                 num.setAttribute('data-num', String(i));
                 indexRow.appendChild(num);
             }
+
+            /* **여기서 한 판의 높이를 못박는다.** 한 장씩 보며 정하면 단계마다 상자가
+               움직이므로, 전체를 훑어 가장 높은 값을 찾아 그 자리를 비워 둔다. */
+            let depth = 0;
+            let hasAux = false;
+            for (const f of frames) {
+                for (const r of f.ranges || []) depth = Math.max(depth, (r.depth || 0) + 1);
+                if (f.aux && f.aux.length) hasAux = true;
+            }
+            rangeRow.style.height = depth ? `${depth * RANGE_LEVEL_H}px` : '0px';
+            rangeRow.style.marginBottom = depth ? `${RANGE_GAP}px` : '0px';
+            auxRow.style.height = hasAux ? `${AUX_H}px` : '0px';
+            auxRow.style.marginTop = hasAux ? `${AUX_GAP}px` : '0px';
+            indexRow.style.height = `${INDEX_H}px`;
         },
 
         /**
@@ -267,19 +295,15 @@ export function createSortArrayView(host) {
 
         /** 나뉜 구간을 막대 위에 띠로 얹는다. 「지금 어디를 보고 있는가」가 층으로 보인다. */
         renderRanges(frame) {
+            // **높이는 `setup`이 정해 두었다.** 여기서 다시 손대면 단추가 움직인다.
             rangeRow.textContent = '';
             const list = frame.ranges || [];
-            if (!list.length) { rangeRow.style.height = '0px'; rangeRow.style.marginBottom = '0px'; return; }
-
-            const depth = Math.max(...list.map((r) => r.depth || 0)) + 1;
-            rangeRow.style.height = `${depth * 12}px`;
-            rangeRow.style.marginBottom = '6px';
             for (const r of list) {
                 rangeRow.appendChild(sortMakeBox('div', {
                     position: 'absolute',
                     left: slotLeft(r.lo),
                     width: `${((r.hi - r.lo + 1) * 100) / n}%`,
-                    top: `${(r.depth || 0) * 12}px`,
+                    top: `${(r.depth || 0) * RANGE_LEVEL_H}px`,
                     height: '8px',
                     padding: '0 2px',
                     boxSizing: 'border-box',
@@ -293,11 +317,10 @@ export function createSortArrayView(host) {
 
         /** 임시 배열. **제자리 정렬이 아니라는 것을 글이 아니라 그림으로** 말한다. */
         renderAux(frame, dur) {
+            // 높이는 `setup`이 정해 두었다. 쓰지 않는 단계에서는 빈 자리로 남는다.
             auxRow.textContent = '';
             const blocks = frame.aux;
-            if (!blocks || !blocks.length) { auxRow.style.height = '0px'; return; }
-            auxRow.style.height = '76px';
-            auxRow.style.marginTop = '10px';
+            if (!blocks || !blocks.length) return;
 
             for (const b of blocks) {
                 const wrap = sortMakeBox('div', {
@@ -305,7 +328,7 @@ export function createSortArrayView(host) {
                     left: slotLeft(b.base),
                     width: `${(Math.max(1, b.items.length) * 100) / n}%`,
                     top: '0',
-                    height: '70px',
+                    height: `${AUX_H - 6}px`,
                     border: '1px dashed #94a3b8',
                     borderRadius: '6px',
                     background: '#f8fafc',
@@ -323,6 +346,9 @@ export function createSortArrayView(host) {
                 }, b.label));
 
                 b.items.forEach((it, k) => {
+                    // 이미 꺼내 쓴 칸은 물러나 있게 한다. 지우지는 않는다 —
+                    // 지우면 남은 것들이 앞으로 밀려 「어디까지 썼는지」가 사라진다.
+                    const spent = k < (b.used || 0);
                     const cell = sortMakeBox('div', {
                         position: 'absolute',
                         bottom: '4px',
@@ -334,12 +360,13 @@ export function createSortArrayView(host) {
                     });
                     cell.appendChild(sortMakeBox('div', {
                         height: `${Math.max(8, (it.v / maxValue) * 52)}px`,
-                        background: '#e0e7ff',
-                        border: '1px solid #818cf8',
+                        background: spent ? '#f1f5f9' : '#e0e7ff',
+                        border: `1px ${spent ? 'dashed' : 'solid'} ${spent ? '#cbd5e1' : '#818cf8'}`,
                         borderRadius: '3px',
                         fontSize: '10px',
                         fontWeight: '700',
-                        color: '#3730a3',
+                        // 다 쓴 칸도 값은 읽히게 둔다 — 「사라졌다」가 아니라 「가져다 썼다」다.
+                        color: spent ? '#94a3b8' : '#3730a3',
                         display: 'flex',
                         alignItems: 'flex-end',
                         justifyContent: 'center',
@@ -375,7 +402,7 @@ export function createSortArrayView(host) {
                 el.style.display = (showNum && !atSlot.has(Number(el.dataset.num))) ? 'block' : 'none';
             }
             // **커서는 번호를 감춰도 남긴다** — 지금 어디를 보고 있는지가 번호보다 중요하다.
-            indexRow.style.height = (showNum || names.length) ? '20px' : '0px';
+            // 줄 높이는 `setup`이 잡아 두었다. 비어 있어도 접지 않는다.
 
             for (const [i, group] of atSlot) {
                 const text = group.join('·');

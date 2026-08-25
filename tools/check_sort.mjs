@@ -216,6 +216,54 @@ for (const group of [...page.el('group-tabs').children]) {
     }
 }
 
+/* **그리는 동안 어떤 상자의 높이도 바뀌면 안 된다.**
+
+   단계를 넘길 때 그림 상자가 늘었다 줄었다 하면 그 아래에 있는 단추가 아래위로
+   움직이고, 그러면 **같은 자리를 되풀이해 누를 수가 없다** — 넘기기가 이 시뮬레이터에서
+   가장 잦은 동작이라 조작이 통째로 어긋난다. 받침대는 배치를 계산하지 않지만
+   «높이를 써 넣었는지»는 볼 수 있으므로, 그것으로 대신 지킨다. */
+function heightMap(sim) {
+    const out = new Map();
+    const walk = (el, path) => {
+        const h = el.style.height || '';
+        if (h) out.set(path, h);
+        (el.children || []).forEach((c, i) => walk(c, `${path}/${i}`));
+    };
+    sim.el('bars-host').children.forEach((c, i) => walk(c, String(i)));
+    return out;
+}
+
+for (const group of [...page.el('group-tabs').children]) {
+    group.click();
+    for (const chip of [...page.el('algo-tabs').children]) {
+        const name = chip.textContent;
+        chip.click();
+        setSize(page, SORT_SIZES.indexOf(SORT_N_DEFAULT));
+        page.el('btn-first').click();
+        const before = heightMap(page);
+
+        /* **한 단계씩 넘기며 «매번» 대 본다.** 처음과 끝만 대 보면 안 된다 —
+           임시 배열 칸은 중간에만 나타났다 사라지므로 양 끝의 높이는 같다.
+           실제로 그렇게 짰다가, 일부러 되돌려 놓은 결함을 못 잡는 것을 보고 고쳤다. */
+        /* **처음 장에 높이가 적혀 있던 상자만 본다.** 구간 띠처럼 도중에 생겼다
+           사라지는 것은 세지 않는다 — 그것들은 «비워 둔 자리 안에서» 그려지므로
+           바깥 높이를 흔들지 않는다. 흔드는 것은 자리를 잡아 둔 상자뿐이다. */
+        let moved = null;
+        for (let k = 0; k < 400 && !moved; k++) {
+            if (page.el('btn-next').disabled) break;
+            page.el('btn-next').click();
+            const now = heightMap(page);
+            for (const [path, h] of before) {
+                if (now.get(path) !== h) {
+                    moved = `${k + 1}단계 · ${path}: ${h} → ${now.get(path) || '(사라짐)'}`;
+                    break;
+                }
+            }
+        }
+        if (moved) bad(`${name} — 단계를 넘기는 동안 상자 높이가 바뀌었다(${moved}). 단추가 움직인다`);
+    }
+}
+
 /* **힙 정렬은 트리가 실제로 그려져야 한다.** 이 종목의 요점이 「배열이 곧 트리」인데
    트리가 없으면 그냥 배열 그림 하나짜리 종목이 된다. */
 for (const group of [...page.el('group-tabs').children]) {

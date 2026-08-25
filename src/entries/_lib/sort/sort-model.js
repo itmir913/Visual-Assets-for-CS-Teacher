@@ -78,7 +78,9 @@ export function createSortRecorder(values, opts = {}) {
         }
         frames.push({
             a: [...a],
-            aux: auxBlocks ? auxBlocks.map((b) => ({label: b.label, items: [...b.items], base: b.base})) : null,
+            aux: auxBlocks
+                ? auxBlocks.map((b) => ({label: b.label, items: [...b.items], base: b.base, used: b.used || 0}))
+                : null,
             act,
             marks: {
                 compare: compareMark ? [...compareMark] : null,
@@ -214,7 +216,7 @@ export function createSortRecorder(values, opts = {}) {
 
         /** 임시 배열을 연다. `base`는 주 배열의 어느 자리 아래에 놓을지. */
         auxOpen(blocks) {
-            auxBlocks = blocks.map((b) => ({label: b.label, base: b.base, items: b.items ?? []}));
+            auxBlocks = blocks.map((b) => ({label: b.label, base: b.base, items: b.items ?? [], used: 0}));
             snap({kind: 'aux-open'});
             return rec;
         },
@@ -246,6 +248,10 @@ export function createSortRecorder(values, opts = {}) {
         auxWriteBack(blockIdx, k, i) {
             counts.move++;
             counts.access += 2;
+            /* **꺼내 쓴 데까지를 적어 둔다.** 「오른쪽 부분 배열이 먼저 비었습니다」라고
+               적어 놓고 화면에는 그 값이 그대로 있으면 글과 그림이 어긋난다 —
+               학생이 믿는 것은 그림이다. */
+            auxBlocks[blockIdx].used = k + 1;
             a[i] = auxBlocks[blockIdx].items[k];
             movingMark = [i];
             snap({kind: 'aux-writeback', block: blockIdx, k, i});

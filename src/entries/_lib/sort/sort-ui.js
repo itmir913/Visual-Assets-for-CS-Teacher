@@ -203,7 +203,9 @@ export function mountSortSimulator() {
 
         ensureView(algo.view);
         const out = runSortAlgorithm(algo, values);
-        view.setup(out.frames[0] ? out.frames[0].a : []);
+        // **프레임 열을 통째로 넘긴다.** 뷰가 이 판에서 쓸 높이를 미리 재려면
+        // 마지막 장까지 봐야 한다 — 임시 배열 칸은 한참 뒤에야 나타난다.
+        view.setup(out.frames);
 
         /* **솎아 기록했으면 반드시 밝힌다.** 모르면 학생이 「한 단계 = 비교 한 번」으로
            읽고 화면의 숫자를 잘못 센다. 큰 배열에서는 모든 걸음을 들고 있을 수가 없다. */

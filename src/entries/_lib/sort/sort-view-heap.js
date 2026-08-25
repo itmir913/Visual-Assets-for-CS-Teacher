@@ -184,9 +184,9 @@ export function createSortHeapView(host) {
     }
 
     return {
-        setup(items) {
-            n = items.length;
-            arr.setup(items);
+        setup(frames) {
+            n = ((frames[0] && frames[0].a) || []).length;
+            arr.setup(frames);
             buildTree();
         },
         render(frame, prev, opts) {

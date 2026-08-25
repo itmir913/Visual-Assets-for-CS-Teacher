@@ -10,7 +10,9 @@ export const quickSortAlgo = {
     idea: '**분할 정복**을 병합 정렬과 반대 차례로 씁니다. 구간에서 기준값(피벗) 하나를 고르고 '
         + '그보다 작은 것을 모두 왼쪽으로 몰아낸 뒤, 그 좌우를 같은 방법으로 다시 나눕니다. '
         + '나눌 때 이미 정리가 되므로 합치는 단계가 따로 없습니다.',
-    complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n²)', space: 'O(log n)'},
+    /* `space`는 재귀가 쌓이는 깊이다. 여기서는 두 쪽을 그냥 재귀하므로,
+       한쪽으로 치우치는 최악에서는 깊이가 n까지 간다. */
+    complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n²)', space: 'O(log n) · 최악 O(n)'},
     stable: false,
     inPlace: true,
     /** **피벗을 어떻게 고르느냐가 최악을 만든다.** 이 조건을 빼고 「퀵 정렬은 빠르다」로

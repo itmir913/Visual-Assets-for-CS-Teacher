@@ -10,10 +10,11 @@
  */
 
 import {SORT_ALGOS} from '../src/entries/_lib/sort/sort-registry.js';
-import {runSortAlgorithm, sortIsStable} from '../src/entries/_lib/sort/sort-model.js';
+import {runSortAlgorithm, sortIsStable, sortFrameBudget} from '../src/entries/_lib/sort/sort-model.js';
 import {
     makeSortData, SORT_PRESETS, SORT_N_MAX, SORT_SIZES, SORT_N_DEFAULT,
 } from '../src/entries/_lib/sort/sort-data.js';
+import {buildSortRace, RACE_MAX_N} from '../src/entries/_lib/sort/sort-race.js';
 import {loadSim} from './_sim-harness.mjs';
 
 let fail = 0;
@@ -66,11 +67,11 @@ for (const algo of SORT_ALGOS) {
                         + out.values.slice(0, 12).join(' '));
                     continue;
                 }
-                /* **솎아 기록한 판은 「한 단계 = 한 걸음」이 아니다.** 화면이 그 사실을
-                   밝히도록 `stride` 를 내보내고 있으니, 여기서는 그 값이 성한지만 본다. */
-                if (!(out.stride >= 1) || out.frames.length < 2) {
-                    bad(`${algo.id} · ${preset.id} n=${n} — 기록이 성하지 않다 `
-                        + `(장 ${out.frames.length}, 간격 ${out.stride})`);
+                /* **솎았으면 장 수가 예산 안이어야 한다.** 예전에는 `stride >= 1` 인지를
+                   봤는데 그것은 참이 될 수 없는 조건이라 **아무것도 보지 않는 가지**였다. */
+                if (out.frames.length > sortFrameBudget(n) + 2) {
+                    bad(`${algo.id} · ${preset.id} n=${n} — 장이 예산을 넘었다 `
+                        + `(${out.frames.length} > ${sortFrameBudget(n)})`);
                 }
 
                 /* 알고리즘이 스스로 신고한 안정성과 **실제로 벌어진 일**을 맞춰 본다. */
@@ -91,12 +92,22 @@ for (const algo of SORT_ALGOS) {
                     }
                 }
 
-                /* 마지막 장은 **전부 확정**으로 찍혀 있어야 한다.
-                   확정 표시를 빠뜨리면 다 끝났는데도 화면이 아직 도는 것처럼 보인다. */
-                const last = out.frames[out.frames.length - 1];
-                if (last.marks.done.length !== n) {
-                    bad(`${algo.id} · ${preset.id} n=${n} — 끝났는데 확정 표시가 `
-                        + `${last.marks.done.length}/${n}개다`);
+                /* **「확정」으로 찍은 칸의 내용은 끝까지 바뀌면 안 된다.**
+                   예전에는 「마지막 장이 전부 확정인가」를 봤는데, `finish()`가 어차피
+                   전부 찍으므로 늘 통과하는 **죽은 가지**였다. 실제로 삽입 정렬이
+                   아직 밀려날 자리를 확정으로 칠하고 있었고 그 검사는 통과했다. */
+                const fixedAt = new Map();
+                for (const f of out.frames) {
+                    for (const i of f.marks.done) {
+                        const it = f.a[i];
+                        if (!it) continue;
+                        if (fixedAt.has(i) && fixedAt.get(i) !== it.id) {
+                            bad(`${algo.id} · ${preset.id} n=${n} — 확정으로 찍은 ${i}번 칸의 `
+                                + '내용이 나중에 바뀐다. 확정이 아닌 것을 확정으로 칠하고 있다');
+                            break;
+                        }
+                        if (!fixedAt.has(i)) fixedAt.set(i, it.id);
+                    }
                 }
 
                 /* 세는 값이 거꾸로 가지 않는가. 화면의 숫자가 줄어들면 학생이 헷갈린다. */
@@ -107,6 +118,12 @@ for (const algo of SORT_ALGOS) {
                         break;
                     }
                     prev = fr.counts.compare;
+                }
+
+                /* **제자리 정렬이라 적었으면 배열 밖에 자리를 만들면 안 된다.**
+                   신고값과 실제가 어긋나는 것은 카드가 거짓말을 하는 것이다. */
+                if (algo.inPlace && out.frames.some((f) => (f.aux && f.aux.length) || f.strip)) {
+                    bad(`${algo.id} — 제자리 정렬이라 적어 두고 배열 밖 칸을 쓴다`);
                 }
 
                 if (n === SORT_N_MAX && seed === SEEDS[0]) cmpOf[preset.id] = out.counts.compare;
@@ -228,7 +245,7 @@ for (const group of [...page.el('group-tabs').children]) {
 /* **그리는 동안 어떤 상자의 높이도 바뀌면 안 된다.**
 
    단계를 넘길 때 그림 상자가 늘었다 줄었다 하면 그 아래에 있는 단추가 아래위로
-   움직이고, 그러면 **같은 자리를 되풀이해 누를 수가 없다** — 넘기기가 이 시뮬레이터에서
+   움직이고, 그러면 **같은 자리를 거듭해 누를 수가 없다** — 넘기기가 이 시뮬레이터에서
    가장 잦은 동작이라 조작이 통째로 어긋난다. 받침대는 배치를 계산하지 않지만
    «높이를 써 넣었는지»는 볼 수 있으므로, 그것으로 대신 지킨다. */
 function heightMap(sim) {
@@ -320,6 +337,99 @@ for (const key of ['idle', 'compare', 'moving', 'held', 'pivot', 'done']) {
 
 console.log('페이지를 띄워 종목마다 끝까지 돌려 보았다');
 for (const r of pageRows) console.log('  ' + r);
+
+/* ================================================================
+   겨루기가 공정한가
+
+   화면이 「먼저 끝난 쪽이 실제로 일을 덜 한 것」이라고 말한다. 그 말이 참이려면
+   **끝나는 차례가 일한 양의 차례와 같아야** 한다. 처음에는 기록된 장을 하나씩
+   나눠 주었는데, 한 장의 무게가 종목마다 달라 **일을 가장 적게 한 계수 정렬이
+   꼴찌로 끝났다.** 화면이 그렇게 말하는 한, 그 말을 검사가 붙들어야 한다.
+   ================================================================ */
+
+const RACE_SIZES = [8, 32, RACE_MAX_N];
+let raceChecks = 0;
+
+for (const preset of SORT_PRESETS) {
+    for (const n of RACE_SIZES) {
+        const values = makeSortData(preset.id, n, 20260825, null);
+
+        /* 겨루기의 전제 — **어느 종목도 걸음이 솎이지 않아야 한다.**
+           한쪽만 솎이면 그 종목만 성글게 기록되어 겨루기가 기울어진다. */
+        for (const algo of SORT_ALGOS) {
+            const out = runSortAlgorithm(algo, values);
+            if (out.stride !== 1) {
+                bad(`겨루기 ${preset.id} n=${n} — ${algo.name}이 ${out.stride}걸음마다 솎였다. `
+                    + `크기 천장(${RACE_MAX_N})을 낮춰야 한다`);
+            }
+        }
+
+        /* **일한 양을 겨루기에게 묻지 않는다.** 겨루기가 내놓는 `finishedWork`로
+           겨루기를 대조하면 축을 무엇으로 바꾸든 늘 통과하는 **순환 논리**가 된다
+           (실제로 그렇게 짰다가, 옛 판으로 되돌려 놓고도 통과하는 것을 보고 고쳤다).
+           기대값은 알고리즘을 따로 돌려 구한다. */
+        const trueWork = new Map(SORT_ALGOS.map((algo) => {
+            const out = runSortAlgorithm(algo, values, {countOnly: true});
+            return [algo.id, out.counts.compare + out.counts.move];
+        }));
+
+        const {frames} = buildSortRace(values);
+        const lanes = frames[frames.length - 1].race;
+        const order = lanes
+            .map((l, k) => ({
+                name: l.algo.name,
+                work: trueWork.get(l.algo.id),
+                at: frames.findIndex((f) => f.race[k].done),
+            }))
+            .sort((a, b) => a.at - b.at);
+        for (let i = 1; i < order.length; i++) {
+            if (order[i].work < order[i - 1].work) {
+                bad(`겨루기 ${preset.id} n=${n} — ${order[i].name}(일한 양 ${order[i].work})이 `
+                    + `${order[i - 1].name}(${order[i - 1].work})보다 늦게 끝난다. 「먼저 끝난 쪽이 `
+                    + '일을 덜 했다」가 거짓이 된다');
+            }
+        }
+        raceChecks++;
+    }
+}
+console.log(`겨루기 ${raceChecks}판 — 끝나는 차례가 일한 양의 차례와 같은지 대조했다`);
+
+/* ================================================================
+   「직접 넣기」로 막아야 할 값을 넣어 본다
+
+   계수·기수 정렬은 음수를 받으면 그 자리에서 죽는다. 막는 것은 `checkSortInput`
+   하나뿐인데, 그 가드가 검사에 걸려 있지 않아 **깨져도 아무도 몰랐다.**
+   ================================================================ */
+
+for (const group of [...page.el('group-tabs').children]) {
+    group.click();
+    for (const chip of [...page.el('algo-tabs').children]) {
+        const name = chip.textContent;
+        chip.click();
+        const before = page.errors.length;
+        page.el('input-text').value = '-3 5 -1 8 2 -7 4 6';
+        page.el('btn-apply-input').click();
+        for (const e of page.errors.slice(before)) {
+            bad(`${name} — 음수를 직접 넣었더니 죽었다: ${e}`);
+        }
+        const sick = screenSick(page);
+        if (sick) bad(`${name} — 음수를 넣은 뒤 화면에 성하지 않은 값: ${sick}`);
+        if (!page.el('say').textContent.trim()) {
+            bad(`${name} — 음수를 넣은 뒤 설명이 비었다`);
+        }
+
+        /* **막아야 하는 종목은 실제로 막았다고 말해야 한다.** 계수·기수는 값을 칸의
+           자리로 쓰므로 음수를 받으면 그 자리에서 죽는다. 조용히 지나가면
+           다음에 누가 가드를 지웠을 때 아무도 모른다. */
+        const algo = SORT_ALGOS.find((a) => a.name === name);
+        if (algo && algo.needs && algo.needs.nonNegative) {
+            if (!page.el('input-error').textContent.trim()) {
+                bad(`${name} — 음수를 막아야 하는데 아무 말도 하지 않았다`);
+            }
+        }
+    }
+}
+console.log('직접 넣기 — 음수를 전 종목에 넣어 보았다');
 
 console.log(fail === 0 ? '전부 통과' : '어긋난 것 ' + fail + '건');
 process.exit(fail === 0 ? 0 : 1);

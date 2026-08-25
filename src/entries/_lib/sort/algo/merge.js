@@ -8,6 +8,8 @@
  * 쓰는 판이 다 있다. 그 사실은 화면 설명에 적어 둔다.
  */
 
+import {sortNum} from '../sort-josa.js';
+
 export const mergeSortAlgo = {
     id: 'merge',
     name: '병합 정렬',
@@ -20,8 +22,9 @@ export const mergeSortAlgo = {
     complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(n)'},
     stable: true,
     inPlace: false,
-    watch: '자료가 어떻게 생겼든 걸리는 시간이 거의 같습니다 — 무작위든 역순이든 '
-        + '비교 횟수를 보면 차이가 크지 않습니다. 대신 배열만큼의 자리를 더 씁니다. '
+    watch: '**자료가 어떻게 생겼든 차수가 같습니다** — 최선도 최악도 O(n log n)이라 '
+        + '퀵 정렬처럼 자료 하나에 수십 배로 무너지는 일이 없습니다(자료를 바꿔 가며 대 보세요). '
+        + '대신 배열만큼의 자리를 더 씁니다. '
         + '화면 아래에 나타나는 두 칸이 그 대가입니다. '
         + '값이 같으면 왼쪽 부분 배열을 먼저 가져오기 때문에 앞뒤 차례가 지켜집니다(안정 정렬).',
 
@@ -36,7 +39,7 @@ export const mergeSortAlgo = {
                 {lo, hi: mid, depth, state: 'active'},
                 {lo: mid + 1, hi, depth, state: 'right'},
             ]);
-            rec.say(`${lo}~${hi}를 반으로 쪼갭니다.`);
+            rec.say(`${lo}~${sortNum(hi, '을를')} 반으로 쪼갭니다.`);
             rec.mark('split');
 
             msort(lo, mid, depth + 1);
@@ -82,7 +85,7 @@ export const mergeSortAlgo = {
             rec.auxClose();
             rec.cursor('쓸 자리', null);
             rec.setRanges([{lo, hi, depth, state: 'merged'}]);
-            rec.say(`${lo}~${hi}가 정렬되었습니다.`);
+            rec.say(`${lo}~${sortNum(hi, '이가')} 정렬되었습니다.`);
             rec.mark('merged');
         };
 

@@ -1,4 +1,4 @@
-/* 겨루기 그림 — 종목마다 한 줄씩, 같은 걸음을 나란히.
+/* 겨루기 그림 — 종목마다 한 줄씩, 같은 «일한 양»을 나란히.
  *
  * 막대에 값 글자를 적지 않는다. 여기서 볼 것은 «값»이 아니라 **정돈되어 가는 모양**과
  * **누가 먼저 끝나는가**이기 때문이다. 한 종목을 자세히 볼 자리는 따로 있다.
@@ -33,10 +33,13 @@ function raceSvg(tag, attrs) {
     return el;
 }
 
-/** 열 종목을 서로 다른 색으로. 곡선과 줄이 같은 색을 쓴다. */
+/** 종목마다 다른 색. 곡선과 줄이 같은 색을 쓴다.
+ *  **종목 수보다 많아야 한다** — 열 개만 두었더니 열한 번째(버킷 정렬)가
+ *  `idx % 10`으로 돌아가 버블 정렬과 같은 빨강이 되었다. 줄도 곡선도 범례도
+ *  같은 색이라 구별할 방법이 없었다. 종목을 더할 때 이 목록도 함께 늘린다. */
 const RACE_COLORS = [
     '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-    '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#64748b',
+    '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#64748b', '#7c2d12',
 ];
 
 export function createSortRaceView(host) {
@@ -113,7 +116,7 @@ export function createSortRaceView(host) {
         });
     }
 
-    /** n을 키워 가며 잰 「일한 양」 곡선. 한 걸음씩 넘겨서는 볼 수 없는 그림이다. */
+    /** n을 키워 가며 측정한 「일한 양」 곡선. 한 걸음씩 넘겨서는 볼 수 없는 그림이다. */
     function buildChart(work) {
         chartBox.textContent = '';
         if (!work) return;
@@ -211,7 +214,7 @@ export function createSortRaceView(host) {
 
         render(frame) {
             if (chartSvg && chartTexts) {
-                // 그릴 때마다 다시 측정한다. 한 번 재서 굳혀 두면 창을 줄였을 때 낡는다.
+                // 그릴 때마다 다시 측정한다. 한 번 측정해 굳혀 두면 창을 줄였을 때 낡는다.
                 const scale = (chartSvg.clientWidth || CHART_W) / CHART_W;
                 chartTexts.setAttribute('font-size', Math.round(CHART_FONT_PX / scale));
             }
@@ -230,8 +233,11 @@ export function createSortRaceView(host) {
                     if (bar.__tone !== tone) { bar.__fill.style.background = tone; bar.__tone = tone; }
                 }
                 const c = lane.frame.counts;
+                /* 숫자는 언제나 **일한 양(비교 + 옮김)**이다. 도는 동안에는 모두 같은
+                   값을 가리키고(그것이 요점이다), 끝난 줄만 제 값에서 멈춘다 —
+                   멈춘 값들을 위아래로 대 보는 것이 곧 등수다. */
                 const text = lane.done
-                    ? `끝 · ${lane.finishedAt.toLocaleString('ko-KR')}걸음`
+                    ? `끝 · ${lane.finishedWork.toLocaleString('ko-KR')}`
                     : `${(c.compare + c.move).toLocaleString('ko-KR')}`;
                 if (ui.tally.textContent !== text) {
                     ui.tally.textContent = text;

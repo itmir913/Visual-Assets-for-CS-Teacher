@@ -8,6 +8,8 @@
  * 범위를 좁혀 둔 것 자체가 그 성질을 보여 주는 장치다.
  */
 
+import {sortNum} from '../sort-josa.js';
+
 export const countingSortAlgo = {
     id: 'counting',
     name: '계수 정렬',
@@ -41,7 +43,7 @@ export const countingSortAlgo = {
         const keys = [];
         for (let v = 0; v <= maxValue; v++) keys.push(v);
 
-        rec.say(`값이 0~${maxValue}이라 칸을 ${keys.length}개 만듭니다.`
+        rec.say(`값이 0~${sortNum(maxValue, '이라')} 칸을 ${keys.length}개 만듭니다.`
             + ' **칸의 수는 원소 수가 아니라 값의 범위가 정합니다.**');
         rec.stripOpen('세는 칸', 'count', keys);
 
@@ -60,11 +62,11 @@ export const countingSortAlgo = {
             const have = rec.stripCell(v).count;
             rec.stripFocus(v);
             if (!have) {
-                rec.say(`값 ${v}는 한 번도 나오지 않았습니다. 건너뜁니다.`);
+                rec.say(`값 ${sortNum(v, '은는')} 한 번도 나오지 않았습니다. 건너뜁니다.`);
                 rec.mark('skip');
                 continue;
             }
-            rec.say(`값 ${v}가 ${have}개 있습니다. 넣은 차례 그대로 꺼내 씁니다.`);
+            rec.say(`값 ${sortNum(v, '이가')} ${have}개 있습니다. 넣은 차례 그대로 꺼내 씁니다.`);
             while (rec.stripCell(v).count > 0) {
                 rec.cursor('쓸 자리', out);
                 rec.stripTake(v, out);

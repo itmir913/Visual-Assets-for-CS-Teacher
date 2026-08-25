@@ -8,6 +8,8 @@
  * 성질»이 아니라 «없으면 안 되는 조건»인 드문 자리다.
  */
 
+import {sortNum} from '../sort-josa.js';
+
 export const radixSortAlgo = {
     id: 'radix',
     name: '기수 정렬',
@@ -36,7 +38,7 @@ export const radixSortAlgo = {
         const digits = Math.max(1, String(maxValue).length);
         const NAMES = ['일', '십', '백', '천'];
 
-        rec.say(`가장 큰 값이 ${maxValue}이라 자릿수는 ${digits}자리입니다. 낮은 자리부터 ${digits}번 돕니다.`);
+        rec.say(`가장 큰 값이 ${sortNum(maxValue, '이라')} 자릿수는 ${digits}자리입니다. 낮은 자리부터 ${digits}번 돕니다.`);
         rec.mark('plan');
 
         for (let d = 0; d < digits; d++) {

@@ -78,7 +78,7 @@ export function mountSortSimulator() {
         for (const g of sortGroupsInUse()) {
             const b = sortButton(
                 'group-tab' + (g.id === algo.group ? ' on' : ''),
-                g.badge ? `${g.name} · ${g.badge}` : g.name,
+                g.name,
                 () => {
                     const first = sortAlgosOfGroup(g.id)[0];
                     if (first) selectAlgo(first.id);
@@ -108,8 +108,10 @@ export function mountSortSimulator() {
         /* **분류가 무엇을 뜻하는지 적어 준다.** 탭 이름만으로는 「분할 정복」이
            무슨 기법인지 알 수 없고, 셸·힙이 왜 거기 없는지도 알 수 없다. */
         const group = sortGroupById(algo.group);
-        $('group-name').textContent = group
-            ? (group.badge ? `${group.name} · ${group.badge}` : group.name) : ' ';
+        /* **배지를 달지 않는다.** 「분할 정복 · O(n log n)」처럼 적어 두었더니
+           그 안의 퀵 정렬(최악 O(n²))·버킷 정렬(최악 O(n²))과 어긋났다.
+           복잡도는 종목마다 다르므로 분류가 아니라 **카드**가 말할 일이다. */
+        $('group-name').textContent = group ? group.name : ' ';
         setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
 
         const badges = $('algo-badges');
@@ -192,7 +194,7 @@ export function mountSortSimulator() {
 
     /* ---- 돌리기 ---- */
 
-    /** 곡선은 자료의 생김새와 씨앗만 타므로 한 번 재어 두고 다시 쓴다. */
+    /** 곡선은 자료의 생김새와 씨앗만 타므로 한 번 측정해 두고 다시 쓴다. */
     let workCache = null;
     let workKey = '';
 
@@ -268,7 +270,7 @@ export function mountSortSimulator() {
 
         ensureView(algo.view);
         const out = runSortAlgorithm(algo, values);
-        // **프레임 열을 통째로 넘긴다.** 뷰가 이 판에서 쓸 높이를 미리 재려면
+        // **프레임 열을 통째로 넘긴다.** 뷰가 이 판에서 쓸 높이를 미리 알려면
         // 마지막 장까지 봐야 한다 — 임시 배열 칸은 한참 뒤에야 나타난다.
         view.setup(out.frames);
 

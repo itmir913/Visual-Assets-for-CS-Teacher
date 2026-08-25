@@ -49,7 +49,7 @@ export function createSortItems(values) {
  */
 export function createSortRecorder(values, opts = {}) {
     /* `countOnly` 는 **장을 한 장도 남기지 않는다.** 겨루기 탭이 n을 키워 가며
-       비교 횟수만 재려고 쓴다 — n=1000짜리 여덟 종목의 장을 다 들고 있을 이유가 없다. */
+       비교 횟수만 측정하려고 쓴다 — n=1000짜리 전 종목의 장을 다 들고 있을 이유가 없다. */
     const countOnly = opts.countOnly === true;
     const a = createSortItems(values);
     const n = a.length;
@@ -306,8 +306,10 @@ export function createSortRecorder(values, opts = {}) {
         /** 자리 하나를 세어 **그 값의 칸에 하나 올린다.** 원소는 배열에 그대로 둔다.
          *  다시 쓸 때 어느 원소였는지 알아야 하므로 칸이 원소도 함께 들고 있는다. */
         stripCount(i) {
-            counts.access++;
-            counts.move++;
+            /* **옮긴 것으로 세지 않는다.** 세는 단계는 원소를 옮기지 않고 읽고 세기만 한다.
+               옮김으로 세면 화면의 「옮김」이 실제의 두 배가 되고, 겨루기의 «일한 양» 축까지
+               부풀어 계수 정렬이 실제보다 일을 많이 한 것처럼 보인다. */
+            counts.access += 2;
             const cell = strip.cells.find((c) => c.key === a[i].v);
             cell.count++;
             cell.items.push(a[i]);

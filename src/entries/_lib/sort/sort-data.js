@@ -26,13 +26,11 @@ export const SORT_SIZES = [
 export const SORT_N_MIN = SORT_SIZES[0];
 export const SORT_N_MAX = SORT_SIZES[SORT_SIZES.length - 1];
 
-/** **기본값은 「한 판이 80단계 안에서 끝나는 크기」로 잡았다.**
+/** **기본값은 「한 판이 100단계 안에서 끝나는 크기」로 잡았다.**
  *
- *  여덟 종목 × 자료 넷 × 씨앗 다섯을 실제로 돌려 세어 보고 고른 값이다.
- *  n=8이면 가장 긴 종목(병합 정렬)이 83단계, 나머지는 18~80단계다.
- *  n=10이면 병합이 114, 삽입이 120까지 가고 n=24는 369~436단계가 된다 —
- *  뒤엣것들은 수업 시간에 끝까지 넘겨 볼 수 있는 양이 아니다.
- *  세는 법 → `npm run check:sort` */
+ *  전 종목 × 자료 넷 × 씨앗 다섯을 실제로 돌려 세어 보고 고른 값이다.
+ *  n을 조금만 올려도 단계가 제곱으로 불어나 수업 시간에 끝까지 넘겨 볼 수 없게 된다.
+ *  **지금 몇 단계인지는 `npm run check:sort`가 찍는다** — 여기 적으면 종목을 더할 때마다 낡는다. */
 export const SORT_N_DEFAULT = 8;
 
 /** 목록에서 가장 가까운 값. 직접 넣은 자료의 개수를 슬라이더에 맞출 때 쓴다. */
@@ -166,7 +164,9 @@ export function parseSortInput(text) {
 export function checkSortInput(algo, values) {
     const need = algo.needs || {};
     if (need.nonNegative && values.some((v) => v < 0)) {
-        return `${algo.name}은 값을 「몇 번 나왔는지 세는 칸」의 자리로 쓰기 때문에 `
+        /* **막는 까닭을 알고리즘에 맞게 적는다.** 계수 정렬은 값이 곧 칸의 자리라
+           음수가 갈 자리가 없고, 기수 정렬은 자릿수를 떼어 쓰므로 부호를 다룰 수 없다. */
+        return `${algo.name}은 값을 칸의 자리로 쓰기 때문에 `
             + `음수를 그대로 담을 수 없습니다. 0 이상만 넣어 주세요.`;
     }
     if (need.maxValue !== undefined && values.some((v) => v > need.maxValue)) {

@@ -23,8 +23,13 @@ export const insertionSortAlgo = {
 
     run(rec) {
         const n = rec.n;
-        rec.fix(0);
-        rec.say('첫 값 하나는 그것만으로 이미 정렬된 부분입니다.');
+        /* **「확정」으로 찍지 않는다.** 앞쪽이 «자기들끼리» 정렬되어 있을 뿐,
+           나중에 더 작은 값이 들어오면 통째로 밀린다 — 열한 종목 가운데 삽입 정렬만
+           그렇다. 확정 색을 쓰면 같은 초록이 「최종 자리」와 「지금까지 정렬된 부분」
+           두 뜻이 되어, 학생이 초록을 믿을 수 없게 된다. 구간 띠로 표시한다. */
+        rec.setRanges([{lo: 0, hi: 0, depth: 0, state: 'merged'}]);
+        rec.say('첫 값 하나는 그것만으로 이미 정렬된 부분입니다. '
+            + '띠는 「여기까지는 자기들끼리 정렬되어 있다」는 뜻이지 자리가 확정되었다는 뜻이 아닙니다.');
         rec.mark('init');
 
         for (let i = 1; i < n; i++) {
@@ -45,12 +50,14 @@ export const insertionSortAlgo = {
                 ? '앞쪽 전부가 더 컸습니다. 맨 앞 빈자리에 내려놓습니다.'
                 : '더 작은 값을 만났습니다. 그 바로 뒤 빈자리에 내려놓습니다.');
             rec.drop(j + 1);
-            rec.fixRange(0, i);
-            rec.mark('fix');
+            rec.setRanges([{lo: 0, hi: i, depth: 0, state: 'merged'}]);
+            rec.mark('grow');
         }
 
         rec.clearCursors();
-        rec.say('마지막 값까지 끼워 넣었습니다.');
+        rec.setRanges([]);
+        rec.fixRange(0, n - 1);
+        rec.say('마지막 값까지 끼워 넣었습니다. 이제 모든 자리가 확정됩니다.');
         rec.mark('done');
     },
 };

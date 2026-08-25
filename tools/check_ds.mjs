@@ -30,14 +30,15 @@ dsResetIds();
 /** 연산 하나가 «담긴 값»을 어떻게 바꾸는가. 기록기와 아무 상관 없이 계산한다. */
 function oracle(opId, vals, {v, i}) {
     const out = [...vals];
-    const at = Math.min(i, out.length);
     switch (opId) {
         case 'insert-front': return [v, ...out];
         case 'insert-back': return [...out, v];
-        case 'insert-at': out.splice(at, 0, v); return out;
+        /* **범위 밖이면 아무 일도 없다.** 예전에는 말없이 끝으로 당겨 넣었는데,
+           그것이 결함이라 고쳤다 → `ds-ops.js`의 `outOfRange`. */
+        case 'insert-at': if (i > out.length) return out; out.splice(i, 0, v); return out;
         case 'remove-front': return out.slice(1);
         case 'remove-back': return out.slice(0, -1);
-        case 'remove-at': out.splice(Math.min(i, out.length - 1), 1); return out;
+        case 'remove-at': if (i > out.length - 1) return out; out.splice(i, 1); return out;
         case 'read-at': case 'find': return out;
         default: return null;
     }
@@ -65,7 +66,6 @@ for (const id of POSITIONAL) {
                 let want = oracle(op.id, start, arg);
                 // 칸이 꽉 찬 배열에는 더 넣지 못한다. **그때는 그대로여야 한다.**
                 if (id === 'array' && want && want.length > DS_CAP) want = [...start];
-                if (start.length === 0 && op.id.startsWith('remove')) want = [];
 
                 const got = dsValues(out.state);
                 if (want && got.join(',') !== want.join(',')) {
@@ -132,9 +132,8 @@ function mirrorOf(structId) {
                     a.push(v); break;
                 case 'push-front':
                     a.unshift(v); break;
-                case 'pop':
-                    if (structId === 'stack') a.pop();
-                    break;
+                case 'pop':          // 스택에만 있는 이름이다
+                    a.pop(); break;
                 case 'dequeue': case 'pop-front':
                     a.shift(); break;
                 case 'pop-back':
@@ -204,13 +203,26 @@ for (const spec of ADT) {
             let ring = struct.makeState([]);
             const enq = plan.ops.find((o) => o.id === 'enqueue');
             const deq = plan.ops.find((o) => o.id === 'dequeue');
+            /* **「0으로 돌아왔는가」를 봐야 한다.** 예전에는 `front === 0`인 순간이
+               있으면 통과였는데, front는 0에서 시작하므로 **자리를 아예 안 옮기는
+               구현도 통과했다.** 0을 떠난 «뒤에» 다시 0이 되는 것을 본다. */
+            let left = false;
             let wrapped = false;
+            const seenFronts = new Set();
             for (let k = 0; k < DS_CAP * 2; k++) {
                 ring = runDsOperation(enq, ring, {v: k + 1, i: 0}).state;
                 ring = runDsOperation(deq, ring, {v: 0, i: 0}).state;
-                if (ring.front === 0 && k > 0) wrapped = true;
+                seenFronts.add(ring.front);
+                if (ring.front !== 0) left = true;
+                else if (left) wrapped = true;
             }
-            if (!wrapped) bad('원형 큐 — 칸 수보다 많이 넣고 뺐는데 front가 한 번도 0으로 돌아오지 않았다');
+            if (!wrapped) {
+                bad('원형 큐 — 칸 수보다 많이 넣고 뺐는데 front가 0을 떠났다 돌아오지 않았다'
+                    + ` (지나온 자리 ${[...seenFronts].sort((a, b) => a - b).join(',')})`);
+            }
+            if (seenFronts.size < DS_CAP) {
+                bad(`원형 큐 — front가 자리 ${seenFronts.size}곳만 지났다 (칸이 ${DS_CAP}개인데)`);
+            }
         }
     }
 }
@@ -322,7 +334,8 @@ for (const op of DS_COMPARE.ops) {
             array: dsWorkOf(runDsOperation(op.pair.array, states.array, arg).counts),
             list: dsWorkOf(runDsOperation(op.pair.list, states.list, arg).counts),
         };
-        const {frames} = buildDsCompare(op, states, arg);
+        const built = buildDsCompare(op, states, arg);
+        const {frames} = built;
         raceChecks++;
 
         const doneAt = (k) => frames.findIndex((f) => f.lanes[k].done);
@@ -332,6 +345,7 @@ for (const op of DS_COMPARE.ops) {
             bad(`비용 비교 · ${op.name} (n=${start.length}) — 끝나지 않는 줄이 있다`);
             continue;
         }
+        if (built.blocked) continue;   // 무른 판에는 등수가 없다
         if (trueWork.array < trueWork.list && a > b) {
             bad(`비용 비교 · ${op.name} (n=${start.length}) — 배열이 일을 덜 했는데(작업량 `
                 + `${trueWork.array} < ${trueWork.list}) 늦게 끝난다`);
@@ -341,10 +355,49 @@ for (const op of DS_COMPARE.ops) {
                 + `${trueWork.list} < ${trueWork.array}) 늦게 끝난다`);
         }
         const lastSay = frames[frames.length - 1].say;
-        if (!lastSay.includes('끝났습니다')) {
-            bad(`비용 비교 · ${op.name} — 끝 장의 말이 끝났다는 말이 아니다: ${lastSay.slice(0, 30)}`);
+        /* 막혀서 무른 판은 «끝났다»가 아니라 **왜 아무 일도 없었는지**를 말해야 한다. */
+        const wantWord = built.blocked ? '할 수 없' : '끝났습니다';
+        if (!lastSay.includes(wantWord)) {
+            bad(`비용 비교 · ${op.name} — 끝 장의 말이 「${wantWord}」을 담지 않았다: ${lastSay.slice(0, 34)}`);
         }
     }
+}
+
+/* **화면이 못박은 전제 — 「같은 값을 담고 있고 같은 연산을 한꺼번에 받습니다」.**
+ *
+ * 이 말이 참이 아니면 그 아래 작업량 비교가 통째로 뜻을 잃는다. 실제로 배열은 칸이
+ * 꽉 차면 더 못 넣는데 리스트는 계속 들어가, **두 줄이 갈라진 채로 견주고 있었다.**
+ * 게다가 아무 일도 못 한 배열이 작업량 0으로 「일을 덜 했다」가 되었다.
+ * 말로만 고칠 수 있는 자리가 아니므로 검사가 붙든다. */
+{
+    let pairState = {
+        array: dsArrayState(DS_CAP, [...DS_START]),
+        list: dsListState([...DS_START], {doubly: false, hasTail: false}),
+    };
+    let sameChecks = 0;
+    for (let step = 0; step < 60; step++) {
+        const op = DS_COMPARE.ops[step % DS_COMPARE.ops.length];
+        const built = buildDsCompare(op, pairState, {v: 40 + (step % 50), i: 1});
+        sameChecks++;
+        if (!built.blocked) {
+            pairState = {array: built.runs[0].out.state, list: built.runs[1].out.state};
+        }
+        const a = dsValues(pairState.array).join(',');
+        const l = dsValues(pairState.list).join(',');
+        if (a !== l) {
+            bad(`비용 비교 ${step}걸음 (${op.name}) — 두 줄의 담긴 것이 갈라졌다. `
+                + `배열 [${a}] · 리스트 [${l}]`);
+            break;
+        }
+        /* **막힌 판이 「일을 덜 했다」로 끝나면 안 된다.** */
+        if (built.blocked) {
+            const say = built.frames[built.frames.length - 1].say;
+            if (say.includes('일을 덜 했')) {
+                bad(`비용 비교 ${step}걸음 (${op.name}) — 아무 일도 못 했는데 이겼다고 말한다`);
+            }
+        }
+    }
+    console.log(`비용 비교 ${sameChecks}걸음 — 두 줄이 늘 같은 것을 담고 있는지 대조했다`);
 }
 console.log(`비용 비교 ${raceChecks}판 — 끝나는 차례가 작업량의 차례와 같은지 대조했다`);
 
@@ -450,28 +503,48 @@ for (const r of pageRows) console.log('  ' + r);
 /* **연산을 눌러도 그림 상자의 높이가 흔들리면 안 된다.**
    단계를 넘길 때 상자가 늘었다 줄었다 하면 그 아래 단추가 아래위로 움직이고,
    그러면 같은 자리를 거듭해 누를 수가 없다. */
+/* **높이를 어디에 적었든 찾아낸다.**
+ *
+ * 예전에는 `el.style.height`만 보았다. 그런데 마디 그림은 SVG 크기를 `style` **속성
+ * 문자열**로 주므로(`width:100%;min-width:…`) 그 자리가 비어 있었고, 여덟 탭 가운데
+ * 다섯에서 **이 검사가 아무것도 재지 않았다.** 재는 것이 없는 검사는 초록불이
+ * 무슨 뜻인지 알 수 없다 — 속성 문자열과 viewBox 까지 함께 본다. */
 function heightMap(sim) {
     const out = new Map();
     const walk = (el, path) => {
         if (el.style.position === 'absolute') return;
         const h = el.style.height || '';
         if (h) out.set(path, h);
+        /* **문자열일 때만 본다.** 받침대의 `style`은 평소에 프록시 객체이고,
+           그것을 문자열로 바꾸려 들면 그 자리에서 죽는다. `setAttribute('style', …)`로
+           통째로 써 넣은 SVG만 문자열이 된다 — 우리가 재려는 것이 바로 그것이다. */
+        if (typeof el.style === 'string' && el.style) out.set(path + '@style', el.style);
+        if (typeof el.viewBox === 'string' && el.viewBox) out.set(path + '@viewBox', el.viewBox);
         (el.children || []).forEach((c, i) => walk(c, `${path}/${i}`));
     };
     sim.el('view-host').children.forEach((c, i) => walk(c, String(i)));
     return out;
 }
 
+let heightWatched = 0;
 for (const group of [...page.el('group-tabs').children]) {
     group.click();
     for (const chip of [...page.el('struct-tabs').children]) {
         const structName = chip.textContent;
         chip.click();
+        /* **담는 방식을 첫째 것으로 되돌린다.** 앞 절이 마지막으로 누른 것이 그대로
+           남아 있어, 스택·큐·덱까지 마디 그림으로 재고 있었다. */
+        const firstImpl = page.el('impl-buttons').children[0];
+        if (firstImpl) firstImpl.click();
         const opBtn = page.el('ops-host').children[0];
         if (!opBtn) continue;
         opBtn.click();
         page.el('btn-first').click();
         const before = heightMap(page);
+        if (before.size === 0) {
+            bad(`${structName} — 높이를 잰 상자가 하나도 없다. 이 검사가 헛돈다`);
+        }
+        heightWatched += before.size;
         let moved = null;
         for (let k = 0; k < 200 && !moved; k++) {
             if (page.el('btn-next').disabled) break;
@@ -489,7 +562,7 @@ for (const group of [...page.el('group-tabs').children]) {
         }
     }
 }
-console.log('단계를 넘기는 동안 상자 높이가 흔들리지 않는지 보았다');
+console.log(`단계를 넘기는 동안 상자 ${heightWatched}곳의 높이가 흔들리지 않는지 보았다`);
 
 /* **직접 넣기로 막아야 할 값을 넣어 본다.** 막는 것은 한 곳뿐인데 그 가드가
    검사에 걸려 있지 않으면 깨져도 아무도 모른다. */

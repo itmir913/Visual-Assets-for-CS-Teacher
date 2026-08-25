@@ -281,7 +281,7 @@ export function createTreeLinkedView(host, opts = {}) {
 
             if (m.banner) {
                 banner.style.display = 'block';
-                banner.textContent = m.banner.replace(/\*\*/g, '');
+                banner.textContent = m.banner.replace(/\*\*/g, '').replace(/`/g, '');
             } else {
                 banner.style.display = 'none';
             }

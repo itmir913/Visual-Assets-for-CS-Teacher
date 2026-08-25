@@ -22,13 +22,16 @@ export const DS_COLORS = {
     doomed: {bg: '#e2e8f0', line: '#94a3b8', text: '#475569'},
 };
 
-/** 커서 이름을 화면에 낼 말로. 여기 없는 것은 이름 그대로 낸다. */
+/** 커서 이름을 화면에 낼 말로. 여기 없는 것은 이름 그대로 낸다.
+ *  **쓰이지 않는 이름을 남겨 두지 않는다** — 범례에 있는데 화면에 한 번도 안 나오면
+ *  학생이 「아직 못 본 무언가가 있다」고 여기며 찾는다. */
 const CURSOR_LABEL = {
-    i: 'i', p: 'p', q: 'q', front: 'front', rear: 'rear', top: 'top',
+    i: 'i', p: 'p', q: 'q', front: 'front', rear: 'rear', top: 'top', bottom: '바닥',
 };
 
 const CURSOR_TONE = {
-    front: '#0f766e', rear: '#b45309', top: '#7c3aed', i: '#0f172a', p: '#0f172a', q: '#475569',
+    front: '#0f766e', rear: '#b45309', top: '#7c3aed', bottom: '#475569',
+    i: '#0f172a', p: '#0f172a', q: '#475569',
 };
 
 function box(tag, style, text) {
@@ -45,6 +48,10 @@ function box(tag, style, text) {
 export function createDsCellsView(host, opts = {}) {
     const layout = opts.layout === 'ring' ? 'ring' : 'row';
     const isRing = layout === 'ring';
+    /* **끝이 어디인지 늘 붙여 두는 이름표.** 스택의 「꼭대기」, 큐의 「front·rear」처럼
+       연산이 끝난 뒤에도 남아 있어야 하는 것이다 — 연산이 만드는 커서(i·p)는 판이
+       끝나면 지워지므로 그것으로는 낼 수가 없다. 구조가 정해서 넘겨준다. */
+    const endMarks = typeof opts.endMarks === 'function' ? opts.endMarks : null;
 
     let cap = 1;
     let cells = [];        // 자리마다 하나씩. 늘 그 자리에 있는 «빈 칸»
@@ -250,6 +257,11 @@ export function createDsCellsView(host, opts = {}) {
                 cursors.front = st.front;
                 cursors.rear = st.rear;
             }
+            if (endMarks) {
+                for (const {at, name} of endMarks(st)) {
+                    if (typeof at === 'number' && at >= 0 && at < cap) cursors[name] = at;
+                }
+            }
             for (const [name, at] of Object.entries(cursors)) {
                 if (typeof at !== 'number' || at < 0 || at >= cap) continue;
                 if (!perSlot.has(at)) perSlot.set(at, []);
@@ -307,7 +319,7 @@ export function createDsCellsView(host, opts = {}) {
 
             if (m.banner) {
                 banner.style.display = 'block';
-                banner.textContent = m.banner.replace(/\*\*/g, '');
+                banner.textContent = m.banner.replace(/\*\*/g, '').replace(/`/g, '');
             } else {
                 banner.style.display = 'none';
             }

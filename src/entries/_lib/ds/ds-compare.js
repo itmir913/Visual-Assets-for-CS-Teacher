@@ -18,6 +18,20 @@ import {runDsOperation, dsArrayState, dsListState} from './ds-model.js';
 /** 한 장에 든 일의 양. **화면의 세 숫자를 그대로 더한다** — 화면과 축이 어긋날 수 없게. */
 export const dsWorkOf = (counts) => counts.access + counts.move + counts.link;
 
+/** 손대지 않은 모습 한 장. 막혀서 무른 판에 쓴다. */
+function idleOf(state, why, isStuck) {
+    return {
+        state,
+        act: {kind: 'idle'},
+        marks: {
+            focus: [], moving: [], linkFix: [], newborn: null, doomed: null,
+            banner: isStuck ? why : null,
+        },
+        counts: {access: 0, move: 0, link: 0},
+        say: '',
+    };
+}
+
 /** 아래 표에서 개수를 키워 가며 재는 자리. 화면의 칸 수(`DS_CAP`)와 무관하다 —
  *  재는 것은 그림이 아니라 **개수가 늘 때 값이 어떻게 벌어지는가**이기 때문이다. */
 export const DS_MEASURE_SIZES = [4, 8, 16, 32, 64];
@@ -37,6 +51,40 @@ export function buildDsCompare(op, states, arg) {
         const work = r.out.frames.map((f) => dsWorkOf(f.counts));
         return {...r, work, total: work[work.length - 1] || 0};
     });
+
+    /* **한쪽이 못 하는 연산은 양쪽 다 하지 않는다.**
+     *
+     * 배열은 칸이 꽉 차면 더 못 넣지만 연결 리스트는 계속 들어간다. 그대로 두었더니
+     * 두 줄의 담긴 것이 갈라졌고 — 화면은 「같은 값을 담고 있고 같은 연산을 한꺼번에
+     * 받습니다」라고 말한다 — 게다가 **아무 일도 안 한 배열이 작업량 0으로 「일을 덜
+     * 했다」**가 되었다. 이 페이지가 가르치려는 것의 정반대를 가르친 셈이다.
+     *
+     * 그래서 한쪽이라도 막히면 그 판은 통째로 무른다. 화면에는 왜 아무 일도 일어나지
+     * 않았는지를 적는다 — 조용히 지나가면 단추가 고장 난 것으로 읽힌다. */
+    const stuckList = runs.filter((r) => r.out.frames.some((f) => f.marks.banner));
+    const stuck = stuckList[0];
+    if (stuck) {
+        const why = stuck.out.frames.find((f) => f.marks.banner).marks.banner;
+        const who = stuckList.length === 2 ? '두 쪽 모두' : `${stuck.name} 쪽이`;
+        return {
+            frames: [{
+                lanes: runs.map((r, k) => ({
+                    kind: r.kind,
+                    name: r.name,
+                    frame: idleOf(k === 0 ? states.array : states.list, why, stuckList.includes(r)),
+                    done: true,
+                    finishedWork: 0,
+                })),
+                counts: {access: 0, move: 0, link: 0},
+                say: stuckList.length === 2
+                    ? `${who} 이 연산을 할 수 없어 **아무 일도 일어나지 않았습니다.**`
+                    : `${who} 이 연산을 할 수 없습니다. **그래서 두 쪽 모두 하지 않았습니다** — `
+                      + '한쪽만 하면 담긴 것이 달라져 더는 견줄 수 없기 때문입니다.',
+            }],
+            runs,
+            blocked: true,
+        };
+    }
 
     const maxWork = Math.max(1, ...runs.map((r) => r.total));
     const cursor = runs.map(() => 0);

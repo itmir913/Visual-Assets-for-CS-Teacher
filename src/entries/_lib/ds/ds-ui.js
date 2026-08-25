@@ -33,13 +33,16 @@ const DS_LEGEND = [
 
 const $ = (id) => document.getElementById(id);
 
-/* 설명문의 `**굵게**`를 실제로 굵게 낸다. `textContent`로 넣으면 별표가 그대로 찍힌다.
-   넣는 글은 전부 우리가 쓴 것이지만 꺾쇠는 먼저 막아 둔다. */
+/* 설명문의 `**굵게**`와 백틱 코드를 실제로 그렇게 낸다. `textContent`로 넣으면
+   별표와 백틱이 **그대로 화면에 찍힌다.** 넣는 글은 전부 우리가 쓴 것이지만
+   꺾쇠는 먼저 막아 둔다 — 나중에 누가 이 자리에 남의 글을 흘려 넣을 수 있다. */
 function setRich(el, text, strongClass = 'font-black text-slate-900') {
     const safe = String(text)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    el.innerHTML = safe.replace(/\*\*([^*]+)\*\*/g,
-        (_, inner) => `<strong class="${strongClass}">${inner}</strong>`);
+    el.innerHTML = safe
+        .replace(/\*\*([^*]+)\*\*/g, (_, inner) => `<strong class="${strongClass}">${inner}</strong>`)
+        .replace(/`([^`]+)`/g,
+            (_, inner) => `<code class="px-1 py-0.5 rounded bg-slate-100 text-slate-800">${inner}</code>`);
 }
 
 function dsButton(cls, text, onClick) {
@@ -66,13 +69,17 @@ export function mountDsSimulator() {
     /* 그림은 구조가 고른다. **바뀔 때만 새로 만든다** — 연산마다 다시 만들면 상자가 깜빡인다.
        다만 담는 방식을 바꾸면 그림도 갈리므로 그때는 새로 만들어야 한다. */
     function ensureView(kind) {
-        if (viewKind === kind) return;
-        viewKind = kind;
+        /* **구조까지 넣어 견준다.** 끝 이름표(스택의 「top」, 큐의 「front」)가 구조마다
+           다르므로, 같은 「칸 그림」이라도 구조가 바뀌면 새로 만들어야 한다. */
+        const want = `${kind}:${struct.id}`;
+        if (viewKind === want) return;
+        viewKind = want;
         const host = $('view-host');
+        const endMarks = struct.endMarks;
         if (kind === 'list') view = createDsListView(host);
         else if (kind === 'ring') view = createDsCellsView(host, {layout: 'ring'});
         else if (kind === 'compare') view = createDsCompareView(host);
-        else view = createDsCellsView(host, {layout: 'row'});
+        else view = createDsCellsView(host, {layout: 'row', endMarks});
     }
 
     const plan = () => dsPlanOf(struct, implId);
@@ -225,7 +232,9 @@ export function mountDsSimulator() {
             lines.push('둘이 같은 칸을 가리키면 **비었거나 꽉 찬 것**입니다. 그래서 개수를 따로 세어 둡니다.');
         } else {
             lines.push('칸은 **미리 정해 둔 수(10개)**만큼 있습니다. 점선 칸은 아직 비어 있는 자리입니다.');
-            lines.push('상자가 옆으로 미끄러지면 **밀거나 당긴 것**입니다. 그 수가 곧 「이동」 횟수입니다.');
+            lines.push('상자가 옆으로 미끄러지면 **밀거나 당긴 것**입니다.');
+            lines.push('「이동」은 **칸에 값을 써넣은 횟수**입니다 — 밀어낸 상자 수에 '
+                + '**새 값을 써넣는 한 번이 더해집니다.** 그래서 아무것도 밀지 않는 「뒤에 넣기」도 1입니다.');
             lines.push('칸 위의 이름표는 **자리 번호를 담은 변수**입니다.');
         }
         for (const line of lines) {
@@ -249,26 +258,54 @@ export function mountDsSimulator() {
         paintArgRow();
     }
 
-    /** 지금 고른 연산이 **무엇을 받는지**에 맞춰 입력 칸을 보인다. */
+    /** **이 구조가 쓰는 연산 전부**를 보고 입력 칸을 낸다.
+     *
+     *  예전에는 «방금 누른» 연산만 보았다. 그러면 자리 번호를 받는 연산을 처음 누를 때
+     *  칸이 아직 감춰져 있어 **번호를 정할 수가 없었다** — 한 번 헛돌리고 나서야 칸이
+     *  나타났다. 무엇을 누를지는 학생이 정하는 것이므로 미리 다 내 둔다. */
     function paintArgRow() {
-        const need = lastOp ? lastOp.arg : 'value';
-        $('value-wrap').classList.toggle('hidden', need !== 'value' && need !== 'valueIndex');
-        $('index-wrap').classList.toggle('hidden', need !== 'index' && need !== 'valueIndex');
-        $('arg-row').classList.toggle('hidden', !need);
+        const args = plan().ops.map((op) => op.arg);
+        const wantsValue = args.some((a) => a === 'value' || a === 'valueIndex');
+        const wantsIndex = args.some((a) => a === 'index' || a === 'valueIndex');
+        $('value-wrap').classList.toggle('hidden', !wantsValue);
+        $('index-wrap').classList.toggle('hidden', !wantsIndex);
+        $('arg-row').classList.toggle('hidden', !wantsValue && !wantsIndex);
     }
 
+    /** 적어 넣은 값을 읽는다. **말없이 다른 값으로 바꿔치지 않는다.**
+     *
+     *  예전에는 범위 밖이면 무작위 값을 대신 넣었다. 그러면 학생이 `200`을 적고 단추를
+     *  누른 뒤 화면에 `37`이 들어가는 것을 보게 된다 — 무엇이 잘못됐는지 알 길이 없다.
+     *  바로 옆 「직접 넣기」는 같은 값을 제대로 막고 있었으니, 한 페이지의 두 입력이
+     *  다른 규칙으로 논 셈이다.
+     *
+     *  @returns {object|null} 쓸 수 없는 값이면 `null`. 그때는 까닭을 화면에 적어 둔다. */
     function readArg(op) {
-        const raw = Number($('value-input').value);
-        const v = Number.isFinite(raw) && raw >= 0 && raw <= DS_VALUE_MAX
-            ? Math.round(raw) : Math.floor(Math.random() * DS_VALUE_MAX) + 1;
-        const rawI = Number($('index-input').value);
-        const size = struct.id === 'compare' ? (pair ? pair.array.size : 0) : state.size;
-        const i = Number.isFinite(rawI) && rawI >= 0 ? Math.min(Math.round(rawI), Math.max(0, size)) : 0;
-        return {v, i, opId: op.id};
+        const rawV = $('value-input').value.trim();
+        const v = Number(rawV);
+        if (op.arg === 'value' || op.arg === 'valueIndex') {
+            if (rawV === '' || !Number.isInteger(v) || v < 0 || v > DS_VALUE_MAX) {
+                $('input-error').textContent = `넣을 값은 0부터 ${DS_VALUE_MAX}까지의 정수여야 합니다.`;
+                return null;
+            }
+        }
+        const rawI = $('index-input').value.trim();
+        const i = Number(rawI);
+        if (op.arg === 'index' || op.arg === 'valueIndex') {
+            if (rawI === '' || !Number.isInteger(i) || i < 0) {
+                $('input-error').textContent = '자리 번호는 0 이상의 정수여야 합니다.';
+                return null;
+            }
+        }
+        return {v: Number.isInteger(v) ? v : 0, i: Number.isInteger(i) ? i : 0, opId: op.id};
     }
 
-    /** 다음에 넣을 값을 미리 채워 둔다. **빈 칸을 두지 않는다** —
-     *  단추를 눌렀는데 아무 일도 안 나면 고장으로 읽힌다. */
+    /** 넣을 값을 채워 둔다. **빈 칸을 두지 않는다** — 단추를 눌렀는데 아무 일도
+     *  안 나면 고장으로 읽힌다.
+     *
+     *  **연산이 끝날 때마다 부르지는 않는다.** 카드가 「넣는 값은 하나로 같은데 옮김
+     *  횟수가 전혀 다릅니다」라며 같은 값으로 두 연산을 대 보라고 시키는데, 누를 때마다
+     *  값이 무작위로 바뀌면 그 대조를 할 수가 없다. 자료를 갈아 끼울 때만 새로 채운다. */
     function refillValue() {
         $('value-input').value = String(Math.floor(Math.random() * DS_VALUE_MAX) + 1);
     }
@@ -382,15 +419,18 @@ export function mountDsSimulator() {
 
     function doOperation(op) {
         lastOp = op;
-        paintArgRow();
-        const arg = readArg(op);
         $('input-error').textContent = ' ';
+        const arg = readArg(op);
+        if (!arg) return;
 
         if (struct.id === 'compare') {
             const built = buildDsCompare(op, pair, arg);
-            pair = {array: built.runs[0].out.state, list: built.runs[1].out.state};
-            values = dsValues(pair.array);
-            refillValue();
+            /* **막힌 판은 상태를 물려받지 않는다.** 한쪽만 나아가면 두 줄의 담긴 것이
+               갈라져, 그 뒤의 견주기가 통째로 뜻을 잃는다 → `ds-compare.js` */
+            if (!built.blocked) {
+                pair = {array: built.runs[0].out.state, list: built.runs[1].out.state};
+                values = dsValues(pair.array);
+            }
             ensureView('compare');
             paintReadNotes('compare');
             view.setup(built.frames, measured, op.id);
@@ -408,7 +448,6 @@ export function mountDsSimulator() {
         const out = runDsOperation(op, state, arg);
         state = out.state;
         values = dsValues(state);
-        refillValue();
 
         ensureView(plan().view);
         paintReadNotes(plan().view);
@@ -474,6 +513,7 @@ export function mountDsSimulator() {
 
     function applyValues(vals) {
         values = vals;
+        refillValue();
         rebuildState();
         paintOpsState();
         runIdle();

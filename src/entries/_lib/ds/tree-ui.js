@@ -29,11 +29,15 @@ const TREE_LEGEND = [
 
 const $ = (id) => document.getElementById(id);
 
+/* `**굵게**`와 백틱 코드를 실제로 그렇게 낸다. `textContent`로 넣으면
+   별표와 백틱이 **그대로 화면에 찍힌다.** */
 function setRich(el, text, strongClass = 'font-black text-slate-900') {
     const safe = String(text)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    el.innerHTML = safe.replace(/\*\*([^*]+)\*\*/g,
-        (_, inner) => `<strong class="${strongClass}">${inner}</strong>`);
+    el.innerHTML = safe
+        .replace(/\*\*([^*]+)\*\*/g, (_, inner) => `<strong class="${strongClass}">${inner}</strong>`)
+        .replace(/`([^`]+)`/g,
+            (_, inner) => `<code class="px-1 py-0.5 rounded bg-slate-100 text-slate-800">${inner}</code>`);
 }
 
 function treeButton(cls, text, onClick) {

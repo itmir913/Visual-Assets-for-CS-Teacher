@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import {SIM_DIR, loadSim} from './_sim-harness.mjs';
+import {SIM_ROOT, loadSim} from './_sim-harness.mjs';
 
 let fail = 0;
 const bad = (m) => {
@@ -27,12 +27,22 @@ const bad = (m) => {
 /* **전용 검사가 페이지를 통째로 보는 것은 여기서 빼둔다.** 탭·프리셋처럼 페이지만 아는
    구조를 이 훑기가 흉내 내려면 페이지 사정을 여기 베껴 적어야 하고, 그러면 낡는다. */
 const OWN_CHECK = {
-    'deep-learning': 'check:deep-learning',
+    'ai/deep-learning': 'check:deep-learning',
 };
 
-const PAGES = fs.readdirSync(SIM_DIR)
-    .filter((f) => f.endsWith('.html'))
-    .map((f) => f.slice(0, -5))
+/* **`simulator/` 아래를 통째로 훑는다.** 예전에는 `simulator/ai` 를 못박아 두었는데,
+   그러면 새로 만든 갈래(`simulator/cs` 등)가 **검사에 걸리지도 않으면서 통과로 보인다.**
+   페이지 이름은 여기서부터 `ai/…` 처럼 폴더를 붙인 상대경로다. */
+function findPages(dir, prefix = '') {
+    const out = [];
+    for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
+        if (e.isDirectory()) out.push(...findPages(path.join(dir, e.name), prefix + e.name + '/'));
+        else if (e.name.endsWith('.html')) out.push(prefix + e.name.slice(0, -5));
+    }
+    return out;
+}
+
+const PAGES = findPages(SIM_ROOT)
     .filter((p) => !OWN_CHECK[p])
     .sort();
 
@@ -86,7 +96,7 @@ function checkCanvasResolution(page, sim) {
    ================================================================ */
 
 function checkInlineHandlers(page, sim) {
-    const html = fs.readFileSync(path.join(SIM_DIR, page + '.html'), 'utf8');
+    const html = fs.readFileSync(path.join(SIM_ROOT, page + '.html'), 'utf8');
     const names = new Set();
     for (const m of html.matchAll(/\son[a-z]+\s*=\s*"([^"]*)"/g)) {
         // `obj.method(...)` · `fn(...)` 의 **앞머리 이름**만 뽑는다. 이름만 훑는 검사가
@@ -154,7 +164,7 @@ function screenText(sim) {
 }
 
 function checkButtons(page, sim) {
-    const html = fs.readFileSync(path.join(SIM_DIR, page + '.html'), 'utf8');
+    const html = fs.readFileSync(path.join(SIM_ROOT, page + '.html'), 'utf8');
     const ids = [];
     for (const m of html.matchAll(/<button\b([^>]*)>/g)) {
         const id = m[1].match(/\bid="([^"]*)"/)?.[1];

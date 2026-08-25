@@ -24,9 +24,9 @@ import {fileURLToPath} from 'node:url';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** 검사를 옛 판에 돌려 **실제로 실패하는지** 보려고 자리를 바꿀 수 있게 둔다.
     새 판에서 0건이 나오는 검사는 제대로 잡는 것인지 헛도는 것인지 구별되지 않는다. */
-export const SIM_DIR = process.env.SIM_DIR || path.join(ROOT, 'simulator', 'ai');
+export const SIM_ROOT = process.env.SIM_ROOT || path.join(ROOT, 'simulator');
 const LIB_DIR = path.join(ROOT, 'src', 'entries', '_lib');
-const ENTRY_DIR = path.join(ROOT, 'src', 'entries', 'simulator', 'ai');
+const ENTRY_ROOT = path.join(ROOT, 'src', 'entries', 'simulator');
 
 /** 바깥 의존이 있어 그대로 평가할 수 없는 라이브러리가 올리는 전역. */
 const STUB_GLOBALS = {
@@ -204,18 +204,138 @@ export function makeCtx(canvas) {
     return canvas._ctx;
 }
 
-/** 진입점이 무엇을 import 하는지 읽어 온다. 목록을 여기 다시 적으면 낡는다. */
-function libsOfEntry(name) {
-    const entry = path.join(ENTRY_DIR, name + '.js');
-    if (!fs.existsSync(entry)) return [];
-    const src = fs.readFileSync(entry, 'utf8');
-    return [...src.matchAll(/_lib\/([\w-]+\.js)/g)].map((m) => m[1]);
+/* ================================================================
+   진입점에서 시작해 **상대경로 import 를 따라간다.**
+
+   예전에는 진입점에 적힌 `_lib/…` 이름을 **한 겹만** 훑어 얹었다. 시뮬레이터 한 장이
+   인라인 스크립트 하나로 되어 있던 동안에는 그것으로 충분했지만, **페이지를 모듈로
+   쪼개면 알맹이가 통째로 검사 밖으로 빠진다** — 뜨기만 하면 통과가 되어 검사가 헛돈다.
+
+   ES 모듈을 진짜로 돌리는 대신, **같은 문맥에 차례로 풀어 놓고 이름으로 잇는다.**
+   의존을 먼저 얹으므로 `export` 한 이름이 이미 그 문맥에 있고, `import` 문은 필요한
+   자리에만 별명을 만들어 주는 한 줄로 바뀐다.
+
+   **여기서 오는 한계 둘을 밝혀 둔다.**
+     - 모듈 둘이 같은 이름을 top-level 로 선언하면 뒤엣것이 「already been declared」로
+       죽는다. 진짜 모듈이라면 각자의 방이 있으니 괜찮았을 것이다. **조용히 틀리지 않고
+       시끄럽게 죽으므로** 그대로 둔다 — 시뮬레이터 쪽에서 이름을 겹치지 않게 짓는다.
+     - 바깥 꾸러미(d3·prismjs·chart.js)를 부르는 모듈은 여전히 못 얹는다. 그 모듈을
+       import 하던 쪽에는 `STUB_GLOBALS` 의 껍데기를 대신 물려준다.
+   ================================================================ */
+
+/** 한 줄짜리 `import` 문. 저장소의 진입점과 `_lib` 은 전부 이 꼴이다. */
+const IMPORT_RE = /^[ \t]*import\s+(?:([^'"]*?)\s+from\s+)?(['"])([^'"]+)\2;?[ \t]*$/gm;
+
+/** 모듈이 내보내는 이름들 — `import * as ns` 를 물려주려면 이것이 필요하다. */
+function exportNames(src) {
+    const names = new Set();
+    for (const m of src.matchAll(/^[ \t]*export\s+(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)/gm)) {
+        names.add(m[1]);
+    }
+    for (const m of src.matchAll(/^[ \t]*export\s*\{([^}]*)\}/gm)) {
+        for (const piece of m[1].split(',')) {
+            const t = piece.trim();
+            if (!t) continue;
+            const as = t.split(/\s+as\s+/);
+            names.add((as[1] || as[0]).trim());
+        }
+    }
+    return [...names].filter((n) => n !== 'default');
+}
+
+/** `{a, b as c}` · `X` · `* as ns` 를 갈라 놓는다. */
+function splitClause(clause) {
+    const out = {named: [], def: null, ns: null};
+    let rest = clause.trim();
+    const braced = rest.match(/\{([^}]*)\}/);
+    if (braced) {
+        for (const piece of braced[1].split(',')) {
+            const t = piece.trim();
+            if (!t) continue;
+            const [orig, local] = t.split(/\s+as\s+/).map((x) => x.trim());
+            out.named.push([orig, local || orig]);
+        }
+        rest = rest.replace(braced[0], '').replace(/,\s*$/, '').trim();
+    }
+    const ns = rest.match(/^\*\s+as\s+([A-Za-z_$][\w$]*)/);
+    if (ns) { out.ns = ns[1]; rest = ''; }
+    rest = rest.replace(/,\s*$/, '').trim();
+    if (/^[A-Za-z_$][\w$]*$/.test(rest)) out.def = rest;
+    return out;
+}
+
+const defaultVar = (file) => '__default__' + path.basename(file).replace(/\W/g, '_');
+
+/**
+ * 진입점의 import 그래프를 훑어 **의존 먼저** 늘어놓는다.
+ * @returns {{order: string[], stubbed: string[], status: Map<string,string>}}
+ */
+function moduleGraph(entryFile) {
+    const order = [];
+    const stubbed = [];
+    const status = new Map();          // 파일 → 'ok' | 'stub'
+
+    const visit = (file) => {
+        if (status.has(file)) return status.get(file);
+        if (!fs.existsSync(file)) { status.set(file, 'stub'); return 'stub'; }
+        status.set(file, 'stub');      // 순환 import 에 빠지지 않게 먼저 찍어 둔다
+        const src = fs.readFileSync(file, 'utf8');
+        let bare = false;
+        for (const m of src.matchAll(IMPORT_RE)) {
+            const spec = m[3];
+            if (spec.startsWith('.')) visit(path.resolve(path.dirname(file), spec));
+            else bare = true;          // 바깥 꾸러미 — 이 파일은 못 얹는다
+        }
+        if (bare) { stubbed.push(path.basename(file)); return 'stub'; }
+        status.set(file, 'ok');
+        order.push(file);
+        return 'ok';
+    };
+
+    visit(entryFile);
+    return {order, stubbed, status};
+}
+
+/** 모듈 하나를 이 문맥에서 돌 수 있는 평범한 스크립트로 바꾼다. 못 바꾸면 `null`. */
+function plainScript(file, status) {
+    let src = fs.readFileSync(file, 'utf8');
+
+    src = src.replace(IMPORT_RE, (whole, clause, q, spec) => {
+        const dep = spec.startsWith('.') ? path.resolve(path.dirname(file), spec) : null;
+        const stub = !dep || status.get(dep) !== 'ok';
+        if (!clause) return '';                         // 곁불 import — 이미 얹혔거나 못 얹는다
+        const {named, def, ns} = splitClause(clause);
+        const out = [];
+        if (ns) {
+            out.push(`const ${ns} = ` + (stub ? '__stub()'
+                : `{${exportNames(fs.readFileSync(dep, 'utf8')).join(', ')}}`) + ';');
+        }
+        if (def) out.push(`const ${def} = ` + (stub ? '__stub()' : defaultVar(dep)) + ';');
+        for (const [orig, local] of named) {
+            /* **못 얹은 모듈에서 오는 이름은 껍데기로 물려준다.** `STUB_GLOBALS` 에
+               같은 이름이 있으면 그것을 쓴다 — d3 뷰가 그렇게 얹혀 있다. */
+            if (stub) out.push(`const ${local} = (globalThis.${orig} !== undefined ? globalThis.${orig} : __stub());`);
+            else if (orig !== local) out.push(`const ${local} = ${orig};`);
+        }
+        return out.join('\n');
+    });
+
+    src = src
+        .replace(/^[ \t]*export\s+default\s+/m, `var ${defaultVar(file)} = `)
+        .replace(/^[ \t]*export\s+(?=(?:const|let|var|function|class|async)\b)/gm, '')
+        .replace(/^[ \t]*export\s*\{[^}]*\};?[ \t]*$/gm, '');
+
+    // 여러 줄에 걸친 import·export 가 남았으면 손대지 않는다. 어설프게 고치면 조용히 틀린다.
+    if (/^[ \t]*(?:import|export)\b/m.test(src)) return null;
+    return src;
 }
 
 /**
  * 페이지 하나를 띄운다.
  *
- * @param {string} name  확장자 없는 파일 이름 (예: 'supervised-svm')
+ * @param {string} name  `simulator/` 아래의 확장자 없는 경로 (예: 'ai/supervised-svm').
+ *                       **하위 폴더까지 붙인 이름이다** — 진입점(`src/entries/simulator/`)이
+ *                       같은 결로 갈라져 있어 한쪽만 폴더를 떼면 라이브러리를 못 찾는다.
  * @param {object} opts  {dpr, box, selectors, globals}
  */
 export function loadSim(name, opts = {}) {
@@ -288,6 +408,7 @@ export function loadSim(name, opts = {}) {
         ...STUB_GLOBALS,
         ...(opts.globals || {}),
     };
+    sandbox.__stub = stubObject;   // 못 얹은 모듈에서 오는 이름을 물려줄 때 쓴다
     sandbox.window = sandbox;
     sandbox.globalThis = sandbox;
     sandbox.self = sandbox;
@@ -308,24 +429,26 @@ export function loadSim(name, opts = {}) {
 
     vm.createContext(sandbox);
 
-    // ---- 공용 라이브러리. 바깥 의존이 있는 것은 못 얹는다 ----
-    const stubbed = [];
-    for (const lib of libsOfEntry(name)) {
-        const file = path.join(LIB_DIR, lib);
-        const src = fs.readFileSync(file, 'utf8');
-        /* **`import` 가 있으면 못 얹는다.** 바깥 꾸러미(d3·prismjs)를 이 받침대의 가짜
-           문서 위에 올릴 수 없기 때문이다. 반대로 `export` 만 있는 파일은 **바깥에 기대는
-           것이 없으므로** 내보내기 낱말만 걷어 내고 진짜로 돌린다 — 그래야 그래프 모델과
-           프리셋 같은 **계산 알맹이가 가짜가 아닌 진짜로** 검사에 걸린다. */
-        if (/^\s*import\s/m.test(src)) { stubbed.push(lib); continue; }
-        const code = src
-            .replace(/^\s*export\s+default\s+/m, 'var __default_' + lib.replace(/\W/g, '_') + ' = ')
-            .replace(/^\s*export\s+(?=(?:const|let|var|function|class|async)\b)/gm, '');
-        if (/^\s*export\b/m.test(code)) { stubbed.push(lib); continue; }
-        vm.runInContext(code, sandbox, {filename: lib});
+    /* ---- 진입점의 import 그래프를 의존 먼저 얹는다 ----
+       바깥 꾸러미에 기대는 모듈만 껍데기로 때우고, 나머지는 **진짜로 돌린다** —
+       그래야 알고리즘과 모델 같은 계산 알맹이가 가짜가 아닌 진짜로 검사에 걸린다.
+       **진입점 자신도 얹는다.** `window.X = X` 가 거기 있어서, 빼놓으면 페이지가
+       실제로 쓰는 `window.X` 가 이 받침대에서만 비어 있게 된다. */
+    const entryFile = path.join(ENTRY_ROOT, name + '.js');
+    const {order, stubbed, status} = fs.existsSync(entryFile)
+        ? moduleGraph(entryFile)
+        : {order: [], stubbed: [], status: new Map()};
+    for (const file of order) {
+        const code = plainScript(file, status);
+        if (code === null) { stubbed.push(path.basename(file)); continue; }
+        try {
+            vm.runInContext(code, sandbox, {filename: path.relative(ROOT, file)});
+        } catch (e) {
+            errors.push(`모듈 ${path.relative(ROOT, file)}: ${e.message}`);
+        }
     }
 
-    const html = fs.readFileSync(path.join(SIM_DIR, name + '.html'), 'utf8');
+    const html = fs.readFileSync(path.join(SIM_ROOT, name + '.html'), 'utf8');
 
     /* **마크업에 적힌 초기값을 실어 준다.** 슬라이더의 `value="8"` 같은 것을 빼먹으면
        `parseInt('')` 가 NaN 이 되어 페이지가 엉뚱한 자리에서 죽는다 —

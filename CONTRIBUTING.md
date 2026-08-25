@@ -11,6 +11,11 @@ npm run build     # 배포와 같은 빌드 → dist/
 npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 같다
 ```
 
+**푸시해도 아무것도 자동으로 돌지 않습니다**(2026-08-26부터). 배포는 GitHub의
+Actions 탭에서 「Build & Deploy」를 **손으로 눌러야** 일어납니다. 검사도 함께 꺼졌으니
+**올리기 전에 `npm run ci`를 손으로 돌립니다.** 까닭과 되살리는 법은
+[`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) 머리말에 있습니다.
+
 **위 셋이 실행점의 전부입니다.** GitHub Actions도 IDE 실행 구성도 이 이름을 부릅니다.
 나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
 [`package.json`](./package.json) 하나뿐입니다** — 스크립트 경로를 직접 치지 않습니다.

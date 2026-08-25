@@ -6,5 +6,4 @@
 
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
-import '../../_lib/prism.js';
-import 'prismjs/components/prism-python.min.js';
+import '../../_lib/prism-python.js';

@@ -24,7 +24,7 @@ export const cocktailSortAlgo = {
         while (lo < hi) {
             let swapped = false;
 
-            rec.say('오른쪽으로 — 큰 값을 뒤로 밀어 보냅니다.');
+            rec.say('오른쪽으로 — 큰 값을 뒤로 이동시킵니다.');
             for (let i = lo; i < hi; i++) {
                 rec.cursor('i', i);
                 if (rec.cmp(i, i + 1) > 0) { rec.swap(i, i + 1); swapped = true; }
@@ -52,7 +52,7 @@ export const cocktailSortAlgo = {
         }
 
         rec.fixRange(0, rec.n - 1);
-        rec.say('남은 구간에서 더 맞바꿀 것이 없습니다.');
+        rec.say('남은 구간에서 더 교환할 것이 없습니다.');
         rec.clearCursors();
         rec.mark('done');
     },

@@ -61,7 +61,7 @@ export function createSortHeapView(host) {
     let svg = null;
     let treeW = 0;
     let gValue = null;     // 값 글자를 모아 둔 무리. 크기를 여기 한 번만 건다
-    let gIndex = null;     // 배열 자리 번호
+    let gIndex = null;     // 배열 인덱스
     let nodes = [];        // 자리별 {circle, label, index}
 
     function buildTree() {
@@ -70,7 +70,7 @@ export function createSortHeapView(host) {
         svg = null;
         if (n > HEAP_TREE_MAX_N) {
             note.style.display = 'block';
-            note.textContent = `알갱이가 ${n}개라 트리는 그리지 않습니다`
+            note.textContent = `원소가 ${n}개라 트리는 그리지 않습니다`
                 + `(${HEAP_TREE_MAX_N}개까지). 트리와 배열이 같은 것이라는 점은`
                 + ` 개수를 줄여 확인해 보세요.`;
             return;
@@ -78,7 +78,7 @@ export function createSortHeapView(host) {
         note.style.display = 'none';
 
         const levels = levelOf(n - 1) + 1;
-        /* **맨 위 마디의 자리 번호가 들어갈 자리를 남긴다.** 번호는 동그라미 위에 적는데,
+        /* **맨 위 마디의 인덱스가 들어갈 자리를 남긴다.** 번호는 동그라미 위에 적는데,
            첫 층을 상자 꼭대기 가까이 두었더니 그 글자만 상자 밖으로 잘려
            **뿌리 마디에만 번호가 없었다.** 트리와 배열을 잇는 것이 이 그림의 요점인데
            하필 0번이 빠진 셈이다. */
@@ -145,7 +145,7 @@ export function createSortHeapView(host) {
     function paintTree(frame) {
         if (!svg) return;
 
-        /* **배율을 그릴 때마다 다시 재고 글자에 역수를 곱한다.** 한 번 재서 굳혀 두면
+        /* **배율을 그릴 때마다 다시 재고 글자에 역수를 곱한다.** 한 번 측정해 굳혀 두면
            창을 줄였을 때 그 값이 낡는다. 무리(`<g>`)에 한 번만 걸면 마디마다 쓰지 않아도 된다. */
         const scale = (svg.clientWidth || treeW) / treeW;
         gValue.setAttribute('font-size', Math.round(NODE_FONT_PX / scale));

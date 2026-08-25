@@ -7,8 +7,9 @@ export const quickSortAlgo = {
     group: 'divide',
     view: 'array',
     motion: 'swap',
-    idea: '구간에서 기준값(피벗) 하나를 고르고, 그보다 작은 것을 모두 왼쪽으로 몰아냅니다. '
-        + '피벗이 제자리를 찾으면 그 좌우를 같은 방법으로 다시 나눕니다.',
+    idea: '**분할 정복**을 병합 정렬과 반대 차례로 씁니다. 구간에서 기준값(피벗) 하나를 고르고 '
+        + '그보다 작은 것을 모두 왼쪽으로 몰아낸 뒤, 그 좌우를 같은 방법으로 다시 나눕니다. '
+        + '나눌 때 이미 정리가 되므로 합치는 단계가 따로 없습니다.',
     complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n²)', space: 'O(log n)'},
     stable: false,
     inPlace: true,
@@ -35,7 +36,7 @@ export const quickSortAlgo = {
             rec.mark('pivot');
 
             /* `wall`은 «여기까지는 피벗보다 작다»는 경계다. 작은 값을 만날 때마다
-               경계 자리와 맞바꾸고 경계를 한 칸 민다. */
+               경계 자리와 교환하고 경계를 한 칸 옮긴다. */
             let wall = lo;
             rec.cursor('경계', wall);
             for (let j = lo; j < hi; j++) {

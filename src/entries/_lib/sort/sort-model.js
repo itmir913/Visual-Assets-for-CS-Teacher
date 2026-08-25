@@ -5,24 +5,24 @@
  * 「뒤로 한 단계」가 공짜로 따라온다 —
  * **그리면서 진행하는 방식으로 짜면 되감기는 나중에 얹을 수 없다.**
  *
- * **값이 아니라 알갱이(item)를 옮긴다.** 배열이 담는 것은 `{v, id}`이고 스냅샷은
- * 그 참조만 베낀다. 알갱이가 제자리를 지키므로 두 가지가 한꺼번에 풀린다.
+ * **값이 아니라 원소(item)를 옮긴다.** 배열이 담는 것은 `{v, id}`이고 스냅샷은
+ * 그 참조만 베낀다. 원소가 제자리를 지키므로 두 가지가 한꺼번에 풀린다.
  *
- *   1. 화면이 같은 상자를 계속 따라가 **맞바꿈·밀기를 움직임으로** 그릴 수 있다.
+ *   1. 화면이 같은 상자를 계속 따라가 **교환·이동을 움직임으로** 그릴 수 있다.
  *   2. 값이 같은 둘을 구별할 수 있어 **안정 정렬**이 눈에 보인다. 화면은 값이 겹칠 때만
  *      처음 자리를 덧붙여(`5·3`) 보여 준다. 값만 베끼면 둘이 뒤바뀌어도 화면이 똑같아
  *      아무것도 가르치지 못한다.
  *
  * **움직임을 셋으로 가른다.** 하나로 뭉뚱그리면 그림이 틀린다 —
- * 삽입 정렬은 이웃을 맞바꾸는 것이 아니라 **자리를 비켜 주며 미는** 것이고,
+ * 삽입 정렬은 이웃을 교환하는 것이 아니라 **자리를 비켜 주며 미는** 것이고,
  * 병합 정렬은 옮기는 것이 아니라 **딴 칸에 쓰는** 것이다.
  *
- *   `swap`  두 자리를 맞바꾼다            버블 · 칵테일 · 선택 · 힙
- *   `shift` 한 칸 옆으로 민다             삽입 · 셸
+ *   `swap`  두 자리를 교환한다            버블 · 칵테일 · 선택 · 힙
+ *   `shift` 한 칸 옆으로 이동시킨다             삽입 · 셸
  *   `write` 칸에 값을 쓴다(제자리가 아니다) 병합 · 계수 · 기수
  */
 
-/* **몇 장까지 쌓을 수 있는가 — 알갱이 수가 정한다.**
+/* **몇 장까지 쌓을 수 있는가 — 원소 수가 정한다.**
  *
  * 되감기를 하려면 장마다 배열을 통째로 들고 있어야 하므로, 드는 자리는 «장 수 × n»이다.
  * n=1000짜리 버블 정렬은 걸음이 75만이라 다 남길 수가 없다.
@@ -36,7 +36,7 @@ export function sortFrameBudget(n) {
     return Math.max(400, Math.min(6000, Math.round(300000 / Math.max(1, n))));
 }
 
-/** 값 목록을 알갱이로 바꾼다. `id`는 처음 자리이자 **끝까지 변하지 않는 이름**이다. */
+/** 값 목록을 원소로 바꾼다. `id`는 처음 자리이자 **끝까지 변하지 않는 이름**이다. */
 export function createSortItems(values) {
     return values.map((v, i) => ({v, id: i}));
 }
@@ -60,7 +60,7 @@ export function createSortRecorder(values, opts = {}) {
     let auxBlocks = null;      // [{label, items, base}]
     let ranges = [];           // [{lo, hi, depth, state}]
     let cursors = {};          // {이름: 자리}
-    let held = null;           // 들어올린 알갱이 {item, from}
+    let held = null;           // 임시 저장한 원소 {item, from}
     let pivot = null;
     let compareMark = null;    // 이 한 장에만 켜지는 표시
     let movingMark = [];
@@ -137,7 +137,7 @@ export function createSortRecorder(values, opts = {}) {
             return d;
         },
 
-        /** 들고 있는 알갱이와 자리 하나를 비교한다. 삽입 정렬이 쓴다. */
+        /** 임시 저장한 원소와 자리 하나를 비교한다. 삽입 정렬이 쓴다. */
         cmpHeld(j) {
             counts.compare++;
             counts.access += 1;
@@ -157,7 +157,7 @@ export function createSortRecorder(values, opts = {}) {
             return d;
         },
 
-        /** 두 자리를 **맞바꾼다.** */
+        /** 두 자리를 **교환한다.** */
         swap(i, j) {
             if (i === j) return rec;
             counts.move += 2;
@@ -168,7 +168,7 @@ export function createSortRecorder(values, opts = {}) {
             return rec;
         },
 
-        /** 알갱이를 **들어올린다.** 그 자리는 빈칸이 된다(삽입·셸). */
+        /** 원소를 **임시 변수에 저장한다.** 그 자리는 빈칸이 된다(삽입·셸). */
         hold(i) {
             counts.access++;
             held = {item: a[i], from: i};
@@ -177,7 +177,7 @@ export function createSortRecorder(values, opts = {}) {
             return rec;
         },
 
-        /** 한 칸 옆으로 **민다.** 맞바꿈이 아니다 — 빈칸이 따라 움직인다. */
+        /** 한 칸 옆으로 **이동시킨다.** 교환이 아니다 — 빈칸이 따라 움직인다. */
         shift(from, to) {
             counts.move++;
             counts.access += 2;
@@ -188,7 +188,7 @@ export function createSortRecorder(values, opts = {}) {
             return rec;
         },
 
-        /** 들고 있던 알갱이를 빈칸에 **내려놓는다.** */
+        /** 임시 저장한 원소를 빈칸에 **내려놓는다.** */
         drop(to) {
             counts.move++;
             counts.access++;
@@ -210,16 +210,16 @@ export function createSortRecorder(values, opts = {}) {
             return rec;
         },
 
-        /* ---- 보조 칸. 「메모리를 더 쓴다」를 글이 아니라 그림으로 말한다 ---- */
+        /* ---- 임시 배열. 「메모리를 더 쓴다」를 글이 아니라 그림으로 말한다 ---- */
 
-        /** 보조 칸을 연다. `base`는 주 배열의 어느 자리 아래에 놓을지. */
+        /** 임시 배열을 연다. `base`는 주 배열의 어느 자리 아래에 놓을지. */
         auxOpen(blocks) {
             auxBlocks = blocks.map((b) => ({label: b.label, base: b.base, items: b.items ?? []}));
             snap({kind: 'aux-open'});
             return rec;
         },
-        /** 주 배열의 한 구간을 보조 칸으로 **통째로 떠 온다.** 원본은 그대로 둔다.
-         *  **한 칸씩 한 장으로 남기지 않는다** — 떠 오는 것은 병합의 요점이 아니라 준비
+        /** 주 배열의 한 구간을 임시 배열으로 **통째로 복사해 온다.** 원본은 그대로 둔다.
+         *  **한 칸씩 한 장으로 남기지 않는다** — 복사해 오는 것은 병합의 요점이 아니라 준비
          *  과정인데, 칸마다 한 장을 쓰면 정작 봐야 할 「합치기」가 기록에 묻힌다.
          *  옮긴 횟수는 칸 수만큼 정직하게 센다. */
         auxFill(blockIdx, lo, hi) {
@@ -233,7 +233,7 @@ export function createSortRecorder(values, opts = {}) {
         },
         auxAt: (blockIdx, k) => auxBlocks[blockIdx].items[k],
         auxLen: (blockIdx) => auxBlocks[blockIdx].items.length,
-        /** 보조 칸 둘을 비교한다. 병합의 알맹이다. */
+        /** 임시 배열 둘을 비교한다. 병합의 알맹이다. */
         auxCmp(b1, k1, b2, k2) {
             counts.compare++;
             counts.access += 2;
@@ -242,7 +242,7 @@ export function createSortRecorder(values, opts = {}) {
             snap({kind: 'aux-compare', a: [b1, k1], b: [b2, k2], result: d});
             return d;
         },
-        /** 보조 칸의 알갱이를 주 배열로 **되돌려 쓴다.** */
+        /** 임시 배열의 원소를 주 배열로 **되돌려 쓴다.** */
         auxWriteBack(blockIdx, k, i) {
             counts.move++;
             counts.access += 2;
@@ -251,14 +251,14 @@ export function createSortRecorder(values, opts = {}) {
             snap({kind: 'aux-writeback', block: blockIdx, k, i});
             return rec;
         },
-        /** 보조 칸을 치운다. **장을 따로 남기지 않는다** — 다음에 남길 장에서
+        /** 임시 배열을 치운다. **장을 따로 남기지 않는다** — 다음에 남길 장에서
          *  칸이 사라져 있는 것으로 충분하고, 그것만으로 한 장을 쓸 값어치가 없다. */
         auxClose() {
             auxBlocks = null;
             return rec;
         },
 
-        /** 주 배열의 한 구간을 **비운다.** 병합 정렬이 두 조각을 보조 칸으로 떠 온 뒤,
+        /** 주 배열의 한 구간을 **비운다.** 병합 정렬이 두 부분 배열을 임시 배열로 복사해 온 뒤,
          *  그 구간을 처음부터 다시 채워 넣는다는 것을 그림으로 말해 준다.
          *  세는 값은 늘지 않는다 — 실제로 옮기는 일이 아니라 화면에서만 비우는 것이다. */
         vacate(lo, hi) {
@@ -308,7 +308,7 @@ export function runSortAlgorithm(algo, values) {
 }
 
 /**
- * **안정 정렬인지 실제로 확인한다.** 값이 같은 알갱이들의 `id` 차례가 그대로면 안정이다.
+ * **안정 정렬인지 실제로 확인한다.** 값이 같은 원소들의 `id` 차례가 그대로면 안정이다.
  * 알고리즘이 스스로 신고한 `stable`과 맞는지는 검사가 대조한다 —
  * 카드에 적힌 말과 화면에서 벌어지는 일이 어긋나면 그게 가장 나쁜 결함이다.
  */

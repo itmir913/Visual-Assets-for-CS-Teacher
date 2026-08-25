@@ -22,18 +22,18 @@ const bad = (m) => { fail++; if (fail <= 30) console.log('  ✗ ' + m); };
 const SIZES = [1, 2, 3, 6, 7, 16, 24, SORT_N_MAX];
 const SEEDS = [1, 7, 12345, 99991];
 
-/** 스냅샷 한 장이 성한가 — 알갱이가 사라지거나 늘어나지 않았는가. */
+/** 스냅샷 한 장이 성한가 — 원소가 사라지거나 늘어나지 않았는가. */
 function frameIsSound(frame, ids) {
     const seen = [];
     for (const it of frame.a) if (it) seen.push(it.id);
     for (const b of frame.aux || []) for (const it of b.items) if (it) seen.push(it.id);
-    // 보조 칸은 **떠 온 것**이라 주 배열과 겹칠 수 있다. 겹침을 걷어 내고 센다.
+    // 임시 배열은 **복사해 온 것**이라 주 배열과 겹칠 수 있다. 겹침을 걷어 내고 센다.
     const uniq = new Set(seen);
-    for (const id of uniq) if (!ids.has(id)) return `없던 알갱이 ${id}`;
-    // 들고 있는 것(hold)은 배열에서 빠져 있다. 그것까지 세면 전부여야 한다.
+    for (const id of uniq) if (!ids.has(id)) return `없던 원소 ${id}`;
+    // 임시 저장한 원소(hold)은 배열에서 빠져 있다. 그것까지 세면 전부여야 한다.
     const held = frame.marks.held ? 1 : 0;
     if (uniq.size + (held && !uniq.has(frame.marks.held.item.id) ? 1 : 0) !== ids.size) {
-        return `알갱이 ${uniq.size + held}개, 있어야 할 것 ${ids.size}개`;
+        return `원소 ${uniq.size + held}개, 있어야 할 것 ${ids.size}개`;
     }
     return null;
 }
@@ -77,7 +77,7 @@ for (const algo of SORT_ALGOS) {
                 }
                 if (!stable) stableSeen = false;
 
-                /* 스냅샷마다 알갱이가 성한지. 옮기다 흘리면 화면에서 상자가 사라진다. */
+                /* 스냅샷마다 원소가 성한지. 옮기다 흘리면 화면에서 상자가 사라진다. */
                 const ids = new Set(values.map((_, i) => i));
                 for (let f = 0; f < out.frames.length; f++) {
                     const why = frameIsSound(out.frames[f], ids);

@@ -44,7 +44,7 @@ export function nearestSortSize(n) {
 export const SORT_V_MIN = 1;
 export const SORT_V_MAX = 99;
 
-/** **알갱이가 많으면 값의 범위도 넓혀야 한다.** 1~99에 1000개를 담으면 열 개씩 값이
+/** **원소가 많으면 값의 범위도 넓혀야 한다.** 1~99에 1000개를 담으면 열 개씩 값이
  *  겹쳐 「역순」이 참된 역순이 되지 못하고, 그러면 최악을 보여 주려던 자료가
  *  최악이 아니게 된다. 겹침을 일부러 만드는 「값이 몇 종류뿐」은 이 규칙 밖이다. */
 function sortValueMax(n) {
@@ -74,7 +74,7 @@ export const SORT_PRESETS = [
     },
 ];
 
-/** 되풀이할 수 있는 난수. 같은 씨앗이면 같은 자료가 나와야 겨루기가 공정하다. */
+/** 반복할 수 있는 난수. 같은 씨앗이면 같은 자료가 나와야 겨루기가 공정하다. */
 export function sortRandom(seed) {
     let s = (seed >>> 0) || 1;
     return () => {
@@ -88,7 +88,7 @@ export function sortRandom(seed) {
 /**
  * 프리셋으로 자료를 만든다.
  * @param {string} presetId  `SORT_PRESETS`의 id
- * @param {number} n         알갱이 수
+ * @param {number} n         원소 수
  * @param {number} seed      씨앗. 같으면 같은 자료가 나온다
  */
 export function makeSortData(presetId, n, seed = Date.now()) {

@@ -1,15 +1,15 @@
 /* 막대뷰 — 정렬 시뮬레이터의 기본 그림.
  *
- * **알갱이 하나가 상자 하나다.** 자리(인덱스)마다 상자를 다시 그리는 것이 아니라,
- * 같은 상자를 계속 따라가며 왼쪽 위치만 바꾼다. 그래서 맞바꿈과 밀기가
+ * **원소 하나가 상자 하나다.** 자리(인덱스)마다 상자를 다시 그리는 것이 아니라,
+ * 같은 상자를 계속 따라가며 왼쪽 위치만 바꾼다. 그래서 교환과 이동이
  * **움직임으로** 보이고, 값이 같은 둘도 서로 구별된다.
  *
- * **자리는 백분율로 잡는다.** 상자 폭을 재서 굳혀 두면 창 크기가 바뀔 때 그 값이 낡는데,
+ * **자리는 백분율로 잡는다.** 상자 폭을 측정해 굳혀 두면 창 크기가 바뀔 때 그 값이 낡는데,
  * 백분율이면 브라우저가 알아서 다시 잡는다 — 전체 화면을 드나들어도 어긋날 수 없다.
- * 폭을 재는 곳은 딱 한 군데, **글자를 낼 수 있는지 정할 때**뿐이고 그것도 그릴 때마다
- * 다시 잰다. 자리와 달리 글자는 백분율로 정할 수가 없다.
+ * 폭을 측정하는 곳은 딱 한 군데, **글자를 낼 수 있는지 정할 때**뿐이고 그것도 그릴 때마다
+ * 다시 측정한다. 자리와 달리 글자는 백분율로 정할 수가 없다.
  *
- * 구간 띠(`ranges`)와 보조 칸(`aux`)까지 여기서 함께 그린다. 나눠서 푸는 정렬도
+ * 구간 띠(`ranges`)와 임시 배열(`aux`)까지 여기서 함께 그린다. 나눠서 푸는 정렬도
  * 결국 같은 막대를 쓰므로, 뷰를 둘로 가르면 막대 다루는 코드가 두 벌이 된다.
  */
 
@@ -23,14 +23,14 @@ export const SORT_COLORS = {
     held: {bg: '#fbcfe8', bar: '#ec4899', text: '#831843'},
 };
 
-/* **글자를 낼지 말지는 알갱이 수가 아니라 한 칸의 실제 폭이 정한다.**
+/* **글자를 낼지 말지는 원소 수가 아니라 한 칸의 실제 폭이 정한다.**
    처음에는 `n <= 36`처럼 개수로 갈랐는데, 그러면 같은 24개라도 데스크톱에서는 넉넉하고
    375px에서는 한 칸이 13px이라 숫자가 서로 겹쳐 **읽을 수 없는 얼룩**이 되었다.
-   폭은 창 크기에 따라 달라지므로 **그릴 때마다 다시 잰다** — 한 번 재서 굳혀 두면
+   폭은 창 크기에 따라 달라지므로 **그릴 때마다 다시 측정한다** — 한 번 측정해 굳혀 두면
    창을 줄였을 때 그 값이 낡는다. */
 const SLOT_FOR_VALUE = 20;   // 이만큼은 되어야 값 숫자가 들어간다
 const SLOT_FOR_DUP = 32;     // 겹친 값의 처음 자리(`5·3`)까지 붙이려면 더 넓어야 한다
-const SLOT_FOR_INDEX = 26;   // 자리 번호 줄
+const SLOT_FOR_INDEX = 26;   // 인덱스 줄
 
 function sortMakeBox(tag, style, text) {
     const el = document.createElement(tag);
@@ -41,15 +41,15 @@ function sortMakeBox(tag, style, text) {
 
 /**
  * @param {HTMLElement} host 그림이 들어갈 빈 상자
- * @returns 뷰. `setup()` 으로 알갱이를 만들고 `render()` 로 한 장을 그린다.
+ * @returns 뷰. `setup()` 으로 원소를 만들고 `render()` 로 한 장을 그린다.
  */
 export function createSortArrayView(host) {
     let bars = new Map();      // id → {wrap, fill, label}
     let n = 0;
     let maxValue = 1;
-    let dupIds = new Set();    // 값이 겹치는 알갱이. 겹칠 때만 처음 자리를 적어 준다
-    let holes = [];            // 자리마다 하나씩. 알갱이가 빠진 칸에만 켠다
-    let slotPx = 40;           // 한 칸의 실제 폭. **그릴 때마다 다시 잰다**
+    let dupIds = new Set();    // 값이 겹치는 원소. 겹칠 때만 처음 자리를 적어 준다
+    let holes = [];            // 자리마다 하나씩. 원소가 빠진 칸에만 켠다
+    let slotPx = 40;           // 한 칸의 실제 폭. **그릴 때마다 다시 측정한다**
 
     const stage = sortMakeBox('div', {position: 'relative', width: '100%'});
     const rangeRow = sortMakeBox('div', {position: 'relative', height: '0px', marginBottom: '0px'});
@@ -103,14 +103,14 @@ export function createSortArrayView(host) {
         wrap.appendChild(fill);
         barsRow.appendChild(wrap);
         /* `last`는 **마지막으로 실제로 써 넣은 값**이다. n=1000이면 한 장을 그릴 때마다
-           속성을 6천 번 쓰게 되는데(재 보니 70ms), 그중 대부분은 앞 장과 같은 값이다.
+           속성을 6천 번 쓰게 되는데(측정해 보니 70ms), 그중 대부분은 앞 장과 같은 값이다.
            같은 값을 다시 쓰지 않는 것만으로 스크럽이 눈에 띄게 가벼워진다. */
         return {wrap, fill, label, item, last: {}};
     }
 
     return {
         /**
-         * 알갱이 상자를 만든다. 자료가 바뀔 때마다 한 번.
+         * 원소 상자를 만든다. 자료가 바뀔 때마다 한 번.
          * @param {{v:number,id:number}[]} items 처음 배열
          */
         setup(items) {
@@ -123,7 +123,7 @@ export function createSortArrayView(host) {
             n = items.length;
             maxValue = Math.max(1, ...items.map((it) => it.v));
 
-            /* **값이 겹치는 알갱이만 처음 자리를 달아 준다.** 겹치지 않으면 쓸데없는
+            /* **값이 겹치는 원소만 처음 자리를 달아 준다.** 겹치지 않으면 쓸데없는
                숫자가 하나 더 붙을 뿐이지만, 겹칠 때는 이 번호가 곧 안정 정렬의 증거다 —
                같은 값끼리 번호가 오름차순으로 남아 있으면 앞뒤가 지켜진 것이다. */
             const seen = new Map();
@@ -159,13 +159,13 @@ export function createSortArrayView(host) {
             for (const it of items) {
                 const bar = makeBar(it);
                 /* **높이는 여기서 한 번만 정한다.** 값과 최댓값이 정해지면 끝인데
-                   장마다 다시 쓸 이유가 없다. 천장을 88%로 두는 것은 들어올린 막대가
+                   장마다 다시 쓸 이유가 없다. 천장을 88%로 두는 것은 임시 저장한 막대가
                    줄 위로 떠야 하고, 가장 큰 막대가 모서리에 붙으면 잘려 보이기 때문이다. */
                 bar.fill.style.height = `${Math.max(6, (it.v / maxValue) * 88)}%`;
                 bars.set(it.id, bar);
             }
 
-            /* 자리 번호는 **늘 만들어 두고** 보일지는 그릴 때 정한다.
+            /* 인덱스는 **늘 만들어 두고** 보일지는 그릴 때 정한다.
                창을 줄였다 늘였다 할 때마다 다시 만들 이유가 없다. */
             for (let i = 0; i < n; i++) {
                 const num = sortMakeBox('div', {
@@ -193,7 +193,7 @@ export function createSortArrayView(host) {
             const dur = animate ? Math.min(220, Math.round(ms * 0.55)) : 0;
             const marks = frame.marks;
 
-            /* **여기서 다시 잰다.** 창 크기·전체 화면·좁은 화면이 모두 한 칸의 폭을 바꾸고,
+            /* **여기서 다시 측정한다.** 창 크기·전체 화면·좁은 화면이 모두 한 칸의 폭을 바꾸고,
                글자를 낼 수 있는지는 오직 그 폭이 정한다. */
             slotPx = (barsRow.clientWidth || 600) / Math.max(1, n);
             const showValue = slotPx >= SLOT_FOR_VALUE;
@@ -215,9 +215,9 @@ export function createSortArrayView(host) {
                 const isHeld = marks.held && marks.held.item.id === id;
 
                 if (i === undefined && !isHeld) {
-                    /* 보조 칸으로 떠 간 알갱이. **주 배열 쪽에는 아무것도 남기지 않는다.**
+                    /* 임시 배열으로 옮겨 간 원소. **주 배열 쪽에는 아무것도 남기지 않는다.**
                        흐리게 남겨 두었더니 같은 자리에 그려지는 「빈칸」 점선과 겹쳐
-                       칸이 빈 것인지 아닌지가 되레 헷갈렸다. 빈칸 점선과 보조 칸의
+                       칸이 빈 것인지 아닌지가 되레 헷갈렸다. 빈칸 점선과 임시 배열의
                        막대, 둘이면 어디로 갔는지 말하기에 충분하다. */
                     if (bar.last.opacity !== '0') { bar.wrap.style.opacity = '0'; bar.last.opacity = '0'; }
                     continue;
@@ -238,7 +238,7 @@ export function createSortArrayView(host) {
                 const at = isHeld ? marks.held.from : i;
                 const left = slotLeft(at);
                 const trans = dur ? `left ${dur}ms ease, transform ${dur}ms ease` : 'none';
-                // 들어올린 것은 줄에서 살짝 띄운다. 「빠져 있다」가 한눈에 보여야 한다.
+                // 임시 저장한 원소는 줄에서 살짝 띄운다. 「빠져 있다」가 한눈에 보여야 한다.
                 const lift = isHeld ? 'translateY(-30px)' : 'translateY(0)';
                 const L0 = bar.last;
                 if (L0.opacity !== '1') { bar.wrap.style.opacity = '1'; L0.opacity = '1'; }
@@ -291,7 +291,7 @@ export function createSortArrayView(host) {
             }
         },
 
-        /** 보조 칸. **제자리 정렬이 아니라는 것을 글이 아니라 그림으로** 말한다. */
+        /** 임시 배열. **제자리 정렬이 아니라는 것을 글이 아니라 그림으로** 말한다. */
         renderAux(frame, dur) {
             auxRow.textContent = '';
             const blocks = frame.aux;
@@ -351,7 +351,7 @@ export function createSortArrayView(host) {
             }
         },
 
-        /** i·j·k 같은 커서를 자리 번호 줄에 이름표로 세운다. */
+        /** i·j·k 같은 커서를 인덱스 줄에 이름표로 세운다. */
         renderCursors(frame) {
             for (const old of [...indexRow.children]) {
                 if (old.dataset && old.dataset.cursor) indexRow.removeChild(old);

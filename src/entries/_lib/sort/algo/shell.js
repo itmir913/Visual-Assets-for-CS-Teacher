@@ -3,11 +3,11 @@
 export const shellSortAlgo = {
     id: 'shell',
     name: '셸 정렬',
-    en: 'Shell sort',
-    group: 'divide',
+    en: 'Shell sort · 감소 증분 정렬',
+    group: 'improved',
     view: 'array',
     motion: 'shift',
-    idea: '멀리 떨어진 자리끼리 먼저 삽입 정렬을 하고, 그 간격을 반씩 줄여 갑니다. '
+    idea: '**삽입 정렬을 개선한 것**입니다. 멀리 떨어진 자리끼리 먼저 삽입 정렬을 하고, 그 간격을 반씩 줄여 갑니다. '
         + '마지막 간격이 1이 되면 평범한 삽입 정렬인데, 그때는 이미 거의 정렬되어 있습니다.',
     complexity: {best: 'O(n log n)', avg: 'O(n^1.5) 안팎', worst: 'O(n²)', space: 'O(1)'},
     stable: false,
@@ -24,7 +24,7 @@ export const shellSortAlgo = {
 
         for (let gap = Math.floor(n / 2); gap >= 1; gap = Math.floor(gap / 2)) {
             rec.say(gap === 1
-                ? '간격이 1이 되었습니다. 이제 평범한 삽입 정렬인데, 앞선 단계들 덕분에 밀 것이 거의 없습니다.'
+                ? '간격이 1이 되었습니다. 이제 평범한 삽입 정렬인데, 앞선 단계들 덕분에 이동시킬 것이 거의 없습니다.'
                 : `간격 ${gap} — ${gap}칸씩 떨어진 자리끼리만 모아 삽입 정렬을 합니다.`);
             rec.mark('gap');
 

@@ -3,7 +3,9 @@
  * 손으로 적은 목록이 화면과 등록부 두 군데 있으면 반드시 어긋난다.
  */
 
-import {SORT_ALGOS, sortAlgoById, sortAlgosOfGroup, sortGroupsInUse} from './sort-registry.js';
+import {
+    SORT_ALGOS, sortAlgoById, sortAlgosOfGroup, sortGroupById, sortGroupsInUse,
+} from './sort-registry.js';
 import {runSortAlgorithm} from './sort-model.js';
 import {createSortPlayer, SORT_SPEEDS} from './sort-player.js';
 import {createSortArrayView, SORT_COLORS} from './sort-view-array.js';
@@ -17,12 +19,22 @@ const SORT_LEGEND = [
     {key: 'idle', label: '아직 손대지 않음'},
     {key: 'compare', label: '지금 비교하는 둘'},
     {key: 'moving', label: '방금 움직인 것'},
-    {key: 'held', label: '들어올린 것'},
+    {key: 'held', label: '임시 저장한 원소'},
     {key: 'pivot', label: '피벗'},
     {key: 'done', label: '자리가 확정됨'},
 ];
 
 const $ = (id) => document.getElementById(id);
+
+/* 설명문의 `**굵게**`를 실제로 굵게 낸다. 예전에는 `textContent`로 넣어
+   **별표가 그대로 화면에 찍혔다.** 넣는 글은 전부 우리가 쓴 것이지만,
+   그래도 꺾쇠는 먼저 막아 둔다 — 나중에 누가 이 자리에 남의 글을 흘려 넣을 수 있다. */
+function setRich(el, text, strongClass = 'font-black text-slate-900') {
+    const safe = String(text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    el.innerHTML = safe.replace(/\*\*([^*]+)\*\*/g,
+        (_, inner) => `<strong class="${strongClass}">${inner}</strong>`);
+}
 
 function sortButton(cls, text, onClick) {
     const b = document.createElement('button');
@@ -62,7 +74,7 @@ export function mountSortSimulator() {
         for (const g of sortGroupsInUse()) {
             const b = sortButton(
                 'group-tab' + (g.id === algo.group ? ' on' : ''),
-                `${g.name} · ${g.badge}`,
+                g.badge ? `${g.name} · ${g.badge}` : g.name,
                 () => {
                     const first = sortAlgosOfGroup(g.id)[0];
                     if (first) selectAlgo(first.id);
@@ -86,8 +98,15 @@ export function mountSortSimulator() {
     function paintAlgoCard() {
         $('algo-name').textContent = algo.name;
         $('algo-en').textContent = algo.en;
-        $('algo-idea').textContent = algo.idea;
-        $('algo-watch').textContent = algo.watch;
+        setRich($('algo-idea'), algo.idea);
+        setRich($('algo-watch'), algo.watch, 'font-black text-amber-950');
+
+        /* **분류가 무엇을 뜻하는지 적어 준다.** 탭 이름만으로는 「분할 정복」이
+           무슨 기법인지 알 수 없고, 셸·힙이 왜 거기 없는지도 알 수 없다. */
+        const group = sortGroupById(algo.group);
+        $('group-name').textContent = group
+            ? (group.badge ? `${group.name} · ${group.badge}` : group.name) : ' ';
+        setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
 
         const badges = $('algo-badges');
         badges.textContent = '';
@@ -189,7 +208,7 @@ export function mountSortSimulator() {
         /* **솎아 기록했으면 반드시 밝힌다.** 모르면 학생이 「한 단계 = 비교 한 번」으로
            읽고 화면의 숫자를 잘못 센다. 큰 배열에서는 모든 걸음을 들고 있을 수가 없다. */
         $('record-note').textContent = out.stride > 1
-            ? `알갱이가 많아 ${out.stride}걸음마다 한 장씩만 기록했습니다`
+            ? `원소가 많아 ${out.stride}걸음마다 한 장씩만 기록했습니다`
               + ` (실제 걸음 ${out.steps.toLocaleString('ko-KR')}번).`
               + ' 한 걸음씩 모두 보려면 개수를 줄이세요.'
             : ' ';

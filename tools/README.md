@@ -62,7 +62,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | | |
 |---|---|
 | `build`가 부르는 것 | `vite build` → 배부 문서 생성 |
-| `check:classes` · `check:code` · `check:graph` · `check:graph-sim` · `check:puzzle` · `check:sims` · `check:deep-learning` | `check`가 부른다 |
+| `check:…` 여럿 | `check`가 부른다. **무엇이 있는지는 `package.json`이 정한다** — 여기 베껴 적으면 검사를 더할 때마다 낡는다(실제로 낡았다). `npm run` 으로 목록을 본다 |
 | `check:dist` | 산출물 검사 |
 | `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
 | `audit:pre` · `audit:svg` | 가로 넘침 · SVG 글자 크기 감사 |

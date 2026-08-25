@@ -144,8 +144,11 @@ export function mountSortSimulator() {
             ['최악', algo.complexity.worst],
             ['추가 메모리', algo.complexity.space],
         ];
+        /* **값이 없는 표는 내지 않는다.** 알고리즘 비교는 알고리즘이 아니라
+           복잡도가 없는데, 표만 「—」 넉 줄로 남아 있으면 빈칸을 못 채운 것처럼 보인다. */
         const table = $('algo-complexity');
         table.textContent = '';
+        table.parentElement.style.display = rows.every(([, v]) => v === '—') ? 'none' : '';
         for (const [label, value] of rows) {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-slate-100';

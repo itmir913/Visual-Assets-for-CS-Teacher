@@ -4,8 +4,10 @@
  * 같은 상자를 계속 따라가며 왼쪽 위치만 바꾼다. 그래서 맞바꿈과 밀기가
  * **움직임으로** 보이고, 값이 같은 둘도 서로 구별된다.
  *
- * **자리는 백분율로 잡는다.** 상자 폭을 재지 않으므로 창 크기가 바뀌어도 다시 그릴 일이
- * 없고, 전체 화면을 드나들어도 어긋나지 않는다 — 재서 굳혀 두면 그 자리가 낡는다.
+ * **자리는 백분율로 잡는다.** 상자 폭을 재서 굳혀 두면 창 크기가 바뀔 때 그 값이 낡는데,
+ * 백분율이면 브라우저가 알아서 다시 잡는다 — 전체 화면을 드나들어도 어긋날 수 없다.
+ * 폭을 재는 곳은 딱 한 군데, **글자를 낼 수 있는지 정할 때**뿐이고 그것도 그릴 때마다
+ * 다시 잰다. 자리와 달리 글자는 백분율로 정할 수가 없다.
  *
  * 구간 띠(`ranges`)와 보조 칸(`aux`)까지 여기서 함께 그린다. 나눠서 푸는 정렬도
  * 결국 같은 막대를 쓰므로, 뷰를 둘로 가르면 막대 다루는 코드가 두 벌이 된다.
@@ -21,9 +23,14 @@ export const SORT_COLORS = {
     held: {bg: '#fbcfe8', bar: '#ec4899', text: '#831843'},
 };
 
-/** 자리 번호와 값 글자를 언제까지 내놓을지. 이보다 촘촘하면 글자가 겹쳐 읽을 수 없다. */
-const LABEL_MAX_N = 36;
-const INDEX_MAX_N = 24;
+/* **글자를 낼지 말지는 알갱이 수가 아니라 한 칸의 실제 폭이 정한다.**
+   처음에는 `n <= 36`처럼 개수로 갈랐는데, 그러면 같은 24개라도 데스크톱에서는 넉넉하고
+   375px에서는 한 칸이 13px이라 숫자가 서로 겹쳐 **읽을 수 없는 얼룩**이 되었다.
+   폭은 창 크기에 따라 달라지므로 **그릴 때마다 다시 잰다** — 한 번 재서 굳혀 두면
+   창을 줄였을 때 그 값이 낡는다. */
+const SLOT_FOR_VALUE = 20;   // 이만큼은 되어야 값 숫자가 들어간다
+const SLOT_FOR_DUP = 32;     // 겹친 값의 처음 자리(`5·3`)까지 붙이려면 더 넓어야 한다
+const SLOT_FOR_INDEX = 26;   // 자리 번호 줄
 
 function sortMakeBox(tag, style, text) {
     const el = document.createElement(tag);
@@ -41,8 +48,8 @@ export function createSortArrayView(host) {
     let n = 0;
     let maxValue = 1;
     let dupIds = new Set();    // 값이 겹치는 알갱이. 겹칠 때만 처음 자리를 적어 준다
-    let showLabels = true;
-    let showIndex = true;
+    let holes = [];            // 자리마다 하나씩. 알갱이가 빠진 칸에만 켠다
+    let slotPx = 40;           // 한 칸의 실제 폭. **그릴 때마다 다시 잰다**
 
     const stage = sortMakeBox('div', {position: 'relative', width: '100%'});
     const rangeRow = sortMakeBox('div', {position: 'relative', height: '0px', marginBottom: '0px'});
@@ -112,8 +119,6 @@ export function createSortArrayView(host) {
             bars = new Map();
             n = items.length;
             maxValue = Math.max(1, ...items.map((it) => it.v));
-            showLabels = n <= LABEL_MAX_N;
-            showIndex = n <= INDEX_MAX_N;
 
             /* **값이 겹치는 알갱이만 처음 자리를 달아 준다.** 겹치지 않으면 쓸데없는
                숫자가 하나 더 붙을 뿐이지만, 겹칠 때는 이 번호가 곧 안정 정렬의 증거다 —
@@ -122,23 +127,48 @@ export function createSortArrayView(host) {
             for (const it of items) seen.set(it.v, (seen.get(it.v) || 0) + 1);
             dupIds = new Set(items.filter((it) => seen.get(it.v) > 1).map((it) => it.id));
 
+            /* **빈칸을 눈에 보이게 그린다.** 「그 자리가 빈칸이 됩니다」라고 적어 놓고
+               화면에는 막대가 그대로 있으면 글과 그림이 어긋난다 —
+               학생이 믿는 것은 그림이다. 막대보다 **먼저** 깔아 뒤에 둔다. */
+            holes = [];
+            for (let i = 0; i < n; i++) {
+                const hole = sortMakeBox('div', {
+                    position: 'absolute',
+                    bottom: '0',
+                    left: slotLeft(i),
+                    width: slotWidth(),
+                    height: '34px',
+                    padding: '0 2px',
+                    boxSizing: 'border-box',
+                    display: 'none',
+                });
+                hole.appendChild(sortMakeBox('div', {
+                    height: '100%',
+                    border: '2px dashed #f9a8d4',
+                    borderRadius: '4px',
+                    background: '#fdf2f8',
+                    boxSizing: 'border-box',
+                }));
+                barsRow.appendChild(hole);
+                holes.push(hole);
+            }
+
             for (const it of items) bars.set(it.id, makeBar(it));
 
-            if (showIndex) {
-                indexRow.style.height = '20px';
-                for (let i = 0; i < n; i++) {
-                    indexRow.appendChild(sortMakeBox('div', {
-                        position: 'absolute',
-                        left: slotLeft(i),
-                        width: slotWidth(),
-                        textAlign: 'center',
-                        fontSize: '10px',
-                        color: '#94a3b8',
-                        paddingTop: '3px',
-                    }, String(i)));
-                }
-            } else {
-                indexRow.style.height = '0px';
+            /* 자리 번호는 **늘 만들어 두고** 보일지는 그릴 때 정한다.
+               창을 줄였다 늘였다 할 때마다 다시 만들 이유가 없다. */
+            for (let i = 0; i < n; i++) {
+                const num = sortMakeBox('div', {
+                    position: 'absolute',
+                    left: slotLeft(i),
+                    width: slotWidth(),
+                    textAlign: 'center',
+                    fontSize: '10px',
+                    color: '#94a3b8',
+                    paddingTop: '3px',
+                }, String(i));
+                num.setAttribute('data-num', String(i));
+                indexRow.appendChild(num);
             }
         },
 
@@ -152,12 +182,23 @@ export function createSortArrayView(host) {
         render(frame, prev, {animate = false, ms = 300} = {}) {
             const dur = animate ? Math.min(220, Math.round(ms * 0.55)) : 0;
             const marks = frame.marks;
+
+            /* **여기서 다시 잰다.** 창 크기·전체 화면·좁은 화면이 모두 한 칸의 폭을 바꾸고,
+               글자를 낼 수 있는지는 오직 그 폭이 정한다. */
+            slotPx = (barsRow.clientWidth || 600) / Math.max(1, n);
+            const showValue = slotPx >= SLOT_FOR_VALUE;
+            const showDup = slotPx >= SLOT_FOR_DUP;
+            const labelPx = Math.max(9, Math.min(15, Math.round(slotPx * 0.34)));
             const cmp = new Set((marks.compare || []).filter((x) => x !== null));
             const moving = new Set(marks.moving);
             const done = new Set(marks.done);
 
             const place = new Map();      // id → 자리
             frame.a.forEach((it, i) => { if (it) place.set(it.id, i); });
+
+            for (let i = 0; i < holes.length; i++) {
+                holes[i].style.display = frame.a[i] ? 'none' : 'block';
+            }
 
             for (const [id, bar] of bars) {
                 const i = place.get(id);
@@ -183,15 +224,17 @@ export function createSortArrayView(host) {
                 bar.wrap.style.width = slotWidth();
                 bar.wrap.style.transition = dur ? `left ${dur}ms ease, transform ${dur}ms ease` : 'none';
                 // 들어올린 것은 줄에서 살짝 띄운다. 「빠져 있다」가 한눈에 보여야 한다.
-                bar.wrap.style.transform = isHeld ? 'translateY(-14px)' : 'translateY(0)';
+                bar.wrap.style.transform = isHeld ? 'translateY(-30px)' : 'translateY(0)';
 
-                bar.fill.style.height = `${Math.max(6, (bar.item.v / maxValue) * 100)}%`;
+                // 천장을 88%로 둔다. 들어올린 막대가 줄 위로 떠야 하고,
+                // 가장 큰 막대가 상자 모서리에 딱 붙으면 잘린 것처럼 보인다.
+                bar.fill.style.height = `${Math.max(6, (bar.item.v / maxValue) * 88)}%`;
                 bar.fill.style.background = tone.bg;
                 bar.fill.style.borderColor = tone.bar;
                 bar.label.style.color = tone.text;
-                bar.label.textContent = showLabels
-                    ? (dupIds.has(id) ? `${bar.item.v}·${id}` : String(bar.item.v))
-                    : '';
+                bar.label.style.fontSize = `${labelPx}px`;
+                bar.label.textContent = !showValue ? ''
+                    : (showDup && dupIds.has(id) ? `${bar.item.v}·${id}` : String(bar.item.v));
             }
 
             this.renderRanges(frame);
@@ -278,7 +321,7 @@ export function createSortArrayView(host) {
                         alignItems: 'flex-end',
                         justifyContent: 'center',
                         overflow: 'hidden',
-                    }, b.items.length <= LABEL_MAX_N ? String(it.v) : ''));
+                    }, slotPx >= SLOT_FOR_VALUE ? String(it.v) : ''));
                     wrap.appendChild(cell);
                 });
                 auxRow.appendChild(wrap);
@@ -292,19 +335,40 @@ export function createSortArrayView(host) {
             }
             const cursors = frame.marks.cursors || {};
             const names = Object.keys(cursors);
-            indexRow.style.height = showIndex ? '20px' : (names.length ? '20px' : '0px');
+            /* **한 자리에 커서가 둘 이상 설 수 있다.** 선택 정렬은 훑기를 시작할 때
+               `i`와 `최솟값`이 같은 칸을 가리키는데, 따로 그리면 두 이름표가 같은 자리에
+               겹쳐 **읽을 수 없는 얼룩**이 된다. 자리별로 묶어 한 줄로 잇는다. */
+            const atSlot = new Map();
             for (const name of names) {
+                const i = cursors[name];
+                if (!atSlot.has(i)) atSlot.set(i, []);
+                atSlot.get(i).push(name);
+            }
+
+            const showNum = slotPx >= SLOT_FOR_INDEX;
+            for (const el of indexRow.children) {
+                if (!el.dataset || el.dataset.num === undefined) continue;
+                // 커서가 선 칸의 번호는 감춘다. 겹쳐 놓으면 둘 다 못 읽는다.
+                el.style.display = (showNum && !atSlot.has(Number(el.dataset.num))) ? 'block' : 'none';
+            }
+            // **커서는 번호를 감춰도 남긴다** — 지금 어디를 보고 있는지가 번호보다 중요하다.
+            indexRow.style.height = (showNum || names.length) ? '20px' : '0px';
+
+            for (const [i, group] of atSlot) {
+                const text = group.join('·');
                 const el = sortMakeBox('div', {
                     position: 'absolute',
-                    left: slotLeft(cursors[name]),
+                    left: slotLeft(i),
                     width: slotWidth(),
                     textAlign: 'center',
-                    fontSize: '10px',
+                    // 이름을 이어 붙이면 칸보다 길어질 수 있다. 넘쳐도 가운데를 지키게 둔다.
+                    fontSize: slotPx >= SLOT_FOR_INDEX ? '11px' : '10px',
                     fontWeight: '800',
                     color: '#be123c',
+                    whiteSpace: 'nowrap',
                     top: '0',
-                }, name);
-                el.setAttribute('data-cursor', name);
+                }, text);
+                el.setAttribute('data-cursor', text);
                 indexRow.appendChild(el);
             }
         },

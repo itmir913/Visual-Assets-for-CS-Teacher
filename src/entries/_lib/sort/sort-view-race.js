@@ -1,9 +1,9 @@
-/* 겨루기 그림 — 종목마다 한 줄씩, 같은 «일한 양»을 나란히.
+/* 알고리즘 비교 그림 — 알고리즘마다 한 줄씩, 같은 «작업량»을 나란히.
  *
  * 막대에 값 글자를 적지 않는다. 여기서 볼 것은 «값»이 아니라 **정돈되어 가는 모양**과
- * **누가 먼저 끝나는가**이기 때문이다. 한 종목을 자세히 볼 자리는 따로 있다.
+ * **누가 먼저 끝나는가**이기 때문이다. 한 알고리즘을 자세히 볼 자리는 따로 있다.
  *
- * 줄 높이를 못박아 둔다 — 종목이 하나씩 끝나며 「끝!」 표가 붙어도 줄이 밀리지 않아야
+ * 줄 높이를 못박아 둔다 — 알고리즘이 하나씩 끝나며 「끝!」 표가 붙어도 줄이 밀리지 않아야
  * 아래에 있는 단추가 제자리를 지킨다.
  */
 
@@ -12,7 +12,7 @@ const LANE_GAP = 6;
 const BAR_H = 26;           // 줄 안에서 막대가 쓰는 높이
 /* 이름·숫자 칸을 좁게 잡는다. 375px에서 이 둘이 180px을 먹으면
    정작 봐야 할 막대가 131px밖에 안 남는다. */
-const NAME_W = 70;          // 종목 이름 칸
+const NAME_W = 70;          // 알고리즘 이름 칸
 const TALLY_W = 84;         // 세는 값 칸
 
 /* **이름을 겹치지 않게 짓는다.** 검사 받침대는 모듈을 한 문맥에 풀어 놓으므로
@@ -33,10 +33,10 @@ function raceSvg(tag, attrs) {
     return el;
 }
 
-/** 종목마다 다른 색. 곡선과 줄이 같은 색을 쓴다.
- *  **종목 수보다 많아야 한다** — 열 개만 두었더니 열한 번째(버킷 정렬)가
+/** 알고리즘마다 다른 색. 곡선과 줄이 같은 색을 쓴다.
+ *  **알고리즘 수보다 많아야 한다** — 열 개만 두었더니 열한 번째(버킷 정렬)가
  *  `idx % 10`으로 돌아가 버블 정렬과 같은 빨강이 되었다. 줄도 곡선도 범례도
- *  같은 색이라 구별할 방법이 없었다. 종목을 더할 때 이 목록도 함께 늘린다. */
+ *  같은 색이라 구별할 방법이 없었다. 알고리즘을 더할 때 이 목록도 함께 늘린다. */
 const RACE_COLORS = [
     '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
     '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#64748b', '#7c2d12',
@@ -112,11 +112,11 @@ export function createSortRaceView(host) {
             row.appendChild(tally);
 
             lanesBox.appendChild(row);
-            lanes.push({row, bars, tally, color: RACE_COLORS[idx % RACE_COLORS.length]});
+            lanes.push({row, bars, tally, color: RACE_COLORS[(lane.colorIndex ?? idx) % RACE_COLORS.length]});
         });
     }
 
-    /** n을 키워 가며 측정한 「일한 양」 곡선. 한 걸음씩 넘겨서는 볼 수 없는 그림이다. */
+    /** n을 키워 가며 측정한 「작업량」 곡선. 한 걸음씩 넘겨서는 볼 수 없는 그림이다. */
     function buildChart(work) {
         chartBox.textContent = '';
         if (!work) return;
@@ -177,7 +177,7 @@ export function createSortRaceView(host) {
         chartTexts.appendChild(xl);
 
         series.forEach((s, k) => {
-            const color = RACE_COLORS[k % RACE_COLORS.length];
+            const color = RACE_COLORS[(s.colorIndex ?? k) % RACE_COLORS.length];
             const pts = s.work.map((v, i) => `${x(i)},${y(v)}`).join(' ');
             svg.appendChild(raceSvg('polyline', {
                 points: pts, fill: 'none', stroke: color, 'stroke-width': 2,
@@ -198,7 +198,7 @@ export function createSortRaceView(host) {
             const item = raceBox('span', {display: 'inline-flex', alignItems: 'center', gap: '5px'});
             item.appendChild(raceBox('span', {
                 width: '14px', height: '3px', borderRadius: '2px',
-                background: RACE_COLORS[k % RACE_COLORS.length], display: 'inline-block',
+                background: RACE_COLORS[(sr.colorIndex ?? k) % RACE_COLORS.length], display: 'inline-block',
             }));
             item.appendChild(raceBox('span', {}, sr.algo.name));
             legendBox.appendChild(item);
@@ -206,7 +206,7 @@ export function createSortRaceView(host) {
     }
 
     return {
-        /** @param {object[]} frames 겨루기 장. 첫 장에서 줄을 만든다. */
+        /** @param {object[]} frames 알고리즘 비교 장. 첫 장에서 줄을 만든다. */
         setup(frames, work) {
             buildLanes((frames[0] && frames[0].race) || []);
             buildChart(work);
@@ -233,12 +233,12 @@ export function createSortRaceView(host) {
                     if (bar.__tone !== tone) { bar.__fill.style.background = tone; bar.__tone = tone; }
                 }
                 const c = lane.frame.counts;
-                /* 숫자는 언제나 **일한 양(비교 + 옮김)**이다. 도는 동안에는 모두 같은
-                   값을 가리키고(그것이 요점이다), 끝난 줄만 제 값에서 멈춘다 —
+                /* 숫자는 언제나 **작업량**(비교 + 옮김 + 배열 접근)이다. 도는 동안에는
+                   모두 같은 값을 가리키고(그것이 요점이다), 끝난 줄만 제 값에서 멈춘다 —
                    멈춘 값들을 위아래로 대 보는 것이 곧 등수다. */
                 const text = lane.done
                     ? `끝 · ${lane.finishedWork.toLocaleString('ko-KR')}`
-                    : `${(c.compare + c.move).toLocaleString('ko-KR')}`;
+                    : `${(c.compare + c.move + c.access).toLocaleString('ko-KR')}`;
                 if (ui.tally.textContent !== text) {
                     ui.tally.textContent = text;
                     ui.tally.style.color = lane.done ? '#059669' : '#64748b';

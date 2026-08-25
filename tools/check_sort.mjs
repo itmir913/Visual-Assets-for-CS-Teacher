@@ -164,12 +164,12 @@ for (const r of rows) {
 }
 
 /* ================================================================
-   페이지를 띄워 **종목마다 실제로 눌러 본다**
+   페이지를 띄워 **알고리즘마다 실제로 눌러 본다**
 
-   위쪽 검사는 알고리즘의 계산만 본다. 그런데 종목마다 화면이 다르고(힙은 트리를
+   위쪽 검사는 알고리즘의 계산만 본다. 그런데 알고리즘마다 화면이 다르고(힙은 트리를
    함께 그린다), 그 화면을 만드는 코드는 계산이 성해도 죽을 수 있다.
-   `check:sims` 는 **id 가 붙은 단추만** 눌러 보는데 종목을 고르는 칩에는 id 가 없어
-   기본 종목 하나만 열어 본다 — 나머지 일곱은 아무도 안 여는 셈이었다.
+   `check:sims` 는 **id 가 붙은 단추만** 눌러 보는데 알고리즘을 고르는 칩에는 id 가 없어
+   기본 알고리즘 하나만 열어 본다 — 나머지 일곱은 아무도 안 여는 셈이었다.
    ================================================================ */
 
 const page = loadSim('cs/sort', {box: {w: 900, h: 700}});
@@ -221,7 +221,7 @@ for (const group of [...page.el('group-tabs').children]) {
             const sick = screenSick(page);
             if (sick) bad(`${name} · ${label} — 화면에 성하지 않은 값: ${sick}`);
 
-            /* 끝 장의 말이 「끝났다」인가. 겨루기는 정렬이 아니라 판이 끝나는 것이므로
+            /* 끝 장의 말이 「끝났다」인가. 알고리즘 비교는 정렬이 아니라 판이 끝나는 것이므로
                제 나름의 말을 쓴다 — 낱말 하나로 묶어 둘 다 받는다. */
             const say = page.el('say').textContent;
             if (!say.includes('끝났습니다')) {
@@ -252,7 +252,7 @@ function heightMap(sim) {
     const out = new Map();
     const walk = (el, path) => {
         /* **자리에서 띄워 놓은 상자는 세지 않는다.** 막대는 `position: absolute` 라
-           높이가 바뀌어도 바깥 흐름을 밀지 않는다 — 겨루기 줄에서는 막대 높이가
+           높이가 바뀌어도 바깥 흐름을 밀지 않는다 — 알고리즘 비교 줄에서는 막대 높이가
            «곧 그림»이므로 그것까지 잡으면 검사가 헛돈다. 흐름을 미는 것,
            곧 자리를 잡고 있는 상자만 본다. */
         if (el.style.position === 'absolute') return;
@@ -295,8 +295,8 @@ for (const group of [...page.el('group-tabs').children]) {
     }
 }
 
-/* **힙 정렬은 트리가 실제로 그려져야 한다.** 이 종목의 요점이 「배열이 곧 트리」인데
-   트리가 없으면 그냥 배열 그림 하나짜리 종목이 된다. */
+/* **힙 정렬은 트리가 실제로 그려져야 한다.** 이 알고리즘의 요점이 「배열이 곧 트리」인데
+   트리가 없으면 그냥 배열 그림 하나짜리 알고리즘이 된다. */
 for (const group of [...page.el('group-tabs').children]) {
     group.click();
     const chip = [...page.el('algo-tabs').children].find((c) => c.textContent === '힙 정렬');
@@ -332,18 +332,18 @@ for (const algo of SORT_ALGOS) {
     }
 }
 for (const key of ['idle', 'compare', 'moving', 'held', 'pivot', 'done']) {
-    if (!toneSeen.has(key)) bad(`범례의 「${key}」 색이 어느 종목에서도 쓰이지 않는다`);
+    if (!toneSeen.has(key)) bad(`범례의 「${key}」 색이 어느 알고리즘에서도 쓰이지 않는다`);
 }
 
-console.log('페이지를 띄워 종목마다 끝까지 돌려 보았다');
+console.log('페이지를 띄워 알고리즘마다 끝까지 돌려 보았다');
 for (const r of pageRows) console.log('  ' + r);
 
 /* ================================================================
-   겨루기가 공정한가
+   비교가 공정한가
 
    화면이 「먼저 끝난 쪽이 실제로 일을 덜 한 것」이라고 말한다. 그 말이 참이려면
-   **끝나는 차례가 일한 양의 차례와 같아야** 한다. 처음에는 기록된 장을 하나씩
-   나눠 주었는데, 한 장의 무게가 종목마다 달라 **일을 가장 적게 한 계수 정렬이
+   **끝나는 차례가 작업량의 차례와 같아야** 한다. 처음에는 기록된 장을 하나씩
+   나눠 주었는데, 한 장의 무게가 알고리즘마다 달라 **일을 가장 적게 한 계수 정렬이
    꼴찌로 끝났다.** 화면이 그렇게 말하는 한, 그 말을 검사가 붙들어야 한다.
    ================================================================ */
 
@@ -354,23 +354,23 @@ for (const preset of SORT_PRESETS) {
     for (const n of RACE_SIZES) {
         const values = makeSortData(preset.id, n, 20260825, null);
 
-        /* 겨루기의 전제 — **어느 종목도 걸음이 솎이지 않아야 한다.**
-           한쪽만 솎이면 그 종목만 성글게 기록되어 겨루기가 기울어진다. */
+        /* 알고리즘 비교의 전제 — **어느 알고리즘도 걸음이 솎이지 않아야 한다.**
+           한쪽만 솎이면 그 알고리즘만 성글게 기록되어 알고리즘 비교가 기울어진다. */
         for (const algo of SORT_ALGOS) {
             const out = runSortAlgorithm(algo, values);
             if (out.stride !== 1) {
-                bad(`겨루기 ${preset.id} n=${n} — ${algo.name}이 ${out.stride}걸음마다 솎였다. `
+                bad(`알고리즘 비교 ${preset.id} n=${n} — ${algo.name}이 ${out.stride}걸음마다 솎였다. `
                     + `크기 천장(${RACE_MAX_N})을 낮춰야 한다`);
             }
         }
 
-        /* **일한 양을 겨루기에게 묻지 않는다.** 겨루기가 내놓는 `finishedWork`로
-           겨루기를 대조하면 축을 무엇으로 바꾸든 늘 통과하는 **순환 논리**가 된다
+        /* **작업량을 알고리즘 비교에게 묻지 않는다.** 알고리즘 비교가 내놓는 `finishedWork`로
+           알고리즘 비교를 대조하면 축을 무엇으로 바꾸든 늘 통과하는 **순환 논리**가 된다
            (실제로 그렇게 짰다가, 옛 판으로 되돌려 놓고도 통과하는 것을 보고 고쳤다).
            기대값은 알고리즘을 따로 돌려 구한다. */
         const trueWork = new Map(SORT_ALGOS.map((algo) => {
             const out = runSortAlgorithm(algo, values, {countOnly: true});
-            return [algo.id, out.counts.compare + out.counts.move];
+            return [algo.id, out.counts.compare + out.counts.move + out.counts.access];
         }));
 
         const {frames} = buildSortRace(values);
@@ -384,7 +384,7 @@ for (const preset of SORT_PRESETS) {
             .sort((a, b) => a.at - b.at);
         for (let i = 1; i < order.length; i++) {
             if (order[i].work < order[i - 1].work) {
-                bad(`겨루기 ${preset.id} n=${n} — ${order[i].name}(일한 양 ${order[i].work})이 `
+                bad(`알고리즘 비교 ${preset.id} n=${n} — ${order[i].name}(작업량 ${order[i].work})이 `
                     + `${order[i - 1].name}(${order[i - 1].work})보다 늦게 끝난다. 「먼저 끝난 쪽이 `
                     + '일을 덜 했다」가 거짓이 된다');
             }
@@ -392,7 +392,7 @@ for (const preset of SORT_PRESETS) {
         raceChecks++;
     }
 }
-console.log(`겨루기 ${raceChecks}판 — 끝나는 차례가 일한 양의 차례와 같은지 대조했다`);
+console.log(`알고리즘 비교 ${raceChecks}판 — 끝나는 차례가 작업량의 차례와 같은지 대조했다`);
 
 /* ================================================================
    「직접 넣기」로 막아야 할 값을 넣어 본다
@@ -418,7 +418,7 @@ for (const group of [...page.el('group-tabs').children]) {
             bad(`${name} — 음수를 넣은 뒤 설명이 비었다`);
         }
 
-        /* **막아야 하는 종목은 실제로 막았다고 말해야 한다.** 계수·기수는 값을 칸의
+        /* **막아야 하는 알고리즘은 실제로 막았다고 말해야 한다.** 계수·기수는 값을 칸의
            자리로 쓰므로 음수를 받으면 그 자리에서 죽는다. 조용히 지나가면
            다음에 누가 가드를 지웠을 때 아무도 모른다. */
         const algo = SORT_ALGOS.find((a) => a.name === name);
@@ -429,7 +429,7 @@ for (const group of [...page.el('group-tabs').children]) {
         }
     }
 }
-console.log('직접 넣기 — 음수를 전 종목에 넣어 보았다');
+console.log('직접 넣기 — 음수를 전체 알고리즘에 넣어 보았다');
 
 console.log(fail === 0 ? '전부 통과' : '어긋난 것 ' + fail + '건');
 process.exit(fail === 0 ? 0 : 1);

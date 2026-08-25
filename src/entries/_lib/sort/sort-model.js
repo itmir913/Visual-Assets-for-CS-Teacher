@@ -48,8 +48,8 @@ export function createSortItems(values) {
  * @returns 기록기. 알고리즘은 `run(rec)` 안에서 이것만 쓴다.
  */
 export function createSortRecorder(values, opts = {}) {
-    /* `countOnly` 는 **장을 한 장도 남기지 않는다.** 겨루기 탭이 n을 키워 가며
-       비교 횟수만 측정하려고 쓴다 — n=1000짜리 전 종목의 장을 다 들고 있을 이유가 없다. */
+    /* `countOnly` 는 **장을 한 장도 남기지 않는다.** 비교 탭이 n을 키워 가며
+       비교 횟수만 측정하려고 쓴다 — n=1000짜리 전체 알고리즘의 장을 다 들고 있을 이유가 없다. */
     const countOnly = opts.countOnly === true;
     const a = createSortItems(values);
     const n = a.length;
@@ -307,7 +307,7 @@ export function createSortRecorder(values, opts = {}) {
          *  다시 쓸 때 어느 원소였는지 알아야 하므로 칸이 원소도 함께 들고 있는다. */
         stripCount(i) {
             /* **옮긴 것으로 세지 않는다.** 세는 단계는 원소를 옮기지 않고 읽고 세기만 한다.
-               옮김으로 세면 화면의 「옮김」이 실제의 두 배가 되고, 겨루기의 «일한 양» 축까지
+               옮김으로 세면 화면의 「옮김」이 실제의 두 배가 되고, 알고리즘 비교의 «작업량» 축까지
                부풀어 계수 정렬이 실제보다 일을 많이 한 것처럼 보인다. */
             counts.access += 2;
             const cell = strip.cells.find((c) => c.key === a[i].v);

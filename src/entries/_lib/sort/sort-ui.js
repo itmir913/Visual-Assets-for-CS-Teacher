@@ -62,6 +62,10 @@ export function mountSortSimulator() {
     }
 
     let algo = SORT_ALGOS[0];
+    /** 비교 탭에서 대 볼 알고리즘. **수업에서 배운 것만 골라 볼 수 있어야 한다** —
+     *  열한 줄을 늘 다 보여 주면 정작 견주려던 둘이 묻힌다. */
+    const racePick = new Set(SORT_ALGOS.map((a) => a.id));
+    const raceBoxes = new Map();
     let presetId = SORT_PRESETS[0].id;
     let n = SORT_N_DEFAULT;
     let seed = 20260825;
@@ -110,7 +114,7 @@ export function mountSortSimulator() {
         const group = sortGroupById(algo.group);
         /* **배지를 달지 않는다.** 「분할 정복 · O(n log n)」처럼 적어 두었더니
            그 안의 퀵 정렬(최악 O(n²))·버킷 정렬(최악 O(n²))과 어긋났다.
-           복잡도는 종목마다 다르므로 분류가 아니라 **카드**가 말할 일이다. */
+           복잡도는 알고리즘마다 다르므로 분류가 아니라 **카드**가 말할 일이다. */
         $('group-name').textContent = group ? group.name : ' ';
         setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
 
@@ -192,33 +196,142 @@ export function mountSortSimulator() {
         }
     }
 
+    /* ---- 화면 읽는 법 ----
+       **시뮬레이터의 조작과 표시만 적는다.** 안정 정렬이 무엇인지 같은 것은 강의노트가
+       할 말이다. 그리고 **지금 화면에 없는 것은 적지 않는다** — 어느 알고리즘을 골랐든
+       같은 글이 다섯 문단 붙어 있으면 정작 눈앞의 것을 찾을 수 없다. */
+
+    const MOTION_NOTE = {
+        swap: '막대 둘이 서로의 자리로 미끄러지면 **교환**입니다.',
+        shift: '막대가 옆으로 한 칸씩 비켜서면 **이동**입니다. 교환과 다릅니다.',
+        write: '막대가 다른 칸에 다시 그려지면 **복사**입니다. 제자리에서 옮기는 것이 아닙니다.',
+    };
+
+    /** 프레임을 훑어 **이 판에 실제로 나오는 표시**만 추린다. 손으로 적으면 낡는다. */
+    function paintReadNotes(frames, kind) {
+        const host = $('read-notes');
+        host.textContent = '';
+        const lines = [];
+
+        if (kind === 'race') {
+            lines.push('줄 하나가 알고리즘 하나입니다. 오른쪽 숫자는 **작업량**(비교 + 옮김 + 배열 접근)입니다.');
+            lines.push('모두 같은 작업량을 나눠 받으므로, **먼저 끝난 줄이 일을 덜 한 것**입니다.');
+            lines.push('아래 곡선은 개수를 키워 가며 측정한 것입니다. 세로는 로그 눈금이라 **기울기가 곧 차수**입니다.');
+        } else {
+            if (MOTION_NOTE[algo.motion]) lines.push(MOTION_NOTE[algo.motion]);
+
+            let band = false;
+            let aux = false;
+            let strip = false;
+            let held = false;
+            for (const f of frames) {
+                if (f.ranges && f.ranges.length) band = true;
+                if (f.aux && f.aux.length) aux = true;
+                if (f.strip) strip = true;
+                if (f.marks.held) held = true;
+            }
+            if (held) lines.push('위로 띄운 막대는 **잠시 빼 둔 원소**이고, 그 자리는 점선 빈칸입니다.');
+            if (band) lines.push('막대 위의 띠는 **지금 보고 있는 구간**입니다.');
+            if (aux) lines.push('막대 아래 칸은 **배열 밖에 더 쓰는 자리**입니다. 다 쓴 칸은 점선으로 물러납니다.');
+            if (strip) lines.push('막대 아래 칸 줄은 **값(또는 자릿수·값 구간)마다 하나**입니다.');
+            if (algo.view === 'heap') {
+                lines.push('위 트리와 아래 배열은 **같은 것**입니다. 마디 위 작은 숫자가 배열 인덱스입니다.');
+            }
+            const last = frames[frames.length - 1];
+            const dup = last && new Set(last.a.filter(Boolean).map((it) => it.v)).size < last.a.length;
+            if (dup) lines.push('`5·3`은 「값이 5, 처음 자리가 3」입니다. 값이 겹칠 때만 붙습니다.');
+        }
+
+        for (const line of lines) {
+            const li = document.createElement('li');
+            li.className = 'leading-relaxed';
+            setRich(li, line, 'font-black text-slate-800');
+            host.appendChild(li);
+        }
+    }
+
     /* ---- 돌리기 ---- */
 
     /** 곡선은 자료의 생김새와 씨앗만 타므로 한 번 측정해 두고 다시 쓴다. */
     let workCache = null;
     let workKey = '';
 
-    function raceWork() {
-        const key = `${presetId}:${seed}`;
+    function raceWork(chosen) {
+        const key = `${presetId}:${seed}:${chosen.map((a) => a.id).join(',')}`;
         if (workKey !== key) {
             workKey = key;
-            workCache = measureSortWork((size) => makeSortData(presetId, size, seed, null));
+            workCache = measureSortWork((size) => makeSortData(presetId, size, seed, null),
+                undefined, chosen);
         }
         return workCache;
     }
 
-    /** 겨루기 한 판. 걸음을 하나도 솎지 않아야 공정하므로 크기에 천장이 있다. */
-    function rebuildRace() {
-        const raceN = Math.min(n, RACE_MAX_N);
-        const raceValues = makeSortData(presetId, raceN, seed, null);
-        const {frames} = buildSortRace(raceValues);
+    function paintRacePicker() {
+        const host = $('race-checks');
+        host.textContent = '';
+        raceBoxes.clear();
+        for (const a of SORT_ALGOS) {
+            const label = document.createElement('label');
+            label.className = 'inline-flex items-center gap-2 font-semibold text-slate-700 cursor-pointer';
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = racePick.has(a.id);
+            box.addEventListener('change', () => {
+                if (box.checked) racePick.add(a.id); else racePick.delete(a.id);
+                rebuildRace();
+            });
+            const text = document.createElement('span');
+            text.textContent = a.name;
+            label.appendChild(box);
+            label.appendChild(text);
+            host.appendChild(label);
+            raceBoxes.set(a.id, box);
+        }
+    }
 
-        ensureView('race');
-        view.setup(frames, raceWork());
+    function setAllRace(on) {
+        racePick.clear();
+        if (on) for (const a of SORT_ALGOS) racePick.add(a.id);
+        for (const [id, box] of raceBoxes) box.checked = racePick.has(id);
+        rebuildRace();
+    }
+
+    /** 알고리즘 비교 한 판. 걸음을 하나도 솎지 않아야 공정하므로 크기에 천장이 있다. */
+    function rebuildRace() {
+        player?.destroy();
+        const chosen = SORT_ALGOS.filter((a) => racePick.has(a.id));
+        $('race-picker').classList.remove('hidden');
         $('tally-row').style.display = 'none';
         $('input-error').textContent = ' ';
+
+        if (!chosen.length) {
+            /* **아무것도 안 고른 것도 있을 수 있는 상태다.** 「모두 해제」를 눌렀을 때
+               화면이 비는 대신 무엇을 하라고 일러 준다. */
+            ensureView('race');
+            view.setup([{race: []}], null);
+            $('read-notes').textContent = '';
+            setRich($('say'), '비교할 알고리즘을 **하나 이상 골라 주세요.**');
+            $('record-note').textContent = ' ';
+            $('step-label').textContent = '0 / 0 단계';
+            const sc = $('scrub');
+            sc.max = '0';
+            sc.value = '0';
+            for (const id of ['btn-prev', 'btn-first', 'btn-next', 'btn-last', 'btn-play']) {
+                $(id).disabled = true;
+            }
+            return;
+        }
+        $('btn-play').disabled = false;
+
+        const raceN = Math.min(n, RACE_MAX_N);
+        const raceValues = makeSortData(presetId, raceN, seed, null);
+        const {frames} = buildSortRace(raceValues, chosen);
+
+        ensureView('race');
+        view.setup(frames, raceWork(chosen));
+        paintReadNotes(frames, 'race');
         $('record-note').textContent = n > RACE_MAX_N
-            ? `겨루기는 ${RACE_MAX_N}개까지만 합니다. 걸음을 하나라도 솎으면 겨루기가 공정하지 않기 때문입니다`
+            ? `알고리즘 비교는 ${RACE_MAX_N}개까지만 합니다. 걸음을 하나라도 솎으면 비교가 공정하지 않기 때문입니다`
               + ` (지금 고른 ${n}개 대신 ${raceN}개로 돌렸습니다).`
             : ' ';
 
@@ -254,6 +367,7 @@ export function mountSortSimulator() {
     function rebuild() {
         player?.destroy();
         if (algo.view === 'race') { rebuildRace(); return; }
+        $('race-picker').classList.add('hidden');
         $('tally-row').style.display = '';
 
         const why = checkSortInput(algo, values);
@@ -273,6 +387,7 @@ export function mountSortSimulator() {
         // **프레임 열을 통째로 넘긴다.** 뷰가 이 판에서 쓸 높이를 미리 알려면
         // 마지막 장까지 봐야 한다 — 임시 배열 칸은 한참 뒤에야 나타난다.
         view.setup(out.frames);
+        paintReadNotes(out.frames, algo.view);
 
         /* **솎아 기록했으면 반드시 밝힌다.** 모르면 학생이 「한 단계 = 비교 한 번」으로
            읽고 화면의 숫자를 잘못 센다. 큰 배열에서는 모든 걸음을 들고 있을 수가 없다. */
@@ -361,6 +476,8 @@ export function mountSortSimulator() {
         });
 
         $('btn-shuffle').addEventListener('click', reshuffle);
+        $('btn-race-all').addEventListener('click', () => setAllRace(true));
+        $('btn-race-none').addEventListener('click', () => setAllRace(false));
 
         $('btn-apply-input').addEventListener('click', () => {
             const {values: got, error} = parseSortInput($('input-text').value);
@@ -376,6 +493,7 @@ export function mountSortSimulator() {
     /* ---- 시작 ---- */
 
     wireControls();
+    paintRacePicker();
     paintTabs();
     paintAlgoCard();
     paintPresets();

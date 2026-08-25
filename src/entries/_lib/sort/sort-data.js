@@ -28,9 +28,9 @@ export const SORT_N_MAX = SORT_SIZES[SORT_SIZES.length - 1];
 
 /** **기본값은 「한 판이 100단계 안에서 끝나는 크기」로 잡았다.**
  *
- *  전 종목 × 자료 넷 × 씨앗 다섯을 실제로 돌려 세어 보고 고른 값이다.
+ *  전체 알고리즘 × 자료 넷 × 씨앗 다섯을 실제로 돌려 세어 보고 고른 값이다.
  *  n을 조금만 올려도 단계가 제곱으로 불어나 수업 시간에 끝까지 넘겨 볼 수 없게 된다.
- *  **지금 몇 단계인지는 `npm run check:sort`가 찍는다** — 여기 적으면 종목을 더할 때마다 낡는다. */
+ *  **지금 몇 단계인지는 `npm run check:sort`가 찍는다** — 여기 적으면 알고리즘을 더할 때마다 낡는다. */
 export const SORT_N_DEFAULT = 8;
 
 /** 목록에서 가장 가까운 값. 직접 넣은 자료의 개수를 슬라이더에 맞출 때 쓴다. */
@@ -75,7 +75,7 @@ export const SORT_PRESETS = [
     },
 ];
 
-/** 반복할 수 있는 난수. 같은 씨앗이면 같은 자료가 나와야 겨루기가 공정하다. */
+/** 반복할 수 있는 난수. 같은 씨앗이면 같은 자료가 나와야 알고리즘 비교가 공정하다. */
 export function sortRandom(seed) {
     let s = (seed >>> 0) || 1;
     return () => {
@@ -120,7 +120,7 @@ export function makeSortData(presetId, n, seed = Date.now(), cap = null) {
 
     if (presetId === 'fewUnique') {
         // 종류를 넷으로 줄인다. 겹치는 값이 있어야 안정성이 눈에 보인다.
-        // 값의 범위가 좁은 종목(계수 정렬)에서는 그 안에서 넷을 고른다.
+        // 값의 범위가 좁은 알고리즘(계수 정렬)에서는 그 안에서 넷을 고른다.
         const kinds = span >= 78
             ? [12, 34, 56, 78]
             : [0, 1, 2, 3].map((q) => vMin + Math.round((span * (q + 1)) / 5));

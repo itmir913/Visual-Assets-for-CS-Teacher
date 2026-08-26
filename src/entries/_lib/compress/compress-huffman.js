@@ -26,7 +26,7 @@
  * (`seq`가 그 차례다). 무작위도, 정렬 알고리즘의 안정성에 기대는 것도 아니다.
  */
 
-import {countBits, createCompressRecorder, frequencies} from './compress-model.js';
+import {createCompressRecorder, frequencies} from './compress-model.js';
 import {josa} from '../josa.js';
 
 /** 나무 한 마디. 잎은 `ch`를 들고, 속마디는 `left`·`right`를 든다. */
@@ -98,15 +98,15 @@ export function huffmanTree(text) {
  * 코드표를 함께 보내는 데 드는 비트.
  *
  * **압축률에는 넣지 않는다.** 까닭은 `compress-model.js` 머리주석에 적어 두었다.
- * 여기서는 「글자 + 코드 길이 + 코드」를 글자마다 한 줄씩 적는 것으로 센다 —
- * 실제 파일 형식은 이보다 영리하지만, **학생이 왜 표가 자리를 차지하는지 알면 된다.**
+ *
+ * **알맹이만 센다** — 글자마다 「그 글자 + 그 코드」다. 줄을 어디서 끊는지 표시하는 데도
+ * 자리가 들지만 그것은 적는 방식에 따라 달라지는 것이라 세지 않았고, 화면에 그렇게 밝힌다.
+ * 키워드 인코딩의 사전도 같은 규칙으로 센다 — **둘을 다르게 세면 나란히 놓을 수가 없다.**
  */
 export function tableBitsOf(codes, width) {
-    const longest = Math.max(1, ...[...codes.values()].map((c) => c.length));
-    const lenField = countBits(longest);
     let bits = 0;
-    for (const code of codes.values()) bits += width + lenField + code.length;
-    return {bits, lenField, longest};
+    for (const code of codes.values()) bits += width + code.length;
+    return {bits};
 }
 
 export function huffmanEncode(text, opts = {}) {
@@ -156,7 +156,7 @@ export function huffmanEncode(text, opts = {}) {
 
     const 표 = tableBitsOf(codes, w);
     for (const [ch, code] of codes) {
-        rec.aside({kind: 'code', text: `${ch} → ${code}`, ch, code, bits: w + 표.lenField + code.length});
+        rec.aside({kind: 'code', text: `${ch} → ${code}`, ch, code, bits: w + code.length});
     }
     rec.carry({forest: [], root: cloneTree(root), codes: mapToObj(codes)})
         .say(`코드표를 함께 보내야 받는 쪽이 되살릴 수 있습니다. `

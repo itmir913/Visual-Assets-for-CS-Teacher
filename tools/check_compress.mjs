@@ -17,6 +17,9 @@ import {rleEncode, rleDecode, runsOf} from '../src/entries/_lib/compress/compres
 import {
     huffmanEncode, huffmanTree, huffmanDecode, codesOf, isPrefixFree, tableBitsOf,
 } from '../src/entries/_lib/compress/compress-huffman.js';
+import {
+    keywordEncode, keywordDecode, countPieces, KEYWORD_SYMBOLS,
+} from '../src/entries/_lib/compress/compress-keyword.js';
 
 let fail = 0;
 const bad = (m) => {
@@ -205,6 +208,34 @@ for (const text of 글감) {
     if (고른가 && 이의거듭 && h.bodyBits !== text.length * w) {
         bad(`${where허}: 횟수가 고르고 ${ns.length}가지인데 ${h.bodyBits}비트다 — ${text.length * w}이어야 한다`);
     }
+
+    /* ---- 키워드 ---- */
+    const kw = keywordEncode(text);
+    const where키 = `키워드 「${text}」`;
+
+    if (keywordDecode(kw.encoded, kw.dict) !== text) {
+        bad(`${where키}: 되돌렸더니 「${keywordDecode(kw.encoded, kw.dict)}」 — 원본과 다르다`);
+    }
+    // 사전에 오른 조각은 **실제로 두 번 넘게 나와야 한다.** 한 번뿐인 것을 사전에 올리면 손해다.
+    let 되짚음 = kw.encoded;
+    for (let i = kw.dict.length - 1; i >= 0; i--) {
+        const {symbol, piece} = kw.dict[i];
+        const 쓰인수 = [...되짚음].filter((c) => c === symbol).length;
+        if (쓰인수 < 2) bad(`${where키}: ${symbol}=${piece}가 ${쓰인수}번만 쓰였다 — 사전에 올릴 값이 아니다`);
+        if (countPieces(text, piece) < 2) bad(`${where키}: ${piece}가 원본에 두 번 넘게 없다`);
+        되짚음 = 되짚음.split(symbol).join(piece);
+    }
+    // 기호가 겹쳐 쓰이면 안 된다
+    if (new Set(kw.dict.map((d) => d.symbol)).size !== kw.dict.length) {
+        bad(`${where키}: 같은 기호를 두 번 썼다`);
+    }
+    if (kw.dict.length > KEYWORD_SYMBOLS.length) bad(`${where키}: 기호를 ${kw.dict.length}개 썼다`);
+    장과셈이맞는가(kw, where키);
+
+    // 본문 조각 수는 **바꾼 뒤의 글자 수**와 같아야 한다
+    if (kw.out.length !== kw.encoded.length) {
+        bad(`${where키}: 조각 ${kw.out.length}개인데 바꾼 글은 ${kw.encoded.length}글자다`);
+    }
 }
 
 /* ---- 강의노트가 든 예를 값으로 못박는다 ----
@@ -224,16 +255,27 @@ for (const text of 글감) {
     }
 }
 
-/* ---- 「ABABABABAB은 허프만으로 못 줄인다」 — 화면이 적어 둔 말이 참인가 ---- */
+/* ---- 강의노트의 「스스로 확인」이 가리키는 판 ----
+   「ABABABABAB을 넣어 보세요. 반복이 분명히 있는데도 압축률이 좋지 않습니다.
+     세 방법 가운데 이런 데이터를 줄일 수 있는 것은 무엇일까요?」
+
+   **셋을 다 걸어 봐야 그 물음이 닫힌다.** 런 렝스는 늘어나고, 허프만은 그대로이고,
+   키워드만 줄어야 한다. 하나라도 어긋나면 화면이 그 물음에 엉뚱한 답을 준다. */
 {
-    const h = huffmanEncode('ABABABABAB');
+    const 글 = 'ABABABABAB';
+    const h = huffmanEncode(글);
     if (compressRate(h.beforeBits, h.bodyBits) !== 0) {
-        bad(`ABABABABAB: 허프만 압축률이 ${compressRate(h.beforeBits, h.bodyBits)}%다 — 0이어야 한다`);
+        bad(`${글}: 허프만 압축률이 ${compressRate(h.beforeBits, h.bodyBits)}%다 — 0이어야 한다`);
     }
-    const r = rleEncode('ABABABABAB');
+    const r = rleEncode(글);
     if (compressRate(r.beforeBits, r.bodyBits) >= 0) {
-        bad(`ABABABABAB: 런 렝스 압축률이 ${compressRate(r.beforeBits, r.bodyBits)}%다 — 음수여야 한다`);
+        bad(`${글}: 런 렝스 압축률이 ${compressRate(r.beforeBits, r.bodyBits)}%다 — 음수여야 한다`);
     }
+    const kw = keywordEncode(글);
+    if (compressRate(kw.beforeBits, kw.bodyBits) <= 0) {
+        bad(`${글}: 키워드 압축률이 ${compressRate(kw.beforeBits, kw.bodyBits)}%다 — 양수여야 한다`);
+    }
+    if (kw.encoded.length !== 5) bad(`${글}: 바꾼 뒤가 ${kw.encoded.length}글자다 — AB를 묶으면 5글자다`);
 }
 
 /* ---- 런 가르기가 글을 빠짐없이 덮는가 ---- */
@@ -246,6 +288,6 @@ for (const text of 글감.slice(0, 40)) {
     }
 }
 
-console.log(`글 ${글감.length}개를 두 방법으로 돌렸다`);
+console.log(`글 ${글감.length}개를 세 방법으로 돌렸다`);
 console.log(fail === 0 ? '전부 통과' : `어긋난 것 ${fail}건`);
 process.exit(fail === 0 ? 0 : 1);

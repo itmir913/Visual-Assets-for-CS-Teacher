@@ -20,6 +20,10 @@ import {
 import {
     keywordEncode, keywordDecode, countPieces, KEYWORD_SYMBOLS,
 } from '../src/entries/_lib/compress/compress-keyword.js';
+import {
+    COMPRESS_PRESETS, COMPRESS_METHODS,
+} from '../src/entries/_lib/compress/compress-registry.js';
+import {COMPRESS_ALPHABET, COMPRESS_MAX_LEN} from '../src/entries/_lib/compress/compress-model.js';
 
 let fail = 0;
 const bad = (m) => {
@@ -286,6 +290,138 @@ for (const text of 글감.slice(0, 40)) {
         if (runs[i].from !== runs[i - 1].to) bad(`런 가르기에 틈이 있다 — 「${text}」`);
         if (runs[i].ch === runs[i - 1].ch) bad(`이웃한 런의 글자가 같다 — 「${text}」`);
     }
+}
+
+/* ================================================================
+   프리셋 — **볼 것이 없는 화면이 되지 않게 지킨다**
+   ================================================================ */
+
+for (const p of COMPRESS_PRESETS) {
+    if (!COMPRESS_ALPHABET.test(p.text)) bad(`프리셋 ${p.id}: 영어 대문자가 아닌 글자가 있다 — ${p.text}`);
+    if (p.text.length > COMPRESS_MAX_LEN) bad(`프리셋 ${p.id}: ${p.text.length}글자다 — ${COMPRESS_MAX_LEN}자를 넘는다`);
+    if (!p.text.length) bad(`프리셋 ${p.id}: 비어 있다`);
+}
+
+/* **되돌리기는 등록부가 건네주는 것으로도 돌아야 한다.**
+   위에서는 모듈의 함수를 곧바로 불렀는데, 화면은 등록부를 거쳐 부른다.
+   그 사이에서 어긋나면 화면에서만 깨지고 검사는 초록으로 남는다. */
+for (const p of COMPRESS_PRESETS) {
+    for (const m of COMPRESS_METHODS) {
+        const out = m.run(p.text);
+        if (m.decode(out) !== p.text) {
+            bad(`등록부 ${m.id} ${p.id}: 되돌렸더니 「${m.decode(out)}」 — 원본과 다르다`);
+        }
+        if (!out.frames.length) bad(`등록부 ${m.id} ${p.id}: 장이 하나도 없다`);
+        // 마지막 장의 말이 비어 있으면 화면 아래가 빈 채로 끝난다
+        if (!out.frames[out.frames.length - 1].say) bad(`등록부 ${m.id} ${p.id}: 마지막 장에 할 말이 없다`);
+    }
+}
+
+/* **어느 한 방법이 모든 프리셋에서 이기면 안 된다.**
+   그러면 학생이 「그럼 그것만 쓰면 되잖아」로 끝내고, 「방법마다 잘 줄이는 글이 다르다」는
+   이 화면의 결론이 통째로 사라진다. 그리고 **방법마다 이기는 판이 하나는 있어야 한다** —
+   한 번도 못 이기는 방법을 굳이 화면에 둘 까닭이 없다. */
+{
+    const 이긴수 = new Map(COMPRESS_METHODS.map((m) => [m.id, 0]));
+    for (const p of COMPRESS_PRESETS) {
+        const 점수 = COMPRESS_METHODS.map((m) => {
+            const out = m.run(p.text);
+            return {id: m.id, rate: compressRate(out.beforeBits, out.bodyBits)};
+        });
+        const 최고 = Math.max(...점수.map((x) => x.rate));
+        for (const x of 점수) if (x.rate === 최고) 이긴수.set(x.id, 이긴수.get(x.id) + 1);
+    }
+    for (const [id, n] of 이긴수) {
+        if (n === 0) bad(`프리셋: ${id}가 한 판도 못 이긴다 — 화면에 둘 까닭이 없어진다`);
+        if (n === COMPRESS_PRESETS.length) {
+            bad(`프리셋: ${id}가 ${n}판을 다 이긴다 — 「방법마다 잘 줄이는 글이 다르다」가 안 보인다`);
+        }
+    }
+    console.log('  프리셋에서 이긴 판 — '
+        + [...이긴수].map(([id, n]) => `${id} ${n}`).join(' · ')
+        + ` (모두 ${COMPRESS_PRESETS.length}판)`);
+}
+
+/* ================================================================
+   화면 — **페이지를 원문 그대로 돌려 «화면에 찍힌 글자»를 읽는다**
+   ================================================================ */
+
+/* 위의 검사는 전부 모듈을 곧바로 불렀다. 그런데 학생이 보는 것은 화면이고,
+   그 사이에는 등록부와 그리는 코드가 한 겹 더 있다. **거기서 어긋나면 값은 맞는데
+   화면만 틀린다** — 실제로 그런 결함을 여러 번 만났다.
+
+   받침대의 DOM 은 진짜가 아니라 개수에 기대는 판정은 할 수 없다.
+   그래서 **찍힌 글자**만 본다. */
+{
+    const {loadSim} = await import('./_sim-harness.mjs');
+    const sim = loadSim('cs/compress');
+    /* **`DOMContentLoaded`를 손수 보내야 한다.** 진입점은 그때 화면을 채우므로,
+       이것을 빼먹으면 아무것도 안 그려진 화면을 읽고 「다 틀렸다」가 열두 줄 나온다. */
+    sim.lifecycle();
+
+    if (sim.errors.length) bad(`화면: 뜨는 동안 오류가 났다 — ${sim.errors[0]}`);
+
+    const 글자 = (id) => String(sim.el(id).textContent ?? '');
+    const 속 = (id) => String(sim.el(id).innerHTML ?? '');
+
+    /* **첫 화면은 «첫 장»이다.** 재생기가 처음에 0번 장을 그리므로 줄인 뒤가 0비트이고
+       압축률이 100%로 나온다 — 아직 아무것도 안 내놓았으니 맞는 값이다.
+       끝 값을 보려면 «끝으로» 단추를 눌러야 한다. 누르는 김에 재생기도 함께 밟힌다. */
+    sim.el('btn-last').click();
+
+    const 첫글 = COMPRESS_PRESETS[0].text;
+    const 첫방법 = COMPRESS_METHODS[0];
+    const 참 = 첫방법.run(첫글);
+
+    // 단계 표시가 끝에 가 있는가 — 위의 클릭이 정말 먹었는지부터 본다
+    if (!글자('step-label').startsWith(`${참.frames.length} / ${참.frames.length}`)) {
+        bad(`화면: 「끝으로」를 눌렀는데 단계가 「${글자('step-label')}」다`);
+    }
+
+    if (글자('count-before') !== String(참.beforeBits)) {
+        bad(`화면: 줄이기 전이 「${글자('count-before')}」인데 ${참.beforeBits}여야 한다`);
+    }
+    if (글자('count-body') !== String(참.bodyBits)) {
+        bad(`화면: 줄인 뒤가 「${글자('count-body')}」인데 ${참.bodyBits}여야 한다`);
+    }
+    const 참압축률 = `${compressRate(참.beforeBits, 참.bodyBits)}%`;
+    if (글자('count-rate') !== 참압축률) {
+        bad(`화면: 압축률이 「${글자('count-rate')}」인데 ${참압축률}여야 한다`);
+    }
+    if (글자('count-table') !== String(참.tableBits)) {
+        bad(`화면: 표 크기가 「${글자('count-table')}」인데 ${참.tableBits}여야 한다`);
+    }
+
+    // 글자 칸이 글자 수만큼 있는가
+    const 칸수 = (속('glyph-row').match(/class="glyph/g) || []).length;
+    if (칸수 !== 첫글.length) bad(`화면: 글자 칸이 ${칸수}개인데 글은 ${첫글.length}자다`);
+
+    // 나란히 놓기 표에 세 방법이 다 있고 숫자가 맞는가
+    const 표 = 속('race-table');
+    for (const m of COMPRESS_METHODS) {
+        if (!표.includes(m.name)) bad(`화면: 나란히 표에 「${m.name}」 줄이 없다`);
+        const out = m.run(첫글);
+        if (!표.includes(`${out.bodyBits}비트`)) {
+            bad(`화면: 나란히 표에 ${m.name}의 ${out.bodyBits}비트가 없다`);
+        }
+    }
+    for (const 글 of ['undefined', 'NaN', 'null', '[object Object]']) {
+        if (표.includes(글)) bad(`화면: 나란히 표에 ${글}이 찍혔다`);
+        if (속('say').includes(글)) bad(`화면: 안내 문장에 ${글}이 찍혔다`);
+    }
+
+    // 「화면 읽는 법」이 비어 있지 않은가 — 압축률에서 무엇을 뺐는지 밝히는 자리다
+    const 읽는법 = 속('read-notes');
+    if (!읽는법.includes('압축률은 본문만으로')) {
+        bad('화면: 「압축률은 본문만으로 낸다」가 읽는 법에 없다 — 코드표가 공짜로 읽힌다');
+    }
+
+    /* **가짜로 때운 것을 반드시 밝힌다.** `tree-view.js`는 d3를 얹을 수가 없어 빈 껍데기다.
+       그러니 **허프만 나무가 화면에 어떻게 그려지는지는 여기서 못 본다** — 이 검사가
+       보증하는 것은 「나무를 그리려다 죽지는 않는다」와 숫자·표·글자 칸까지다. */
+    const 때운것 = (sim.stubbed || []).join(', ') || '없음';
+    console.log(`  화면 — 숫자·표·글자 칸을 읽었다. 가짜로 때운 것: ${때운것}`
+        + (때운것 === '없음' ? '' : ' (나무 그림은 이 검사가 보지 못한다)'));
 }
 
 console.log(`글 ${글감.length}개를 세 방법으로 돌렸다`);

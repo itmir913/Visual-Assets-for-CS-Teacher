@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>압축 시뮬레이터</title>
+    <script type="module" src="/src/entries/simulator/cs/compress.js"></script>
+    <link rel="stylesheet" href="/src/styles/simulator.css">
+
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다. */
+        code, kbd, samp, pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(
+                    135deg,
+                    #881337 0%,
+                    #be123c 40%,
+                    #e11d48 65%,
+                    #f43f5e 100%
+            );
+        }
+
+        /* 무리 탭 — 개념 지도 노릇을 하므로 고른 것이 뚜렷해야 한다. */
+        .group-tab {
+            padding: 0.75rem 1.25rem;
+            font-weight: 700;
+            color: #64748b;
+            border-bottom: 4px solid transparent;
+            transition: color .15s, border-color .15s;
+            white-space: nowrap;
+        }
+
+        .group-tab:hover {
+            color: #e11d48;
+        }
+
+        .group-tab.on {
+            color: #e11d48;
+            border-bottom-color: #e11d48;
+        }
+
+        /* 구조 칩 — 같은 무리 안에서 고르는 자리. */
+        .algo-chip {
+            padding: 0.3rem 0.85rem;
+            border-radius: 9999px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #475569;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background-color .15s, color .15s, border-color .15s;
+        }
+
+        .algo-chip:hover {
+            border-color: #fb7185;
+            color: #be123c;
+        }
+
+        .algo-chip.on {
+            background: #e11d48;
+            border-color: #e11d48;
+            color: #fff;
+        }
+
+        .preset-btn {
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            font-weight: 600;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .preset-btn.on {
+            background: #0f172a;
+            border-color: #0f172a;
+            color: #fff;
+        }
+
+        /* 연산 단추 — **이 페이지에서 가장 자주 누르는 것**이라 크게 둔다. */
+        .op-btn {
+            padding: 0.55rem 1rem;
+            border-radius: 0.6rem;
+            border: 1px solid #fda4af;
+            background: #fff1f2;
+            color: #9f1239;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .op-btn:hover {
+            background: #ffe4e6;
+            border-color: #fb7185;
+        }
+
+        .ctrl-btn {
+            padding: 0.5rem 0.9rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            font-weight: 700;
+        }
+
+        .ctrl-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+        }
+
+        .ctrl-btn:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        /* **`min-width`를 주지 않는다.** 좁은 화면에서 3열 격자의 칸보다 넓어지면
+           옆 단추 위로 올라탄다. 너비를 붙드는 일은 격자 칸과 `sm:w-32`가 이미 한다. */
+        .ctrl-main {
+            background: #e11d48;
+            border-color: #e11d48;
+            color: #fff;
+        }
+
+        .ctrl-main:hover:not(:disabled) {
+            background: #be123c;
+        }
+
+        /* 세는 값은 자릿수가 계속 바뀐다. 고정폭 숫자로 두어야 글자가 들썩이지 않는다. */
+        .tally {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .num-input {
+            width: 5rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        body pre {
+            overflow-x: auto;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        /* 글자 한 칸. **폭을 못박아 두어야 줄이기 전과 뒤가 나란히 읽힌다.** */
+        .glyph {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.1rem;
+            height: 2.4rem;
+            border-radius: 0.4rem;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            transition: background-color .15s, border-color .15s;
+        }
+
+        /* 지금 묶고 있는 구간. */
+        .glyph.on {
+            background: #fef08a;
+            border-color: #eab308;
+        }
+
+        /* 이미 줄여 적은 자리. */
+        .glyph.done {
+            background: #f1f5f9;
+            color: #94a3b8;
+            border-color: #e2e8f0;
+        }
+
+        /* 내놓은 조각 하나. 밑에 비트 수를 달아 **크기가 눈에 보이게** 한다. */
+        .piece {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.3rem 0.55rem;
+            border-radius: 0.45rem;
+            border: 1px solid #fda4af;
+            background: #fff1f2;
+            color: #9f1239;
+            font-weight: 800;
+        }
+
+        .piece .bits {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #be123c;
+            opacity: .75;
+        }
+
+        .piece.symbol {
+            border-color: #a5b4fc;
+            background: #eef2ff;
+            color: #3730a3;
+        }
+
+        .piece.symbol .bits {
+            color: #4338ca;
+        }
+
+        /* 코드표·사전 한 줄. **본문과 색을 달리해 「이건 덤이다」가 보이게** 한다. */
+        .aside-row {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.4rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.4rem;
+            border: 1px dashed #cbd5e1;
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<header class="hero-gradient text-white py-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-5 backdrop-blur-md shadow-sm">컴퓨터 과학 실습</span>
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-5 leading-tight tracking-tight">압축 시뮬레이터</h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            같은 글을 줄이는데 어떤 방법은 절반으로 만들고 어떤 방법은
+            <span class="font-black">오히려 두 배로 늘립니다.</span> 무엇이 그것을 가르는지 한 단계씩 확인해 보세요.
+        </p>
+    </div>
+</header>
+
+<div class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div class="max-w-6xl mx-auto px-2">
+        <div class="flex flex-nowrap overflow-x-auto justify-start sm:justify-center" id="method-tabs"></div>
+    </div>
+</div>
+
+<main class="max-w-7xl mx-auto mt-8 px-2 sm:px-4 pb-20">
+
+    <!-- 줄일 글 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5">
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1">
+            <h3 class="font-black text-slate-900">줄일 글</h3>
+            <p class="font-semibold text-slate-500">
+                영어 대문자만, <span class="tally font-black text-slate-700" id="max-label">24</span>자까지
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            <input class="border border-slate-300 rounded-lg px-3 py-2 font-mono font-bold tracking-widest grow min-w-0"
+                   id="text-input" spellcheck="false" autocomplete="off" type="text" value="AAAAABBCCC">
+            <button class="ctrl-btn" id="btn-apply" type="button">이 글로 바꾸기</button>
+        </div>
+        <div class="flex flex-wrap gap-2" id="preset-host"></div>
+        <p class="font-semibold text-slate-600 mt-2" id="preset-hint">&nbsp;</p>
+        <p class="font-semibold text-rose-600 mt-1" id="input-error">&nbsp;</p>
+    </section>
+
+    <!-- 무대 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5 fs-stage" id="stage">
+        <button class="fs-btn" data-fullscreen="stage" title="전체 화면" type="button">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+
+        <div class="fs-fill fs-col">
+            <div class="fs-grow" id="view-host"></div>
+
+            <!-- **조작 줄을 설명글보다 «위»에 둔다.** 설명 문장은 단계마다 길이가 달라
+                 그 위에 단추가 있으면 누를 때마다 단추가 아래위로 움직인다. -->
+            <div class="mt-4">
+                <input class="w-full" id="scrub" max="0" min="0" step="1" type="range" value="0">
+
+                <div class="grid grid-cols-3 gap-2 mt-2 sm:flex sm:flex-wrap sm:items-center">
+                    <button class="ctrl-btn w-full sm:w-28" id="btn-prev" title="한 단계 뒤로" type="button">
+                        <i class="fa-solid fa-caret-left"></i> 뒤로
+                    </button>
+                    <button class="ctrl-btn ctrl-main w-full sm:w-32" id="btn-play" type="button">
+                        <i class="fa-solid fa-play"></i> 재생
+                    </button>
+                    <button class="ctrl-btn w-full sm:w-28" id="btn-next" title="한 단계 앞으로" type="button">
+                        앞으로 <i class="fa-solid fa-caret-right"></i>
+                    </button>
+                    <button class="ctrl-btn w-full sm:w-14" id="btn-first" title="처음으로" type="button">
+                        <i class="fa-solid fa-backward-fast"></i>
+                    </button>
+                    <button class="ctrl-btn w-full sm:w-14" id="btn-last" title="끝으로" type="button">
+                        <i class="fa-solid fa-forward-fast"></i>
+                    </button>
+                    <select class="ctrl-btn w-full sm:w-28" id="speed"></select>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-1 mt-3 font-semibold text-slate-600"
+                     id="tally-row">
+                    <span>줄이기 전 <span class="font-black text-slate-900 tally" id="count-before">0</span>비트</span>
+                    <span>줄인 뒤 <span class="font-black text-slate-900 tally" id="count-body">0</span>비트</span>
+                    <span>압축률 <span class="font-black tally" id="count-rate">0%</span></span>
+                    <span id="table-wrap"><span id="table-name">코드표</span>
+                        <span class="font-black text-slate-500 tally" id="count-table">0</span>비트</span>
+                </div>
+
+                <p class="text-slate-400 tally font-semibold mt-1" id="step-label">0 / 0 단계</p>
+
+                <p class="font-bold text-slate-800 leading-relaxed mt-2" id="say">&nbsp;</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 나란히 놓기 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5">
+        <h3 class="font-black text-slate-900 mb-1">지금 이 글에 세 방법을 다 걸어 보면</h3>
+        <p class="text-slate-500 font-medium mb-3">
+            <span class="font-bold text-slate-700">어느 하나가 늘 이기지 않습니다.</span>
+            글을 바꿔 가며 어떤 글에서 어떤 방법이 이기는지 보세요.
+        </p>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse table-prose" id="race-table"></table>
+        </div>
+    </section>
+
+    <!-- 화면 읽는 법 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5">
+        <h3 class="font-black text-slate-900 mb-3">화면 읽는 법</h3>
+        <ul class="space-y-1 text-slate-600 font-medium list-disc list-outside pl-5" id="read-notes"></ul>
+    </section>
+
+    <!-- 고른 방법이 무엇인지 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5">
+        <h2 class="text-2xl font-black text-slate-900 mb-2" id="method-name">&nbsp;</h2>
+        <p class="leading-relaxed text-slate-700 font-medium" id="method-idea">&nbsp;</p>
+    </section>
+
+    <!-- 눈여겨볼 것 -->
+    <section class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+        <div class="flex items-start gap-3">
+            <i class="fa-solid fa-lightbulb text-amber-500 mt-1 shrink-0"></i>
+            <div class="min-w-0">
+                <h3 class="font-black text-amber-900 mb-2">압축은 「줄인다」로 끝나지 않습니다</h3>
+                <p class="text-amber-900 font-medium leading-relaxed">
+                    줄여 두었다가 <b>다시 쓸 수 있는 형태로 되돌리는 일</b>이 반드시 뒤따릅니다.
+                    그래서 <b>코드표나 사전을 함께 보내야 하고</b>, 그것도 자리를 차지합니다.
+                    짧은 글에서는 <b>그 덤이 아낀 것보다 클 때가 있습니다</b> —
+                    위의 「줄인 뒤」 옆 숫자를 함께 보세요.
+                </p>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="자료 목록" aria-label="자료 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+</body>
+</html>

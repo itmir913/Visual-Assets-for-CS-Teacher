@@ -8,10 +8,15 @@
 //   3. **마크업의 `on*="…"` 가 가리키는 것이 실제로 있는가.** 이름만 훑는 검사는
 //      `on*="obj.method()"` 꼴을 놓친다. 실제로 정의 없는 핸들러가 배포된 적이 있다.
 //
-// **못 보는 것을 밝혀 둔다.** d3 를 쓰는 트리·그래프 렌더러와 p5·ml5 는 그대로 얹을 수
-// 없어 가짜로 때운다. 그런 페이지는 아래 표에 「가짜로 때운 것」으로 찍히므로,
+// **못 보는 것을 밝혀 둔다.** prismjs · chart.js · ml5 · mathjax 를 쓰는 페이지는 그 모듈을
+// 가짜로 때운다. 그런 페이지는 아래 표에 「가짜로 때운 것」으로 찍히므로,
 // **그 페이지의 통과는 「죽지는 않는다」까지만 뜻한다.** 알맹이는 각 페이지 전용 검사가 본다
 // (`check:graph-sim` · `check:puzzle` · `check:deep-learning`).
+//
+// **d3 를 쓰는 트리·그래프 렌더러는 2026-08-26부터 진짜로 돈다**(받침대가 jsdom 위에서
+// 그 꾸러미를 실제로 얹는다). 그 전에는 빈 껍데기여서, 그리는 코드에 무슨 짓을 해도
+// 이 검사가 초록이었다 — 콜백에 엉뚱한 모양을 기대한 결함이 그렇게 브라우저까지 갔다.
+// **다만 레이아웃은 여전히 없다** — 글자 폭과 상자 크기는 어림값이라 겹침은 못 본다.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -153,12 +158,8 @@ const SICK = /\bNaN\b|\bInfinity\b|\bundefined\b/;
 
 function screenText(sim) {
     const out = [];
-    for (const e of sim.byId.values()) {
-        for (const key of ['_text', '_html']) {
-            const v = e[key];
-            if (typeof v === 'string' && v) out.push([e.id, v]);
-        }
-        if (typeof e.value === 'string' && e.value) out.push([e.id, e.value]);
+    for (const {id, text, html, value} of sim.texts()) {
+        for (const v of [text, html, value]) if (v) out.push([id, v]);
     }
     return out;
 }

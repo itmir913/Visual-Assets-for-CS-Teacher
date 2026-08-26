@@ -1,14 +1,26 @@
 // 시뮬레이터 페이지를 **원문 그대로 node 에서 돌리는 받침대.**
 //
-// 인라인 `<script>` 를 통째로 떼어 내 DOM 을 흉내 낸 샌드박스에서 실행하고,
-// `DOMContentLoaded` · `load` 까지 진짜 차례대로 보낸다. 캔버스 컨텍스트는
-// **그린 명령의 좌표를 적어 두는 가짜**라 픽셀 없이 그림을 기하로 따질 수 있다.
+// 페이지 원문을 **jsdom** 에 물리고, 인라인 `<script>` 를 문서에 놓인 차례대로 돌린 뒤
+// `DOMContentLoaded` · `load` 까지 진짜로 보낸다. 캔버스 컨텍스트만은
+// **그린 명령의 좌표를 적어 두는 가짜**다 — 픽셀 없이 그림을 기하로 따지려는 것이다.
+//
+// **손으로 만든 가짜 DOM 을 2026-08-26 에 버렸다.** 가짜는 물어보는 것마다 그럴듯한 값을
+// 내놓지만 «진짜와 다르게» 내놓는다. `closest()` 가 늘 `null` 이라 위임해 받는 클릭이
+// 통째로 죽어 있었고, `querySelectorAll` 은 아무 선택자에나 같은 것 열여섯 개를 내놓았다.
+// **가짜가 조용히 헛돌면 검사는 초록인데 화면은 깨진다** — 실제로 그렇게 새어 나간
+// 결함을 브라우저에서 잡았다.
 //
 // **공용 라이브러리는 진짜를 얹는다.** 진입점(`src/entries/simulator/…`)이 무엇을
 // import 하는지 읽어서 그대로 평가한다 — 여기에 목록을 다시 적으면 낡는다.
-// 다만 **d3 같은 바깥 의존이 있는 것은 얹지 못하고 가짜로 때운다.** 어느 페이지가
-// 그런 처지였는지는 `stubbed` 로 돌려주므로, 검사 쪽에서 반드시 밝힐 것 —
+// **d3 넷(`REAL_PACKAGES`)도 진짜로 얹는다.** 순수 계산과 DOM 조작뿐이라 jsdom 위에서
+// 그대로 돌기 때문이다. 그래서 트리 뷰와 그래프 뷰가 이제 검사에서 실제로 그린다.
+// 나머지 바깥 꾸러미(prismjs · chart.js · ml5 · mathjax)는 여전히 껍데기로 때운다 —
+// 어느 페이지가 그런 처지인지는 `stubbed` 로 돌려주므로 **검사 쪽에서 반드시 밝힐 것.**
 // 아무것도 안 하는 스텁을 통과로 읽으면 검사가 헛돈다.
+//
+// **여기서도 못 보는 것.** jsdom 에는 레이아웃이 없다. 글자 폭(`getComputedTextLength`)도
+// 상자 크기도 진짜가 아니라 받침대가 쥔 값이거나 어림값이다.
+// **겹침·넘침 같은 «실제 픽셀» 판정은 브라우저 몫이다.**
 //
 // **`defer` 를 지킨다.** 진입점은 실제로도 `defer` 라 body 끝 인라인 스크립트보다
 // 늦게 돈다(→ `tools/vite/classic-scripts.js`). 여기서도 인라인을 먼저 돌린 뒤
@@ -20,6 +32,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
+import {JSDOM} from 'jsdom';
+
+/**
+ * **바깥 꾸러미 가운데 진짜로 얹어 주는 것.**
+ *
+ * 예전에는 바깥 꾸러미를 하나라도 부르면 그 모듈을 통째로 껍데기로 때웠다. 그래서
+ * `tree-view.js`·`graph-view.js`가 검사에서 **아무 일도 안 하는 빈 껍데기**였고,
+ * 그 위에서 도는 코드는 무엇을 해도 통과했다 — 콜백에 엉뚱한 모양을 기대해도,
+ * 그리는 길에 `throw`를 심어도 초록이었다.
+ *
+ * d3 넷은 **순수 계산과 DOM 조작뿐**이라 jsdom 위에서 그대로 돈다. 그래서 진짜를 얹는다.
+ * 나머지(prismjs·chart.js·ml5·mathjax)는 브라우저 전용 API에 기대거나 무거워서
+ * 여전히 `STUB_GLOBALS`로 때운다 — **어느 쪽인지는 `stubbed`가 알려 준다.**
+ */
+const REAL_PACKAGES = ['d3-selection', 'd3-hierarchy', 'd3-zoom', 'd3-transition'];
+
+/** 꾸러미 이름 → 그 모듈의 이름공간. 받침대가 뜰 때 한 번만 읽는다. */
+const PKG = {};
+for (const name of REAL_PACKAGES) PKG[name] = await import(name);
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** 검사를 옛 판에 돌려 **실제로 실패하는지** 보려고 자리를 바꿀 수 있게 둔다.
@@ -30,8 +61,9 @@ const ENTRY_ROOT = path.join(ROOT, 'src', 'entries', 'simulator');
 
 /** 바깥 의존이 있어 그대로 평가할 수 없는 라이브러리가 올리는 전역. */
 const STUB_GLOBALS = {
-    /* d3 를 쓰는 뷰는 그대로 얹을 수 없다. **무엇을 물어도 함수를 내놓는 껍데기**로 둔다 —
-       메서드 이름을 여기 베껴 적으면 진짜가 바뀔 때 조용히 낡는다. */
+    /* **트리 뷰와 그래프 뷰는 이제 진짜가 얹힌다**(`REAL_PACKAGES`). 여기 남겨 둔 껍데기는
+       그것을 못 얹었을 때의 마지막 그물이다 — 진입점이 바뀌어 다시 못 얹게 되면
+       페이지가 죽는 대신 `stubbed` 에 이름이 찍혀 **검사 출력이 그렇다고 말한다.** */
     createTreeView: () => stubObject(),
     createGraphView: () => stubObject(),
     Prism: {highlightAll() {}, highlightElement() {}, languages: {}},
@@ -51,153 +83,6 @@ function stubObject() {
         get: (t, k) => (k === 'then' ? undefined : (t[k] ??= () => stubObject())),
         has: () => true,
     });
-}
-
-export function makeElementClass(state) {
-    return class El {
-        constructor(id = '', tag = 'div') {
-            this.id = id;
-            this.tagName = String(tag).toUpperCase();
-            this.children = [];
-            this._parent = undefined;
-            this._depth = 0;
-            this.dataset = {};
-            this.hidden = false;
-            this.disabled = false;
-            this.checked = false;
-            this.value = '';
-            this.min = '';
-            this.max = '';
-            this.step = '';
-            this.offsetHeight = 0;
-            this.offsetWidth = 0;
-            this._classes = new Set();
-            this._text = '';
-            this._html = '';
-            this._listeners = {};
-            this.style = new Proxy({setProperty: (k, v) => { state.cssVars[k] = v; }}, {
-                get: (t, k) => (k in t ? t[k] : ''),
-                set: (t, k, v) => { t[k] = v; return true; },
-            });
-        }
-
-        /* **부모가 없는 요소는 없다.** 캔버스를 재는 쪽이 `parentElement.clientWidth` 를
-           쓰므로, 스텁이 null 을 주면 페이지가 그 자리에서 죽는다. 물어보면 만들어 준다.
-           깊이를 재서 두 칸 위는 body 로 끊는다 — 무한히 이어지면 조상을 훑는 코드가 돈다. */
-        get parentElement() {
-            if (this._parent === undefined) {
-                if (this._depth >= 2) { this._parent = null; }
-                else {
-                    this._parent = new El('__box-' + (this.id || this.tagName), 'div');
-                    this._parent._depth = this._depth + 1;
-                    this._parent.children.push(this);
-                }
-            }
-            return this._parent;
-        }
-
-        set parentElement(v) { this._parent = v; }
-
-        get parentNode() { return this.parentElement; }
-
-        get classList() {
-            const c = this._classes;
-            return {
-                add: (...x) => x.forEach((v) => c.add(v)),
-                remove: (...x) => x.forEach((v) => c.delete(v)),
-                toggle: (v, on) => (on === undefined ? (c.has(v) ? c.delete(v) : c.add(v)) : (on ? c.add(v) : c.delete(v))),
-                contains: (v) => c.has(v),
-                /* 브라우저에 있는 것은 다 있어야 한다 — 없으면 **페이지가 멀쩡한데**
-                   검사가 죽는다. 실제로 `classList.replace` 가 없어 여섯 건이 헛나왔다. */
-                replace: (o, n) => (c.has(o) ? (c.delete(o), c.add(n), true) : false),
-                item: (i) => [...c][i] ?? null,
-                get length() { return c.size; },
-            };
-        }
-
-        get className() { return [...this._classes].join(' '); }
-        set className(v) { this._classes = new Set(String(v).split(/\s+/).filter(Boolean)); }
-
-        /* 진짜 DOM 은 문자열로 바꾼다. 스텁이 안 바꾸면 라벨 검사가 **가짜로 실패**한다.
-           **`textContent`·`innerHTML` 을 넣으면 자식이 통째로 갈린다.** 예전에는 빈
-           문자열을 넣은 `innerHTML` 만 자식을 비웠는데, `textContent = ''` 로 상자를
-           비우는 페이지에서는 **자식이 지워지지 않고 계속 쌓였다** — 다시 그릴 때마다
-           불어나 받침대가 메모리를 다 쓰고 죽었고, 그리기 전에는 개수를 세는 검사가
-           엉뚱한 값을 봤다. 진짜 DOM 과 다르게 굴면 검사가 없느니만 못하다. */
-        get textContent() { return this._text; }
-        set textContent(v) { this._setText(String(v)); }
-        get innerText() { return this._text; }
-        set innerText(v) { this._setText(String(v)); }
-        get innerHTML() { return this._html; }
-
-        /* **`innerHTML` 을 넣으면 `textContent` 도 따라 바뀐다.** 진짜 DOM 이 그렇다.
-           둘을 따로 들고 있었더니, 굵은 글씨를 넣으려고 `innerHTML` 로 쓰는 자리에서
-           **검사가 빈 글자를 보고 「글이 안 나왔다」고 헛짚었다.**
-           태그를 걷어 내고 엔티티 몇 개만 되돌린다 — 파서를 흉내 낼 일은 아니다. */
-        set innerHTML(v) {
-            this._html = String(v);
-            this.children = [];
-            this._text = this._html
-                .replace(/<[^>]*>/g, '')
-                .replace(/&nbsp;/g, ' ')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&amp;/g, '&');
-        }
-
-        _setText(v) {
-            this._text = v;
-            this._html = v;
-            this.children = [];
-        }
-
-        /* 상자 크기. **`clientWidth` 와 `getBoundingClientRect()` 는 다른 값이다** —
-           rect 는 테두리까지 세고 소수로 나온다. 캔버스를 재는 쪽이 어느 것을 쓰는지가
-           실제로 문제가 됐으므로 따로 흉내 낸다. */
-        getBoundingClientRect() {
-            const {w, h} = state.box;
-            return {top: 0, left: 0, right: w, bottom: h, width: w, height: h, x: 0, y: 0};
-        }
-
-        get clientWidth() { return Math.round(state.box.w); }
-        get clientHeight() { return Math.round(state.box.h); }
-
-        /* 진짜 DOM 에 있는 것은 다 있어야 한다 — 없으면 **페이지가 멀쩡한데** 검사가 죽는다.
-           `firstChild` 가 없어 겨루기 뷰가 그 자리에서 넘어졌다.
-           (진짜 DOM 은 글자 마디도 세지만 이 받침대는 요소만 담는다.) */
-        get firstChild() { return this.children[0] ?? null; }
-
-        get lastChild() { return this.children[this.children.length - 1] ?? null; }
-
-        get firstElementChild() { return this.children[0] ?? null; }
-
-        get lastElementChild() { return this.children[this.children.length - 1] ?? null; }
-
-        appendChild(c) { c.parentElement = this; this.children.push(c); return c; }
-        removeChild(c) { this.children = this.children.filter((x) => x !== c); return c; }
-        insertBefore(c) { return this.appendChild(c); }
-        remove() { if (this.parentElement) this.parentElement.removeChild(this); }
-        setAttribute(k, v) { if (k.startsWith('data-')) this.dataset[k.slice(5)] = String(v); else this[k] = v; }
-        getAttribute(k) { return k in this ? this[k] : null; }
-        removeAttribute(k) { delete this[k]; }
-        addEventListener(t, f) { (this._listeners[t] ||= []).push(f); }
-        removeEventListener(t, f) { this._listeners[t] = (this._listeners[t] || []).filter((g) => g !== f); }
-        dispatchEvent(e) { (this._listeners[e.type] || []).forEach((f) => f(e)); return true; }
-        click() { this.dispatchEvent({type: 'click', target: this, preventDefault() {}, stopPropagation() {}}); }
-        focus() {}
-        blur() {}
-        closest() { return null; }
-        contains() { return false; }
-        querySelectorAll(sel) { return state.queryAll ? state.queryAll(sel) : []; }
-        querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
-        getContext() { return makeCtx(this); }
-        toDataURL() { return 'data:,'; }
-
-        get width() { return this._w || 0; }
-        set width(v) { this._w = v; }
-        get height() { return this._h || 0; }
-        set height(v) { this._h = v; }
-    };
 }
 
 /** 그린 명령의 좌표를 적어 두는 가짜 2D 컨텍스트. */
@@ -259,8 +144,11 @@ export function makeCtx(canvas) {
        import 하던 쪽에는 `STUB_GLOBALS` 의 껍데기를 대신 물려준다.
    ================================================================ */
 
-/** 한 줄짜리 `import` 문. 저장소의 진입점과 `_lib` 은 전부 이 꼴이다. */
-const IMPORT_RE = /^[ \t]*import\s+(?:([^'"]*?)\s+from\s+)?(['"])([^'"]+)\2;?[ \t]*$/gm;
+/** 한 줄짜리 `import` 문. 저장소의 진입점과 `_lib` 은 전부 이 꼴이다.
+ *
+ * **뒤에 붙은 한 줄 주석까지 받는다.** 없이 두었더니 `import 'd3-transition';   // …` 한 줄이
+ * 안 잡혀, 그 파일이 통째로 「못 얹는 것」으로 떨어졌다. **주석 하나가 검사 범위를 갈랐다.** */
+const IMPORT_RE = /^[ \t]*import\s+(?:([^'"]*?)\s+from\s+)?(['"])([^'"]+)\2;?[ \t]*(?:\/\/.*)?$/gm;
 
 /** 모듈이 내보내는 이름들 — `import * as ns` 를 물려주려면 이것이 필요하다. */
 function exportNames(src) {
@@ -320,7 +208,8 @@ function moduleGraph(entryFile) {
         for (const m of src.matchAll(IMPORT_RE)) {
             const spec = m[3];
             if (spec.startsWith('.')) visit(path.resolve(path.dirname(file), spec));
-            else bare = true;          // 바깥 꾸러미 — 이 파일은 못 얹는다
+            // **진짜로 얹어 주는 꾸러미는 못 얹을 까닭이 아니다.**
+            else if (!(spec in PKG)) bare = true;
         }
         if (bare) { stubbed.push(path.basename(file)); return 'stub'; }
         status.set(file, 'ok');
@@ -337,6 +226,25 @@ function plainScript(file, status) {
     let src = fs.readFileSync(file, 'utf8');
 
     src = src.replace(IMPORT_RE, (whole, clause, q, spec) => {
+        /* **진짜로 얹어 주는 바깥 꾸러미.** 받침대가 이미 읽어 두었으므로 그 이름공간에서
+           꺼내 쓰기만 하면 된다. 곁불 import(`import 'd3-transition'`)도 여기서 끝난다 —
+           읽는 것만으로 `selection.prototype`에 붙는 종류라, 우리가 읽어 둔 것이 곧 그것이다. */
+        if (!spec.startsWith('.') && spec in PKG) {
+            if (!clause) return '';
+            const {named, def, ns} = splitClause(clause);
+            /* **`const` 가 아니라 `var` 로 푼다.** 이 받침대는 모듈을 한 스코프에 모아
+               돌리므로, 트리 뷰와 그래프 뷰가 둘 다 `select` 를 가져다 쓰면
+               `const` 로는 「already been declared」로 죽는다. 같은 꾸러미에서 꺼낸
+               같은 이름은 **값도 같으므로** 다시 선언되어도 달라질 것이 없다.
+               (저장소 모듈끼리 이름이 겹치는 것은 여전히 시끄럽게 죽는다 — 그건 그대로 둔다.) */
+            const out = [];
+            const src꾸러미 = `__pkg[${JSON.stringify(spec)}]`;
+            if (ns) out.push(`var ${ns} = ${src꾸러미};`);
+            if (def) out.push(`var ${def} = ${src꾸러미}.default;`);
+            for (const [orig, local] of named) out.push(`var ${local} = ${src꾸러미}.${orig};`);
+            return out.join('\n');
+        }
+
         const dep = spec.startsWith('.') ? path.resolve(path.dirname(file), spec) : null;
         const stub = !dep || status.get(dep) !== 'ok';
         if (!clause) return '';                         // 곁불 import — 이미 얹혔거나 못 얹는다
@@ -376,94 +284,115 @@ function plainScript(file, status) {
  */
 export function loadSim(name, opts = {}) {
     const dpr = opts.dpr ?? 2;
-    const state = {box: {w: opts.box?.w ?? 800, h: opts.box?.h ?? 600}, cssVars: {}, queryAll: null};
-    const El = makeElementClass(state);
-
-    const byId = new Map();
-    const el = (id) => {
-        if (!byId.has(id)) byId.set(id, new El(id, /canvas/i.test(id) ? 'canvas' : 'div'));
-        return byId.get(id);
-    };
-
-    const winListeners = {};
-    const docListeners = {};
+    const state = {box: {w: opts.box?.w ?? 800, h: opts.box?.h ?? 600}, cssVars: {}};
     const errors = [];
 
-    /* **선택자에는 요소를 몇 개쯤 내놓는다.** 빈 배열만 돌려주면 카드·칸을 훑는 UI 코드가
-       통째로 건너뛰어, 페이지가 「돌았다」고 나오면서 실은 아무것도 안 한 것이 된다.
-       같은 선택자에는 같은 요소를 준다 — 매번 새로 만들면 상태를 얹는 코드가 어긋난다.
-       **이것은 진짜 DOM 이 아니다.** 개수에 기대는 판정을 이 받침대 위에서 하지 말 것. */
-    const POOL = 16;
-    const queryCache = new Map();
-    const queryAll = (sel) => {
-        const own = opts.selectors?.(sel, el);
-        if (own) return own;
-        if (!queryCache.has(sel)) {
-            queryCache.set(sel, Array.from({length: POOL}, (_, i) => new El('__q' + queryCache.size + '_' + i)));
-        }
-        return queryCache.get(sel);
-    };
-    state.queryAll = queryAll;
+    /* ---- 진짜 DOM ----
+       페이지 원문을 jsdom 에 그대로 물린다. `outside-only` 라 페이지의 `<script>` 는
+       jsdom 이 돌리지 않는다 — **차례를 우리가 쥐어야** 하기 때문이다(진입점이 `defer`다).
 
-    const doc = {
-        documentElement: new El('__root'),
-        body: new El('__body', 'body'),
-        head: new El('__head', 'head'),
-        getElementById: el,
-        createElement: (tag) => new El('', tag),
-        createElementNS: (ns, tag) => new El('', tag),
-        createTextNode: (t) => ({nodeValue: String(t)}),
-        querySelector: (s) => queryAll(s)[0] || null,
-        querySelectorAll: (s) => queryAll(s),
-        getElementsByClassName: () => [],
-        getElementsByTagName: () => [],
-        addEventListener: (t, f) => { (docListeners[t] ||= []).push(f); },
-        removeEventListener: () => {},
-        fullscreenElement: null,
-        fullscreenEnabled: true,
-        exitFullscreen: () => Promise.resolve(),
-        readyState: 'loading',
-        hidden: false,
-    };
+       **손으로 만든 가짜 DOM 을 버린 까닭.** 가짜는 물어보는 것마다 그럴듯한 값을
+       내놓지만 «진짜와 다르게» 내놓는다. `closest()` 가 늘 `null` 이라 위임해 받는 클릭이
+       통째로 죽어 있었고, `querySelectorAll` 은 아무 선택자에나 같은 것 열여섯 개를
+       내놓았다. **가짜가 조용히 헛돌면 검사는 초록인데 화면은 깨진다.** */
+    const html = fs.readFileSync(path.join(SIM_ROOT, name + '.html'), 'utf8');
+    const dom = new JSDOM(html, {
+        runScripts: 'outside-only',
+        url: 'http://localhost/',
+        pretendToBeVisual: true,      // requestAnimationFrame 을 갖춘다
+    });
+    const sandbox = dom.getInternalVMContext();
+    const doc = dom.window.document;
 
-    const sandbox = {
-        console: {log() {}, warn() {}, error(...a) { errors.push(a.join(' ')); }, info() {}, debug() {}},
-        Math, JSON, Date, Number, String, Boolean, Array, Object, Map, Set, Promise, Error, RegExp,
-        isFinite, isNaN, parseFloat, parseInt, Infinity, NaN, undefined,
-        Uint8ClampedArray, Float32Array, Float64Array, Int32Array,
-        setTimeout, clearTimeout, setInterval, clearInterval, queueMicrotask,
-        requestAnimationFrame: (f) => setTimeout(() => { try { f(performance.now()); } catch (e) { errors.push(String(e)); } }, 0),
-        cancelAnimationFrame: clearTimeout,
-        performance,
-        getComputedStyle: () => new Proxy({}, {get: () => '0px'}),
-        document: doc,
-        navigator: {userAgent: 'node', mediaDevices: {getUserMedia: () => Promise.reject(new Error('no camera'))}},
-        localStorage: {getItem: () => null, setItem() {}, removeItem() {}},
-        alert() {},
-        fetch: () => Promise.reject(new Error('no network')),
-        ...STUB_GLOBALS,
-        ...(opts.globals || {}),
+    /* ---- jsdom 에 없는 것 ----
+       **레이아웃과 캔버스가 없다.** 그래서 크기는 받침대가 쥐고 흔들고, 캔버스 컨텍스트는
+       그린 명령을 적어 두는 가짜를 그대로 쓴다. **없는 것을 밝혀 두는 것이 검사의 절반이다** —
+       글자 폭·상자 겹침 같은 «실제 픽셀» 판정은 여기서 할 수 없다(브라우저 몫이다). */
+    const W = dom.window;
+    const proto = W.Element.prototype;
+    Object.defineProperty(proto, 'clientWidth', {get() { return Math.round(state.box.w); }, configurable: true});
+    Object.defineProperty(proto, 'clientHeight', {get() { return Math.round(state.box.h); }, configurable: true});
+    Object.defineProperty(proto, 'offsetWidth', {get() { return Math.round(state.box.w); }, configurable: true});
+    Object.defineProperty(proto, 'offsetHeight', {get() { return Math.round(state.box.h); }, configurable: true});
+    proto.getBoundingClientRect = function () {
+        const {w, h} = state.box;
+        return {top: 0, left: 0, right: w, bottom: h, width: w, height: h, x: 0, y: 0};
     };
-    sandbox.__stub = stubObject;   // 못 얹은 모듈에서 오는 이름을 물려줄 때 쓴다
-    sandbox.window = sandbox;
-    sandbox.globalThis = sandbox;
-    sandbox.self = sandbox;
-    sandbox.devicePixelRatio = dpr;
-    sandbox.innerWidth = 1280;
-    Object.defineProperty(sandbox, 'innerHeight', {get: () => opts.innerHeight?.() ?? 900, configurable: true});
-    sandbox.scrollX = 0;
-    sandbox.scrollY = 0;
-    sandbox.scrollTo = () => {};
-    sandbox.matchMedia = () => ({matches: false, addEventListener() {}, addListener() {}});
-    sandbox.addEventListener = (t, f) => { (winListeners[t] ||= []).push(f); };
-    sandbox.removeEventListener = () => {};
-    sandbox.dispatchEvent = (e) => { (winListeners[e.type] || []).forEach((f) => f(e)); return true; };
-    sandbox.Event = class { constructor(type) { this.type = type; } };
+    proto.scrollIntoView = function () {};
+    // SVG 글자 재기는 jsdom 에 없다. `TextMeasurer` 가 0 을 보면 어림값으로 넘어간다.
+    W.SVGElement.prototype.getBBox = function () { return {x: 0, y: 0, width: 0, height: 0}; };
+
+    /* **`viewBox` 도 jsdom 에 없다.** `d3-zoom` 이 `hasAttribute('viewBox')` 로 갈래를 타고
+       곧바로 `svg.viewBox.baseVal` 을 읽어서, 없으면 그 자리에서 죽는다.
+       적혀 있는 값을 그대로 풀어 준다 — 없으면 0 넷이다. */
+    /* `width`·`height` 도 마찬가지다. viewBox 가 없는 SVG 에서 `d3-zoom` 은
+       `svg.width.baseVal.value` 로 넘어간다 — 그쪽도 jsdom 에 없다.
+       받침대가 쥔 상자 크기를 돌려준다. */
+    for (const 축 of ['width', 'height']) {
+        Object.defineProperty(W.SVGSVGElement.prototype, 축, {
+            get() { return {baseVal: {value: 축 === 'width' ? state.box.w : state.box.h}}; },
+            configurable: true,
+        });
+    }
+
+    Object.defineProperty(W.SVGSVGElement.prototype, 'viewBox', {
+        get() {
+            const n = (this.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+            const v = (i) => (Number.isFinite(n[i]) ? n[i] : 0);
+            return {baseVal: {x: v(0), y: v(1), width: v(2), height: v(3)}};
+        },
+        configurable: true,
+    });
+
+    W.HTMLCanvasElement.prototype.getContext = function () { return makeCtx(this); };
+    W.HTMLCanvasElement.prototype.toDataURL = () => 'data:,';
+
+    // 전체 화면은 jsdom 에 없다. 받침대가 직접 흔든다 → `fireFullscreenChange`
+    doc.exitFullscreen = () => Promise.resolve();
+    Object.defineProperty(doc, 'fullscreenEnabled', {value: true, configurable: true});
+    proto.requestFullscreen = function () { return Promise.resolve(); };
+
+    /* ---- 창에 얹는 것 ---- */
+    W.console = {log() {}, warn() {}, error(...a) { errors.push(a.join(' ')); }, info() {}, debug() {}};
+    W.devicePixelRatio = dpr;
+    W.innerWidth = 1280;
+    Object.defineProperty(W, 'innerHeight', {get: () => opts.innerHeight?.() ?? 900, configurable: true});
+    W.matchMedia = () => ({matches: false, addEventListener() {}, addListener() {}, removeEventListener() {}});
     // 상자가 자라는 것을 지켜보는 쪽은 흉내 내지 않는다 — 이 받침대는 크기를 직접 흔든다.
-    sandbox.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
-    sandbox.CustomEvent = sandbox.Event;
+    W.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+    W.fetch = () => Promise.reject(new Error('no network'));
+    W.alert = () => {};
+    W.scrollTo = () => {};
+    Object.defineProperty(W.navigator, 'mediaDevices', {
+        value: {getUserMedia: () => Promise.reject(new Error('no camera'))}, configurable: true,
+    });
 
-    vm.createContext(sandbox);
+    /* **d3 는 이 창 «바깥»에서 돈다.** 우리가 node 로 읽어 들인 모듈이라 그 전역은
+       node 의 것이다. 그런데 `d3-zoom` 은 `node instanceof SVGElement` 로 갈래를 타므로,
+       그 이름이 node 전역에 없으면 **`SVGElement is not defined` 로 죽는다.**
+       지금 띄운 창의 생성자를 node 전역에 놓아 준다 — 받침대는 한 번에 한 장만 띄우므로
+       뒤엣것이 앞엣것을 덮어도 문제가 없다. */
+    for (const 이름 of ['SVGElement', 'Element', 'Node', 'HTMLElement', 'MouseEvent', 'CustomEvent']) {
+        if (W[이름]) globalThis[이름] = W[이름];
+    }
+
+    for (const [k, v] of Object.entries(STUB_GLOBALS)) W[k] = v;
+    for (const [k, v] of Object.entries(opts.globals || {})) W[k] = v;
+    W.__stub = stubObject;      // 못 얹은 모듈에서 오는 이름을 물려줄 때 쓴다
+    W.__pkg = PKG;              // 진짜로 얹어 주는 바깥 꾸러미
+
+    /* **없는 id 를 물으면 만들어 준다.** 받침대가 흔들려고 쓰는 이름(`__fs` 따위)이
+       페이지에는 없기 때문이다. 페이지에 있는 id 는 당연히 진짜 요소가 나온다. */
+    const el = (id) => {
+        let found = doc.getElementById(id);
+        if (!found) {
+            found = doc.createElement('div');
+            found.id = id;
+            doc.body.appendChild(found);
+        }
+        return found;
+    };
+
 
     /* ---- 진입점의 import 그래프를 의존 먼저 얹는다 ----
        바깥 꾸러미에 기대는 모듈만 껍데기로 때우고, 나머지는 **진짜로 돌린다** —
@@ -484,34 +413,9 @@ export function loadSim(name, opts = {}) {
         }
     }
 
-    const html = fs.readFileSync(path.join(SIM_ROOT, name + '.html'), 'utf8');
-
-    /* **마크업에 적힌 초기값을 실어 준다.** 슬라이더의 `value="8"` 같은 것을 빼먹으면
-       `parseInt('')` 가 NaN 이 되어 페이지가 엉뚱한 자리에서 죽는다 —
-       **페이지 잘못이 아닌데 검사가 잘못이라고 소리치는** 가장 흔한 원인이다. */
-    for (const m of html.matchAll(/<(input|select|textarea|option)\b([^>]*)>/g)) {
-        const attrs = m[2];
-        const id = attrs.match(/\bid="([^"]*)"/)?.[1];
-        if (!id) continue;
-        const node = el(id);
-        for (const key of ['value', 'min', 'max', 'step', 'type']) {
-            // 문자열 안의 `'\b'` 는 **백스페이스 문자**다. 낱말 경계로 쓰려면 두 번 적는다.
-            const v = attrs.match(new RegExp('\\b' + key + '="([^"]*)"'))?.[1];
-            if (v !== undefined) node[key] = v;
-        }
-        if (/\bchecked\b/.test(attrs)) node.checked = true;
-    }
-
-    /* `<select>` 는 태그에 `value` 가 없다. **고른 `<option>` 의 값이 곧 select 의 값**이다.
-       이것을 빼먹으면 `parseInt(select.value)` 가 NaN 이 되어 페이지가 엉뚱하게 죽는다. */
-    for (const m of html.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/g)) {
-        const id = m[1].match(/\bid="([^"]*)"/)?.[1];
-        if (!id) continue;
-        const options = [...m[2].matchAll(/<option\b([^>]*)>/g)];
-        const picked = options.find((o) => /\bselected\b/.test(o[1])) || options[0];
-        const v = picked?.[1].match(/\bvalue="([^"]*)"/)?.[1];
-        if (v !== undefined) el(id).value = v;
-    }
+    /* **마크업의 초기값을 손으로 실어 주던 자리가 없어졌다.**
+       `value="8"`·`checked`·고른 `<option>` 을 정규식으로 긁어 스텁에 옮겨 담던 코드였다.
+       jsdom 이 문서를 진짜로 파싱하므로 그런 값은 처음부터 제자리에 있다. */
 
     // ---- 페이지의 인라인 스크립트를 전부, 문서에 놓인 차례대로 ----
     const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
@@ -523,36 +427,52 @@ export function loadSim(name, opts = {}) {
         }
     }
 
-    const fire = (type, list) => {
-        for (const f of list[type] || []) {
-            try { f({type, target: sandbox}); } catch (e) { errors.push(`${type}: ${e.message}`); }
-        }
+    /* **사건은 진짜로 쏜다.** 예전에는 등록된 함수를 우리가 들고 있다가 손으로 불렀는데,
+       그러면 `preventDefault`·버블링·`e.target` 이 전부 흉내였다. 이제 jsdom 이 나른다.
+       다만 페이지가 던진 예외는 검사에 보여야 하므로 여기서 잡아 둔다. */
+    const fire = (target, type) => {
+        try { target.dispatchEvent(new W.Event(type)); } catch (e) { errors.push(`${type}: ${e.message}`); }
     };
+    W.addEventListener('error', (e) => errors.push(String(e.error?.message || e.message)));
 
     const lifecycle = () => {
-        doc.readyState = 'interactive';
-        fire('DOMContentLoaded', docListeners);
-        doc.readyState = 'complete';
-        fire('load', winListeners);
-        if (typeof sandbox.onload === 'function') {
-            try { sandbox.onload(); } catch (e) { errors.push(`onload: ${e.message}`); }
+        Object.defineProperty(doc, 'readyState', {value: 'interactive', configurable: true});
+        fire(doc, 'DOMContentLoaded');
+        Object.defineProperty(doc, 'readyState', {value: 'complete', configurable: true});
+        fire(W, 'load');
+        if (typeof W.onload === 'function') {
+            try { W.onload(); } catch (e) { errors.push(`onload: ${e.message}`); }
         }
     };
 
+    /** id 가 붙은 요소를 전부. 화면에 무엇이 찍혔는지 훑을 때 쓴다. */
+    const idElements = () => [...doc.querySelectorAll('[id]')];
+
     return {
-        sandbox, doc, el, byId, errors, stubbed, state, dpr, blocks,
+        sandbox, doc, window: W, el, errors, stubbed, state, dpr, blocks,
         lifecycle,
         setBox: (w, h) => { state.box.w = w; state.box.h = h; },
-        fireResize: () => fire('resize', winListeners),
+        fireResize: () => fire(W, 'resize'),
         fireFullscreenChange: (target) => {
             /* 실제 차례 — 공통 모듈(`_lib/fullscreen.js`)이 먼저 등록되어 resize 를 쏘고,
                그 뒤에 페이지의 핸들러가 돈다. */
-            doc.fullscreenElement = target || null;
-            fire('resize', winListeners);
-            fire('fullscreenchange', docListeners);
+            Object.defineProperty(doc, 'fullscreenElement', {value: target || null, configurable: true});
+            fire(W, 'resize');
+            fire(doc, 'fullscreenchange');
         },
-        canvases: () => [...byId.values()].filter((e) => e.tagName === 'CANVAS' && e._ctx),
-        /* 페이지 안에서 이름을 풀어 본다. `let`·`const` 로 선언한 것은 sandbox 의 속성이
+        idElements,
+        /**
+         * 화면에 찍힌 글자. **`byId` 를 훑어 `_text`·`_html` 을 읽던 자리를 대신한다** —
+         * 그 둘은 손으로 만든 스텁의 속살이었고 진짜 DOM 에는 없다.
+         */
+        texts: () => idElements().map((e) => ({
+            id: e.id,
+            text: e.textContent || '',
+            html: e.innerHTML || '',
+            value: typeof e.value === 'string' ? e.value : '',
+        })),
+        canvases: () => [...doc.querySelectorAll('canvas')].filter((c) => c._ctx),
+        /* 페이지 안에서 이름을 풀어 본다. `let`·`const` 로 선언한 것은 창의 속성이
            되지 않으므로, 이름이 있는지 보려면 **그 문맥에서 평가해야** 한다. */
         evalInPage: (expr) => {
             try { return vm.runInContext(expr, sandbox, {filename: 'probe.js'}); } catch { return undefined; }

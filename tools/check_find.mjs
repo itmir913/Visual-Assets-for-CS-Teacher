@@ -330,14 +330,14 @@ console.log(`  해시 ${hashChecks}판 — 담긴 것을 Set으로 따로 들고
     for (const e of page.errors) bad(`페이지를 띄우다가 — ${e}`);
 
     const SICK = /NaN|Infinity|undefined/;
-    for (const el of page.byId.values()) {
-        for (const v of [el._text, el._html]) {
+    for (const el of page.texts()) {
+        for (const v of [el.text, el.html]) {
             if (typeof v === 'string' && SICK.test(v)) bad(`#${el.id}에 ${v.slice(0, 40)}`);
         }
     }
     /* 조사를 손으로 적어 둔 자리가 남아 있지 않은가 → `_lib/josa.js` */
-    for (const el of page.byId.values()) {
-        for (const v of [el._text, el._html]) {
+    for (const el of page.texts()) {
+        for (const v of [el.text, el.html]) {
             if (typeof v === 'string' && /이\(가\)|을\(를\)|은\(는\)|와\(과\)/.test(v)) {
                 bad(`#${el.id}에 조사가 손으로 적혀 있다 — ${v.slice(0, 40)}`);
             }

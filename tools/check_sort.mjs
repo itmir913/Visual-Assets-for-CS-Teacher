@@ -177,10 +177,13 @@ page.lifecycle();
 for (const e of page.errors) bad(`페이지를 띄우다가 — ${e}`);
 
 /** `#bars-host` 아래에 무엇이 몇 개 그려졌는지 센다. */
+/* **태그 이름은 대문자로 맞춰 센다.** 진짜 DOM 에서 HTML 요소의 `tagName` 은 대문자인데
+   **SVG 요소는 소문자 그대로다**(`svg` · `g` · `circle` · `line`). */
 function drawn(sim) {
     const tally = {};
     const walk = (el) => {
-        tally[el.tagName] = (tally[el.tagName] || 0) + 1;
+        const 이름 = String(el.tagName).toUpperCase();
+        tally[이름] = (tally[이름] || 0) + 1;
         for (const c of el.children || []) walk(c);
     };
     for (const c of sim.el('bars-host').children) walk(c);
@@ -190,8 +193,8 @@ function drawn(sim) {
 const SICK = /NaN|Infinity|undefined/;
 
 function screenSick(sim) {
-    for (const el of sim.byId.values()) {
-        for (const v of [el._text, el._html]) {
+    for (const el of sim.texts()) {
+        for (const v of [el.text, el.html]) {
             if (typeof v === 'string' && SICK.test(v)) return `#${el.id}: ${v.slice(0, 50)}`;
         }
     }
@@ -201,8 +204,11 @@ function screenSick(sim) {
 function setSize(sim, idx) {
     const sl = sim.el('n-slider');
     sl.value = String(idx);
-    sl.dispatchEvent({type: 'input', target: sl});
-    sl.dispatchEvent({type: 'change', target: sl});
+    /* **진짜 사건을 쏜다.** 예전에는 `{type:'input'}` 같은 평범한 객체를 넘겼는데,
+       받침대가 jsdom 으로 바뀌면서 그것은 사건이 아니라고 거절당한다. 잘된 일이다 —
+       `target`·버블링·`preventDefault` 가 전부 진짜가 된다. */
+    sl.dispatchEvent(new sim.window.Event('input', {bubbles: true}));
+    sl.dispatchEvent(new sim.window.Event('change', {bubbles: true}));
 }
 
 const pageRows = [];
@@ -258,9 +264,10 @@ function heightMap(sim) {
         if (el.style.position === 'absolute') return;
         const h = el.style.height || '';
         if (h) out.set(path, h);
-        (el.children || []).forEach((c, i) => walk(c, `${path}/${i}`));
+        [...(el.children || [])].forEach((c, i) => walk(c, `${path}/${i}`));
     };
-    sim.el('bars-host').children.forEach((c, i) => walk(c, String(i)));
+    /* 진짜 DOM 의 `children` 은 배열이 아니라 `HTMLCollection` 이다 — 펴서 쓴다. */
+    [...sim.el('bars-host').children].forEach((c, i) => walk(c, String(i)));
     return out;
 }
 

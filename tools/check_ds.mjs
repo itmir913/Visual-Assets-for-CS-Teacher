@@ -436,8 +436,8 @@ for (const e of page.errors) bad(`페이지를 띄우다가 — ${e}`);
 const SICK = /NaN|Infinity|undefined/;
 
 function screenSick(sim) {
-    for (const el of sim.byId.values()) {
-        for (const v of [el._text, el._html]) {
+    for (const el of sim.texts()) {
+        for (const v of [el.text, el.html]) {
             if (typeof v === 'string' && SICK.test(v)) return `#${el.id}: ${v.slice(0, 50)}`;
         }
     }
@@ -445,10 +445,15 @@ function screenSick(sim) {
 }
 
 /** `#view-host` 아래에 무엇이 몇 개 그려졌는지 센다. */
+/* **태그 이름은 대문자로 맞춰 센다.** 진짜 DOM 에서 HTML 요소의 `tagName` 은 대문자인데
+   **SVG 요소는 소문자 그대로다**(`svg` · `g` · `circle`). 손으로 만든 스텁은 무엇이든
+   대문자로 돌려주었기 때문에, jsdom 으로 갈아 끼우자 `tally.CIRCLE` 이 통째로 비어
+   「거의 그려지지 않았다」가 우수수 났다 — 그림은 멀쩡한데 세는 쪽이 틀린 것이었다. */
 function drawn(sim) {
     const tally = {};
     const walk = (el) => {
-        tally[el.tagName] = (tally[el.tagName] || 0) + 1;
+        const 이름 = String(el.tagName).toUpperCase();
+        tally[이름] = (tally[이름] || 0) + 1;
         for (const c of el.children || []) walk(c);
     };
     for (const c of sim.el('view-host').children) walk(c);
@@ -520,9 +525,10 @@ function heightMap(sim) {
            통째로 써 넣은 SVG만 문자열이 된다 — 우리가 재려는 것이 바로 그것이다. */
         if (typeof el.style === 'string' && el.style) out.set(path + '@style', el.style);
         if (typeof el.viewBox === 'string' && el.viewBox) out.set(path + '@viewBox', el.viewBox);
-        (el.children || []).forEach((c, i) => walk(c, `${path}/${i}`));
+        [...(el.children || [])].forEach((c, i) => walk(c, `${path}/${i}`));
     };
-    sim.el('view-host').children.forEach((c, i) => walk(c, String(i)));
+    /* 진짜 DOM 의 `children` 은 배열이 아니라 `HTMLCollection` 이다 — 펴서 쓴다. */
+    [...sim.el('view-host').children].forEach((c, i) => walk(c, String(i)));
     return out;
 }
 

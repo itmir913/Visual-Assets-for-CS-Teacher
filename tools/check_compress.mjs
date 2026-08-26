@@ -457,17 +457,16 @@ for (const p of COMPRESS_PRESETS) {
        그러니 **허프만 나무가 화면에 어떻게 그려지는지는 여기서 못 본다** — 이 검사가
        보증하는 것은 「나무를 그리려다 죽지는 않는다」와 숫자·표·글자 칸까지다. */
     const 때운것 = (sim.stubbed || []).join(', ') || '없음';
-    /* **탭과 프리셋을 눌러 본다.**
-       페이지는 `e.target.closest('[data-method]')`로 위임해 받는데, 받침대의 가짜
-       요소는 `closest()`가 늘 `null`이라 **클릭이 통째로 무시되고 있었다.**
-       그래서 이 검사가 «첫 방법 + 첫 프리셋» 한 판만 밟았다 — 허프만 그리는 길에
-       `throw`를 심어도 초록이었다. 손수 만든 사건으로 그 자리를 메운다. */
-    const 위임클릭 = (host, attr, value) => sim.el(host).dispatchEvent({
-        type: 'click',
-        target: {closest: (sel) => (sel === `[${attr}]` ? {dataset: {[attr.replace('data-', '')]: value}} : null)},
-        preventDefault() {},
-        stopPropagation() {},
-    });
+    /* **탭과 프리셋을 진짜로 누른다.**
+       페이지는 `e.target.closest('[data-method]')`로 위임해 받는다. 받침대가 손으로 만든
+       가짜 DOM 이던 동안에는 `closest()`가 늘 `null`이라 **클릭이 통째로 무시되어**,
+       이 검사가 «첫 방법 + 첫 프리셋» 한 판만 밟았다 — 허프만 그리는 길에 `throw`를
+       심어도 초록이었다. 받침대를 jsdom 으로 갈아 끼운 뒤로는 **그냥 누르면 된다.** */
+    const 위임클릭 = (host, attr, value) => {
+        const b = sim.doc.querySelector(`[${attr}="${value}"]`);
+        if (!b) return bad(`화면: [${attr}="${value}"] 단추가 없다`);
+        b.click();
+    };
 
     let 밟은판 = 0;
     for (const m of COMPRESS_METHODS) {

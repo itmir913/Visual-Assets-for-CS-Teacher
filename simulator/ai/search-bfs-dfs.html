@@ -1322,6 +1322,13 @@
          *
          * **되짚다가 제자리로 돌아올 수 있다.** 방문 검사를 끄면 A의 부모가 B이고 B의
          * 부모가 A인 상태가 만들어지기 때문이다. 본 노드를 적어 두어 그때 멈춘다.
+         *
+         * **그렇게 멈춘 토막은 길이 아니다.** 시작점에서 출발하지 않기 때문이다.
+         * 그런데도 길인 양 넘겨주면 그 토막의 비용을 세어 「가장 싼 길」이라고 적게 된다 —
+         * 실제로 지도 아홉 장에서 시작점이 빠진 두세 칸짜리 토막을 그려 놓고
+         * 「2칸, 비용 15」라고 알렸다(참값은 4칸, 31). **칸 수가 적다고 싼 길은 아니라고
+         * 가르치는 화면이 정확히 그 반대를 적고 있었다.**
+         * 그래서 되짚기가 끊기면 길을 내놓지 않는다 → `successMessage`.
          */
         buildPath(goal) {
             const path = [goal];
@@ -1333,7 +1340,7 @@
                 seen.add(cur);
                 path.unshift(cur);
             }
-            return path;
+            return path[0] === this.graph.start ? path : null;
         }
 
         pathCost(path) {
@@ -1351,6 +1358,20 @@
          */
         successMessage(st) {
             const M = window.GraphModel;
+
+            /* **되짚기가 끊겼으면 성적을 적지 않는다.** 방문 검사를 끄면 같은 노드를 여러 번
+               지나면서 「누가 나를 열었는가」가 계속 덮어써져, A의 부모가 B이고 B의 부모가
+               A인 고리가 생긴다. 그러면 목표에서 시작점까지 되짚을 길이 아예 없다.
+               **없는 것을 있다고 적는 대신 왜 없는지를 적는다** — 방문 검사를 켜야 하는
+               까닭이 「끝나지 않는다」 말고 하나 더 있다는 것이 여기서 드러난다. */
+            if (!st.path) {
+                return `🎉 목표 <b>${this.graph.goal}</b>에 닿기는 했습니다.
+                    그런데 <b>어느 길로 왔는지 되짚을 수가 없습니다</b> —
+                    「한 번 넣은 노드는 다시 넣지 않기」를 꺼 두어 같은 노드를 여러 번 지났고,
+                    그때마다 <b>누가 나를 열었는지가 덮어써졌기</b> 때문입니다.
+                    켜고 다시 돌리면 지나온 길이 지도에 그려집니다.`;
+            }
+
             const 칸수 = st.path.length - 1;
             const 비용 = this.pathCost(st.path);
             const 연노드 = st.closed.size;
@@ -1711,7 +1732,8 @@
                     this.createGrid();
                     this.clearSearchVisuals();
                     this.updateVisuals();
-                    this.setStatus(`화면 크기에 맞춰 격자를 ${this.rows}×${this.cols}로 바꿨습니다.`);
+                    // 칸 수가 6·7·8·10 넷이라 「로/으로」가 갈린다 — 6은 「육」이라 으로, 7은 「칠」이라 로다.
+                    this.setStatus(`화면 크기에 맞춰 격자를 ${this.rows}×${this.cols}${window.josa(this.cols, '으로')} 바꿨습니다.`);
                 }, 250);
             });
         }

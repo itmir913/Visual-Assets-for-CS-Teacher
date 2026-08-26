@@ -680,7 +680,7 @@
                     <tr class="bg-slate-100 text-slate-700">
                         <th class="w-44 text-left font-black px-4 py-2 border border-slate-200">방법</th>
                         <th class="text-left font-black px-4 py-2 border border-slate-200">찾은 길</th>
-                        <th class="text-left font-black px-4 py-2 border border-slate-200">든 비용</th>
+                        <th class="text-left font-black px-4 py-2 border border-slate-200" id="graph-compare-cost">든 비용</th>
                         <th class="text-left font-black px-4 py-2 border border-slate-200">열어 본 노드</th>
                     </tr>
                     </thead>
@@ -1019,7 +1019,7 @@
                     this.assignHeuristics();
 
                     this.resetSearch();
-                    this.setStatus(`노드 ${this.goalNode}이(가) 새로운 목표(Goal)로 설정되었습니다.`);
+                    this.setStatus(`노드 ${this.goalNode}${window.josa(this.goalNode, '이가')} 새로운 목표(Goal)로 설정되었습니다.`);
                 }
             });
 
@@ -1887,11 +1887,19 @@
             }
 
             const 최저 = M.cheapestCost(this.graph);
+
+            /* **비용을 끈 지도에서는 비용 칸을 없앤다.** 전부 1인 지도에서 그 값은 칸 수를
+               그대로 옮겨 적은 것인데, 열 이름이 「든 비용」이라 **학생은 칸 수와 다른
+               무엇으로 읽는다.** 간선 위에 1을 안 적는 것과 같은 까닭이고, 낱개 성공 문구도
+               같은 자리에서 비용을 뺀다 — 표만 다르게 굴면 안 된다. */
+            const 비용칸 = this.graph.weighted;
+            document.getElementById('graph-compare-cost').classList.toggle('hidden', !비용칸);
+
             const 줄 = (이름, r) => `
                 <tr class="align-top">
                     <td class="px-4 py-2 border border-slate-200 font-bold text-slate-800">${이름}</td>
                     <td class="px-4 py-2 border border-slate-200 font-mono text-slate-700">${r.path.join(' → ')}</td>
-                    <td class="px-4 py-2 border border-slate-200 font-bold ${r.cost > 최저 ? 'text-rose-600' : 'text-emerald-600'}">${r.cost}${r.cost > 최저 ? ` (${r.cost - 최저} 손해)` : ' (가장 쌈)'}</td>
+                    ${비용칸 ? `<td class="px-4 py-2 border border-slate-200 font-bold ${r.cost > 최저 ? 'text-rose-600' : 'text-emerald-600'}">${r.cost}${r.cost > 최저 ? ` (${r.cost - 최저} 손해)` : ' (가장 쌈)'}</td>` : ''}
                     <td class="px-4 py-2 border border-slate-200 text-slate-700">${r.opened}개</td>
                 </tr>`;
 
@@ -1906,18 +1914,31 @@
 
             // **읽어 줄 것은 두 줄이다.** 값이 싼가(최상 우선 ↔ A*)와
             // 몇 개를 열었는가(다익스트라 ↔ A*). 표의 두 열이 각각 그 이야기다.
+            /* **비용을 끈 지도에서는 「비용」이라는 말을 쓰지 않는다.** 길마다 드는 것이 모두
+               1이라 그 값은 거쳐 간 칸 수 그대로다. 그런데도 비용이라 부르면 학생이 칸 수와
+               다른 무엇이 있다고 읽는다 — 표에서 열을 없앤 것과 같은 까닭이다.
+               **말을 바꿀 뿐 비교하는 것은 그대로다** — 최상 우선이 손해를 보는 장면은
+               비용을 꺼도 「더 많이 돌아간다」로 똑같이 나온다. */
+            const 값이름 = 비용칸 ? '비용' : '거쳐 간 칸';
+            // **말을 갈아 끼웠으면 뒤에 붙는 조사도 함께 갈아야 한다.** 「비용가 같은」을
+            // 한 번 내보내고 나서야 알았다. 지금은 둘 다 「이」이지만 못박아 두지 않는다.
+            const 값이_ = `${값이름}${window.josa(값이름, '이가')}`;
+
             const 값이야기 = greedy.cost > astar.cost
-                ? `최상 우선은 비용 <b>${greedy.cost}</b>, A*는 <b>${astar.cost}</b>인 길을 찾았습니다 — <b>h(n)만 보면 손해</b>를 봅니다.`
-                : '이 지도에서는 최상 우선도 A*와 <b>같은 비용</b>의 길을 찾았습니다. <b>새 지도</b>를 눌러 다른 지도에서도 그런지 보세요.';
+                ? `최상 우선은 ${값이름} <b>${greedy.cost}</b>, A*는 <b>${astar.cost}</b>인 길을 찾았습니다 — <b>h(n)만 보면 손해</b>를 봅니다.`
+                : `이 지도에서는 최상 우선도 A*와 <b>${값이_} 같은</b> 길을 찾았습니다. <b>새 지도</b>를 눌러 다른 지도에서도 그런지 보세요.`;
 
             // **「A*가 덜 열었다」를 미리 적어 두지 않는다.** 값이 같은 판도 흔하다 —
             // 지도가 작거나 목표가 시작점 가까이 있으면 A*도 다익스트라만큼 열게 된다.
+            // 아래 첫 가지는 **막아 두는 자리이지 나오는 자리가 아니다.** h가 실제 남은 비용을
+            // 넘지 않으므로 둘의 비용은 같아야 하고, `check:graph-sim`이 판마다 그것을 못박는다.
+            // 그 보증이 깨지는 날 화면이 거짓말을 하지 않게 가지를 남겨 둔다.
             const 노드이야기 = dijkstra.cost !== astar.cost
-                ? ` 다익스트라는 비용 <b>${dijkstra.cost}</b>인 길을 찾았습니다.`
+                ? ` 다익스트라는 ${값이름} <b>${dijkstra.cost}</b>인 길을 찾았습니다.`
                 : (astar.opened < dijkstra.opened
-                    ? ` 다익스트라도 <b>같은 비용</b>의 길을 찾았지만 <b>${dijkstra.opened}개</b>를 열었습니다 —`
+                    ? ` 다익스트라도 <b>${값이_} 같은</b> 길을 찾았지만 <b>${dijkstra.opened}개</b>를 열었습니다 —`
                       + ` A*는 <b>${astar.opened}개</b>뿐입니다. <b>h(n)이 어느 쪽부터 볼지 일러 준 만큼</b>입니다.`
-                    : ` 다익스트라도 <b>같은 비용</b>의 길을 찾았고, 열어 본 노드도`
+                    : ` 다익스트라도 <b>${값이_} 같은</b> 길을 찾았고, 열어 본 노드도`
                       + ` <b>${dijkstra.opened}개 대 ${astar.opened}개</b>로 차이가 없습니다 — h(n)이 좁혀 줄 것이 없는 지도입니다.`);
 
             this.setStatus(값이야기 + 노드이야기 + ' 지도에 그린 것은 <b>A*가 찾은 길</b>입니다.');

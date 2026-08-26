@@ -219,6 +219,44 @@ function checkBlind() {
         }
     }
 
+    /* **방문 검사를 끄고 끝난 판에서, 내놓은 길이 진짜 길인가.**
+
+       이 자리가 비어 있어서 결함이 오래 살아남았다. 되짚기가 고리에 걸려 끊기면
+       **시작점에서 출발하지도 않는 토막**이 나오는데, 그 토막의 비용을 세어
+       「가장 싼 길이기도 합니다」라고 적고 있었다(지도 아홉 장에서 그랬다).
+       위의 288판은 전부 방문 검사를 켜고 돌린 것이라 여기를 한 번도 안 지나갔다. */
+    for (const preset of GRAPH_PRESETS) {
+        for (const combo of COMBOS) {
+            for (const algo of ['bfs', 'dfs']) {
+                const st = run(preset, combo, algo, false);
+                const where = `맹목 ${preset.id} ${tag(combo)} ${algo} 방문검사끔`;
+                if (st.status !== 'finished' || !st.path) continue;   // 상한에 걸렸거나 길을 안 내놓았다
+
+                if (!pathIsReal(sim.graph, st.path)) {
+                    bad(`${where}: 내놓은 길이 시작점에서 목표까지 이어져 있지 않다 — ${st.path.join('→')}`);
+                    continue;
+                }
+                const best = M.cheapestCost(M.buildGraph(preset, combo));
+                const cost = sim.pathCost(st.path);
+                if (cost < best) bad(`${where}: 비용 ${cost} < 최소 ${best} — 토막을 길이라고 세었다`);
+            }
+        }
+    }
+
+    // 길을 못 내놓았으면 **비용을 적지 않는다.** 없는 길의 값을 지어내지 않게 지킨다.
+    for (const preset of GRAPH_PRESETS) {
+        const st = run(preset, {directed: false, weighted: true, cyclic: true}, 'bfs', false);
+        if (st.status === 'finished' && !st.path) {
+            const 말 = el('graph-status').innerHTML;
+            if (말.includes('가장 싼 길')) {
+                bad(`맹목 ${preset.id}: 되짚지 못했는데 「가장 싼 길」이라고 적는다 — ${말}`);
+            }
+            if (/든 비용 <b>\d/.test(말)) {
+                bad(`맹목 ${preset.id}: 되짚지 못했는데 비용을 적는다 — ${말}`);
+            }
+        }
+    }
+
     // 방문 검사를 끄면 **되돌아갈 길이 아예 없을 때만** 끝난다.
     // 무방향 간선은 사이클이 없어도 왔던 길로 되돌아가므로 끝나지 않는다.
     for (const preset of GRAPH_PRESETS) {
@@ -312,21 +350,36 @@ function checkCutting(sim, el, 이름) {
 const 받침있는숫자 = new Set(['0', '1', '3', '6', '7', '8']);
 
 function checkPresetJosa(sim, el, 이름) {
+    const 대본다 = (어디) => {
+        const 말 = el('graph-status').innerHTML;
+        const m = 말.match(/<b>(지도 \d+)<\/b>([을를])/);
+        if (!m) return bad(`${이름} 조사(${어디}): 지도 이름이 든 문장을 못 찾았다 — ${말}`);
+
+        const 맞는것 = 받침있는숫자.has(m[1].trim().slice(-1)) ? '을' : '를';
+        if (m[2] !== 맞는것) {
+            bad(`${이름} 조사(${어디}): 「${m[1]}」에 붙일 조사는 ${맞는것}인데 ${m[2]}이 붙었다 — ${말}`);
+        }
+        return m[1];
+    };
+
+    // 되돌리기 — 지도를 골라 부를 수 있어 열두 장을 다 밟는다
     for (const preset of GRAPH_PRESETS) {
         sim.loadPreset(preset);
         sim.restore();
+        대본다('되돌리기');
+    }
 
-        const 말 = el('graph-status').innerHTML;
-        const 끝자 = preset.name.trim().slice(-1);
-        const 맞는것 = 받침있는숫자.has(끝자) ? '을' : '를';
-        const 틀린것 = 맞는것 === '을' ? '를' : '을';
-
-        if (!말.includes(`</b>${맞는것} `)) {
-            bad(`${이름} 조사: 「${preset.name}」에 붙일 조사는 ${맞는것}인데 그렇지 않다 — ${말}`);
-        }
-        if (말.includes(`</b>${틀린것} `)) {
-            bad(`${이름} 조사: 「${preset.name}」 뒤에 ${틀린것}이 붙었다 — ${말}`);
-        }
+    /* 펴기 — **여기는 지도를 고를 수가 없다.** `newMap`이 무작위로 뽑기 때문이다.
+       그래서 여러 번 뽑아 열두 장이 다 나오게 한다. 열두 장에 「직전 것은 피한다」이므로
+       마흔 번쯤이면 다 나오지만, 넉넉히 돌려 뽑기 운에 검사가 흔들리지 않게 한다. */
+    const 본것 = new Set();
+    for (let i = 0; i < 400 && 본것.size < GRAPH_PRESETS.length; i++) {
+        sim.newMap();
+        const 이름본것 = 대본다('펴기');
+        if (이름본것) 본것.add(이름본것);
+    }
+    if (본것.size < GRAPH_PRESETS.length) {
+        bad(`${이름} 조사: 400번 뽑았는데 ${본것.size}장만 나왔다 — 지도 뽑기가 고르지 않다`);
     }
 }
 

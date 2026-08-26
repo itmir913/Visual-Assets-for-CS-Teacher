@@ -10,7 +10,7 @@
 import {
     balanceOf, treeHeight, treeLinkedState, heapState, runTreeOperation,
 } from './tree-model.js';
-import {sortNum} from '../sort/sort-josa.js';
+import {withJosa} from '../josa.js';
 
 export const TREE_VALUE_MAX = 99;
 
@@ -26,8 +26,8 @@ function descend(rec, v) {
         if (d === 0) return {found: at};
         const side = d < 0 ? 'left' : 'right';
         rec.say(d < 0
-            ? `${sortNum(v, '은는')} ${at.v}보다 작으므로 **왼쪽**으로 내려갑니다.`
-            : `${sortNum(v, '은는')} ${at.v}보다 크므로 **오른쪽**으로 내려갑니다.`);
+            ? `${withJosa(v, '은는')} ${at.v}보다 작으므로 **왼쪽**으로 내려갑니다.`
+            : `${withJosa(v, '은는')} ${at.v}보다 크므로 **오른쪽**으로 내려갑니다.`);
         if (at[side] === null) return {parent: at, side};
         at = rec.node(at[side]);
     }
@@ -39,18 +39,18 @@ function bstInsert(rec, v) {
     rec.clearEmitted();
 
     if (rec.root === null) {
-        rec.say(`트리가 비어 있으므로 ${sortNum(v, '이가')} **뿌리**가 됩니다.`);
+        rec.say(`트리가 비어 있으므로 ${withJosa(v, '이가')} **뿌리**가 됩니다.`);
         const nd = rec.newNode(v);
         rec.link(null, nd.id, 'root');
         rec.settle(nd.id);
-        return `${sortNum(v, '을를')} 뿌리로 넣었습니다.`;
+        return `${withJosa(v, '을를')} 뿌리로 넣었습니다.`;
     }
 
     const spot = descend(rec, v);
     if (spot.found) {
-        rec.flag(`${sortNum(v, '은는')} 이미 들어 있습니다. 이 시뮬레이터는 **같은 값을 두 번 넣지 않습니다.**`);
+        rec.flag(`${withJosa(v, '은는')} 이미 들어 있습니다. 이 시뮬레이터는 **같은 값을 두 번 넣지 않습니다.**`);
         rec.mark('duplicate');
-        return `${sortNum(v, '은는')} 이미 있습니다.`;
+        return `${withJosa(v, '은는')} 이미 있습니다.`;
     }
 
     rec.spotAt(spot.parent.id, spot.side);
@@ -61,7 +61,7 @@ function bstInsert(rec, v) {
     rec.say(`${spot.parent.v}의 ${spot.side === 'left' ? '왼쪽' : '오른쪽'} 링크를 새 마디로 겁니다.`);
     rec.link(spot.parent.id, nd.id, spot.side);
     rec.settle(nd.id);
-    return `${sortNum(v, '을를')} 넣었습니다. **비교한 횟수가 곧 내려간 깊이**입니다.`;
+    return `${withJosa(v, '을를')} 넣었습니다. **비교한 횟수가 곧 내려간 깊이**입니다.`;
 }
 
 function bstSearch(rec, v) {
@@ -78,20 +78,20 @@ function bstSearch(rec, v) {
         const d = rec.compareAt(at.id, v);
         steps++;
         if (d === 0) {
-            rec.say(`${sortNum(v, '을를')} 찾았습니다.`);
+            rec.say(`${withJosa(v, '을를')} 찾았습니다.`);
             rec.mark('found');
             return `${steps}번 비교해 찾았습니다. **트리 높이가 ${treeHeight(rec.state)}이므로 아무리 깊어도 그만큼입니다.**`;
         }
         const side = d < 0 ? 'left' : 'right';
         rec.say(d < 0
-            ? `${sortNum(v, '은는')} ${at.v}보다 작습니다. **오른쪽 가지는 통째로 볼 필요가 없습니다.**`
-            : `${sortNum(v, '은는')} ${at.v}보다 큽니다. **왼쪽 가지는 통째로 볼 필요가 없습니다.**`);
+            ? `${withJosa(v, '은는')} ${at.v}보다 작습니다. **오른쪽 가지는 통째로 볼 필요가 없습니다.**`
+            : `${withJosa(v, '은는')} ${at.v}보다 큽니다. **왼쪽 가지는 통째로 볼 필요가 없습니다.**`);
         if (at[side] === null) break;
         at = rec.node(at[side]);
     }
-    rec.say(`더 내려갈 곳이 없습니다. ${sortNum(v, '은는')} 트리에 없습니다.`);
+    rec.say(`더 내려갈 곳이 없습니다. ${withJosa(v, '은는')} 트리에 없습니다.`);
     rec.mark('missing');
-    return `${sortNum(v, '은는')} 없습니다. **${steps}번 비교하고 끝났습니다** — 없다는 것도 이만큼이면 알 수 있습니다.`;
+    return `${withJosa(v, '은는')} 없습니다. **${steps}번 비교하고 끝났습니다** — 없다는 것도 이만큼이면 알 수 있습니다.`;
 }
 
 /** 오른쪽 가지에서 **가장 작은 마디**. 지우려는 값의 바로 다음 값이다. */
@@ -126,9 +126,9 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
         at = rec.node(at[side]);
     }
     if (!target) {
-        rec.flag(`${sortNum(v, '은는')} 트리에 없습니다.`);
+        rec.flag(`${withJosa(v, '은는')} 트리에 없습니다.`);
         rec.mark('missing');
-        return `${sortNum(v, '이가')} 없어 아무것도 지우지 않았습니다.`;
+        return `${withJosa(v, '이가')} 없어 아무것도 지우지 않았습니다.`;
     }
 
     /* **자식이 둘이면 값을 맞바꾼 뒤 «다음 값»의 마디를 지운다.**
@@ -140,7 +140,7 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
            옮겨 간 값이 제자리를 벗어난다(화면에서도 가로 차례가 어긋나 보인다).
            곧 그 마디를 떼어 내므로 끝나고 나면 성질이 돌아온다 —
            **그 「잠깐」을 밝히지 않으면 자막이 화면을 부정한다.** */
-        rec.say(`${target.v} 자리에 **${sortNum(succ.v, '을를')}** 올려놓습니다. `
+        rec.say(`${target.v} 자리에 **${withJosa(succ.v, '을를')}** 올려놓습니다. `
             + `옮겨 온 자리(${target.v}이 있던 곳)에는 이제 ${succ.v}이 두 번 있는 셈이라 `
             + '**잠깐 규칙이 어긋납니다** — 곧 아래쪽 마디를 떼어 내면 제자리로 돌아옵니다.');
         rec.swapValues(target.id, succ.id);
@@ -153,15 +153,15 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
         : (rec.node(parent).left === target.id ? 'left' : 'right');
 
     rec.say(child === null
-        ? `${sortNum(target.v, '은는')} 자식이 없으므로 그냥 떼어 냅니다.`
-        : `${sortNum(target.v, '은는')} 자식이 하나뿐이므로 **그 자식을 제 자리에 올립니다.**`);
+        ? `${withJosa(target.v, '은는')} 자식이 없으므로 그냥 떼어 냅니다.`
+        : `${withJosa(target.v, '은는')} 자식이 하나뿐이므로 **그 자식을 제 자리에 올립니다.**`);
     rec.doom(target.id);
     rec.link(parent, child, side);
     rec.dropNode(target.id);
 
     if (rebalance) avlRebalanceUp(rec, parent);
     rec.refreshHeights();
-    return `${sortNum(v, '을를')} 뺐습니다.`;
+    return `${withJosa(v, '을를')} 뺐습니다.`;
 }
 
 /* ---- 순회 ---- */
@@ -224,12 +224,12 @@ function rotate(rec, y, dir) {
     const moved = x[otherSide];
 
     rec.say(`**${dir === 'right' ? '오른쪽' : '왼쪽'}으로 돌립니다.** `
-        + `${sortNum(x.v, '이가')} 위로 올라가고 ${sortNum(y.v, '이가')} 아래로 내려갑니다.`);
+        + `${withJosa(x.v, '이가')} 위로 올라가고 ${withJosa(y.v, '이가')} 아래로 내려갑니다.`);
     rec.mark('rotate');
 
     rec.say(moved === null
         ? `${x.v}의 ${otherSide === 'left' ? '왼쪽' : '오른쪽'}은 비어 있습니다.`
-        : `${sortNum(rec.node(moved).v, '은는')} ${x.v}와 ${y.v} 사이의 값이므로 ${y.v}의 `
+        : `${withJosa(rec.node(moved).v, '은는')} ${x.v}와 ${y.v} 사이의 값이므로 ${y.v}의 `
           + `${pivotSide === 'left' ? '왼쪽' : '오른쪽'}으로 옮겨 갑니다. **자리가 바뀌어도 크기 차례는 그대로입니다.**`);
     rec.link(y.id, moved, pivotSide);
     rec.link(x.id, y.id, otherSide);
@@ -295,8 +295,8 @@ function avlInsert(rec, v) {
     rec.say('넣었으니 **뿌리까지 올라가며 균형을 봅니다.**');
     const rotations = avlRebalanceUp(rec, added ? added.parent : null);
     return rotations === 0
-        ? `${sortNum(v, '을를')} 넣었습니다. **돌릴 것이 없었습니다** — 균형이 이미 −1·0·1 안입니다.`
-        : `${sortNum(v, '을를')} 넣었습니다. **${rotations}번 돌려** 높이를 ${sortNum(treeHeight(rec.state), '으로')} 지켰습니다.`;
+        ? `${withJosa(v, '을를')} 넣었습니다. **돌릴 것이 없었습니다** — 균형이 이미 −1·0·1 안입니다.`
+        : `${withJosa(v, '을를')} 넣었습니다. **${rotations}번 돌려** 높이를 ${withJosa(treeHeight(rec.state), '으로')} 지켰습니다.`;
 }
 
 /* ---------------------------------------------------------------
@@ -317,10 +317,10 @@ function heapInsert(rec, v) {
        겹친 값이 들어간 뒤 탭을 옮기는 순간 «넣은 차례»에서 하나가 걸러져
        **값이 말없이 사라졌다.** 두 곳의 규칙이 같아야 한다. */
     if (rec.state.slots.slice(0, rec.size).some((it) => it && it.v === v)) {
-        rec.flag(`${sortNum(v, '은는')} 이미 들어 있습니다. 이 시뮬레이터는 `
+        rec.flag(`${withJosa(v, '은는')} 이미 들어 있습니다. 이 시뮬레이터는 `
             + '**같은 값을 두 번 넣지 않습니다.**');
         rec.mark('duplicate');
-        return `${sortNum(v, '은는')} 이미 있습니다.`;
+        return `${withJosa(v, '은는')} 이미 있습니다.`;
     }
     const at = rec.size;
     rec.say(`새 값은 **배열의 맨 끝(${at}번 칸)**에 놓습니다. 트리로 보면 마지막 자리입니다.`);
@@ -343,7 +343,7 @@ function heapInsert(rec, v) {
         swaps++;
         i = p;
     }
-    return `${sortNum(v, '을를')} 넣었습니다. **${swaps}번 올라갔습니다** — 아무리 많아도 트리 높이만큼입니다.`;
+    return `${withJosa(v, '을를')} 넣었습니다. **${swaps}번 올라갔습니다** — 아무리 많아도 트리 높이만큼입니다.`;
 }
 
 function heapExtract(rec) {
@@ -362,7 +362,7 @@ function heapExtract(rec) {
     if (last === 0) {
         rec.heapClear(0);
         rec.heapSetSize(0);
-        return `${sortNum(top, '을를')} 꺼냈습니다. 이제 비었습니다.`;
+        return `${withJosa(top, '을를')} 꺼냈습니다. 이제 비었습니다.`;
     }
 
     rec.say('빈 뿌리를 메우려고 **맨 끝 값을 뿌리로 올립니다.** 빈틈이 가운데 남으면 '
@@ -390,7 +390,7 @@ function heapExtract(rec) {
         swaps++;
         i = big;
     }
-    return `${sortNum(top, '을를')} 꺼냈습니다. **${swaps}번 내려갔습니다.**`;
+    return `${withJosa(top, '을를')} 꺼냈습니다. **${swaps}번 내려갔습니다.**`;
 }
 
 function heapFind(rec, v) {
@@ -417,9 +417,9 @@ function heapFind(rec, v) {
                   + '힙이 잘하는 것은 「가장 큰 것 꺼내기」이지 「찾기」가 아닙니다.';
         }
     }
-    rec.say(`${sortNum(v, '은는')} 없습니다.`);
+    rec.say(`${withJosa(v, '은는')} 없습니다.`);
     rec.mark('missing');
-    return `${sortNum(v, '은는')} 없습니다. **${rec.size}칸을 모두 보았습니다.**`;
+    return `${withJosa(v, '은는')} 없습니다. **${rec.size}칸을 모두 보았습니다.**`;
 }
 
 /* ---------------------------------------------------------------
@@ -429,19 +429,19 @@ function heapFind(rec, v) {
 export const bstOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 넣을 자리를 **뿌리에서부터 비교하며** 찾아 내려갑니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 넣을 자리를 **뿌리에서부터 비교하며** 찾아 내려갑니다.`,
         run: (rec, {v}) => bstInsert(rec, v),
         cost: () => 'O(높이)',
     },
     {
         id: 'search', name: '찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '이가')} 있는지 **뿌리에서부터** 비교하며 내려갑니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '이가')} 있는지 **뿌리에서부터** 비교하며 내려갑니다.`,
         run: (rec, {v}) => bstSearch(rec, v),
         cost: () => 'O(높이)',
     },
     {
         id: 'remove', name: '빼기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 찾아 지웁니다. **자식이 몇인지에 따라 하는 일이 다릅니다.**`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 찾아 지웁니다. **자식이 몇인지에 따라 하는 일이 다릅니다.**`,
         run: (rec, {v}) => bstRemove(rec, v),
         cost: () => 'O(높이)',
     },
@@ -468,19 +468,19 @@ export const bstOps = [
 export const avlOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 이진 탐색 트리와 **똑같이 넣은 뒤**, 균형이 무너졌으면 돌립니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 이진 탐색 트리와 **똑같이 넣은 뒤**, 균형이 무너졌으면 돌립니다.`,
         run: (rec, {v}) => avlInsert(rec, v),
         cost: () => 'O(log n)',
     },
     {
         id: 'search', name: '찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 찾습니다. 하는 일은 이진 탐색 트리와 같습니다 — **높이가 다를 뿐입니다.**`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 찾습니다. 하는 일은 이진 탐색 트리와 같습니다 — **높이가 다를 뿐입니다.**`,
         run: (rec, {v}) => bstSearch(rec, v),
         cost: () => 'O(log n)',
     },
     {
         id: 'remove', name: '빼기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 지운 뒤 **뿌리까지 올라가며** 균형을 봅니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 지운 뒤 **뿌리까지 올라가며** 균형을 봅니다.`,
         run: (rec, {v}) => bstRemove(rec, v, {rebalance: true}),
         cost: () => 'O(log n)',
     },
@@ -495,7 +495,7 @@ export const avlOps = [
 export const heapOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **배열 맨 끝에 놓고 부모와 비교하며 올라갑니다.**`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **배열 맨 끝에 놓고 부모와 비교하며 올라갑니다.**`,
         run: (rec, {v}) => heapInsert(rec, v),
         cost: () => 'O(log n)',
     },
@@ -507,7 +507,7 @@ export const heapOps = [
     },
     {
         id: 'find', name: '값 찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '이가')} 어디 있는지 찾습니다. **힙이 잘 못하는 일입니다.**`,
+        opening: (rec, {v}) => `${withJosa(v, '이가')} 어디 있는지 찾습니다. **힙이 잘 못하는 일입니다.**`,
         run: (rec, {v}) => heapFind(rec, v),
         cost: () => 'O(n)',
     },
@@ -520,7 +520,7 @@ export const heapOps = [
 /** 한 번에 여러 개를 넣는다. **오름차순으로 넣어 봐야 두 트리가 갈린다.** */
 function insertMany(rec, values, {rebalance}) {
     for (const v of values) {
-        rec.say(`${sortNum(v, '을를')} 넣습니다.`);
+        rec.say(`${withJosa(v, '을를')} 넣습니다.`);
         if (rebalance) avlInsert(rec, v); else bstInsert(rec, v);
     }
     const h = treeHeight(rec.state);
@@ -552,7 +552,7 @@ export const treeCompareOps = [
     },
     {
         id: 'insert', name: '한 개 넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 두 트리에 함께 넣습니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 두 트리에 함께 넣습니다.`,
         pair: {
             bst: {run: (rec, {v}) => bstInsert(rec, v)},
             avl: {run: (rec, {v}) => avlInsert(rec, v)},
@@ -560,7 +560,7 @@ export const treeCompareOps = [
     },
     {
         id: 'search', name: '찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} 두 트리에서 함께 찾습니다. **비교 횟수를 보세요.**`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 두 트리에서 함께 찾습니다. **비교 횟수를 보세요.**`,
         pair: {
             bst: {run: (rec, {v}) => bstSearch(rec, v)},
             avl: {run: (rec, {v}) => bstSearch(rec, v)},

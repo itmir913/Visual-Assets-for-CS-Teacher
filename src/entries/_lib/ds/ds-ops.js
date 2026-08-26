@@ -14,7 +14,7 @@
  */
 
 import {dsItem} from './ds-model.js';
-import {sortNum} from '../sort/sort-josa.js';
+import {withJosa} from '../josa.js';
 
 /** 넣는 값의 천장. 세 자리가 되면 좁은 칸에서 글자가 넘친다. */
 export const DS_VALUE_MAX = 99;
@@ -38,17 +38,17 @@ function arrayInsertAt(rec, i, v) {
     if (pushed > 0) {
         rec.say(`${i}번 자리를 비우려면 **뒤엣것 ${pushed}개를 한 칸씩 뒤로** 밀어야 합니다.`);
         for (let j = rec.size - 1; j >= i; j--) {
-            rec.say(`${j}번의 ${sortNum(rec.peek(j).v, '을를')} ${j + 1}번으로 밉니다.`);
+            rec.say(`${j}번의 ${withJosa(rec.peek(j).v, '을를')} ${j + 1}번으로 밉니다.`);
             rec.shift(j, j + 1);
         }
     }
-    rec.say(`빈 ${i}번 자리에 ${sortNum(v, '을를')} 씁니다.`);
+    rec.say(`빈 ${i}번 자리에 ${withJosa(v, '을를')} 씁니다.`);
     rec.write(i, dsItem(v));
     rec.setSize(rec.size + 1);
     rec.cursor('i', null);
     return pushed > 0
-        ? `${sortNum(v, '을를')} ${i}번에 넣었습니다. **밀어낸 것이 ${pushed}개**입니다.`
-        : `${sortNum(v, '을를')} ${i}번에 넣었습니다. **아무것도 밀지 않았습니다.**`;
+        ? `${withJosa(v, '을를')} ${i}번에 넣었습니다. **밀어낸 것이 ${pushed}개**입니다.`
+        : `${withJosa(v, '을를')} ${i}번에 넣었습니다. **아무것도 밀지 않았습니다.**`;
 }
 
 /** 자리 `i`의 값을 뺀다. **뒤엣것을 앞에서부터 하나씩 당긴다.** */
@@ -63,22 +63,22 @@ function arrayRemoveAt(rec, i) {
 
     rec.say(`${i}번 자리를 읽습니다.`);
     const gone = rec.at(i);
-    rec.say(`${sortNum(gone.v, '을를')} 꺼내 그 자리를 비웁니다.`);
+    rec.say(`${withJosa(gone.v, '을를')} 꺼내 그 자리를 비웁니다.`);
     rec.clear(i);
 
     const pulled = rec.size - 1 - i;
     if (pulled > 0) {
         rec.say(`빈 자리가 가운데 남으면 안 되므로 **뒤엣것 ${pulled}개를 한 칸씩 당깁니다.**`);
         for (let j = i + 1; j < rec.size; j++) {
-            rec.say(`${j}번의 ${sortNum(rec.peek(j).v, '을를')} ${j - 1}번으로 당깁니다.`);
+            rec.say(`${j}번의 ${withJosa(rec.peek(j).v, '을를')} ${j - 1}번으로 당깁니다.`);
             rec.shift(j, j - 1);
         }
     }
     rec.setSize(rec.size - 1);
     rec.cursor('i', null);
     return pulled > 0
-        ? `${sortNum(gone.v, '을를')} 뺐습니다. **당긴 것이 ${pulled}개**입니다.`
-        : `${sortNum(gone.v, '을를')} 뺐습니다. **아무것도 당기지 않았습니다.**`;
+        ? `${withJosa(gone.v, '을를')} 뺐습니다. **당긴 것이 ${pulled}개**입니다.`
+        : `${withJosa(gone.v, '을를')} 뺐습니다. **아무것도 당기지 않았습니다.**`;
 }
 
 /** 자리 번호로 바로 짚는다. **몇 번째든 한 번이다.** */
@@ -99,19 +99,19 @@ function arrayReadAt(rec, i) {
 function arrayFind(rec, v) {
     rec.clearFlag();
     for (let i = 0; i < rec.size; i++) {
-        rec.say(`${i}번과 ${sortNum(v, '을를')} 비교해 봅니다.`);
+        rec.say(`${i}번과 ${withJosa(v, '을를')} 비교해 봅니다.`);
         const it = rec.at(i);
         if (it.v === v) {
             rec.cursor('i', i);
-            rec.say(`${i}번에서 ${sortNum(v, '을를')} 찾았습니다.`);
+            rec.say(`${i}번에서 ${withJosa(v, '을를')} 찾았습니다.`);
             rec.mark('found');
             rec.cursor('i', null);
             return `${i}번에서 찾았습니다. **${i + 1}번 들여다보았습니다.**`;
         }
     }
-    rec.say(`${sortNum(v, '은는')} 없습니다.`);
+    rec.say(`${withJosa(v, '은는')} 없습니다.`);
     rec.mark('missing');
-    return `${sortNum(v, '은는')} 들어 있지 않습니다. **끝까지 ${rec.size}번 들여다보았습니다.**`;
+    return `${withJosa(v, '은는')} 들어 있지 않습니다. **끝까지 ${rec.size}번 들여다보았습니다.**`;
 }
 
 /* **범위 밖 자리 번호를 말없이 당겨 쓰지 않는다.**
@@ -175,7 +175,7 @@ function listInsertAt(rec, i, v) {
     const before = nodeBefore(rec, i);                  // 끼울 자리의 앞 마디
     const after = before ? rec.nodeById(before.next) : rec.nodeById(rec.head);
 
-    rec.say(`값 ${sortNum(v, '을를')} 담은 **새 마디를 만듭니다.** 아직 어디에도 매달려 있지 않습니다.`);
+    rec.say(`값 ${withJosa(v, '을를')} 담은 **새 마디를 만듭니다.** 아직 어디에도 매달려 있지 않습니다.`);
     const nd = rec.newNode(v, i);
 
     // 새 마디가 뒤를 가리키게 먼저 건다. 앞을 먼저 끊으면 뒷줄을 놓쳐 잃어버린다.
@@ -205,7 +205,7 @@ function listInsertAt(rec, i, v) {
     rec.say('링크가 다 걸렸습니다. 새 마디가 줄에 들어왔습니다.');
     rec.settle(nd.id);
     rec.setSize(rec.size + 1);
-    return `${sortNum(v, '을를')} ${i}번에 넣었습니다. **원소는 하나도 움직이지 않았습니다** — 고친 것은 링크뿐입니다.`;
+    return `${withJosa(v, '을를')} ${i}번에 넣었습니다. **원소는 하나도 움직이지 않았습니다** — 고친 것은 링크뿐입니다.`;
 }
 
 /** 자리 `i`의 마디를 뺀다. */
@@ -249,7 +249,7 @@ function listRemoveAt(rec, i) {
     }
     const after = rec.nodeById(target.next);
 
-    rec.say(`${sortNum(target.v, '을를')} 담은 이 마디를 떼어 냅니다.`);
+    rec.say(`${withJosa(target.v, '을를')} 담은 이 마디를 떼어 냅니다.`);
     rec.doom(target.id);
 
     if (before) {
@@ -271,7 +271,7 @@ function listRemoveAt(rec, i) {
     rec.say('줄에서 빠졌습니다. 이제 이 마디를 가리키는 링크는 하나도 없습니다.');
     rec.dropNode(target.id);
     rec.setSize(rec.size - 1);
-    return `${sortNum(target.v, '을를')} 뺐습니다. **밀거나 당긴 것은 하나도 없습니다.**`;
+    return `${withJosa(target.v, '을를')} 뺐습니다. **밀거나 당긴 것은 하나도 없습니다.**`;
 }
 
 /** `k`번째 마디를 읽는다. **처음부터 링크를 따라가는 수밖에 없다.** */
@@ -296,21 +296,21 @@ function listFind(rec, v) {
     let nd = rec.nodeById(rec.head);
     let seen = 0;
     while (nd) {
-        rec.say(`이 마디의 값과 ${sortNum(v, '을를')} 비교해 봅니다.`);
+        rec.say(`이 마디의 값과 ${withJosa(v, '을를')} 비교해 봅니다.`);
         rec.walk(nd.id, 'p');
         seen++;
         if (nd.v === v) {
-            rec.say(`${seen - 1}번째 마디에서 ${sortNum(v, '을를')} 찾았습니다.`);
+            rec.say(`${seen - 1}번째 마디에서 ${withJosa(v, '을를')} 찾았습니다.`);
             rec.mark('found');
             rec.cursor('p', null);
             return `${seen - 1}번째에서 찾았습니다. **마디를 ${seen}개 지나왔습니다.**`;
         }
         nd = rec.nodeById(nd.next);
     }
-    rec.say(`${sortNum(v, '은는')} 없습니다.`);
+    rec.say(`${withJosa(v, '은는')} 없습니다.`);
     rec.mark('missing');
     rec.cursor('p', null);
-    return `${sortNum(v, '은는')} 들어 있지 않습니다. **끝까지 마디 ${seen}개를 지나왔습니다.**`;
+    return `${withJosa(v, '은는')} 들어 있지 않습니다. **끝까지 마디 ${seen}개를 지나왔습니다.**`;
 }
 
 /* ---------------------------------------------------------------
@@ -321,17 +321,17 @@ function listFind(rec, v) {
 export const dsArrayOps = {
     insertFront: {
         id: 'insert-front', name: '앞에 넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **맨 앞(0번)**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 앞(0번)**에 넣으려 합니다.`,
         run: (rec, {v}) => arrayInsertAt(rec, 0, v),
     },
     insertBack: {
         id: 'insert-back', name: '뒤에 넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **맨 뒤(${rec.size}번)**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 뒤(${rec.size}번)**에 넣으려 합니다.`,
         run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
     },
     insertAt: {
         id: 'insert-at', name: 'k번째에 넣기', arg: 'valueIndex',
-        opening: (rec, {v, i}) => `${sortNum(v, '을를')} **${i}번 자리**에 넣으려 합니다.`,
+        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번 자리**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : arrayInsertAt(rec, i, v)),
@@ -360,7 +360,7 @@ export const dsArrayOps = {
     },
     find: {
         id: 'find', name: '값 찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '이가')} 어디 있는지 찾으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '이가')} 어디 있는지 찾으려 합니다.`,
         run: (rec, {v}) => arrayFind(rec, v),
     },
 };
@@ -370,17 +370,17 @@ export const dsArrayOps = {
 export const dsListOps = {
     insertFront: {
         id: 'insert-front', name: '앞에 넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **맨 앞**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 앞**에 넣으려 합니다.`,
         run: (rec, {v}) => listInsertAt(rec, 0, v),
     },
     insertBack: {
         id: 'insert-back', name: '뒤에 넣기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **맨 뒤**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 뒤**에 넣으려 합니다.`,
         run: (rec, {v}) => listInsertAt(rec, rec.size, v),
     },
     insertAt: {
         id: 'insert-at', name: 'k번째에 넣기', arg: 'valueIndex',
-        opening: (rec, {v, i}) => `${sortNum(v, '을를')} **${i}번째**에 넣으려 합니다.`,
+        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번째**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : listInsertAt(rec, i, v)),
@@ -409,7 +409,7 @@ export const dsListOps = {
     },
     find: {
         id: 'find', name: '값 찾기', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '이가')} 어디 있는지 찾으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '이가')} 어디 있는지 찾으려 합니다.`,
         run: (rec, {v}) => listFind(rec, v),
     },
 };
@@ -440,7 +440,7 @@ export const dsStackOps = {
     array: [
         {
             id: 'push', name: '넣기 (push)', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **꼭대기에 얹습니다.**`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **꼭대기에 얹습니다.**`,
             run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
         },
         {
@@ -457,7 +457,7 @@ export const dsStackOps = {
     list: [
         {
             id: 'push', name: '넣기 (push)', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **꼭대기에 얹습니다.**`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **꼭대기에 얹습니다.**`,
             run: (rec, {v}) => listInsertAt(rec, 0, v),
         },
         {
@@ -484,7 +484,7 @@ export const dsQueueOps = {
     array: [
         {
             id: 'enqueue', name: '넣기 (enqueue)', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **줄 뒤에 세웁니다.**`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **줄 뒤에 세웁니다.**`,
             run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
         },
         {
@@ -501,7 +501,7 @@ export const dsQueueOps = {
     list: [
         {
             id: 'enqueue', name: '넣기 (enqueue)', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **줄 뒤에 세웁니다.**`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **줄 뒤에 세웁니다.**`,
             run: (rec, {v}) => listInsertAt(rec, rec.size, v),
         },
         {
@@ -528,12 +528,12 @@ export const dsDequeOps = {
     array: [
         {
             id: 'push-front', name: '앞에 넣기', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **앞쪽 끝**에 넣습니다.`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **앞쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => arrayInsertAt(rec, 0, v),
         },
         {
             id: 'push-back', name: '뒤에 넣기', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **뒤쪽 끝**에 넣습니다.`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **뒤쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
         },
         {
@@ -550,12 +550,12 @@ export const dsDequeOps = {
     list: [
         {
             id: 'push-front', name: '앞에 넣기', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **앞쪽 끝**에 넣습니다.`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **앞쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => listInsertAt(rec, 0, v),
         },
         {
             id: 'push-back', name: '뒤에 넣기', arg: 'value',
-            opening: (rec, {v}) => `${sortNum(v, '을를')} **뒤쪽 끝**에 넣습니다.`,
+            opening: (rec, {v}) => `${withJosa(v, '을를')} **뒤쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => listInsertAt(rec, rec.size, v),
         },
         {
@@ -628,7 +628,7 @@ setCost(dsDequeOps.list, {
 export const dsRingOps = [
     {
         id: 'enqueue', name: '넣기 (enqueue)', arg: 'value',
-        opening: (rec, {v}) => `${sortNum(v, '을를')} **rear 자리**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **rear 자리**에 넣으려 합니다.`,
         run: (rec, {v}) => {
             const s = rec.state;
             if (rec.size >= rec.cap) {
@@ -639,7 +639,7 @@ export const dsRingOps = [
             }
             rec.clearFlag();
             const at = s.rear;
-            rec.say(`rear가 가리키는 ${at}번 칸에 ${sortNum(v, '을를')} 씁니다.`);
+            rec.say(`rear가 가리키는 ${at}번 칸에 ${withJosa(v, '을를')} 씁니다.`);
             rec.write(at, dsItem(v));
             rec.setSize(rec.size + 1);
             const next = (at + 1) % rec.cap;
@@ -651,7 +651,7 @@ export const dsRingOps = [
                 rec.say(`rear를 ${next}번으로 옮깁니다.`);
             }
             rec.mark('ring');
-            return `${sortNum(v, '을를')} 넣었습니다. **아무것도 밀지 않았습니다.**`;
+            return `${withJosa(v, '을를')} 넣었습니다. **아무것도 밀지 않았습니다.**`;
         },
     },
     {
@@ -668,7 +668,7 @@ export const dsRingOps = [
             const at = s.front;
             rec.say(`front가 가리키는 ${at}번 칸을 읽습니다.`);
             const gone = rec.at(at);
-            rec.say(`${sortNum(gone.v, '을를')} 꺼내고 그 칸을 비웁니다.`);
+            rec.say(`${withJosa(gone.v, '을를')} 꺼내고 그 칸을 비웁니다.`);
             rec.clear(at);
             rec.setSize(rec.size - 1);
             const next = (at + 1) % rec.cap;
@@ -679,7 +679,7 @@ export const dsRingOps = [
                 rec.say(`front를 ${next}번으로 옮깁니다.`);
             }
             rec.mark('ring');
-            return `${sortNum(gone.v, '을를')} 뺐습니다. **당긴 것이 하나도 없습니다** —`
+            return `${withJosa(gone.v, '을를')} 뺐습니다. **당긴 것이 하나도 없습니다** —`
                 + ' 원소가 아니라 front가 움직였습니다.';
         },
     },

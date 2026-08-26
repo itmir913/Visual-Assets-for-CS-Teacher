@@ -8,7 +8,7 @@
  * 쓰는 판이 다 있다. 그 사실은 화면 설명에 적어 둔다.
  */
 
-import {sortNum} from '../sort-josa.js';
+import {withJosa} from '../../josa.js';
 
 export const mergeSortAlgo = {
     id: 'merge',
@@ -39,7 +39,7 @@ export const mergeSortAlgo = {
                 {lo, hi: mid, depth, state: 'active'},
                 {lo: mid + 1, hi, depth, state: 'right'},
             ]);
-            rec.say(`${lo}~${sortNum(hi, '을를')} 반으로 쪼갭니다.`);
+            rec.say(`${lo}~${withJosa(hi, '을를')} 반으로 쪼갭니다.`);
             rec.mark('split');
 
             msort(lo, mid, depth + 1);
@@ -85,7 +85,7 @@ export const mergeSortAlgo = {
             rec.auxClose();
             rec.cursor('쓸 자리', null);
             rec.setRanges([{lo, hi, depth, state: 'merged'}]);
-            rec.say(`${lo}~${sortNum(hi, '이가')} 정렬되었습니다.`);
+            rec.say(`${lo}~${withJosa(hi, '이가')} 정렬되었습니다.`);
             rec.mark('merged');
         };
 

@@ -49,6 +49,10 @@ WARN_PX = 16.0      # 12~16px는 확인 필요
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
         "link", "meta", "param", "source", "track", "wbr"}
 
+# Tailwind 가 만드는 `text-base`(16px)보다 작은 크기. 반응형 변형(`sm:text-sm`)도 걸린다.
+TW_SMALL = re.compile(r"(?<![-\w])(?:[a-z]+:)?text-(?:sm|xs)(?![-\w])"
+                      r"|(?<![-\w])(?:[a-z]+:)?text-\[(?:0?\.\d+rem|\d{1,2}px)\]")
+
 
 def is_decorative_icon(tag, cls):
     """글자가 아니라 장식인 요소(불릿용 Font Awesome 아이콘)인가."""
@@ -85,6 +89,7 @@ class Checker(HTMLParser):
         self.svg_warn = []       # 경고: MIN_PX ~ WARN_PX
         self.css_small = []      # 위반: 인라인 style 글자 크기 < MIN_PX
         self.css_warn = []       # 경고: MIN_PX ~ WARN_PX
+        self.tw_small = []       # 위반: Tailwind 소형 크기 클래스
 
     # -- 공통 --------------------------------------------------------------
     def _inspect(self, tag, attrs):
@@ -109,6 +114,14 @@ class Checker(HTMLParser):
                            for _, _, p in self.stack):
                     self.wide_unwrapped.append(
                         f"{line}행: <{tag}> min-width {mn:.0f}px > {RENDER_W:.0f}px")
+
+        # Tailwind 소형 크기 클래스. **줄이 아니라 태그로 본다** — 줄로 훑으면
+        # 아이콘(`<i class="fa-solid fa-plus text-xs">`)을 걸러 낼 수가 없다.
+        # 아이콘은 글자가 아니라 그림이라 이 규칙의 대상이 아니다.
+        cls = a.get("class") or ""
+        if not is_decorative_icon(tag, cls):
+            for m in TW_SMALL.finditer(cls):
+                self.tw_small.append(f"{line}행: {m.group(0)}")
 
         in_svg = self._in_svg()
         if "font-size" in a and in_svg:
@@ -229,6 +242,16 @@ def style_block_font_sizes(src):
     """<style> 블록 안의 font-size를 px로 환산해 (위반, 경고)로 나눈다.
 
     인라인 style은 Checker가 본다(태그·클래스를 함께 봐야 장식 아이콘을 걸러 낼 수 있다).
+
+    **그림 «안»에 앉는 글자는 이 규칙 밖이다** — SVG 라벨과 마찬가지로 자리가 좁아
+    값을 따로 잡는다(격자 칸 모서리의 g·h 값 같은 것). 기계는 그것을 가릴 수 없으므로
+    **바로 앞에 `fs-figure` 표시와 까닭을 적어** 밝힌다. 폴더째 빼는 것(`font_exempt`)과
+    달리 **자리마다 적으므로 늘어나면 눈에 띈다.**
+
+        .cell-g {
+            /* fs-figure: 격자 칸 모서리에 앉는 값이라 칸 크기가 천장이다 */
+            font-size: 0.65rem;
+        }
     """
     bad, warn = [], []
     pat = re.compile(r"font-size:\s*([\d.]+)(px|rem|em)")
@@ -238,6 +261,8 @@ def style_block_font_sizes(src):
         for m in pat.finditer(body):
             px = float(m.group(1)) * (1.0 if m.group(2) == "px" else 16.0)
             if px >= WARN_PX:
+                continue
+            if "fs-figure" in body[max(0, m.start() - 200):m.start()]:
                 continue
             line = base_line + body[:m.start()].count("\n")
             entry = f"{line}행: {m.group(0)} (≈{px:.0f}px)"
@@ -559,14 +584,10 @@ def check(path: Path, log) -> tuple[int, int]:
     report("태그 중첩", c.nesting)
 
     if under(path, FONT_EXEMPT_DIRS):
-        log.debug("  [글자 크기] 건너뜀 — 강의노트가 아니다(조작 UI)")
+        log.debug("  [글자 크기] 건너뜀 — 아직 손질하지 않은 폴더다")
     else:
-        # Tailwind 소형 크기 클래스
-        tw = [f"{i}행: {m.group(0)}"
-              for i, ln in enumerate(lines, 1)
-              for m in re.finditer(r"\btext-(sm|xs)\b|text-\[(0?\.\d+rem|\d{1,2}px)\]", ln)]
         css_bad, css_warn = style_block_font_sizes(src)
-        report("글자 크기(CSS)", tw + css_bad + c.css_small, css_warn + c.css_warn)
+        report("글자 크기(CSS)", c.tw_small + css_bad + c.css_small, css_warn + c.css_warn)
 
         report("글자 크기(SVG)", c.svg_small, c.svg_warn)
 

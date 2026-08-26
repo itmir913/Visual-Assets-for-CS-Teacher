@@ -11,6 +11,7 @@
  *
  * 숫자 판정은 **마지막 자리 숫자의 한국어 읽기**로 한다.
  *   0 영(ㅇ) · 1 일(ㄹ) · 2 이 · 3 삼(ㅁ) · 4 사 · 5 오 · 6 육(ㄱ) · 7 칠(ㄹ) · 8 팔(ㄹ) · 9 구
+ * 알파벳은 **한 글자일 때만** 읽는 소리로 판정한다 — L 엘 · M 엠 · N 엔만 받침이 있다.
  * 낱말 판정은 **마지막 글자의 받침**으로 한다. 한글 음절은 `0xAC00`부터 28칸씩
  * 묶여 있어 `(코드 - 0xAC00) % 28`이 0이면 받침이 없다.
  */
@@ -20,6 +21,10 @@ const DIGIT_HAS_FINAL = [true, true, false, true, false, false, true, true, true
 
 /** ㄹ 받침은 「으로」가 아니라 「로」를 쓴다. 숫자는 1·7·8이 그렇다. */
 const DIGIT_RIEUL = new Set([1, 7, 8]);
+
+/** 받침이 있는 소리로 끝나는 알파벳. **셋뿐이다** — L 엘(ㄹ) · M 엠(ㅁ) · N 엔(ㄴ).
+ *  나머지 스물셋은 모음으로 끝난다(에이 · 비 · 시 … 와이 · 제트). */
+const LETTER_FINAL = new Set(['L', 'M', 'N']);
 
 const HANGUL_FIRST = 0xac00;
 const HANGUL_LAST = 0xd7a3;
@@ -42,8 +47,17 @@ function tailOf(text) {
         const d = Number(last);
         return {final: DIGIT_HAS_FINAL[d], rieul: DIGIT_RIEUL.has(d)};
     }
-    /* 한글도 숫자도 아니면 **아무 조사도 내지 않는다.** 찍어 맞히면 영어 낱말이나
-       기호 뒤에 엉뚱한 조사가 붙는데, 없는 편이 틀린 것보다 낫다. */
+    /* 알파벳 «한 글자»는 읽는 소리가 정해져 있어 판정할 수 있다 — 「L이」와 「A가」다.
+       **낱말은 여기 들어오지 않는다.** 「data」를 「데이터」로 읽을지 「다타」로 읽을지
+       기계가 알 수 없기 때문이다. 그래서 마지막 한 글자가 아니라 «전체가 한 글자»일
+       때만 본다. 그래프 노드 이름과 압축 시뮬레이터의 글자가 이 자리를 쓴다. */
+    if (s.length === 1) {
+        const up = last.toUpperCase();
+        if (LETTER_FINAL.has(up)) return {final: true, rieul: up === 'L'};
+        if (up >= 'A' && up <= 'Z') return {final: false, rieul: false};
+    }
+    /* 한글도 숫자도 알파벳 한 글자도 아니면 **아무 조사도 내지 않는다.** 찍어 맞히면
+       영어 낱말이나 기호 뒤에 엉뚱한 조사가 붙는데, 없는 편이 틀린 것보다 낫다. */
     return null;
 }
 

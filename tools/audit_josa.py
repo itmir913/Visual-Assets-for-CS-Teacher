@@ -53,16 +53,34 @@ SUFFIX = (".html", ".js")
 SKIP_DIRS = {"node_modules", "dist", ".git", "__pycache__", ".idea"}
 
 
-def targets(args: list[str]) -> list[Path]:
-    if args:
-        return [Path(a) for a in args]
+def walk(base: Path) -> list[Path]:
     out = []
-    for p in ROOT.rglob("*"):
+    for p in base.rglob("*"):
         if p.suffix not in SUFFIX or not p.is_file():
             continue
         if any(part in SKIP_DIRS for part in p.parts):
             continue
         out.append(p)
+    return out
+
+
+def targets(args: list[str]) -> list[Path]:
+    """인자가 폴더면 그 아래를 훑는다.
+
+    **폴더를 그냥 읽으려 들면 조용히 아무것도 안 한다.** 처음에 그렇게 만들어 두고
+    「0곳」을 보고서 통과한 줄 알았다 — 안 본 것과 보고 없는 것이 같은 글자로 나왔다.
+    """
+    if not args:
+        return sorted(walk(ROOT))
+    out = []
+    for a in args:
+        p = Path(a)
+        if p.is_dir():
+            out += walk(p)
+        elif p.is_file():
+            out.append(p)
+        else:
+            log.warning("없는 자리 — %s", a)
     return sorted(out)
 
 

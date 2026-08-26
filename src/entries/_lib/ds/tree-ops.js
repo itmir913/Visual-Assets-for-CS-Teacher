@@ -141,7 +141,8 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
            곧 그 마디를 떼어 내므로 끝나고 나면 성질이 돌아온다 —
            **그 「잠깐」을 밝히지 않으면 자막이 화면을 부정한다.** */
         rec.say(`${target.v} 자리에 **${withJosa(succ.v, '을를')}** 올려놓습니다. `
-            + `옮겨 온 자리(${target.v}이 있던 곳)에는 이제 ${succ.v}이 두 번 있는 셈이라 `
+            + `옮겨 온 자리(${withJosa(target.v, '이가')} 있던 곳)에는 `
+            + `이제 ${withJosa(succ.v, '이가')} 두 번 있는 셈이라 `
             + '**잠깐 규칙이 어긋납니다** — 곧 아래쪽 마디를 떼어 내면 제자리로 돌아옵니다.');
         rec.swapValues(target.id, succ.id);
         target = succ;   // 이제 지울 것은 «다음 값»이 옮겨 간 마디다
@@ -229,7 +230,7 @@ function rotate(rec, y, dir) {
 
     rec.say(moved === null
         ? `${x.v}의 ${otherSide === 'left' ? '왼쪽' : '오른쪽'}은 비어 있습니다.`
-        : `${withJosa(rec.node(moved).v, '은는')} ${x.v}와 ${y.v} 사이의 값이므로 ${y.v}의 `
+        : `${withJosa(rec.node(moved).v, '은는')} ${withJosa(x.v, '과와')} ${y.v} 사이의 값이므로 ${y.v}의 `
           + `${pivotSide === 'left' ? '왼쪽' : '오른쪽'}으로 옮겨 갑니다. **자리가 바뀌어도 크기 차례는 그대로입니다.**`);
     rec.link(y.id, moved, pivotSide);
     rec.link(x.id, y.id, otherSide);

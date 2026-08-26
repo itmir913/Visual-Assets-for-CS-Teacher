@@ -9,6 +9,7 @@
  */
 
 import {runTreeOperation, treeLinkedState, treeHeight} from './tree-model.js';
+import {withJosa} from '../josa.js';
 
 export const treeWorkOf = (counts) => counts.compare + counts.move + counts.link;
 
@@ -84,13 +85,13 @@ function closingLine(runs, lanes) {
     const wb = runs[0].total;
     const wa = runs[1].total;
     const cost = wa === wb
-        ? `이번 판은 **작업량이 ${wb}로 같습니다.**`
+        ? `이번 판은 **작업량이 ${withJosa(wb, '으로')} 같습니다.**`
         : (wa > wb
             ? `그 대신 **작업량을 ${wa - wb}만큼 더 썼습니다**(이진 탐색 트리 ${wb} · AVL ${wa}).`
             : `게다가 **작업량도 ${wb - wa}만큼 적습니다**(이진 탐색 트리 ${wb} · AVL ${wa}) — `
               + '트리가 낮으면 내려가며 비교하는 횟수도 함께 줄기 때문입니다.');
     return `둘 다 끝났습니다. **높이가 ${hb} 대 ${ha}입니다**(이진 탐색 트리 대 AVL). `
-        + `AVL 트리는 돌려서 높이를 ${ha}로 눌러 두었습니다. ${cost}`;
+        + `AVL 트리는 돌려서 높이를 ${withJosa(ha, '으로')} 눌러 두었습니다. ${cost}`;
 }
 
 /**

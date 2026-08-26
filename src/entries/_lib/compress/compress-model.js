@@ -56,7 +56,7 @@ export function symbolBits(kinds) {
     return Math.max(1, Math.ceil(Math.log2(k)));
 }
 
-/** 어떤 수를 적는 데 드는 비트. 런 렝스의 「횟수」와 코드표의 「코드 길이」가 쓴다. */
+/** 어떤 수를 적는 데 드는 비트. 런 렝스가 「횟수」를 몇 자리로 적을지 정하는 데 쓴다. */
 export function countBits(maxValue) {
     return Math.max(1, Math.ceil(Math.log2(Math.max(1, maxValue) + 1)));
 }
@@ -98,10 +98,9 @@ export function createCompressRecorder(text, opts = {}) {
     let side = [];
 
     let note = '';
-    let banner = null;
     let focus = [];      // 지금 들여다보는 입력 글자의 자리
     let span = null;     // 지금 묶고 있는 구간 [from, to)
-    let extra = null;    // 방법마다 다른 덤(허프만의 숲·나무 따위)
+    let extra = null;    // 방법마다 다른 덤(허프만의 숲·나무, 키워드의 지금 글 따위)
 
     const sum = (list) => list.reduce((a, x) => a + x.bits, 0);
 
@@ -113,7 +112,7 @@ export function createCompressRecorder(text, opts = {}) {
             act,
             out: out.map((o) => ({...o})),
             side: side.map((o) => ({...o})),
-            marks: {focus: [...focus], span: span && {...span}, banner},
+            marks: {focus: [...focus], span: span && {...span}},
             counts: {
                 before: text.length * width,
                 body: sum(out),
@@ -122,8 +121,9 @@ export function createCompressRecorder(text, opts = {}) {
             extra,
             say: note,
         });
-        /* 한 장짜리 표시는 그리고 나면 끈다. 다음 장까지 남으면 어디를 보라는 건지 흐려진다.
-           **내놓은 조각과 코드표는 끄지 않는다** — 쌓이는 것을 보는 것이 이 화면의 요점이다. */
+        /* **들여다보는 자리 표시만 그리고 나면 끈다.** 다음 장까지 남으면 어디를 보라는
+           건지 흐려진다. **내놓은 조각과 코드표는 끄지 않는다** — 쌓이는 것을 보는 것이
+           이 화면의 요점이다. */
         focus = [];
         span = null;
     }
@@ -135,8 +135,6 @@ export function createCompressRecorder(text, opts = {}) {
         get out() { return out; },
 
         say(t) { note = t; return rec; },
-        flag(t) { banner = t; return rec; },
-        clearFlag() { banner = null; return rec; },
 
         /** 입력의 어느 자리를 들여다보는지. */
         look(...idx) { focus = idx.flat(); return rec; },
@@ -160,9 +158,6 @@ export function createCompressRecorder(text, opts = {}) {
             side.push({...piece});
             return rec;
         },
-
-        /** 아무 일도 없지만 한 장 남긴다. 설명만 바뀌는 자리에 쓴다. */
-        mark(kind = 'mark') { snap({kind}); return rec; },
 
         /** 한 장 남긴다. `emit`·`aside`와 달리 **이것을 불러야 장이 쌓인다.** */
         step(kind, data = {}) { snap({kind, ...data}); return rec; },

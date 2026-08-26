@@ -4,8 +4,9 @@
  * 프리셋을 바꿀 때 HTML을 건드릴 일이 없다 → `compress-registry.js`
  *
  * **그리는 쪽은 어떤 방법인지 거의 묻지 않는다.** 스냅샷이 진리이고 화면은 그 장의
- * 상태를 그대로 옮긴다. 방법마다 갈리는 것은 «가운데 그림» 하나뿐이라
- * 등록부의 `view` 한 글자로 가른다 — `scan`이면 조각을 늘어놓고, `tree`면 나무를 그린다.
+ * 상태를 그대로 옮긴다. 방법을 직접 묻는 자리는 둘뿐이다 —
+ * 나무를 그릴지(`view`)와, 함께 보낼 것의 이름이 무엇인지(`sideNameOf`).
+ * 나머지는 스냅샷에 실린 것만 보고 그린다.
  */
 
 import {createStepPlayer, PLAY_SPEEDS} from '../step-player.js';
@@ -52,6 +53,10 @@ export function mountCompressSimulator() {
                 <p class="font-black text-slate-900 mb-1">줄이기 전</p>
                 <div class="flex flex-wrap gap-1" id="glyph-row"></div>
             </div>
+            <div id="now-wrap" class="hidden">
+                <p class="font-black text-slate-900 mb-1">지금 글</p>
+                <div class="flex flex-wrap gap-1" id="now-row"></div>
+            </div>
             <div id="tree-wrap" class="hidden">
                 <p class="font-black text-slate-900 mb-1">나무</p>
                 <div class="relative border border-slate-200 rounded-xl bg-slate-50 h-64 sm:h-80" id="tree-host"></div>
@@ -73,14 +78,32 @@ export function mountCompressSimulator() {
     function paintGlyphs(frame) {
         const span = frame.marks.span;
         const focus = new Set(frame.marks.focus);
-        // 이미 지나간 자리 — 마지막으로 내놓은 조각이 덮은 데까지.
-        const 지난데 = frame.out.reduce((a, p) => Math.max(a, p.to ?? 0), 0);
+
+        /* **「끝남」 표시는 조각의 자리가 «원본»을 가리킬 때만 쓴다.**
+           키워드가 내놓는 조각의 `from`·`to`는 바꾼 «뒤» 글의 자리라, 그대로 쓰면
+           원본 열 칸 가운데 다섯 칸만 회색이 되어 「여기까지 했다」가 거짓말이 된다.
+           키워드는 아래 「지금 글」 줄이 그 몫을 한다. */
+        const 자리가원본 = !frame.extra || frame.extra.now === undefined;
+        const 지난데 = 자리가원본 ? frame.out.reduce((a, p) => Math.max(a, p.to ?? 0), 0) : 0;
 
         $('glyph-row').innerHTML = [...frame.text].map((ch, i) => {
             const 덮임 = (span && i >= span.from && i < span.to) || focus.has(i);
             const 끝남 = !덮임 && i < 지난데;
             return `<span class="glyph${덮임 ? ' on' : ''}${끝남 ? ' done' : ''}">${esc(ch)}</span>`;
         }).join('');
+
+        /* 「지금 글」 — 바꾸어 가는 중인 글. **원본을 그대로 두고 아래에 따로 둔다**:
+           무엇이 무엇으로 바뀌었는지는 둘을 나란히 놓아야 보인다. */
+        /* **`extra`가 `null`일 때 `&&`로 받으면 `null`이 흘러 나온다.** 그러면
+           `now !== undefined`가 참이 되어 없는 사전을 훑다 죽는다. 없음을 하나로 모은다. */
+        const now = frame.extra ? frame.extra.now : undefined;
+        $('now-wrap').classList.toggle('hidden', now === undefined);
+        if (now !== undefined) {
+            const 기호 = new Set((frame.extra.dict || []).map((d) => d.symbol));
+            $('now-row').innerHTML = [...now]
+                .map((ch) => `<span class="glyph${기호.has(ch) ? ' sym' : ''}">${esc(ch)}</span>`)
+                .join('');
+        }
     }
 
     function paintPieces(frame) {
@@ -93,8 +116,16 @@ export function mountCompressSimulator() {
 
     function paintAside(frame) {
         const m = methodOf(methodId);
-        $('aside-name').textContent = sideNameOf(m.id);
-        $('table-name').textContent = sideNameOf(m.id);
+        const 이름 = sideNameOf(m.id);
+
+        /* **런 렝스에는 코드표라는 것이 아예 없다.** 「코드표 0비트」로 적어 두면
+           학생이 「있는데 마침 비었나 보다」로 읽는다. 없는 것은 자리째 감춘다. */
+        $('aside-wrap').classList.toggle('hidden', !이름);
+        $('table-wrap').classList.toggle('hidden', !이름);
+        if (!이름) return;
+
+        $('aside-name').textContent = 이름;
+        $('table-name').textContent = 이름;
         $('aside-row').innerHTML = frame.side.length
             ? frame.side.map((p) => `<span class="aside-row">
                     <span>${esc(p.text)}</span><span class="text-slate-400">${p.bits}비트</span>
@@ -124,27 +155,33 @@ export function mountCompressSimulator() {
         const data = {id: 'root', ch: null, n: null, seq: -1, hidden: true, children: roots.map(옮김)};
 
         if (!treeView) {
+            /* **콜백이 받는 것은 «데이터 객체»이지 d3 마디가 아니다.**
+               `nodeStyle(d.data)` · `linkStyle(대상, 부모)` 꼴로 부른다.
+               처음에 d3 마디인 줄 알고 `d.data.hidden`·`d.source`를 읽었더니
+               `render`가 나무 그리는 자리에서 죽었다 — 그 앞의 조각과 코드표는 이미
+               그려진 뒤라 **화면은 멀쩡해 보이는데 계수기만 첫 장에 멈춰 있었다.**
+               node 검사는 `tree-view`를 가짜로 때우므로 이 자리를 밟지 못한다. */
             treeView = createTreeView('#tree-host', {
-                shape: (d) => (d.data.hidden ? 'circle' : 'box'),
+                shape: (d) => (d.hidden ? 'circle' : 'box'),
                 radius: 1,
                 fontSize: 13,
                 levelGap: 26,
                 siblingGap: 14,
-                label: (d) => (d.data.hidden ? [] : (d.data.ch !== null
-                    ? [{text: d.data.ch, bold: true}, {text: String(d.data.n), bold: false}]
-                    : [{text: String(d.data.n), bold: false}])),
+                label: (d) => (d.hidden ? [] : (d.ch !== null
+                    ? [{text: d.ch, bold: true}, {text: String(d.n), bold: false}]
+                    : [{text: String(d.n), bold: false}])),
                 nodeStyle: (d) => {
-                    if (d.data.hidden) return {fill: 'transparent', stroke: 'transparent'};
-                    const 잎 = d.data.ch !== null;
-                    return 잎
+                    if (d.hidden) return {fill: 'transparent', stroke: 'transparent'};
+                    return d.ch !== null
                         ? {fill: '#fff1f2', stroke: '#fb7185', strokeWidth: 2, textColor: '#9f1239'}
                         : {fill: '#f1f5f9', stroke: '#94a3b8', strokeWidth: 1.5, textColor: '#475569'};
                 },
-                linkStyle: (d) => (d.source.data.hidden
+                linkStyle: (대상, 부모) => (부모 && 부모.hidden
                     ? {stroke: 'transparent'}
                     : {stroke: '#cbd5e1', strokeWidth: 2}),
-                edgeLabel: (d) => (d.parent && !d.parent.data.hidden
-                    ? (d.parent.children[0] === d ? '0' : '1')
+                // 왼쪽 자식이 0, 오른쪽이 1. 숨은 뿌리에서 내려오는 줄에는 적지 않는다.
+                edgeLabel: (대상, 부모) => (부모 && !부모.hidden
+                    ? (부모.children[0] === 대상 ? '0' : '1')
                     : null),
                 edgeLabelColor: '#be123c',
             });
@@ -158,10 +195,16 @@ export function mountCompressSimulator() {
         const c = frame.counts;
         $('count-before').textContent = String(c.before);
         $('count-body').textContent = String(c.body);
+
+        /* **아직 아무것도 안 내놓았으면 압축률을 적지 않는다.**
+           식대로면 0비트라 100%가 되는데, 나무를 짓는 내내 초록 100%가 떠 있으면
+           학생이 그것을 결과로 읽는다. **압축률은 다 줄이고 나서야 뜻이 있는 값이다.** */
+        const 아직 = frame.out.length === 0;
         const rate = compressRate(c.before, c.body);
         const el = $('count-rate');
-        el.textContent = `${rate}%`;
-        el.className = `font-black tally ${rate > 0 ? 'text-emerald-600' : (rate < 0 ? 'text-rose-600' : 'text-slate-500')}`;
+        el.textContent = 아직 ? '—' : `${rate}%`;
+        el.className = `font-black tally ${아직 ? 'text-slate-400'
+            : (rate > 0 ? 'text-emerald-600' : (rate < 0 ? 'text-rose-600' : 'text-slate-500'))}`;
         $('count-table').textContent = String(c.table);
     }
 
@@ -233,7 +276,7 @@ export function mountCompressSimulator() {
                         ${rate}%${rate === 최고 && rate > 0 ? ' <span class="text-slate-500 font-bold">가장 많이 줄임</span>' : ''}
                     </td>
                     <td class="px-3 py-2 border border-slate-200 tally text-slate-600">
-                        ${sideNameOf(m.id)} ${out.tableBits}비트</td>
+                        ${sideNameOf(m.id) ? `${sideNameOf(m.id)} ${out.tableBits}비트` : '없음'}</td>
                 </tr>`).join('')}
             </tbody>`;
     }

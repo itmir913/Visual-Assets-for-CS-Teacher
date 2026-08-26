@@ -58,8 +58,12 @@ function replacePieces(text, piece, symbol) {
  * 지금 글에서 **이득이 가장 큰 조각**을 고른다.
  *
  * 이득 = 「줄어드는 글자 수 × 글자 하나의 비트」 − 「사전에 한 줄 적는 비트」.
- * 같으면 **긴 조각을 먼저, 그다음은 앞에 나온 것을** 고른다 — 판마다 답이 흔들리면
- * 학생이 두 번 돌려 다른 그림을 본다.
+ * 같으면 **긴 조각을 먼저, 그다음은 앞에 나온 것을** 고른다 — 긴 길이부터 훑고
+ * «더 큰» 이득에서만 갈아 끼우므로 그렇게 된다. 판마다 답이 흔들리면 학생이 두 번
+ * 돌려 다른 그림을 본다.
+ *
+ * **이 동점 규칙은 검사에서 값으로 확인하지 못했다.** 이득이 꼭 같아지는 글을
+ * 지어내야 하는데 찾지 못했다 — 훑는 차례를 뒤집어도 검사가 통과한다.
  *
  * @returns {{piece: string, times: number, gain: number}|null}
  */
@@ -108,8 +112,14 @@ export function keywordEncode(text, opts = {}) {
     const kinds0 = new Set(text).size;
     const rec = createCompressRecorder(text, {...opts, kinds: kinds0});
     if (!text.length) {
+        /* **빈 글에서도 `dict`와 `encoded`를 채워 내보낸다.** 여기서 그냥 나가면 둘이
+           `undefined`로 남고, 되돌리기가 그것을 훑다가 죽는다. 지금 화면은 빈 입력을
+           막지만 **막는 곳이 하나 없어지면 조용히 죽는 자리**라 여기서 세워 둔다. */
         rec.say('줄일 글이 없습니다.').step('idle');
-        return rec.done();
+        const 빈것 = rec.done();
+        빈것.dict = [];
+        빈것.encoded = '';
+        return 빈것;
     }
 
     /* **폭은 「지금 글에 실제로 나오는 것」이 정한다.**
@@ -148,15 +158,19 @@ export function keywordEncode(text, opts = {}) {
         rec.carry({now, dict: [...dict], picked: found.piece})
             .say(`<b>${found.piece}</b>${josa(found.piece, '이가')} ${found.times}번 되풀이됩니다. `
                 + `${found.times}번을 기호 하나씩으로 바꾸면 `
-                + `${withJosa(found.times * (found.len - 1), '을를')} 글자만큼 줄어듭니다.`)
+                + `<b>${found.times * (found.len - 1)}글자</b>가 줄어듭니다.`)
             .step('pick');
 
         now = replacePieces(now, found.piece, symbol);
         dict.push({symbol, piece: found.piece});
 
         rec.carry({now, dict: [...dict]})
-            .say(`<b>${symbol}</b>${josa(symbol, '으로')} 바꾸었습니다. 글이 <b>${now.length}글자</b>가 되었습니다. `
-                + `대신 사전에 <b>${symbol} = ${found.piece}</b>를 적어 두어야 합니다.`)
+            /* **기호 뒤에 조사를 붙이지 않는다.** `★`를 무엇이라 읽는지 정해 두지 않았으니
+               「★으로」인지 「★로」인지 고를 수가 없다. 뒤에 「기호」를 세워 조사가
+               그 낱말에 붙게 하면 읽는 소리를 정하지 않고도 문장이 선다. */
+            .say(`<b>${symbol}</b> 기호로 바꾸었습니다. 글이 <b>${now.length}글자</b>가 되었습니다. `
+                + `대신 사전에 <b>${symbol} = ${found.piece}</b>${josa(found.piece, '을를')} `
+                + `적어 두어야 합니다.`)
             .step('swap');
     }
 
@@ -179,11 +193,20 @@ export function keywordEncode(text, opts = {}) {
         const 기호인가 = KEYWORD_SYMBOLS.includes(ch);
         rec.emit({kind: 기호인가 ? 'symbol' : 'plain', text: ch, ch, bits: wBody, from: i, to: i + 1});
     }
+    /* **글자가 줄어도 비트는 늘 수 있다.** 기호가 «새 글자 한 가지»로 세어져 칸이
+       넓어지면, 글자 수가 준 것보다 칸이 넓어진 것이 더 클 수 있다.
+       고를 때 쓴 폭은 그때의 글로 잰 것이라 끝난 뒤의 폭을 미리 알 수 없어서다.
+       **그 판에서 「줄어듭니다」로만 끝내면 바로 아래 계수기의 음수와 어긋난다** —
+       런 렝스가 늘어나는 자리에서 그렇다고 밝히는 것과 같은 자리다. */
+    const 늘었나 = wBody * now.length > text.length * wDict;
     rec.carry({now, dict: [...dict]})
         .say(`남은 ${now.length}글자에 나오는 것이 ${new Set(now).size}가지라 `
             + `<b>${wBody}비트씩</b>이면 됩니다. `
             + (dict.length
-                ? '기호도 글자 하나로 칩니다 — <b>사전을 봐야 무엇인지 알 수 있을 뿐입니다.</b>'
+                ? (늘었나
+                    ? '<b>그런데 글자 수가 준 것보다 칸이 넓어진 것이 더 큽니다</b> — '
+                      + '기호가 새 글자 한 가지로 세어지기 때문입니다. <b>여기서는 오히려 늘어납니다.</b>'
+                    : '기호도 글자 하나로 칩니다 — <b>사전을 봐야 무엇인지 알 수 있을 뿐입니다.</b>')
                 : '바꾼 것이 없어 처음과 같습니다.'))
         .step('emit');
 

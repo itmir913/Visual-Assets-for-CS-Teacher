@@ -179,6 +179,8 @@ export const FIND_RACE = {
     en: 'Side by Side',
     group: 'race',
     view: 'race',
+    /* 세 줄을 위아래로 쌓아 세로로 크다 → 전체 화면에서 조작을 «옆»에 세운다. */
+    shape: 'tall',
     legend: LEGEND_BIN,
     ops: [{id: 'race-find', name: '세 가지로 한꺼번에 찾기', arg: 'value'}],
     idea: '위에서부터 **순차 · 이진 · 해시**입니다. 같은 값을 담고 있고 같은 값을 찾습니다. '

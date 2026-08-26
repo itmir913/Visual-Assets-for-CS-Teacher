@@ -6,6 +6,7 @@
  * 이 페이지의 쓰임이라, 탭을 옮길 때마다 자료가 처음으로 돌아가면 비교할 수가 없다.
  */
 
+import {setStageShape} from '../fullscreen.js';
 import {
     FIND_START, FIND_HASH_CAP,
     findStructById, findStructsOfGroup, findGroupById, findGroupsInUse, findPlanOf,
@@ -141,6 +142,9 @@ export function mountFindSimulator() {
     /* ---- 방법 카드 ---- */
 
     function paintStructCard() {
+        /* 전체 화면에서 조작을 그림 «옆»에 세울지 «아래»에 펼지 —
+           그림 모양이 정한다 → _lib/fullscreen.js 의 setStageShape */
+        setStageShape(struct.shape);
         $('struct-name').textContent = struct.name;
         $('struct-en').textContent = struct.en;
         setRich($('struct-idea'), struct.idea);

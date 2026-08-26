@@ -215,7 +215,8 @@ export function createSortRaceView(host) {
         render(frame) {
             if (chartSvg && chartTexts) {
                 // 그릴 때마다 다시 측정한다. 한 번 측정해 굳혀 두면 창을 줄였을 때 낡는다.
-                const scale = (chartSvg.clientWidth || CHART_W) / CHART_W;
+                // 1을 넘지 않게 눌러 둔다 — 커질 때는 글자도 함께 커져야 한다.
+                const scale = Math.min(1, (chartSvg.clientWidth || CHART_W) / CHART_W);
                 chartTexts.setAttribute('font-size', Math.round(CHART_FONT_PX / scale));
             }
             const race = frame.race || [];

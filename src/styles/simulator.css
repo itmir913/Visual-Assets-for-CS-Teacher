@@ -82,7 +82,7 @@
 
 /* 전체 화면일 때. 배경을 직접 칠하지 않으면 브라우저가 검게 깐다.
    높이가 모자라면 잘라 내지 않고 스크롤한다 — 교실에서 못 읽는 것보다 낫다. */
-.fs-stage:fullscreen {
+.fs-stage:is(:fullscreen, .fs-on) {
     width: 100vw;
     height: 100vh;
     background: #fff;
@@ -104,7 +104,7 @@
                    **비율은 그대로 지키고 폭이 따라온다** — 늘려서 찌그러뜨리지 않는다.
 
    둘 다 전체 화면에서만 듣는다. 평소 배치는 건드리지 않는다. */
-.fs-stage:fullscreen:has(> .fs-fill) {
+.fs-stage:is(:fullscreen, .fs-on):has(> .fs-fill) {
     display: flex;
     flex-direction: column;
 }
@@ -112,7 +112,7 @@
 /* 늘릴 자리를 정해 두지 않은 상자는 내용이 짧으면 아래에만 여백이 몰린다.
    위아래로 나눠 화면 가운데 앉힌다. `safe`가 있어야 내용이 화면보다 길어졌을 때
    위쪽이 스크롤 밖으로 잘려 나가지 않는다. */
-.fs-stage:fullscreen:not(:has(> .fs-fill)) {
+.fs-stage:is(:fullscreen, .fs-on):not(:has(> .fs-fill)) {
     display: flex;
     flex-direction: column;
     justify-content: safe center;
@@ -123,7 +123,7 @@
    걸었는데, 그림이 격자 칸 자체인 페이지(로지스틱 회귀)에서 격자가 통째로 flex 가 되어
    **열이 한 줄로 무너졌다.** 정말 필요한 곳은 `display: block` 인 탭 패널 둘뿐이라,
    그 둘만 `fs-col` 로 짚어 준다. */
-.fs-stage:fullscreen > .fs-fill.fs-col {
+.fs-stage:is(:fullscreen, .fs-on) > .fs-fill.fs-col {
     display: flex;
     flex-direction: column;
 }
@@ -133,12 +133,12 @@
    선택자(`.tab-panel`, `.hidden`)보다 특정도가 높다. 그래서 `fs-fill` 을 준 탭이
    열려 있지 않은데도 화면 아래에 통째로 드러났다.
    **`display` 를 건드리는 규칙을 더할 때마다 이 자리도 함께 봐야 한다.** */
-.fs-stage:fullscreen > .fs-fill.hidden,
-.fs-stage:fullscreen > .tab-panel.fs-fill:not(.active) {
+.fs-stage:is(:fullscreen, .fs-on) > .fs-fill.hidden,
+.fs-stage:is(:fullscreen, .fs-on) > .tab-panel.fs-fill:not(.active) {
     display: none;
 }
 
-.fs-stage:fullscreen > .fs-fill {
+.fs-stage:is(:fullscreen, .fs-on) > .fs-fill {
     flex: 1 1 auto;
     min-height: 0;
     align-items: stretch;   /* items-start 로 잡아 둔 격자도 세로로 늘린다 */
@@ -151,7 +151,7 @@
    **넘치는 것은 조작 칸이지 그림이 아니다** — 슬라이더·예제 단추가 길어서 넘친다.
    그래서 넘침을 화면 전체가 아니라 그 칸 안에서 받는다. 그러면 그림은 늘 제자리에
    있고, 학생이 볼 것이 스크롤 밖으로 밀려나지 않는다. */
-.fs-stage:fullscreen > .fs-fill > * {
+.fs-stage:is(:fullscreen, .fs-on) > .fs-fill > * {
     min-height: 0;
     overflow-y: auto;
     /* 못박아 둔 높이(`h-[550px]` 같은 것)를 푼다. **`align-items: stretch`는
@@ -161,7 +161,7 @@
 
 /* 비율이 따로 없는 그림 상자(트리·격자 그림)는 폭을 그대로 두고 남는 높이만 채운다.
    `fs-fit`과 달리 폭을 건드리지 않는다 — 여기서 폭을 줄이면 트리가 가로로 잘린다. */
-.fs-stage:fullscreen .fs-grow {
+.fs-stage:is(:fullscreen, .fs-on) .fs-grow {
     flex: 1 1 0;
     min-height: 0;
     overflow: auto;
@@ -170,12 +170,12 @@
 /* 곁들이 상자(보상 그래프·로그)는 **남는 높이를 나눠 갖지 않는다.**
    그냥 두면 `flex-1` 끼리 반씩 갈라 가져 주인공인 그림이 절반으로 쪼그라든다.
    교실에서 크게 봐야 하는 것은 그림이므로, 곁들이는 제 몫만 갖고 나머지를 넘긴다. */
-.fs-stage:fullscreen .fs-aside {
+.fs-stage:is(:fullscreen, .fs-on) .fs-aside {
     flex: 0 0 12rem;
     min-height: 0;
 }
 
-.fs-stage:fullscreen .fs-fit {
+.fs-stage:is(:fullscreen, .fs-on) .fs-fit {
     /* 세로 flex 안에서는 `flex-basis: 0`이 이겨 남는 높이만큼을 갖고,
        격자 칸 안에서는 flex 속성이 무시되어 `height: 100%`가 듣는다. */
     flex: 1 1 0;
@@ -191,6 +191,149 @@
 }
 
 /* 교실 화면에서는 세로 한 줄이 아깝다. 설명용 머리말은 접는다. */
-.fs-stage:fullscreen .fs-hide {
+.fs-stage:is(:fullscreen, .fs-on) .fs-hide {
     display: none;
+}
+
+/* ============================================================
+   전체 화면에서 «조작»이 화면 밖으로 나가지 않게 하는 짜임
+   (2026-08-27)
+
+   전체 화면은 **교사가 그것만 켜 놓고 수업을 끌고 갈 수 있어야** 뜻이 있다.
+   그런데 예전에는 무대가 「그림 + 재생 줄」까지였고 탭·연산 버튼·값 입력·자료는
+   전부 무대 «밖»이었다. 전체 화면으로 들어가면 **알고리즘을 바꾸지도, 값을 넣지도,
+   자료를 갈지도 못했다.** 정렬에서는 「비교할 알고리즘」 고르개에 `fs-hide`까지
+   붙어 있어 아예 사라졌다.
+
+   그래서 무대를 **탭 줄 + 그림 + 조작**까지로 넓힌다. 규약은 이렇다.
+
+     fs-stage  ─ sim-tabbar   탭 줄. 전체 화면에서도 맨 위에 남는다
+               └ fs-fill fs-cols
+                   ├ fs-main  그림 + 재생 줄 + 계수기 + 설명
+                   └ fs-side  연산 버튼 + 값 입력 + 「자료」 서랍
+
+   읽는 카드(화면 읽는 법 · 눈여겨볼 것 · 비용표)는 무대 «밖»에 둔다.
+   전체 화면에서는 무대 바깥이 아예 그려지지 않으므로 `fs-hide`가 따로 필요 없다.
+   ============================================================ */
+
+/* ── 무대 안의 탭 줄 ────────────────────────────────────────── */
+.sim-tabbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: rgb(255 255 255 / 92%);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* 전체 화면에서는 무대의 안여백을 뚫고 화면 폭을 다 쓴다. */
+.fs-stage:is(:fullscreen, .fs-on) .sim-tabbar {
+    margin: -1.25rem -1.25rem 0.75rem;
+    border-radius: 0;
+}
+
+/* ── 그림 칸과 조작 칸 ──────────────────────────────────────── */
+/* 평소에는 그냥 위아래로 쌓인다. 여기서 배치를 바꾸지 않는다. */
+.fs-stage:is(:fullscreen, .fs-on) .fs-cols {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+
+/* **어느 쪽으로 나눌지는 그림 «모양»이 정한다.** 같은 페이지 안에서도 탭마다 다르다 —
+   정렬 막대와 칸 줄은 가로로 길고(1206×130 언저리), 트리와 「나란히 비교」는 세로로 크다.
+   가로로 긴 그림을 좌우로 쪼개면 그림이 절반으로 눌리고, 세로로 큰 그림을 위아래로
+   쌓으면 조작이 화면 밖으로 밀린다. 등록부의 `shape` 를 보고 UI 가 골라 붙인다. */
+.fs-stage:is(:fullscreen, .fs-on).fs-tall .fs-cols {
+    flex-direction: row;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .fs-cols > .fs-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .fs-cols > .fs-side {
+    min-height: 0;
+    min-width: 0;
+    overflow: auto;
+}
+
+/* 가로형 — 조작을 아래 한 줄에 가로로 편다. **그림이 먼저다.** 조작이 길어지면
+   그 칸만 스크롤하고 그림은 제자리를 지킨다. */
+.fs-stage:is(:fullscreen, .fs-on).fs-wide .fs-cols > .fs-side {
+    flex: 0 1 auto;
+    max-height: 38%;
+}
+
+/* 세로형 — 조작을 오른쪽 좁은 칸에 세운다. 22rem이면 연산 버튼 두 줄이 들어간다. */
+.fs-stage:is(:fullscreen, .fs-on).fs-tall .fs-cols > .fs-side {
+    flex: 0 0 22rem;
+}
+
+/* ── 그림이 남는 자리를 쓴다 ────────────────────────────────── */
+/* 뷰가 자기 자연 폭을 `max-width` 로 못박아 두어(트리는 486px) 1200px 짜리 칸에서도
+   40%만 쓰고 있었다. 전체 화면에서는 그 천장을 풀고 상자에 맞춰 키운다 —
+   `viewBox` 가 있으므로 `preserveAspectRatio` 가 비율을 지켜 준다.
+   **인라인 style 로 박혀 있어 `!important` 가 아니면 이기지 못한다.** */
+.fs-stage:is(:fullscreen, .fs-on) .fs-grow > svg,
+.fs-stage:is(:fullscreen, .fs-on) .fs-grow > div > svg {
+    max-width: none !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .fs-grow > div {
+    height: 100%;
+}
+
+/* ── 자료 서랍 ──────────────────────────────────────────────── */
+/* 자료를 갈아 끼우는 일(프리셋 · 개수 · 직접 넣기)은 **자주 하지 않는데 자리를 많이
+   먹는다.** 평소에는 무대 아래에 그냥 놓아 두고, 전체 화면에서만 오른쪽에서 나오는
+   서랍으로 접는다. 그래야 그림이 폭을 다 쓴다.
+
+   **닫혔을 때 `display: none` 으로 둔다.** `transform: translateX(100%)` 으로만
+   밀어 두면 그것이 오른쪽으로 넘쳐 무대에 가로 스크롤이 생긴다.
+
+   **미끄러져 나오는 애니메이션도 넣지 않는다.** 넣어 보았더니, 화면을 그리지 않는
+   환경(창이 가려졌을 때·자동화된 브라우저)에서 **애니메이션이 첫 프레임에 멈춰
+   서랍이 시작 자리에 붙박였다** — 그대로 54px이 오른쪽으로 넘쳤다.
+   교실에서 필요한 것은 미끄러짐이 아니라 «지금 열렸다»는 것이다. */
+.fs-stage:is(:fullscreen, .fs-on) .fs-drawer {
+    display: none;
+}
+
+.fs-stage:is(:fullscreen, .fs-on).fs-drawer-open .fs-drawer {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 40;
+    width: min(28rem, 92vw);
+    height: 100%;
+    overflow: auto;
+    background: #fff;
+    border-left: 1px solid #cbd5e1;
+    box-shadow: -12px 0 32px rgb(15 23 42 / 12%);
+}
+
+/* 서랍 여는 버튼은 전체 화면에서만 쓸모가 있다. */
+.fs-drawer-btn {
+    display: none;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .fs-drawer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* 못박아 둔 높이를 쓰는 곁 상자(허프만 트리 자리)는 전체 화면에서 키운다.
+   `.fs-fill > *` 의 `height: auto` 는 **직계 자식**에만 닿아 여기까지 오지 않는다. */
+.fs-stage:is(:fullscreen, .fs-on) .fs-taller {
+    height: min(46vh, 30rem);
 }

@@ -7,6 +7,7 @@
  * 그래서 넣은 순서를 들고 있다가 옮겨 간 구조에 **같은 순서로 다시 넣는다.**
  */
 
+import {setStageShape} from '../fullscreen.js';
 import {
     TREE_STRUCTS, TREE_START, TREE_COMPARE, TREE_INSERT_OPS, HEAP_CAP,
     treeStructById, treeStructsOfGroup, treeGroupById, treeGroupsInUse, treeComparePair,
@@ -109,6 +110,9 @@ export function mountTreeSimulator() {
     /* ---- 구조 카드 ---- */
 
     function paintStructCard() {
+        /* 전체 화면에서 조작을 그림 «옆»에 세울지 «아래»에 펼지 —
+           그림 모양이 정한다 → _lib/fullscreen.js 의 setStageShape */
+        setStageShape(struct.shape);
         $('struct-name').textContent = struct.name;
         $('struct-en').textContent = struct.en;
         setRich($('struct-idea'), struct.idea);

@@ -53,6 +53,9 @@ const bstStruct = {
     en: 'Binary Search Tree',
     group: 'search',
     view: 'linked',
+    /* 트리는 세로로 자란다 — 전체 화면에서 조작을 그림 «옆»에 세운다. */
+    shape: 'tall',
+    /* 트리는 세로로 자란다 — 전체 화면에서 조작을 그림 «옆»에 세운다. */
     ops: bstOps,
     makeState: (values) => bstBuild(values),
     idea: '값을 담은 상자 하나를 **노드(node)**라 하고, 노드끼리 이어 주는 것을 '
@@ -82,6 +85,8 @@ const avlStruct = {
     en: 'AVL Tree',
     group: 'search',
     view: 'linked-balance',
+    /* 트리는 세로로 자란다 — 전체 화면에서 조작을 그림 «옆»에 세운다. */
+    shape: 'tall',
     ops: avlOps,
     makeState: (values) => avlBuild(values),
     idea: '이진 탐색 트리와 **규칙도 연산도 같습니다.** 하나만 더 지킵니다 — '
@@ -113,6 +118,8 @@ const heapStruct = {
     en: 'Heap',
     group: 'priority',
     view: 'heap',
+    /* 트리는 세로로 자란다 — 전체 화면에서 조작을 그림 «옆»에 세운다. */
+    shape: 'tall',
     ops: heapOps,
     makeState: (values) => heapBuild(values, HEAP_CAP),
     idea: '**부모가 자식보다 크다**는 것 하나만 지킵니다(최대 힙). 형제끼리는 아무 순서가 없어 '
@@ -146,6 +153,8 @@ export const TREE_COMPARE = {
     en: 'Side by Side',
     group: 'compare',
     view: 'compare',
+    /* 트리는 세로로 자란다 — 전체 화면에서 조작을 그림 «옆»에 세운다. */
+    shape: 'tall',
     ops: treeCompareOps,
     idea: '위는 **이진 탐색 트리**, 아래는 **AVL 트리**입니다. 같은 값을 같은 순서로 받습니다. '
         + '「비우고 오름차순으로 여덟 개 넣기」를 눌러 보면 위쪽은 **한 줄로 이어진 편향 트리가 되고** '

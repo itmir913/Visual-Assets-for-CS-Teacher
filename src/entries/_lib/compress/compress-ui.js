@@ -21,6 +21,10 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
 
 export function mountCompressSimulator() {
+    /* **전체 화면에서 그림과 조작을 어느 쪽으로 나눌지 알려 준다.**
+       압축 그림은 세 방법 어디서나 글자 칸이 가로로 늘어서므로 늘 가로형이다. */
+    document.getElementById('stage')?.classList.add('fs-wide');
+
     let methodId = COMPRESS_METHODS[0].id;
     let text = COMPRESS_PRESETS[0].text;
     let player = null;
@@ -59,7 +63,7 @@ export function mountCompressSimulator() {
             </div>
             <div id="tree-wrap" class="hidden">
                 <p class="font-black text-slate-900 mb-1">트리</p>
-                <div class="relative border border-slate-200 rounded-xl bg-slate-50 h-64 sm:h-80" id="tree-host"></div>
+                <div class="relative border border-slate-200 rounded-xl bg-slate-50 h-64 sm:h-80 fs-taller" id="tree-host"></div>
             </div>
             <div>
                 <p class="font-black text-slate-900 mb-1">압축 결과</p>

@@ -13,6 +13,23 @@ function targetOf(btn) {
     return document.getElementById(btn.dataset.fullscreen);
 }
 
+/** 전체 화면에서 그림과 조작을 **어느 쪽으로 나눌지** 무대에 알려 준다.
+ *
+ * **탭마다 다르다.** 같은 페이지 안에서도 배열 칸 줄은 1200×130으로 가로로 길고,
+ * 「나란히 비교」는 1200×1000으로 세로로 크다. 가로로 긴 그림을 좌우로 쪼개면
+ * 그림이 절반으로 눌리고, 세로로 큰 그림을 위아래로 쌓으면 조작이 화면 밖으로 밀린다.
+ * 어느 쪽인지는 **등록부의 `shape`** 가 정한다(적지 않으면 가로형).
+ *
+ * @param {'wide'|'tall'|undefined} shape
+ */
+export function setStageShape(shape) {
+    const st = document.querySelector('.fs-stage');
+    if (!st) return;
+    const tall = shape === 'tall';
+    st.classList.toggle('fs-tall', tall);
+    st.classList.toggle('fs-wide', !tall);
+}
+
 /* **전체 화면일 때는 그 요소 바깥이 아예 그려지지 않는다.**
    그래서 `document.body` 에 붙인 토스트는 전체 화면에서 통째로 보이지 않는다 —
    규칙 위반 이유처럼 **꼭 보여야 하는 것**이 조용히 사라진다.
@@ -69,9 +86,39 @@ function bind() {
         });
     });
 
+    /* **「자료」 서랍.** 자료를 갈아 끼우는 일은 자주 하지 않는데 자리를 많이 먹는다.
+       전체 화면에서만 오른쪽에서 미끄러져 나오게 접어 둔다 → simulator.css 의 `fs-drawer`. */
+    document.querySelectorAll('button[data-fs-drawer]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const el = document.getElementById(btn.dataset.fsDrawer);
+            if (el) el.classList.toggle('fs-drawer-open');
+        });
+    });
+
     document.addEventListener('fullscreenchange', () => {
+        syncStageClass();
         moveFloats();
         window.dispatchEvent(new Event('resize'));
+    });
+}
+
+/** 전체 화면인 무대에 `fs-on` 을 붙인다.
+ *
+ * **CSS 가 `:fullscreen` 이 아니라 이 클래스를 본다.** 까닭은 둘이다.
+ *   - `requestFullscreen` 은 **iframe 안에서 거부된다.** 미리보기 창이 그렇고,
+ *     다른 페이지에 얹혔을 때도 그렇다. 그때도 짜임은 맞아야 한다.
+ *   - **검사가 볼 수 있게 된다.** jsdom 도 자동화된 브라우저도 진짜 전체 화면을
+ *     켤 수 없어서, 예전에는 전체 화면 짜임을 **한 번도 검사하지 못했다.**
+ *     클래스면 켜 놓고 측정할 수 있다.
+ *
+ * 나갈 때는 서랍도 함께 닫는다. 열어 둔 채 나가면 평소 화면에서 그 칸이
+ * 엉뚱한 자리에 앉는다. */
+function syncStageClass() {
+    const fs = document.fullscreenElement;
+    document.querySelectorAll('.fs-stage').forEach((el) => {
+        const on = el === fs;
+        el.classList.toggle('fs-on', on);
+        if (!on) el.classList.remove('fs-drawer-open');
     });
 }
 

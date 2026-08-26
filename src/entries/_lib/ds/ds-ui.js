@@ -7,6 +7,7 @@
  * 그래서 지금 담긴 값을 들고 있다가 옮겨 간 구조를 그 값으로 다시 세운다.
  */
 
+import {setStageShape} from '../fullscreen.js';
 import {
     DS_GROUPS, DS_STRUCTS, DS_START, DS_CAP, DS_COMPARE,
     dsStructById, dsStructsOfGroup, dsGroupById, dsGroupsInUse, dsPlanOf,
@@ -142,6 +143,9 @@ export function mountDsSimulator() {
     /* ---- 구조 카드 ---- */
 
     function paintStructCard() {
+        /* 전체 화면에서 조작을 그림 «옆»에 세울지 «아래»에 펼지 —
+           그림 모양이 정한다 → _lib/fullscreen.js 의 setStageShape */
+        setStageShape(struct.shape);
         $('struct-name').textContent = struct.name;
         $('struct-en').textContent = struct.en;
         setRich($('struct-idea'), struct.idea);

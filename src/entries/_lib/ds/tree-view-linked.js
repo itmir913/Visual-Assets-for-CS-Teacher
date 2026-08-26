@@ -162,7 +162,12 @@ export function createTreeLinkedView(host, opts = {}) {
             const moving = new Set(m.moving);
             const {pos} = treeLayout(st);
 
-            const scale = (svg.clientWidth || vbW) / vbW;
+            /* **1을 넘지 않게 눌러 둔다.** 이 나눗셈은 그림이 «줄었을 때» 글자가 함께
+               줄지 않도록 되돌리려고 두었다(viewBox 486짜리를 340px에 그리면 15px이
+               10.5px이 된다). 그런데 전체 화면에서는 그림이 «커지는데», 그때도 그대로
+               나누면 글자만 제자리에 붙박여 **빔프로젝터에서 커진 그림에 작은 글자**가 된다.
+               커질 때는 글자도 함께 커져야 한다. */
+            const scale = Math.min(1, (svg.clientWidth || vbW) / vbW);
             const valueFont = Math.round(VALUE_FONT_PX / scale);
             const smallFont = Math.round(SMALL_FONT_PX / scale);
             gMarks.setAttribute('font-size', smallFont);

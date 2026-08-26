@@ -293,7 +293,12 @@ export function createDsListView(host) {
 
             /* **배율을 그릴 때마다 다시 측정하고 글자에 역수를 곱한다.** 한 번 측정해 굳혀 두면
                창을 줄였을 때 그 값이 낡는다. 그룹에 한 번만 걸면 노드마다 쓰지 않아도 된다. */
-            const scale = (svg.clientWidth || vbW) / vbW;
+            /* **1을 넘지 않게 눌러 둔다.** 이 나눗셈은 그림이 «줄었을 때» 글자가 함께
+               줄지 않도록 되돌리려고 두었다(viewBox 486짜리를 340px에 그리면 15px이
+               10.5px이 된다). 그런데 전체 화면에서는 그림이 «커지는데», 그때도 그대로
+               나누면 글자만 제자리에 붙박여 **빔프로젝터에서 커진 그림에 작은 글자**가 된다.
+               커질 때는 글자도 함께 커져야 한다. */
+            const scale = Math.min(1, (svg.clientWidth || vbW) / vbW);
             const valueFont = Math.round(VALUE_FONT_PX / scale);
             gSmall.setAttribute('font-size', Math.round(SMALL_FONT_PX / scale));
 

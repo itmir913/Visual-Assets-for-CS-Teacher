@@ -147,7 +147,8 @@ export function createSortHeapView(host) {
 
         /* **배율을 그릴 때마다 다시 측정하고 글자에 역수를 곱한다.** 한 번 측정해 굳혀 두면
            창을 줄였을 때 그 값이 낡는다. 그룹(`<g>`)에 한 번만 걸면 노드마다 쓰지 않아도 된다. */
-        const scale = (svg.clientWidth || treeW) / treeW;
+        // 1을 넘지 않게 눌러 둔다 — 커질 때는 글자도 함께 커져야 한다.
+        const scale = Math.min(1, (svg.clientWidth || treeW) / treeW);
         gValue.setAttribute('font-size', Math.round(NODE_FONT_PX / scale));
         gIndex.setAttribute('font-size', Math.round(INDEX_FONT_PX / scale));
         const marks = frame.marks;

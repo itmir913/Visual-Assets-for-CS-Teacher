@@ -495,6 +495,11 @@ export function mountSortSimulator() {
 
     /* ---- 시작 ---- */
 
+    /* **전체 화면에서 그림과 조작을 어느 쪽으로 나눌지 알려 준다.**
+       정렬 그림은 어느 탭에서나 가로로 길다(막대도 경주 줄도) — 좌우로 쪼개면
+       그림이 절반으로 눌린다. 그래서 늘 가로형이다 → simulator.css 의 `fs-wide` */
+    $('stage').classList.add('fs-wide');
+
     wireControls();
     paintRacePicker();
     paintTabs();

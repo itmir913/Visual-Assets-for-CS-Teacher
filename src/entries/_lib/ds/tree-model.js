@@ -18,6 +18,8 @@
  *   `링크`  링크 하나를 고쳐 쓴다        — 이진 탐색 트리·AVL 쪽에서만 늘어난다
  */
 
+import {withJosa} from '../josa.js';
+
 let nextNodeId = 1;
 
 export function treeResetIds() {
@@ -181,11 +183,11 @@ export function treeStateFault(s) {
         const nd = byId(s, id);
         if (!nd) { bad = `없는 마디(${id})를 가리킨다`; return 0; }
         if (nd.parent !== parent) { bad = `${nd.v}의 부모 링크가 어긋났다`; return 0; }
-        if (nd.v < lo || nd.v > hi) { bad = `${nd.v}가 이진 탐색 트리의 자리를 벗어났다`; return 0; }
+        if (nd.v < lo || nd.v > hi) { bad = `${withJosa(nd.v, '이가')} 이진 탐색 트리의 자리를 벗어났다`; return 0; }
         const lh = walk(nd.left, id, lo, nd.v);
         const rh = walk(nd.right, id, nd.v, hi);
         const h = 1 + Math.max(lh, rh);
-        if (nd.height !== h) { bad = `${nd.v}의 높이가 ${nd.height}로 적혀 있는데 실제로는 ${h}이다`; }
+        if (nd.height !== h) { bad = `${nd.v}의 높이가 ${withJosa(nd.height, '으로')} 적혀 있는데 실제로는 ${h}이다`; }
         if (s.balanced && Math.abs(lh - rh) > 1) {
             bad = `${nd.v}의 균형 인수가 ${lh - rh}다. AVL 트리는 −1·0·1이어야 한다`;
         }

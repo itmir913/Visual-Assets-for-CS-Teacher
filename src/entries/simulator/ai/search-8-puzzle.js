@@ -7,3 +7,8 @@
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
 import '../../_lib/prism-python.js';
+import {josa} from '../../_lib/josa.js';
+
+// 타일 번호(1~8)와 맨해튼 거리가 문장 안에 들어간다 — 「2를」과 「3을」, 「4로」와 「3으로」가
+// 갈리므로 손으로 적을 수가 없다.
+window.josa = josa;

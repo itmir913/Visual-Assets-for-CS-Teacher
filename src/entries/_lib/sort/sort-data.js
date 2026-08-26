@@ -8,6 +8,8 @@
  * 같은 값 둘의 앞뒤가 뒤집히는지를 보는 것 말고는 안정성을 눈으로 확인할 길이 없다.
  */
 
+import {withJosa} from '../josa.js';
+
 /* **고를 수 있는 개수. 고르게 펴지 않는다.**
  *
  * 수업에서 실제로 쓰는 자리는 2~20이다 — 한 단계씩 넘겨 가며 무슨 일이 벌어지는지
@@ -169,11 +171,11 @@ export function checkSortInput(algo, values) {
     if (need.nonNegative && values.some((v) => v < 0)) {
         /* **막는 까닭을 알고리즘에 맞게 적는다.** 계수 정렬은 값이 곧 칸의 자리라
            음수가 갈 자리가 없고, 기수 정렬은 자릿수를 떼어 쓰므로 부호를 다룰 수 없다. */
-        return `${algo.name}은 값을 칸의 자리로 쓰기 때문에 `
+        return `${withJosa(algo.name, '은는')} 값을 칸의 자리로 쓰기 때문에 `
             + `음수를 그대로 담을 수 없습니다. 0 이상만 넣어 주세요.`;
     }
     if (need.maxValue !== undefined && values.some((v) => v > need.maxValue)) {
-        return `${algo.name}은 값의 크기만큼 세는 칸을 만듭니다. `
+        return `${withJosa(algo.name, '은는')} 값의 크기만큼 세는 칸을 만듭니다. `
             + `여기서는 ${need.maxValue}까지만 다룹니다 — 값이 커질수록 칸이 그만큼 늘어납니다.`;
     }
     return null;

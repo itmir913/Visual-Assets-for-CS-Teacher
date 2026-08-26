@@ -58,6 +58,31 @@ function moveFloats() {
     });
 }
 
+/* **탭 줄을 전체 화면 안으로 들여온다.**
+   무대를 탭마다 하나씩 두는 페이지(맹목적 탐색·정보 이용 탐색·결정 트리)는 탭 줄이
+   무대 «밖»에 있다. 그러면 전체 화면에서 탭을 바꿀 수가 없어, 교사가 켜 놓은 그 하나에
+   갇힌다. 무대를 하나로 합치려면 페이지를 통째로 다시 짜야 하므로, **드나들 때 옮긴다.**
+
+   `fs-dock` 을 준 것은 전체 화면에 들어갈 때 그 무대의 «맨 앞»으로 들어가고,
+   나올 때 **있던 자리로 돌아간다.** 자리를 기억해 두지 않으면 페이지가 어그러진다. */
+const docks = new Map();      // el → {parent, next}
+
+function moveDocks() {
+    const fs = document.fullscreenElement;
+    document.querySelectorAll('.fs-dock').forEach((el) => {
+        if (!docks.has(el)) docks.set(el, {parent: el.parentElement, next: el.nextSibling});
+    });
+    for (const [el, home] of docks) {
+        if (!el.isConnected && !home.parent) continue;
+        if (fs && fs.classList.contains('fs-stage')) {
+            if (el.parentElement !== fs) fs.insertBefore(el, fs.firstChild);
+        } else if (home.parent && el.parentElement !== home.parent) {
+            const before = home.next && home.next.isConnected ? home.next : null;
+            home.parent.insertBefore(el, before);
+        }
+    }
+}
+
 function bind() {
     /* **iOS 사파리(아이폰)에는 요소 전체 화면이 없다.** `requestFullscreen` 자체가
        없어서, 그냥 두면 눌러도 아무 일이 없는 죽은 버튼이 남는다.
@@ -97,6 +122,7 @@ function bind() {
 
     document.addEventListener('fullscreenchange', () => {
         syncStageClass();
+        moveDocks();
         moveFloats();
         window.dispatchEvent(new Event('resize'));
     });

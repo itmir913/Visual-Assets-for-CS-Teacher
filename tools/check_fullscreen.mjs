@@ -133,6 +133,22 @@ for (const name of PAGES) {
             if (!stage.classList.contains('fs-drawer-open')) bad(`${name} — 서랍 버튼을 눌렀는데 열리지 않는다`);
             drawerBtn.click();
             if (stage.classList.contains('fs-drawer-open')) bad(`${name} — 서랍 버튼을 다시 눌렀는데 닫히지 않는다`);
+
+            /* **서랍 안에도 닫는 문이 있는가.** 여는 버튼은 탭 줄 오른쪽 끝에 있고,
+               열린 서랍은 `top: 0; right: 0` 에 `z-index: 40` 으로 **바로 그 자리를 덮는다.**
+               그래서 한 번 열면 닫을 길이 전체 화면을 통째로 나가는 Esc 뿐이었다.
+               jsdom 에는 레이아웃이 없어 「덮였다」를 재지는 못하므로,
+               **서랍 안에 누르면 닫는 것이 있는지**를 대신 본다. */
+            drawerBtn.click();
+            const closer = drawer.querySelector('.fs-drawer-close');
+            if (!closer) bad(`${name} — 서랍 안에 닫는 문(.fs-drawer-close)이 없다. 열린 서랍이 여는 버튼을 덮어 닫을 길이 없다`);
+            else {
+                closer.click();
+                if (stage.classList.contains('fs-drawer-open')) {
+                    bad(`${name} — 서랍 안의 닫는 문을 눌렀는데 닫히지 않는다`);
+                    stage.classList.remove('fs-drawer-open');
+                }
+            }
         }
     }
 

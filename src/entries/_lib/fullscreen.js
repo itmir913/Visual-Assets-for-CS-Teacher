@@ -83,6 +83,30 @@ function moveDocks() {
     }
 }
 
+/** 서랍을 **안에서 닫는 문**을 달아 둔다.
+ *
+ * 여는 버튼은 탭 줄 오른쪽 끝에 있는데, 열린 서랍이 바로 그 자리를 덮는다 —
+ * **열고 나면 닫을 방법이 없었다.** 전체 화면을 통째로 나가는 Esc 뿐이었는데,
+ * 자료 한 번 바꾸자고 수업 화면을 내릴 수는 없다.
+ *
+ * **페이지마다 적지 않고 여기서 달아 둔다.** 복사 버튼을 모든 `<pre>` 에 빌드가
+ * 붙이는 것과 같은 이치다 — 새 서랍을 만들면 문이 저절로 따라온다.
+ * 모양은 simulator.css 의 `fs-drawer-close`. */
+function addDrawerClose() {
+    document.querySelectorAll('.fs-drawer').forEach((drawer) => {
+        if (drawer.querySelector('.fs-drawer-close')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'fs-drawer-close';
+        btn.innerHTML = '<i class="fa-solid fa-xmark"></i> 닫기';
+        btn.addEventListener('click', () => {
+            const stage = drawer.closest('.fs-stage');
+            if (stage) stage.classList.remove('fs-drawer-open');
+        });
+        drawer.insertBefore(btn, drawer.firstChild);
+    });
+}
+
 function bind() {
     /* **iOS 사파리(아이폰)에는 요소 전체 화면이 없다.** `requestFullscreen` 자체가
        없어서, 그냥 두면 눌러도 아무 일이 없는 죽은 버튼이 남는다.
@@ -119,6 +143,8 @@ function bind() {
             if (el) el.classList.toggle('fs-drawer-open');
         });
     });
+
+    addDrawerClose();
 
     document.addEventListener('fullscreenchange', () => {
         syncStageClass();

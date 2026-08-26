@@ -355,6 +355,21 @@ def banned_rules(src: str):
         for m in re.finditer(pattern, src):
             bad.append(f"{_line_of(src, m.start())}행: 「{쓴말}」 — 「{쓸말}」로 쓴다")
 
+    # 「이(가)」꼴 양쪽 표기. **값이 들어갈 자리에서 조사를 손으로 적은 흔적**이라,
+    # 어느 쪽이 맞는지는 값이 정해져야 알 수 있다. 시뮬레이터 넷에서 실제로 화면에
+    # 그대로 찍히고 있었다 — 「노드 2이(가)」·「수박(으)로」.
+    # 고르는 일은 src/entries/_lib/josa.js가 한다.
+    #
+    # **빈칸 뒤는 뺀다.** 「______은(는)」은 학생이 채울 자리라 값이 아직 없고,
+    # 한쪽으로 적으면 그것이 곧 답의 힌트가 된다. 값을 모르는 것이 «의도»인
+    # 유일한 자리라서, 여기서만 양쪽 표기가 맞는 표기다.
+    for m in re.finditer(r"(_*)(이\(가\)|가\(이\)|은\(는\)|는\(은\)|"
+                         r"을\(를\)|를\(을\)|과\(와\)|와\(과\)|\(으\)로)", src):
+        if m.group(1):
+            continue
+        bad.append(f"{_line_of(src, m.start())}행: 「{m.group(2)}」 — 조사를 손으로 적지 않는다. "
+                   f"<code>josa()</code>가 값을 보고 고른다")
+
     # <sup>/<sub>은 브라우저가 0.83em으로 줄여 text-base 문단에서 12~13.5px이 된다.
     # 소스에 text-sm이 없으므로 글자 크기 검사로는 통과한다.
     for m in re.finditer(r"<su[pb]\b", src):

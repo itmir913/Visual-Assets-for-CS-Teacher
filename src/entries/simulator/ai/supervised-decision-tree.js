@@ -8,5 +8,9 @@ import '../../_lib/canvas-dpr.js';
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';
 import {createTreeView} from '../../_lib/tree-view.js';
+import {josa} from '../../_lib/josa.js';
 
 window.createTreeView = createTreeView;
+// 질문 라벨과 분류 결과에 과일 이름·특성 이름이 들어간다 — 「색깔이」와 「크기가」,
+// 「수박으로」와 「사과로」가 갈리므로 손으로 적을 수가 없다.
+window.josa = josa;

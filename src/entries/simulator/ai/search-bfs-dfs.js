@@ -10,8 +10,12 @@ import {createTreeView} from '../../_lib/tree-view.js';
 import {createGraphView} from '../../_lib/graph-view.js';
 import * as graphModel from '../../_lib/graph-model.js';
 import {GRAPH_PRESETS} from '../../_lib/graph-presets.js';
+import {josa} from '../../_lib/josa.js';
 
 window.createTreeView = createTreeView;
 window.createGraphView = createGraphView;
 window.GraphModel = graphModel;
 window.GRAPH_PRESETS = GRAPH_PRESETS;
+// 지도 이름이 「지도 5」처럼 숫자로 끝난다. 「을/를」이 그 숫자를 읽은 소리로 갈리므로
+// 손으로 박아 둘 수가 없다 — 5는 「오」라서 를, 6은 「육」이라서 을이다.
+window.josa = josa;

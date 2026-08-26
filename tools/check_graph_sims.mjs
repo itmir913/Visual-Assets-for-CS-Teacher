@@ -22,6 +22,7 @@ import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 
 import {GRAPH_PRESETS} from '../src/entries/_lib/graph-presets.js';
+import {josa} from '../src/entries/_lib/josa.js';
 import * as M from '../src/entries/_lib/graph-model.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -129,7 +130,9 @@ function makeSandbox() {
 
     const sandbox = {
         document: {getElementById: el},
-        window: {GraphModel: M, GRAPH_PRESETS, createGraphView: () => view},
+        // **진입점이 window 에 얹어 주는 것을 여기서도 다 얹는다.** 하나라도 빠지면
+        // 검사가 화면 문제로 죽어, 정작 보려던 탐색 결과를 못 본다.
+        window: {GraphModel: M, GRAPH_PRESETS, josa, createGraphView: () => view},
         setTimeout, clearTimeout,
         setInterval: () => 0,
         clearInterval: () => {
@@ -233,6 +236,7 @@ function checkBlind() {
     }
 
     checkCutting(sim, el, '맹목');
+    checkPresetJosa(sim, el, '맹목');
 
     return runs;
 }
@@ -293,6 +297,37 @@ function checkCutting(sim, el, 이름) {
     if (sim.graph.goal !== 딴노드) bad(`${이름} 끊기를 켠 채로 노드를 눌렀는데 목표가 바뀌지 않았다`);
     sim.setEditing(false);
     el('graph-opt-edit').checked = false;
+}
+
+/**
+ * **지도 이름에 붙는 조사가 맞는가.**
+ *
+ * 이름이 「지도 5」처럼 숫자로 끝나서, 「을/를」이 그 숫자를 **읽은 소리**로 갈린다 —
+ * 5는 「오」라 를, 6은 「육」이라 을이다. 브라우저로 재 보니 열두 장 가운데 다섯 장이
+ * 틀린 조사로 나오고 있었다(2·4·5·9·12).
+ *
+ * **정답은 `josa.js`를 부르지 않고 여기 따로 적는다.** 같은 코드로 두 번 세면 틀린 것도
+ * 맞다고 나온다. 받침이 있는 숫자는 0·1·3·6·7·8이다.
+ */
+const 받침있는숫자 = new Set(['0', '1', '3', '6', '7', '8']);
+
+function checkPresetJosa(sim, el, 이름) {
+    for (const preset of GRAPH_PRESETS) {
+        sim.loadPreset(preset);
+        sim.restore();
+
+        const 말 = el('graph-status').innerHTML;
+        const 끝자 = preset.name.trim().slice(-1);
+        const 맞는것 = 받침있는숫자.has(끝자) ? '을' : '를';
+        const 틀린것 = 맞는것 === '을' ? '를' : '을';
+
+        if (!말.includes(`</b>${맞는것} `)) {
+            bad(`${이름} 조사: 「${preset.name}」에 붙일 조사는 ${맞는것}인데 그렇지 않다 — ${말}`);
+        }
+        if (말.includes(`</b>${틀린것} `)) {
+            bad(`${이름} 조사: 「${preset.name}」 뒤에 ${틀린것}이 붙었다 — ${말}`);
+        }
+    }
 }
 
 /** 화면이 지금 그리고 있는 간선 id. **모델이 아니라 뷰에게 묻는다.** */
@@ -486,6 +521,7 @@ function checkHeuristic() {
     console.log(`  A*가 다익스트라보다 노드를 덜 연 판: ${다익판}판 중 ${A별로덜엶}판`);
 
     checkCutting(sim, el, '정보');
+    checkPresetJosa(sim, el, '정보');
     checkCompareTable(sim, el);
 
     return runs;

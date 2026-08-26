@@ -266,6 +266,12 @@ export function createFindRecorder(state) {
             else s.buckets[i].splice(chainPos, 1);
             s.size -= 1;
             focus = [i];
+            /* **지운 자리의 「찾던 값」 표시를 끈다.** `hit`은 판이 끝날 때까지 남기는
+               것이 규칙인데, 빼기에서는 그 규칙이 거꾸로 문다 — 사슬에서 마디를 빼면
+               **뒷값이 그 자리로 당겨 앉아**, 찾던 값이 아닌 것이 초록으로 남는다.
+               찾아 놓고 지운 값은 이미 화면에 없으므로 가리킬 것도 없다. */
+            hit = [];
+            hitPos = null;
             snap({kind: 'erase', i, tomb});
             return rec;
         },

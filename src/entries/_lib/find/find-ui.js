@@ -23,12 +23,15 @@ import {FIND_VALUE_MAX} from './find-ops.js';
 /** 자료를 몇 개까지 담게 할지. **칸이 너무 많으면 375px에서 한 칸이 글자보다 좁아진다.** */
 export const FIND_MAX_N = 12;
 
-const FIND_LEGEND = [
-    {key: 'idle', label: '아직 안 본 것'},
-    {key: 'focus', label: '지금 보는 것'},
-    {key: 'hit', label: '찾던 값'},
-    {key: 'ruled', label: '볼 것 없다고 버린 곳'},
-];
+/** 색이 뜻하는 것. **무엇을 낼지는 방법마다 다르다** — 등록부의 `legend`가 고른다.
+ *  화면에 안 나오는 색을 범례에 남기면 학생이 「아직 못 본 무언가가 있다」고 여기며 찾는다. */
+const FIND_LEGEND = {
+    idle: {tone: 'idle', label: '아직 안 본 것'},
+    focus: {tone: 'focus', label: '지금 보는 칸'},
+    hit: {tone: 'hit', label: '찾던 값'},
+    ruled: {tone: 'ruled', label: '볼 것 없다고 버린 곳'},
+    tomb: {tone: 'ruled', label: '묘비 — 뺀 자리', dashed: true},
+};
 
 const $ = (id) => document.getElementById(id);
 
@@ -127,6 +130,7 @@ export function mountFindSimulator() {
                     rebuildState();
                     paintImpl();
                     paintOps();
+                    paintLegend();
                     paintOpsState();
                     runIdle();
                 },
@@ -195,13 +199,16 @@ export function mountFindSimulator() {
     function paintLegend() {
         const host = $('legend');
         host.textContent = '';
-        for (const {key, label} of FIND_LEGEND) {
+        const keys = plan().impl?.legend || struct.legend || Object.keys(FIND_LEGEND);
+        for (const key of keys) {
+            const {tone, label, dashed} = FIND_LEGEND[key];
             const wrap = document.createElement('span');
             wrap.className = 'inline-flex items-center gap-2';
             const chip = document.createElement('span');
             chip.className = 'inline-block w-5 h-5 rounded border-2';
-            chip.style.background = FIND_COLORS[key].bg;
-            chip.style.borderColor = FIND_COLORS[key].line;
+            chip.style.background = FIND_COLORS[tone].bg;
+            chip.style.borderColor = FIND_COLORS[tone].line;
+            if (dashed) chip.style.borderStyle = 'dashed';
             const text = document.createElement('span');
             text.textContent = label;
             wrap.appendChild(chip);
@@ -372,6 +379,15 @@ export function mountFindSimulator() {
         const v = readValue();
         if (v === null) return;
 
+        /* **넣기에도 같은 상한을 건다.** 상한은 해시 표가 아니라 «칸 그림»이 걸어 둔 것이라
+           (칸이 너무 많으면 좁은 화면에서 한 칸이 글자보다 좁아진다), 해시 탭에서 넘겨 담으면
+           그 자료를 그대로 물려받는 순차·이진 탭이 대신 무너진다. 「직접 넣기」에만 걸어
+           두었더니 단추로는 얼마든지 넘길 수 있었다. */
+        if (op.id === 'hash-put' && values.length >= FIND_MAX_N && !values.includes(v)) {
+            $('input-error').textContent = `${FIND_MAX_N}개까지만 담을 수 있습니다.`;
+            return;
+        }
+
         if (struct.id === 'race') {
             const built = buildFindRace(trio, v);
             /* **찾기는 담긴 것을 바꾸지 않으므로** 세 줄이 갈라질 일이 없다.
@@ -388,18 +404,23 @@ export function mountFindSimulator() {
             view.setup(built.frames, measured);
             $('tally-row').style.display = 'none';
             playFrames(built.frames);
-            pushLog(op, built.runs.reduce((a, r) => ({
-                compare: a.compare + r.out.counts.compare,
-                access: a.access + r.out.counts.access,
-                hash: a.hash + r.out.counts.hash,
-            }), {compare: 0, access: 0, hash: 0}));
+            /* **무른 판은 기록하지 않는다.** 빈 자료에서도 해시 줄은 계산 한 번과 칸 한 번을
+               쓰는데, 그 값을 기록에 남기면 «아무 일도 일어나지 않았습니다»라고 말해 놓고
+               바로 아래에 작업량 2가 찍힌다. */
+            if (!built.blocked) {
+                pushLog(op, built.runs.reduce((a, r) => ({
+                    compare: a.compare + r.out.counts.compare,
+                    access: a.access + r.out.counts.access,
+                    hash: a.hash + r.out.counts.hash,
+                }), {compare: 0, access: 0, hash: 0}));
+            }
             paintOpsState();
             return;
         }
 
         const out = runFindOperation(op, state, v);
         state = out.state;
-        values = findValues(state);
+        syncValues(out.state);
 
         ensureView(plan().view);
         paintReadNotes();
@@ -411,6 +432,23 @@ export function mountFindSimulator() {
     }
 
     /* ---- 자료 ---- */
+
+    /**
+     * 연산이 끝난 상태를 보고 **담긴 값을 맞춘다. 차례는 지킨다.**
+     *
+     * 그냥 `findValues(state)`로 받으면 안 된다. 해시 상태는 값을 **칸 차례로** 내놓으므로,
+     * 아무것도 바꾸지 않는 「찾기」를 한 번 눌렀을 뿐인데 자료가 통째로 뒤섞인다.
+     * 그러면 이진 탐색 탭으로 돌아갔을 때 **학생이 흐트러뜨린 적도 없는데 답을 놓치기
+     * 시작한다** — 「흐트러뜨리기」로 «일부러» 만들어야 가르칠 거리가 된다는 설계가 무너진다.
+     *
+     * 그래서 살아남은 값은 **있던 차례 그대로** 두고, 새로 들어온 값만 뒤에 붙인다.
+     */
+    function syncValues(st) {
+        const now = new Set(findValues(st));
+        const kept = values.filter((v) => now.has(v));
+        const added = [...now].filter((v) => !kept.includes(v));
+        values = [...kept, ...added];
+    }
 
     function rebuildState() {
         if (struct.id === 'race') {
@@ -433,6 +471,7 @@ export function mountFindSimulator() {
         paintTabs();
         paintImpl();
         paintStructCard();
+        paintLegend();
         paintOps();
         paintOpsState();
         runIdle();

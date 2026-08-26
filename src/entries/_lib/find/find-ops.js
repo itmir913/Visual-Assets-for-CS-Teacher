@@ -40,7 +40,9 @@ function seqFind(rec, v) {
 
     for (let i = 0; i < rec.size; i++) {
         rec.cursor('i', i);
-        rec.say(`${i}번을 봅니다. ${rec.peek(i).v}${v}입니까?`);
+        /* **두 수를 반드시 갈라 놓는다.** `${앞값}${찾는값}`으로 이어 붙이면 3과 41이
+           「341」이라는 없는 수가 되어, 「대 본다」를 가르치는 자리에서 대상이 사라진다. */
+        rec.say(`${i}번을 봅니다. ${withJosa(rec.peek(i).v, '은는')} ${v}입니까?`);
         if (rec.probe(i, v) === 0) {
             rec.cursor('i', null);
             return `${i}번에서 찾았습니다. **${i + 1}번 대 보았습니다.**`;
@@ -81,7 +83,8 @@ function binFind(rec, v) {
     while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
         rec.cursor('mid', mid);
-        rec.say(`남은 ${hi - lo + 1}칸의 가운데는 ${mid}번입니다. ${rec.peek(mid).v}${v}입니까?`);
+        rec.say(`남은 ${hi - lo + 1}칸의 가운데는 ${mid}번입니다. `
+            + `${withJosa(rec.peek(mid).v, '은는')} ${v}입니까?`);
         const cmp = rec.probe(mid, v);
         looked += 1;
 
@@ -90,11 +93,11 @@ function binFind(rec, v) {
             return `${mid}번에서 찾았습니다. **${looked}번 대 보았습니다.**`;
         }
         if (cmp < 0) {
-            rec.say(`${rec.peek(mid).v}${withJosa(v, '이가')}보다 작으니 **${mid}번까지는 볼 것 없습니다.**`);
+            rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 작으니 **${mid}번까지는 볼 것 없습니다.**`);
             rec.ruleOut(lo, mid);
             lo = mid + 1;
         } else {
-            rec.say(`${rec.peek(mid).v}${withJosa(v, '이가')}보다 크니 **${mid}번부터 뒤는 볼 것 없습니다.**`);
+            rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 크니 **${mid}번부터 뒤는 볼 것 없습니다.**`);
             rec.ruleOut(mid, hi);
             hi = mid - 1;
         }
@@ -126,7 +129,7 @@ function binFind(rec, v) {
 function walkChain(rec, at, v) {
     const chain = rec.state.buckets[at];
     for (let k = 0; k < chain.length; k++) {
-        rec.say(`${at}번 줄의 ${k + 1}번째는 ${chain[k].v}입니다.`);
+        rec.say(`${at}번 줄의 ${k + 1}번째는 ${chain[k].v}입니다. ${v}입니까?`);
         if (rec.test(at, v, k)) return k;
     }
     return -1;
@@ -134,7 +137,7 @@ function walkChain(rec, at, v) {
 
 function chainPut(rec, v) {
     rec.clearFlag();
-    rec.say(`${withJosa(v, '을를')} ${rec.cap}로 나눈 나머지를 구합니다.`);
+    rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const at = rec.hashOf(v);
     rec.say(`${at}번 칸으로 갑니다. **어디로 갈지 «보지 않고 계산해서» 정했습니다.**`);
     rec.visit(at);
@@ -153,7 +156,7 @@ function chainPut(rec, v) {
 
 function chainFind(rec, v) {
     rec.clearFlag();
-    rec.say(`${withJosa(v, '을를')} ${rec.cap}로 나눈 나머지를 구합니다.`);
+    rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const at = rec.hashOf(v);
     rec.say(`${at}번 칸만 봅니다. **다른 칸은 볼 까닭이 없습니다.**`);
     rec.visit(at);
@@ -174,7 +177,7 @@ function chainFind(rec, v) {
 
 function chainRemove(rec, v) {
     rec.clearFlag();
-    rec.say(`${withJosa(v, '을를')} ${rec.cap}로 나눈 나머지를 구합니다.`);
+    rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const at = rec.hashOf(v);
     rec.visit(at);
     const k = walkChain(rec, at, v);
@@ -194,7 +197,7 @@ function chainRemove(rec, v) {
 
 function openPut(rec, v) {
     rec.clearFlag();
-    rec.say(`${withJosa(v, '을를')} ${rec.cap}로 나눈 나머지를 구합니다.`);
+    rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const home = rec.hashOf(v);
 
     /* **먼저 있는지 본다.** 빈 칸을 찾자마자 넣으면 묘비 뒤에 같은 값이 또 들어간다. */
@@ -250,7 +253,7 @@ function openPut(rec, v) {
 
 function openFind(rec, v) {
     rec.clearFlag();
-    rec.say(`${withJosa(v, '을를')} ${rec.cap}로 나눈 나머지를 구합니다.`);
+    rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const home = rec.hashOf(v);
 
     for (let k = 0; k < rec.cap; k++) {
@@ -266,6 +269,7 @@ function openFind(rec, v) {
             rec.mark('tomb');
             continue;
         }
+        rec.say(`${withJosa(cell.v, '은는')} ${v}입니까?`);
         if (rec.test(at, v)) {
             return k > 0
                 ? `${at}번에서 찾았습니다. **계산한 자리에서 ${k}칸 밀린 곳입니다.**`
@@ -277,14 +281,20 @@ function openFind(rec, v) {
 
 function openRemove(rec, v) {
     rec.clearFlag();
-    rec.say(`${withJosa(v, '을를')} ${rec.cap}로 나눈 나머지를 구합니다.`);
+    rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const home = rec.hashOf(v);
 
     for (let k = 0; k < rec.cap; k++) {
         const at = (home + k) % rec.cap;
+        rec.say(k === 0 ? `${at}번 칸을 봅니다.` : `${at}번 칸으로 **한 칸 옆으로 밀어** 봅니다.`);
         const cell = rec.visit(at);
         if (cell === null) break;
-        if (cell === TOMB) continue;
+        if (cell === TOMB) {
+            rec.say(`${at}번은 묘비입니다. 지나칩니다.`);
+            rec.mark('tomb');
+            continue;
+        }
+        rec.say(`${withJosa(cell.v, '은는')} ${v}입니까?`);
         if (rec.test(at, v)) {
             /* **그냥 비우면 안 된다.** 이 칸을 넘어 밀려난 값이 뒤에 있으면, 빈 칸을 만난
                찾기가 거기서 멈춰 «있는 값을 없다»고 하게 된다. 그래서 묘비를 세운다. */

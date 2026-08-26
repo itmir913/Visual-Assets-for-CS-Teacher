@@ -8,9 +8,11 @@
 //
 // 못박는 것.
 //   - 너비 우선이 찾은 길은 늘 **칸 수가 가장 적은 길**이다
-//   - 균일 비용과 A*가 찾은 길은 늘 **비용이 가장 적은 길**이다.
+//   - 균일 비용 · 다익스트라 · A*가 찾은 길은 늘 **비용이 가장 적은 길**이다.
 //     A*는 닫은 노드를 다시 열지 않으므로, h가 일관적일 때만 성립한다 —
 //     증명은 `graph-model.js`에 적혀 있지만 **여기서는 말이 아니라 값으로 본다**
+//   - 다익스트라가 연 노드는 **시작점에서 목표보다 가까운 노드 전부**다 —
+//     h를 슬쩍 보고 있으면 이 집합이 목표 쪽으로 치우쳐 곧바로 걸린다
 //   - 어느 방법이든 찾았다는 길은 **실제로 이어져 있다**
 //   - 방문 검사를 끄면 되돌아갈 길이 있는 한 끝나지 않고, 되돌아갈 길이 없으면 끝난다
 
@@ -298,8 +300,70 @@ function view0(sim) {
     return sim.view.drawnEdgeIds();
 }
 
+/**
+ * **다익스트라가 연 노드가 맞는가 — 화면의 코드를 쓰지 않고 따로 구해서 본다.**
+ *
+ * 다익스트라는 g가 작은 것부터 꺼내고 목표를 꺼내는 순간 멈춘다. 그러므로 닫힌 집합은
+ * **시작점에서의 최단 비용이 목표보다 싼 노드 전부**이고, 그보다 비싼 노드는 하나도
+ * 들어 있지 않다(같은 값인 노드는 꺼내는 차례에 따라 들어갈 수도 아닐 수도 있다).
+ *
+ * **이것만으로는 「h를 보지 않는다」가 지켜지지 않는다.** 동점에서만 h로 고르게 바꿔 보니
+ * 이 검사도 「가장 싼 길」 검사도 통과했다(연 노드 수만 조금 줄었다). 값이 아니라
+ * **꺼내는 차례**가 틀어지는 것이라 집합으로는 안 잡힌다 — 그 자리는 `checkDijkstraBlind`가 본다.
+ */
+function checkDijkstraClosed(graph, closed, bestCost, where, bad) {
+    for (const id of closed) {
+        const d = M.cheapestCost(graph, graph.start, id);
+        if (d > bestCost) {
+            bad(`${where}: 목표보다 비싼 노드 ${id}(${d} > ${bestCost})를 열었다 — 싼 것부터 꺼내지 않았다`);
+            return;
+        }
+    }
+    for (const n of graph.nodes) {
+        if (n.id === graph.start || n.id === graph.goal) continue;
+        const d = M.cheapestCost(graph, graph.start, n.id);
+        if (d < bestCost && !closed.has(n.id)) {
+            bad(`${where}: 목표보다 가까운 노드 ${n.id}(${d} < ${bestCost})를 열지 않고 지나쳤다`);
+            return;
+        }
+    }
+}
+
+/**
+ * **다익스트라가 h를 정말 안 보는가 — h를 통째로 0으로 만들고 다시 돌려 본다.**
+ *
+ * 안 본다면 h가 무엇이든 결과가 한 글자도 달라질 수 없다. 그래서 **연 노드를 꺼낸
+ * 차례까지 그대로**여야 한다(`Set`은 넣은 차례를 지키므로 이어 붙이면 그게 곧 차례다).
+ *
+ * **집합만 대 보아서는 모자란다.** 동점일 때만 h로 고르게 바꾸어 보면 비용도 그대로고
+ * 연 노드의 집합도 그대로인데 **꺼내는 차례만** 바뀐다. 화면에서 「사방으로 고르게
+ * 번져 나간다」고 적어 둔 것이 어긋나는 자리가 바로 거기다 — 눈에는 보이는데
+ * 값으로는 안 잡히므로, 이렇게 h를 없애고 대 보는 수밖에 없다.
+ */
+function checkDijkstraBlind(sim, where, bad) {
+    const 진짜 = sim.runSilently('dijkstra');
+    if (!진짜) return;
+
+    const 원래h = sim.graph.h;
+    sim.graph.h = new Map([...원래h.keys()].map(k => [k, 0]));
+    const 눈감고 = sim.runSilently('dijkstra');
+    sim.graph.h = 원래h;
+
+    if (!눈감고) return bad(`${where}: h를 0으로 두었더니 길을 못 찾았다`);
+    if (진짜.path.join() !== 눈감고.path.join()) {
+        bad(`${where}: h를 0으로 두니 찾는 길이 달라졌다 — h를 보고 있다`);
+    }
+    const 차례 = (r) => [...r.engine.closedSet].join(',');
+    if (차례(진짜) !== 차례(눈감고)) {
+        bad(`${where}: h를 0으로 두니 노드를 여는 차례가 달라졌다 — h를 보고 있다
+` +
+            `      h 그대로: ${차례(진짜)}
+      h를 0으로: ${차례(눈감고)}`);
+    }
+}
+
 /* ================================================================
-   2. 정보 이용 탐색 — A* · 최상 우선 · 너비 우선 · 깊이 우선
+   2. 정보 이용 탐색 — A* · 다익스트라 · 최상 우선 · 너비 우선 · 깊이 우선
    ================================================================ */
 function checkHeuristic() {
     const html = fs.readFileSync(path.join(SIM, 'search-heuristic.html'), 'utf8');
@@ -317,7 +381,7 @@ function checkHeuristic() {
         sim.loadPreset(preset);
     };
 
-    let runs = 0, 그리디판 = 0, 그리디손해 = 0;
+    let runs = 0, 그리디판 = 0, 그리디손해 = 0, 다익판 = 0, A별로덜엶 = 0;
     for (const preset of GRAPH_PRESETS) {
         for (const combo of COMBOS) {
             load(preset, combo);
@@ -333,7 +397,7 @@ function checkHeuristic() {
                 }
             }
 
-            for (const algo of ['astar', 'greedy', 'bfs', 'dfs']) {
+            for (const algo of ['astar', 'dijkstra', 'greedy', 'bfs', 'dfs']) {
                 const r = sim.runSilently(algo);
                 runs++;
                 const where = `정보 ${preset.id} ${tag(combo)} ${algo}`;
@@ -350,6 +414,23 @@ function checkHeuristic() {
                 if (r.hops < bestHops) bad(`${where}: 칸 수 ${r.hops} < 최소 ${bestHops} — 계산이 어긋났다`);
                 if (algo === 'astar' && r.cost !== bestCost) {
                     bad(`${where}: A*가 비용 ${r.cost}인 길을 찾았는데 가장 싼 길은 ${bestCost}`);
+                }
+                if (algo === 'dijkstra') {
+                    if (r.cost !== bestCost) {
+                        bad(`${where}: 다익스트라가 비용 ${r.cost}인 길을 찾았는데 가장 싼 길은 ${bestCost}`);
+                    }
+                    checkDijkstraClosed(sim.graph, r.engine.closedSet, bestCost, where, bad);
+                    checkDijkstraBlind(sim, where, bad);
+
+                    // **A*가 다익스트라보다 덜 여는 판이 있어야 한다.** 없으면 h(n)을 얹은
+                    // 보람이 화면에 하나도 안 나온다 — 「A*는 다익스트라에 h를 더한 것」이라고
+                    // 적어 놓고 정작 더한 값이 아무 일도 안 하는 셈이 된다.
+                    다익판++;
+                    const a = sim.runSilently('astar');
+                    if (a && a.opened < r.opened) A별로덜엶++;
+                    if (a && a.opened > r.opened) {
+                        bad(`${where}: A*가 ${a.opened}개, 다익스트라가 ${r.opened}개 — h가 일관적이면 A*가 더 열 수 없다`);
+                    }
                 }
                 if (algo === 'bfs' && r.hops !== bestHops) {
                     bad(`${where}: 너비 우선이 ${r.hops}칸인 길을 찾았는데 최소는 ${bestHops}칸`);
@@ -399,9 +480,47 @@ function checkHeuristic() {
     }
     console.log(`  최상 우선이 A*보다 비싼 길을 찾은 판: ${그리디판}판 중 ${그리디손해}판`);
 
+    if (A별로덜엶 === 0) {
+        bad(`정보: A*가 다익스트라보다 덜 여는 지도가 하나도 없다(${다익판}판) — h(n)을 얹은 값이 화면에 안 나온다`);
+    }
+    console.log(`  A*가 다익스트라보다 노드를 덜 연 판: ${다익판}판 중 ${A별로덜엶}판`);
+
     checkCutting(sim, el, '정보');
+    checkCompareTable(sim, el);
 
     return runs;
+}
+
+/**
+ * **「나란히 돌려 보기」 단추를 실제로 눌러 본다.**
+ *
+ * 표를 만드는 코드는 탐색이 끝난 뒤에야 도는 자리라, 위의 480판을 다 돌려도
+ * 한 번도 안 지나간다. 화면을 띄우지 않고 이 자리를 밟아 볼 길은 이것뿐이다.
+ *
+ * 채운 글자에 `undefined`나 `NaN`이 없는지까지 본다 — 서식 문자열에서 이름을
+ * 하나 잘못 적으면 값이 아니라 그 글자가 그대로 학생 화면에 나온다.
+ */
+function checkCompareTable(sim, el) {
+    for (const preset of GRAPH_PRESETS) {
+        el('graph-opt-directed').checked = false;
+        el('graph-opt-weighted').checked = true;
+        el('graph-opt-cyclic').checked = true;
+        sim.loadPreset(preset);
+        sim.compare();
+
+        const 표 = el('graph-compare-body').innerHTML;
+        const 알림 = el('graph-status').innerHTML;
+        for (const 이름 of ['최상 우선 탐색', '다익스트라', 'A* 탐색']) {
+            if (!표.includes(이름)) bad(`나란히 ${preset.id}: 표에 「${이름}」 줄이 없다`);
+        }
+        for (const 글자 of ['undefined', 'NaN', 'null']) {
+            if (표.includes(글자)) bad(`나란히 ${preset.id}: 표에 ${글자}가 찍혔다`);
+            if (알림.includes(글자)) bad(`나란히 ${preset.id}: 알림에 ${글자}가 찍혔다`);
+        }
+        if (!알림.includes('A*가 찾은 길')) bad(`나란히 ${preset.id}: 지도에 무엇을 그렸는지 알리지 않는다`);
+        // 화면에 남는 자취는 A*의 것이어야 한다 — 표에서 읽은 길을 지도에서 곧바로 찾을 수 있어야 하므로.
+        if (sim.engine.type !== 'astar') bad(`나란히 ${preset.id}: 지도에 남은 자취가 ${sim.engine.type}의 것이다`);
+    }
 }
 
 /* ================================================================ */

@@ -55,6 +55,22 @@ export function createFindCellsView(host) {
     stage.appendChild(banner);
     host.appendChild(stage);
 
+    /* **남는 자리에 맞춰 그림을 통째로 키운다.** 이 그림은 칸 높이도 글자도 px 로
+       못박혀 있어, 전체 화면에서는 1500×350짜리 칸 한가운데에 116px 짜리 띠만 남는다.
+       `zoom` 은 `transform: scale` 과 달리 **자리를 실제로 차지하므로** 가운데 정렬과
+       스크롤이 저절로 맞고, 글자는 벡터로 다시 그려져 흐려지지 않는다.
+       천장을 두는 것은 칸이 두어 개뿐일 때 숫자만 커다랗게 뜨는 것을 막으려는 것이다. */
+    const NAT_H = 116;
+    const ZOOM_MAX = 2.6;
+
+    function refit() {
+        const availW = host.clientWidth || 0;
+        const availH = host.clientHeight || 0;
+        if (!availW || !availH || !cap) return;
+        const k = Math.min(availW / Math.max(100, cap * 48), availH / NAT_H, ZOOM_MAX);
+        field.style.zoom = k > 1.02 ? String(Math.round(k * 100) / 100) : '';
+    }
+
     return {
         /**
          * 칸을 만든다.
@@ -117,6 +133,8 @@ export function createFindCellsView(host) {
                 field.appendChild(slot);
                 cells.push({slot, inner, mark});
             }
+
+            refit();
         },
 
         /** 한 장을 그린다. **움직이는 것이 없으므로 `animate`는 쓰지 않는다.** */
@@ -172,7 +190,7 @@ export function createFindCellsView(host) {
             }
         },
 
-        /** 창 크기가 바뀌어도 할 일이 없다 — 자리를 백분율로 잡아 두었다. */
-        resize() {},
+        /** 자리는 백분율이라 그대로지만, **남는 자리에 맞춘 배율은 다시 잡는다.** */
+        resize() { refit(); },
     };
 }

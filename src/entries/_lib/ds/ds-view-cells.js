@@ -116,6 +116,28 @@ export function createDsCellsView(host, opts = {}) {
         return {width: `${Math.max(100, cap * 46)}px`, minWidth: '100%', height: '132px', margin: '0'};
     }
 
+
+    /* **남는 자리에 맞춰 그림을 통째로 키운다.**
+       이 그림은 상자 크기가 전부 px 로 못박혀 있다(칸 높이 58 · 글자 15 · 이름표 12).
+       평소 화면에서는 그것이 맞는 크기인데, 전체 화면에서는 1500×500짜리 칸 한가운데에
+       132px 짜리 띠만 덩그러니 남는다 — **교실 뒤에서는 읽히지 않는다.**
+
+       `zoom` 으로 키운다. `transform: scale` 과 달리 **자리를 실제로 차지하므로**
+       가운데 정렬과 스크롤이 저절로 맞는다. 글자는 벡터로 다시 그려져 흐려지지 않는다.
+       천장을 두는 것은, 칸이 두어 개뿐일 때 한없이 커지면 숫자만 커다랗게 뜨기 때문이다. */
+    const NAT_H = 132;
+    const ZOOM_MAX = 2.6;
+
+    function refit() {
+        const availW = host.clientWidth || 0;
+        const availH = host.clientHeight || 0;
+        if (!availW || !availH) return;
+        const natW = isRing ? parseFloat(fieldMetrics().width) : Math.max(100, cap * 46);
+        const natH = isRing ? parseFloat(fieldMetrics().height) : NAT_H;
+        const k = Math.min(availW / natW, availH / natH, ZOOM_MAX);
+        field.style.zoom = k > 1.02 ? String(Math.round(k * 100) / 100) : '';
+    }
+
     function makeItem(item) {
         const el = box('div', {
             position: 'absolute',
@@ -228,6 +250,8 @@ export function createDsCellsView(host, opts = {}) {
                 rec.el.textContent = String(it.v);
                 items.set(id, rec);
             }
+
+            refit();
         },
 
         /**
@@ -328,6 +352,7 @@ export function createDsCellsView(host, opts = {}) {
         /** 창 크기가 바뀌면 동그라미의 지름을 다시 잡는다. 줄은 백분율이라 할 일이 없다. */
         resize() {
             Object.assign(field.style, fieldMetrics());
+            refit();
         },
     };
 }

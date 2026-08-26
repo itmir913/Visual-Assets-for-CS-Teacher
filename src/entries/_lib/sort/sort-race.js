@@ -1,6 +1,6 @@
 /* 알고리즘 비교 — **같은 자료를 전체 알고리즘에 한꺼번에 물린다.**
  *
- * 한 알고리즘씩 볼 때는 「빠르다·느리다」가 숫자로만 남는데, 나란히 돌리면
+ * 한 알고리즘씩 볼 때는 「빠르다·느리다」가 숫자로만 남는데, 나란히 실행하면
  * **누가 언제 끝나는지**가 그림이 된다.
  *
  * **무엇을 똑같이 나눠 주는가 — 「걸음」이 아니라 「작업량」이다.**
@@ -52,11 +52,11 @@ export function buildSortRace(values, algos = SORT_ALGOS) {
 
     for (let t = 0; t <= maxWork; t++) {
         const lanes = runs.map((r, k) => {
-            // 「지금까지 t만큼 일했을 때」의 마지막 장. 훑어 온 자리를 이어 쓰므로 전체가 O(장 수)다.
+            // 「지금까지 t만큼 일했을 때」의 마지막 장. 지나온 자리를 이어 쓰므로 전체가 O(장 수)다.
             while (cursor[k] + 1 < r.frames.length && r.work[cursor[k] + 1] <= t) cursor[k]++;
             return {
                 algo: r.algo,
-                /* **색은 고른 차례가 아니라 등록부 차례로 정한다.** 몇 개를 골랐든
+                /* **색은 고른 순서가 아니라 등록부 차례로 정한다.** 몇 개를 골랐든
                    버블 정렬은 늘 같은 색이어야 골라 놓은 것을 바꿔 가며 봐도 헷갈리지 않는다. */
                 colorIndex: SORT_ALGOS.indexOf(r.algo),
                 frame: r.frames[cursor[k]],
@@ -68,7 +68,7 @@ export function buildSortRace(values, algos = SORT_ALGOS) {
         const finished = lanes.filter((l) => l.done).length;
         frames.push({
             race: lanes,
-            /* 재생기와 화면이 기대하는 자리를 채워 둔다. 알고리즘 비교에서는 알고리즘마다 세는 값이
+            /* 재생기와 화면이 기대하는 자리를 채워 둔다. 알고리즘 비교에서는 알고리즘마다 세는 횟수가
                다르므로 **합계를 내지 않는다** — 줄마다 제 숫자를 옆에 적는다. */
             counts: {compare: 0, move: 0, access: 0},
             marks: {compare: null, moving: [], done: [], pivot: null, held: null, cursors: {}},
@@ -80,7 +80,7 @@ export function buildSortRace(values, algos = SORT_ALGOS) {
                   + '**작업량을 똑같이 나눠 줍니다** — 화면의 세 숫자(비교 · 옮김 · 배열 접근)를 더한 값입니다.'
                 : (finished < lanes.length
                     ? `${finished}가지가 끝났습니다. 남은 것은 아직 일하고 있습니다.`
-                    : '모두 끝났습니다. **끝난 차례가 곧 작업량의 차례입니다.**'),
+                    : '모두 끝났습니다. **끝난 순서가 곧 작업량의 순서입니다.**'),
         });
     }
 

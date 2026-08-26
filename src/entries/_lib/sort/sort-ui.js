@@ -62,8 +62,8 @@ export function mountSortSimulator() {
     }
 
     let algo = SORT_ALGOS[0];
-    /** 비교 탭에서 대 볼 알고리즘. **수업에서 배운 것만 골라 볼 수 있어야 한다** —
-     *  열한 줄을 늘 다 보여 주면 정작 견주려던 둘이 묻힌다. */
+    /** 비교 탭에서 비교할 알고리즘. **수업에서 배운 것만 골라 볼 수 있어야 한다** —
+     *  열한 줄을 늘 다 보여 주면 정작 비교하려던 둘이 묻힌다. */
     const racePick = new Set(SORT_ALGOS.map((a) => a.id));
     const raceBoxes = new Map();
     let presetId = SORT_PRESETS[0].id;
@@ -72,7 +72,7 @@ export function mountSortSimulator() {
     let values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
     let player = null;
 
-    /* ---- 위쪽: 무리 탭과 알고리즘 칩 ---- */
+    /* ---- 위쪽: 분류 탭과 알고리즘 칩 ---- */
 
     const groupTabs = $('group-tabs');
     const algoTabs = $('algo-tabs');
@@ -122,7 +122,7 @@ export function mountSortSimulator() {
         badges.textContent = '';
         const spec = algo.stable === null ? [] : [
             algo.stable
-                ? {on: true, text: '안정 정렬', hint: '값이 같은 것끼리 앞뒤 차례가 지켜집니다'}
+                ? {on: true, text: '안정 정렬', hint: '값이 같은 것끼리 앞뒤 순서가 지켜집니다'}
                 : {on: false, text: '안정 정렬 아님', hint: '값이 같은 것끼리 앞뒤가 뒤바뀔 수 있습니다'},
             algo.inPlace
                 ? {on: true, text: '제자리 정렬', hint: '배열 밖에 따로 큰 자리를 쓰지 않습니다'}
@@ -210,7 +210,7 @@ export function mountSortSimulator() {
         write: '막대가 다른 칸에 다시 그려지면 **복사**입니다. 제자리에서 옮기는 것이 아닙니다.',
     };
 
-    /** 프레임을 훑어 **이 판에 실제로 나오는 표시**만 추린다. 손으로 적으면 낡는다. */
+    /** 프레임을 살펴 **이 회차에 실제로 나오는 표시**만 추린다. 손으로 적으면 낡는다. */
     function paintReadNotes(frames, kind) {
         const host = $('read-notes');
         host.textContent = '';
@@ -238,7 +238,7 @@ export function mountSortSimulator() {
             if (aux) lines.push('막대 아래 칸은 **배열 밖에 더 쓰는 자리**입니다. 다 쓴 칸은 점선으로 물러납니다.');
             if (strip) lines.push('막대 아래 칸 줄은 **값(또는 자릿수·값 구간)마다 하나**입니다.');
             if (algo.view === 'heap') {
-                lines.push('위 트리와 아래 배열은 **같은 것**입니다. 마디 위 작은 숫자가 배열 인덱스입니다.');
+                lines.push('위 트리와 아래 배열은 **같은 것**입니다. 노드 위 작은 숫자가 배열 인덱스입니다.');
             }
             const last = frames[frames.length - 1];
             const dup = last && new Set(last.a.filter(Boolean).map((it) => it.v)).size < last.a.length;
@@ -253,7 +253,7 @@ export function mountSortSimulator() {
         }
     }
 
-    /* ---- 돌리기 ---- */
+    /* ---- 실행 ---- */
 
     /** 곡선은 자료의 생김새와 씨앗만 타므로 한 번 측정해 두고 다시 쓴다. */
     let workCache = null;
@@ -299,7 +299,7 @@ export function mountSortSimulator() {
         rebuildRace();
     }
 
-    /** 알고리즘 비교 한 판. 걸음을 하나도 솎지 않아야 공정하므로 크기에 천장이 있다. */
+    /** 알고리즘 비교 한 회차. 걸음을 하나도 솎지 않아야 공정하므로 크기에 천장이 있다. */
     function rebuildRace() {
         player?.destroy();
         const chosen = SORT_ALGOS.filter((a) => racePick.has(a.id));
@@ -387,7 +387,7 @@ export function mountSortSimulator() {
 
         ensureView(algo.view);
         const out = runSortAlgorithm(algo, values);
-        // **프레임 열을 통째로 넘긴다.** 뷰가 이 판에서 쓸 높이를 미리 알려면
+        // **프레임 열을 통째로 넘긴다.** 뷰가 이 회차에서 쓸 높이를 미리 알려면
         // 마지막 장까지 봐야 한다 — 임시 배열 칸은 한참 뒤에야 나타난다.
         view.setup(out.frames);
         paintReadNotes(out.frames, algo.view);

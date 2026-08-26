@@ -1,10 +1,10 @@
 /* 화면 배선. HTML은 뼈대만 두고 여기서 채운다 → `ds-ui.js`와 같은 뼈대다.
  *
  * **다른 것이 하나 있다. 트리는 「담긴 값」이 아니라 「넣은 차례」를 물려준다.**
- * 트리는 넣는 차례가 모양을 정하므로, 탭을 옮길 때 담긴 값만 물려주면 모양이 달라진다.
+ * 트리는 넣는 순서가 모양을 정하므로, 탭을 옮길 때 담긴 값만 물려주면 모양이 달라진다.
  * 특히 중위 순회로 뽑은 값은 오름차순이라, 그것을 이진 탐색 트리에 다시 넣으면
- * **아무것도 안 했는데 한 줄로 늘어진 최악의 트리**가 된다.
- * 그래서 넣은 차례를 들고 있다가 옮겨 간 구조에 **같은 차례로 다시 넣는다.**
+ * **아무것도 안 했는데 한 줄로 이어진 최악의 편향 트리**가 된다.
+ * 그래서 넣은 순서를 들고 있다가 옮겨 간 구조에 **같은 순서로 다시 넣는다.**
  */
 
 import {
@@ -21,10 +21,10 @@ import {TREE_VALUE_MAX} from './tree-ops.js';
 
 const TREE_LEGEND = [
     {key: 'idle', label: '그대로 있는 것'},
-    {key: 'focus', label: '지금 비교하는 마디'},
+    {key: 'focus', label: '지금 비교하는 노드'},
     {key: 'moving', label: '방금 움직인 것'},
-    {key: 'newborn', label: '아직 매달리지 않은 새 마디'},
-    {key: 'doomed', label: '곧 떼어 낼 것'},
+    {key: 'newborn', label: '아직 연결되지 않은 새 노드'},
+    {key: 'doomed', label: '곧 제거할 노드'},
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -55,7 +55,7 @@ export function mountTreeSimulator() {
     /* **탭마다 제 상태를 들고 있는다.**
      *
      * 넣은 차례로 다시 세우는 것은 «넣기만» 했을 때에만 같은 모양을 준다. 빼기는 값을
-     * 맞바꿔 마디를 지우므로, 남은 차례로 다시 세우면 **다른 트리**가 된다 — 실제로
+     * 맞바꿔 노드를 지우므로, 남은 차례로 다시 세우면 **다른 트리**가 된다 — 실제로
      * 아무 연산도 하지 않고 탭만 왕복해도 높이가 3에서 4로 늘었다. 높이는 이 페이지가
      * 머리에 크게 띄우는 단 하나의 잣대인데 그것이 몰래 바뀌면 안 된다.
      *
@@ -142,7 +142,7 @@ export function mountTreeSimulator() {
         const table = $('struct-cost');
         table.textContent = '';
         const head = document.createElement('tr');
-        for (const [label, w] of [['연산', ''], ['드는 값', 'w-28'], ['왜', '']]) {
+        for (const [label, w] of [['연산', ''], ['비용', 'w-28'], ['왜', '']]) {
             const th = document.createElement('th');
             th.className = `py-1.5 pr-4 text-left font-bold text-slate-500 ${w}`;
             th.textContent = label;
@@ -191,19 +191,19 @@ export function mountTreeSimulator() {
         host.textContent = '';
         const lines = [];
         if (kind === 'compare') {
-            lines.push('위는 **이진 탐색 트리**, 아래는 **AVL 트리**입니다. 같은 값을 같은 차례로 받습니다.');
+            lines.push('위는 **이진 탐색 트리**, 아래는 **AVL 트리**입니다. 같은 값을 같은 순서로 받습니다.');
             lines.push('작업량(비교 + 이동 + 링크)을 똑같이 나눠 주므로 **먼저 「끝」이 붙은 쪽이 일을 덜 한 것**입니다.');
             lines.push('아래 표는 개수를 키워 가며 측정한 **높이**입니다. 굵고 진한 쪽이 그 개수에서 낮은 쪽입니다.');
         } else if (kind === 'heap') {
-            lines.push('**위 트리와 아래 배열은 같은 것입니다.** 마디 위의 작은 수가 배열의 자리 번호입니다.');
+            lines.push('**위 트리와 아래 배열은 같은 것입니다.** 노드 위의 작은 수가 배열의 인덱스입니다.');
             lines.push('부모는 `(자리 − 1) ÷ 2`, 자식은 `2 × 자리 + 1`과 `2 × 자리 + 2`입니다. **링크가 없습니다.**');
             lines.push('점선 칸은 아직 쓰지 않은 자리입니다. 힙은 **앞에서부터 빈틈없이** 채웁니다.');
         } else {
-            lines.push('마디를 놓은 가로 자리는 **중위 순회 차례**입니다. 그래서 왼쪽 자식은 늘 왼쪽에, 오른쪽 자식은 늘 오른쪽에 그려집니다.');
+            lines.push('노드를 놓은 가로 자리는 **중위 순회 차례**입니다. 그래서 왼쪽 자식은 늘 왼쪽에, 오른쪽 자식은 늘 오른쪽에 그려집니다.');
             lines.push('**방금 고쳐 쓴 링크는 붉게** 그립니다. 그 수가 곧 「링크」 횟수입니다.');
-            lines.push('점선 동그라미는 **새 마디가 달릴 자리**입니다.');
+            lines.push('점선 동그라미는 **새 노드가 달릴 자리**입니다.');
             if (kind === 'linked-balance') {
-                lines.push('마디 옆의 수가 **균형 인수**(왼쪽 높이 − 오른쪽 높이)입니다. **붉게 바뀌면 돌려야 한다는 뜻**입니다.');
+                lines.push('노드 옆의 수가 **균형 인수**(왼쪽 높이 − 오른쪽 높이)입니다. **붉게 바뀌면 회전해야 한다는 뜻**입니다.');
             }
         }
         for (const line of lines) {
@@ -278,7 +278,7 @@ export function mountTreeSimulator() {
         }
     }
 
-    /* ---- 돌리기 ---- */
+    /* ---- 실행 ---- */
 
     function playFrames(frames, {onFrame} = {}) {
         player?.destroy();
@@ -325,8 +325,8 @@ export function mountTreeSimulator() {
             marks: {focus: [], moving: [], linkFix: [], newborn: null, doomed: null, banner: null, spot: null},
             counts: {compare: 0, move: 0, link: 0},
             say: st.size === 0
-                ? '비어 있습니다. **연산 단추**를 눌러 값을 넣어 보세요.'
-                : '연산 단추를 누르면 그 연산이 **어떻게 이루어지는지** 한 단계씩 보입니다.',
+                ? '비어 있습니다. **연산 버튼**를 눌러 값을 넣어 보세요.'
+                : '연산 버튼을 누르면 그 연산이 **어떻게 이루어지는지** 한 단계씩 보입니다.',
         };
     }
 
@@ -348,7 +348,7 @@ export function mountTreeSimulator() {
                     },
                 ],
                 counts: {compare: 0, move: 0, link: 0},
-                say: '연산 단추를 누르면 **두 트리가 같은 값을 한꺼번에** 받습니다.',
+                say: '연산 버튼을 누르면 **두 트리가 같은 값을 한꺼번에** 받습니다.',
             }];
             view.setup(frames, measured);
             $('tally-row').style.display = 'none';
@@ -372,7 +372,7 @@ export function mountTreeSimulator() {
         if (!arg) return;
 
         if (struct.id === 'compare') {
-            /* 간판 단추는 **빈 트리에서 시작한다** → `tree-ops.js`의 `clears`. */
+            /* 간판 버튼은 **빈 트리에서 시작한다** → `tree-ops.js`의 `clears`. */
             if (op.clears) pair = treeComparePair([]);
             const built = buildTreeCompare(op, pair, arg);
             pair = {bst: built.runs[0].out.state, avl: built.runs[1].out.state};
@@ -410,7 +410,7 @@ export function mountTreeSimulator() {
         paintState();
     }
 
-    /** 넣은 차례를 지금 담긴 값에 맞춘다. **차례를 지키면서** 사라진 것을 빼고 새것을 뒤에 붙인다. */
+    /** 넣은 순서를 지금 담긴 값에 맞춘다. **순서를 지키면서** 사라진 것을 빼고 새것을 뒤에 붙인다. */
     function syncOrder(present) {
         const has = new Set(present);
         order = order.filter((v) => has.has(v));
@@ -456,7 +456,7 @@ export function mountTreeSimulator() {
         lastOp = struct.ops[0];
         if (struct.id === 'heap' && order.length > HEAP_CAP) {
             /* **되돌아와도 안 돌아온다는 것을 밝힌다.** 「앞의 15개만 옮겼습니다」는
-               나머지가 어딘가 남아 있다는 뜻으로 읽히는데, 실제로는 넣은 차례가 잘린다. */
+               나머지가 어딘가 남아 있다는 뜻으로 읽히는데, 실제로는 넣은 순서가 잘린다. */
             const lost = order.length - HEAP_CAP;
             order = order.slice(0, HEAP_CAP);
             kept.clear();
@@ -516,7 +516,7 @@ export function mountTreeSimulator() {
             while (seen.size < want) seen.add(Math.floor(Math.random() * TREE_VALUE_MAX) + 1);
             applyOrder([...seen]);
         });
-        /* **오름차순으로 세우는 단추를 따로 둔다.** 이 페이지에서 가장 중요한 장면이
+        /* **오름차순으로 세우는 버튼을 따로 둔다.** 이 페이지에서 가장 중요한 장면이
            「정렬된 자료를 넣으면 한 줄이 된다」인데, 손으로 여덟 번 넣게 하면
            거기까지 가 보는 학생이 거의 없다. */
         $('btn-ascend').addEventListener('click', () => {

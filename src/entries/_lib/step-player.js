@@ -65,7 +65,7 @@ export function createStepPlayer({frames, render, onState}) {
 
     function play() {
         if (playing || total === 0) return;
-        // 끝에서 다시 누르면 처음부터. 「아무 일도 안 일어나는 단추」가 되지 않게 한다.
+        // 끝에서 다시 누르면 처음부터. 「아무 일도 안 일어나는 버튼」가 되지 않게 한다.
         if (index >= total - 1) goto(0);
         playing = true;
         tell();

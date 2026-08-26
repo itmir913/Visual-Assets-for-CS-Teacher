@@ -32,11 +32,11 @@ const SLOT_FOR_VALUE = 20;   // 이만큼은 되어야 값 숫자가 들어간�
 const SLOT_FOR_DUP = 32;     // 겹친 값의 처음 자리(`5·3`)까지 붙이려면 더 넓어야 한다
 const SLOT_FOR_INDEX = 26;   // 인덱스 줄
 
-/* **그림 상자의 높이는 한 판이 시작될 때 정해 놓고 끝까지 붙든다.**
+/* **그림 상자의 높이는 한 회차가 시작될 때 정해 놓고 끝까지 붙든다.**
    구간 띠와 임시 배열 칸은 단계에 따라 나타났다 사라지는데, 그때마다 상자가 늘었다
-   줄었다 하면 **그 아래에 있는 단추가 아래위로 움직인다.** 넘기는 동작은 같은 자리를
-   거듭해 누르는 일이라, 단추가 움직이면 조작이 통째로 어긋난다.
-   그래서 이 판에서 «가장 높이 필요한 만큼»을 미리 알아내어 자리를 비워 둔다 —
+   줄었다 하면 **그 아래에 있는 버튼이 아래위로 움직인다.** 넘기는 동작은 같은 자리를
+   거듭해 누르는 일이라, 버튼이 움직이면 조작이 통째로 어긋난다.
+   그래서 이 회차에서 «가장 높이 필요한 만큼»을 미리 알아내어 자리를 비워 둔다 —
    쓰지 않는 단계에서는 그냥 빈 자리로 남는다. */
 const RANGE_LEVEL_H = 12;    // 구간 띠 한 층
 const RANGE_GAP = 6;
@@ -45,7 +45,7 @@ const AUX_GAP = 10;
 const STRIP_HEAD = 36;       // 칸 줄의 이름표와 테두리
 const STRIP_ITEM_H = 15;     // 칸에 쌓이는 원소 한 줄
 const STRIP_MAX_SHOWN = 12;  // 이보다 많이 쌓이면 나머지는 「+N」으로 줄인다
-const INDEX_H = 20;          // 인덱스·커서 줄. 늘 비워 둔다 — 커서는 거의 모든 판에 있다
+const INDEX_H = 20;          // 인덱스·커서 줄. 늘 비워 둔다 — 커서는 거의 모든 회차에 있다
 
 function sortMakeBox(tag, style, text) {
     const el = document.createElement(tag);
@@ -127,7 +127,7 @@ export function createSortArrayView(host) {
 
     return {
         /**
-         * 원소 상자를 만들고 **이 판에서 쓸 높이를 미리 정한다.**
+         * 원소 상자를 만들고 **이 회차에서 쓸 높이를 미리 정한다.**
          * @param {object[]} frames 스냅샷 열 전체. 첫 장에서 원소를 얻고,
          *                          나머지는 «가장 높이 필요한 만큼»을 알아내는 데 쓴다.
          */
@@ -200,8 +200,8 @@ export function createSortArrayView(host) {
                 indexRow.appendChild(num);
             }
 
-            /* **여기서 한 판의 높이를 못박는다.** 한 장씩 보며 정하면 단계마다 상자가
-               움직이므로, 전체를 훑어 가장 높은 값을 찾아 그 자리를 비워 둔다. */
+            /* **여기서 한 회차의 높이를 못박는다.** 한 장씩 보며 정하면 단계마다 상자가
+               움직이므로, 전체를 순회해 가장 높은 값을 찾아 그 자리를 비워 둔다. */
             let depth = 0;
             let hasAux = false;
             let stripKind = null;
@@ -221,7 +221,7 @@ export function createSortArrayView(host) {
             auxRow.style.height = hasAux ? `${AUX_H}px` : '0px';
             auxRow.style.marginTop = hasAux ? `${AUX_GAP}px` : '0px';
             indexRow.style.height = `${INDEX_H}px`;
-            /* 칸 줄도 같은 규칙 — 이 판에서 가장 높이 쌓이는 만큼을 미리 비워 둔다.
+            /* 칸 줄도 같은 규칙 — 이 회차에서 가장 높이 쌓이는 만큼을 미리 비워 둔다.
                「개수만 세는」 줄은 숫자 한 줄이면 되므로 쌓임을 세지 않는다. */
             const stripH = !stripKind ? 0
                 : STRIP_HEAD + (stripKind === 'count' ? STRIP_ITEM_H + 4 : stripStack * STRIP_ITEM_H + 4);
@@ -315,7 +315,7 @@ export function createSortArrayView(host) {
 
         /** 나뉜 구간을 막대 위에 띠로 얹는다. 「지금 어디를 보고 있는가」가 층으로 보인다. */
         renderRanges(frame) {
-            // **높이는 `setup`이 정해 두었다.** 여기서 다시 손대면 단추가 움직인다.
+            // **높이는 `setup`이 정해 두었다.** 여기서 다시 손대면 버튼이 움직인다.
             rangeRow.textContent = '';
             const list = frame.ranges || [];
             for (const r of list) {
@@ -399,10 +399,10 @@ export function createSortArrayView(host) {
         },
 
         /** **값으로 자리를 정하는 칸 줄.**
-         *  분배 정렬이 「원소끼리 대 보는」 대신 무엇을 하는지가 이 줄에 다 있다 —
+         *  분배 정렬이 「원소끼리 비교하는」 대신 무엇을 하는지가 이 줄에 다 있다 —
          *  칸의 이름이 곧 값이고, 원소는 자기 값이 적힌 칸으로 곧장 간다. */
         renderStrip(frame) {
-            // 높이는 `setup`이 잡아 두었다. 여기서 손대면 단추가 움직인다.
+            // 높이는 `setup`이 잡아 두었다. 여기서 손대면 버튼이 움직인다.
             stripRow.textContent = '';
             const strip = frame.strip;
             if (!strip) return;
@@ -450,7 +450,7 @@ export function createSortArrayView(host) {
                     }, String(c.count)));
                 } else {
                     /* **아래에서 위로 쌓는다.** 먼저 넣은 것이 아래에 남아 있어야
-                       「넣은 차례 그대로 꺼낸다」가 눈에 보인다. */
+                       「넣은 순서 그대로 꺼낸다」가 눈에 보인다. */
                     const shown = c.items.slice(0, STRIP_MAX_SHOWN);
                     shown.forEach((it) => {
                         body.appendChild(sortMakeBox('div', {
@@ -482,7 +482,7 @@ export function createSortArrayView(host) {
             }
             const cursors = frame.marks.cursors || {};
             const names = Object.keys(cursors);
-            /* **한 자리에 커서가 둘 이상 설 수 있다.** 선택 정렬은 훑기를 시작할 때
+            /* **한 자리에 커서가 둘 이상 설 수 있다.** 선택 정렬은 순회를 시작할 때
                `i`와 `최솟값`이 같은 칸을 가리키는데, 따로 그리면 두 이름표가 같은 자리에
                겹쳐 **읽을 수 없는 얼룩**이 된다. 자리별로 묶어 한 줄로 잇는다. */
             const atSlot = new Map();

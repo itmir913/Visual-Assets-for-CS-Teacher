@@ -5,7 +5,7 @@
  * 이 그림에서 학생이 가져가야 하는 것이 바로 그 「밀린다」이므로,
  * 상자를 지웠다 새로 그리면 이 페이지는 할 일을 못 한 것이 된다.
  *
- * **자리는 백분율로 잡는다.** 상자 폭을 재어 굳혀 두면 창 크기가 바뀔 때 그 값이 낡는데,
+ * **자리는 백분율로 잡는다.** 상자 폭을 측정해 굳혀 두면 창 크기가 바뀔 때 그 값이 낡는데,
  * 백분율이면 브라우저가 알아서 다시 잡는다 — 전체 화면을 드나들어도 어긋날 수 없다.
  *
  * **줄로 놓는 것과 동그랗게 놓는 것이 같은 코드다.** 원형 큐는 「배열이라서 생긴 문제를
@@ -48,8 +48,8 @@ function box(tag, style, text) {
 export function createDsCellsView(host, opts = {}) {
     const layout = opts.layout === 'ring' ? 'ring' : 'row';
     const isRing = layout === 'ring';
-    /* **끝이 어디인지 늘 붙여 두는 이름표.** 스택의 「꼭대기」, 큐의 「front·rear」처럼
-       연산이 끝난 뒤에도 남아 있어야 하는 것이다 — 연산이 만드는 커서(i·p)는 판이
+    /* **끝이 어디인지 늘 붙여 두는 이름표.** 스택의 「맨 위」, 큐의 「front·rear」처럼
+       연산이 끝난 뒤에도 남아 있어야 하는 것이다 — 연산이 만드는 커서(i·p)는 회차가
        끝나면 지워지므로 그것으로는 낼 수가 없다. 구조가 정해서 넘겨준다. */
     const endMarks = typeof opts.endMarks === 'function' ? opts.endMarks : null;
 
@@ -93,7 +93,7 @@ export function createDsCellsView(host, opts = {}) {
             });
             return;
         }
-        // 12시에서 시작해 시계 방향. 자리 번호가 도는 차례가 눈에 보여야 한다.
+        // 12시에서 시작해 시계 방향. 인덱스가 도는 순서가 눈에 보여야 한다.
         const th = (i / cap) * Math.PI * 2 - Math.PI / 2;
         Object.assign(el.style, {
             left: `${50 + RING_R * Math.cos(th)}%`,
@@ -202,7 +202,7 @@ export function createDsCellsView(host, opts = {}) {
             }
 
             if (isRing) {
-                // 동그라미 한가운데에 자리 번호를 적어 준다 — 칸 옆에 적을 자리가 없다.
+                // 동그라미 한가운데에 인덱스를 적어 준다 — 칸 옆에 적을 자리가 없다.
                 for (let i = 0; i < cap; i++) {
                     const th = (i / cap) * Math.PI * 2 - Math.PI / 2;
                     const tag = box('div', {
@@ -218,7 +218,7 @@ export function createDsCellsView(host, opts = {}) {
                 }
             }
 
-            // 이 판에 나오는 원소를 미리 다 만들어 둔다. 나중에 나타나는 것도 자리만 비워 둔다.
+            // 이 회차에 나오는 원소를 미리 다 만들어 둔다. 나중에 나타나는 것도 자리만 비워 둔다.
             const seen = new Map();
             for (const f of frames) {
                 for (const it of f.state.slots) if (it && !seen.has(it.id)) seen.set(it.id, it);

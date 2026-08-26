@@ -1,9 +1,9 @@
 /* 화면 배선. **HTML은 뼈대만 두고 여기서 채운다** —
- * 탭도 연산 단추도 범례도 「화면 읽는 법」도 등록부에서 만들어 내므로, 방법을 하나 더하면
+ * 탭도 연산 버튼도 범례도 「화면 읽는 법」도 등록부에서 만들어 내므로, 방법을 하나 더하면
  * 화면이 따라온다. 손으로 적은 목록이 화면과 등록부 두 군데 있으면 반드시 어긋난다.
  *
  * **담은 값은 방법을 바꿔도 그대로 간다.** 「같은 자료를 이 방법으로 찾으면 어떻게 되는가」가
- * 이 페이지의 쓰임이라, 탭을 옮길 때마다 자료가 처음으로 돌아가면 견줄 수가 없다.
+ * 이 페이지의 쓰임이라, 탭을 옮길 때마다 자료가 처음으로 돌아가면 비교할 수가 없다.
  */
 
 import {
@@ -30,7 +30,7 @@ const FIND_LEGEND = {
     focus: {tone: 'focus', label: '지금 보는 칸'},
     hit: {tone: 'hit', label: '찾던 값'},
     ruled: {tone: 'ruled', label: '볼 것 없다고 버린 곳'},
-    tomb: {tone: 'ruled', label: '묘비 — 뺀 자리', dashed: true},
+    tomb: {tone: 'ruled', label: '묘비 — 뺐던 자리', dashed: true},
 };
 
 const $ = (id) => document.getElementById(id);
@@ -60,7 +60,7 @@ export function mountFindSimulator() {
     let implId = 'chain';
     let values = [...FIND_START];
     let state = null;    // 지금 방법의 상태
-    let trio = null;     // 나란히 놓기일 때의 세 상태
+    let trio = null;     // 나란히 비교일 때의 세 상태
     let player = null;
     let view = null;
     let viewKind = null;
@@ -70,7 +70,7 @@ export function mountFindSimulator() {
     /* ---- 그림 ---- */
 
     function ensureView(kind) {
-        /* **방법까지 넣어 견준다.** 순차와 이진은 같은 칸 그림을 쓰지만, 탭을 옮기면
+        /* **방법까지 넣어 비교한다.** 순차와 이진은 같은 칸 그림을 쓰지만, 탭을 옮기면
            커서 이름표(i ↔ lo·mid·hi)가 통째로 갈리므로 새로 만드는 편이 깨끗하다. */
         const want = `${kind}:${struct.id}`;
         if (viewKind === want) return;
@@ -83,7 +83,7 @@ export function mountFindSimulator() {
 
     const plan = () => findPlanOf(struct, implId);
 
-    /* ---- 위쪽: 무리 탭과 방법 칩 ---- */
+    /* ---- 위쪽: 분류 탭과 방법 칩 ---- */
 
     function paintTabs() {
         const groupTabs = $('group-tabs');
@@ -110,7 +110,7 @@ export function mountFindSimulator() {
         }
     }
 
-    /** 충돌을 넘기는 방식 단추. **고를 수 없는 방법에서는 줄째 감춘다.** */
+    /** 충돌을 넘기는 방식 버튼. **고를 수 없는 방법에서는 줄째 감춘다.** */
     function paintImpl() {
         const row = $('impl-row');
         const host = $('impl-buttons');
@@ -172,7 +172,7 @@ export function mountFindSimulator() {
         const table = $('struct-cost');
         table.textContent = '';
         const head = document.createElement('tr');
-        for (const [label, w] of [['무엇', ''], ['드는 값', 'w-36'], ['왜', '']]) {
+        for (const [label, w] of [['무엇', ''], ['비용', 'w-36'], ['왜', '']]) {
             const th = document.createElement('th');
             th.className = `py-1.5 pr-4 text-left font-bold text-slate-500 ${w}`;
             th.textContent = label;
@@ -230,7 +230,7 @@ export function mountFindSimulator() {
         }
     }
 
-    /* ---- 연산 단추 ---- */
+    /* ---- 연산 버튼 ---- */
 
     function paintOps() {
         const host = $('ops-host');
@@ -294,7 +294,7 @@ export function mountFindSimulator() {
         }
     }
 
-    /* ---- 돌리기 ---- */
+    /* ---- 실행 ---- */
 
     function playFrames(frames, {onFrame} = {}) {
         player?.destroy();
@@ -342,7 +342,7 @@ export function mountFindSimulator() {
             counts: {compare: 0, access: 0, hash: 0},
             say: st.size === 0
                 ? '비어 있습니다. **자료를 넣고** 찾아 보세요.'
-                : '**찾을 값**을 정하고 단추를 누르면 어떻게 찾아 가는지 한 단계씩 보입니다.',
+                : '**찾을 값**을 정하고 버튼을 누르면 어떻게 찾아 가는지 한 단계씩 보입니다.',
         };
     }
 
@@ -360,7 +360,7 @@ export function mountFindSimulator() {
                     {kind: 'hash', name: '해시 테이블', frame: idleFrame(trio.hash), done: true, finishedWork: 0},
                 ],
                 counts: {compare: 0, access: 0, hash: 0},
-                say: '단추를 누르면 **세 가지가 같은 값을 한꺼번에** 찾습니다.',
+                say: '버튼을 누르면 **세 가지가 같은 값을 한꺼번에** 찾습니다.',
             }];
             view.setup(frames, measured);
             $('tally-row').style.display = 'none';
@@ -382,7 +382,7 @@ export function mountFindSimulator() {
         /* **넣기에도 같은 상한을 건다.** 상한은 해시 표가 아니라 «칸 그림»이 걸어 둔 것이라
            (칸이 너무 많으면 좁은 화면에서 한 칸이 글자보다 좁아진다), 해시 탭에서 넘겨 담으면
            그 자료를 그대로 물려받는 순차·이진 탭이 대신 무너진다. 「직접 넣기」에만 걸어
-           두었더니 단추로는 얼마든지 넘길 수 있었다. */
+           두었더니 버튼으로는 얼마든지 넘길 수 있었다. */
         if (op.id === 'hash-put' && values.length >= FIND_MAX_N && !values.includes(v)) {
             $('input-error').textContent = `${FIND_MAX_N}개까지만 담을 수 있습니다.`;
             return;
@@ -391,7 +391,7 @@ export function mountFindSimulator() {
         if (struct.id === 'race') {
             const built = buildFindRace(trio, v);
             /* **찾기는 담긴 것을 바꾸지 않으므로** 세 줄이 갈라질 일이 없다.
-               그래도 상태를 받아 두는 것은 커서 같은 «판이 남긴 흔적»을 잇기 위해서다. */
+               그래도 상태를 받아 두는 것은 커서 같은 «회차가 남긴 흔적»을 잇기 위해서다. */
             if (!built.blocked) {
                 trio = {
                     seq: built.runs[0].out.state,
@@ -404,7 +404,7 @@ export function mountFindSimulator() {
             view.setup(built.frames, measured);
             $('tally-row').style.display = 'none';
             playFrames(built.frames);
-            /* **무른 판은 기록하지 않는다.** 빈 자료에서도 해시 줄은 계산 한 번과 칸 한 번을
+            /* **무른 회차는 기록하지 않는다.** 빈 자료에서도 해시 줄은 계산 한 번과 칸 한 번을
                쓰는데, 그 값을 기록에 남기면 «아무 일도 일어나지 않았습니다»라고 말해 놓고
                바로 아래에 작업량 2가 찍힌다. */
             if (!built.blocked) {
@@ -434,9 +434,9 @@ export function mountFindSimulator() {
     /* ---- 자료 ---- */
 
     /**
-     * 연산이 끝난 상태를 보고 **담긴 값을 맞춘다. 차례는 지킨다.**
+     * 연산이 끝난 상태를 보고 **담긴 값을 맞춘다. 순서는 지킨다.**
      *
-     * 그냥 `findValues(state)`로 받으면 안 된다. 해시 상태는 값을 **칸 차례로** 내놓으므로,
+     * 그냥 `findValues(state)`로 받으면 안 된다. 해시 상태는 값을 **칸 순서로** 내놓으므로,
      * 아무것도 바꾸지 않는 「찾기」를 한 번 눌렀을 뿐인데 자료가 통째로 뒤섞인다.
      * 그러면 이진 탐색 탭으로 돌아갔을 때 **학생이 흐트러뜨린 적도 없는데 답을 놓치기
      * 시작한다** — 「흐트러뜨리기」로 «일부러» 만들어야 가르칠 거리가 된다는 설계가 무너진다.

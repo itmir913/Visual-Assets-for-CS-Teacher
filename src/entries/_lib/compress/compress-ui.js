@@ -1,11 +1,11 @@
 /* 압축 시뮬레이터의 화면.
  *
- * **HTML은 뼈대만 두고 여기서 채운다.** 찾기 시뮬레이터와 같은 방식이라, 탭을 늘리거나
+ * **HTML은 뼈대만 두고 여기서 채운다.** 탐색 시뮬레이터와 같은 방식이라, 탭을 늘리거나
  * 프리셋을 바꿀 때 HTML을 건드릴 일이 없다 → `compress-registry.js`
  *
  * **그리는 쪽은 어떤 방법인지 거의 묻지 않는다.** 스냅샷이 진리이고 화면은 그 장의
  * 상태를 그대로 옮긴다. 방법을 직접 묻는 자리는 둘뿐이다 —
- * 나무를 그릴지(`view`)와, 함께 보낼 것의 이름이 무엇인지(`sideNameOf`).
+ * 트리를 그릴지(`view`)와, 함께 보낼 것의 이름이 무엇인지(`sideNameOf`).
  * 나머지는 스냅샷에 실린 것만 보고 그린다.
  */
 
@@ -46,23 +46,23 @@ export function mountCompressSimulator() {
         .map((s) => `<option value="${s.ms}"${s.ms === speedMs ? ' selected' : ''}>${esc(s.name)}</option>`)
         .join('');
 
-    /* 무대 안쪽. **글·조각·덤 셋을 늘 같은 차례로 둔다** — 방법을 바꿔도 눈이 같은 자리를 본다. */
+    /* 무대 안쪽. **글·조각·부가 정보 셋을 늘 같은 순서로 둔다** — 방법을 바꿔도 눈이 같은 자리를 본다. */
     $('view-host').innerHTML = `
         <div class="space-y-4">
             <div>
-                <p class="font-black text-slate-900 mb-1">줄이기 전</p>
+                <p class="font-black text-slate-900 mb-1">압축 전</p>
                 <div class="flex flex-wrap gap-1" id="glyph-row"></div>
             </div>
             <div id="now-wrap" class="hidden">
-                <p class="font-black text-slate-900 mb-1">지금 글</p>
+                <p class="font-black text-slate-900 mb-1">현재 글</p>
                 <div class="flex flex-wrap gap-1" id="now-row"></div>
             </div>
             <div id="tree-wrap" class="hidden">
-                <p class="font-black text-slate-900 mb-1">나무</p>
+                <p class="font-black text-slate-900 mb-1">트리</p>
                 <div class="relative border border-slate-200 rounded-xl bg-slate-50 h-64 sm:h-80" id="tree-host"></div>
             </div>
             <div>
-                <p class="font-black text-slate-900 mb-1">줄여 적은 결과</p>
+                <p class="font-black text-slate-900 mb-1">압축 결과</p>
                 <div class="flex flex-wrap gap-1 min-h-[3rem]" id="piece-row"></div>
             </div>
             <div id="aside-wrap">
@@ -82,7 +82,7 @@ export function mountCompressSimulator() {
         /* **「끝남」 표시는 조각의 자리가 «원본»을 가리킬 때만 쓴다.**
            키워드가 내놓는 조각의 `from`·`to`는 바꾼 «뒤» 글의 자리라, 그대로 쓰면
            원본 열 칸 가운데 다섯 칸만 회색이 되어 「여기까지 했다」가 거짓말이 된다.
-           키워드는 아래 「지금 글」 줄이 그 몫을 한다. */
+           키워드는 아래 「현재 글」 줄이 그 몫을 한다. */
         const 자리가원본 = !frame.extra || frame.extra.now === undefined;
         const 지난데 = 자리가원본 ? frame.out.reduce((a, p) => Math.max(a, p.to ?? 0), 0) : 0;
 
@@ -92,10 +92,10 @@ export function mountCompressSimulator() {
             return `<span class="glyph${덮임 ? ' on' : ''}${끝남 ? ' done' : ''}">${esc(ch)}</span>`;
         }).join('');
 
-        /* 「지금 글」 — 바꾸어 가는 중인 글. **원본을 그대로 두고 아래에 따로 둔다**:
+        /* 「현재 글」 — 바꾸어 가는 중인 글. **원본을 그대로 두고 아래에 따로 둔다**:
            무엇이 무엇으로 바뀌었는지는 둘을 나란히 놓아야 보인다. */
         /* **`extra`가 `null`일 때 `&&`로 받으면 `null`이 흘러 나온다.** 그러면
-           `now !== undefined`가 참이 되어 없는 사전을 훑다 죽는다. 없음을 하나로 모은다. */
+           `now !== undefined`가 참이 되어 없는 사전을 순회하다 죽는다. 없음을 하나로 모은다. */
         const now = frame.extra ? frame.extra.now : undefined;
         $('now-wrap').classList.toggle('hidden', now === undefined);
         if (now !== undefined) {
@@ -133,7 +133,7 @@ export function mountCompressSimulator() {
             : '<span class="text-slate-400 font-semibold">아직 없습니다.</span>';
     }
 
-    /** 허프만의 숲과 나무. **d3 트리는 뿌리가 하나여야 하므로 숲은 보이지 않는 뿌리에 묶는다.** */
+    /** 허프만의 숲과 트리. **d3 트리는 루트가 하나여야 하므로 숲은 보이지 않는 루트에 묶는다.** */
     function paintTree(frame, duration) {
         const wrap = $('tree-wrap');
         const m = methodOf(methodId);
@@ -155,10 +155,10 @@ export function mountCompressSimulator() {
         const data = {id: 'root', ch: null, n: null, seq: -1, hidden: true, children: roots.map(옮김)};
 
         if (!treeView) {
-            /* **콜백이 받는 것은 «데이터 객체»이지 d3 마디가 아니다.**
+            /* **콜백이 받는 것은 «데이터 객체»이지 d3 노드가 아니다.**
                `nodeStyle(d.data)` · `linkStyle(대상, 부모)` 꼴로 부른다.
-               처음에 d3 마디인 줄 알고 `d.data.hidden`·`d.source`를 읽었더니
-               `render`가 나무 그리는 자리에서 죽었다 — 그 앞의 조각과 코드표는 이미
+               처음에 d3 노드인 줄 알고 `d.data.hidden`·`d.source`를 읽었더니
+               `render`가 트리 그리는 자리에서 죽었다 — 그 앞의 조각과 코드표는 이미
                그려진 뒤라 **화면은 멀쩡해 보이는데 계수기만 첫 장에 멈춰 있었다.**
                node 검사는 `tree-view`를 가짜로 때우므로 이 자리를 밟지 못한다. */
             treeView = createTreeView('#tree-host', {
@@ -179,7 +179,7 @@ export function mountCompressSimulator() {
                 linkStyle: (대상, 부모) => (부모 && 부모.hidden
                     ? {stroke: 'transparent'}
                     : {stroke: '#cbd5e1', strokeWidth: 2}),
-                // 왼쪽 자식이 0, 오른쪽이 1. 숨은 뿌리에서 내려오는 줄에는 적지 않는다.
+                // 왼쪽 자식이 0, 오른쪽이 1. 숨은 루트에서 내려오는 줄에는 적지 않는다.
                 edgeLabel: (대상, 부모) => (부모 && !부모.hidden
                     ? (부모.children[0] === 대상 ? '0' : '1')
                     : null),
@@ -197,7 +197,7 @@ export function mountCompressSimulator() {
         $('count-body').textContent = String(c.body);
 
         /* **아직 아무것도 안 내놓았으면 압축률을 적지 않는다.**
-           식대로면 0비트라 100%가 되는데, 나무를 짓는 내내 초록 100%가 떠 있으면
+           식대로면 0비트라 100%가 되는데, 트리를 짓는 내내 초록 100%가 떠 있으면
            학생이 그것을 결과로 읽는다. **압축률은 다 줄이고 나서야 뜻이 있는 값이다.** */
         const 아직 = frame.out.length === 0;
         const rate = compressRate(c.before, c.body);
@@ -258,7 +258,7 @@ export function mountCompressSimulator() {
             <thead>
             <tr class="bg-slate-100 text-slate-700">
                 <th class="w-44 text-left font-black px-3 py-2 border border-slate-200">방법</th>
-                <th class="text-left font-black px-3 py-2 border border-slate-200">줄인 뒤</th>
+                <th class="text-left font-black px-3 py-2 border border-slate-200">압축 후</th>
                 <th class="text-left font-black px-3 py-2 border border-slate-200">압축률</th>
                 <th class="text-left font-black px-3 py-2 border border-slate-200">함께 보낼 것</th>
             </tr>
@@ -288,8 +288,8 @@ export function mountCompressSimulator() {
         for (const b of $('method-tabs').querySelectorAll('[data-method]')) {
             b.classList.toggle('on', b.dataset.method === id);
         }
-        /* **나무 자리는 방법을 바꿀 때 비운다.** 남겨 두면 런 렝스를 고른 학생이
-           앞 방법의 나무를 보고 그것이 지금 방법의 그림인 줄 안다. */
+        /* **트리 자리는 방법을 바꿀 때 비운다.** 남겨 두면 런 렝스를 고른 학생이
+           앞 방법의 트리를 보고 그것이 지금 방법의 그림인 줄 안다. */
         if (methodOf(id).view !== 'tree' && treeView) {
             $('tree-host').innerHTML = '';
             treeView = null;
@@ -311,7 +311,7 @@ export function mountCompressSimulator() {
 
     function applyInput() {
         const raw = $('text-input').value.trim().toUpperCase();
-        if (!raw.length) return fail('줄일 글을 적어 주세요.');
+        if (!raw.length) return fail('압축할 글을 적어 주세요.');
         if (!COMPRESS_ALPHABET.test(raw)) return fail('영어 대문자만 넣을 수 있습니다.');
         if (raw.length > COMPRESS_MAX_LEN) {
             return fail(`${withJosa(COMPRESS_MAX_LEN, '을를')} 넘었습니다 — 지금 ${raw.length}자입니다.`);

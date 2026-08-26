@@ -1,19 +1,19 @@
 /* 트리 시뮬레이터의 **진리**. 선형 자료구조와 같은 뼈대다 —
  * 연산이 화면을 직접 만지지 않고 이 기록기에 부탁하면 부탁 한 번마다 스냅샷이 한 장 쌓이고,
- * 판이 끝나면 그 끝 상태가 다음 판의 시작이 된다 → `ds-model.js`
+ * 회차가 끝나면 그 끝 상태가 다음 회차의 시작이 된다 → `ds-model.js`
  *
- * **담는 방식이 둘이다. 그리고 그 둘이 다른 것이 이 페이지의 알맹이다.**
+ * **저장 구조가 둘이다. 그리고 그 둘이 다른 것이 이 페이지의 알맹이다.**
  *
- *   `linked`  마디가 링크로 이어진다. 이진 탐색 트리와 AVL 트리가 쓴다.
+ *   `linked`  노드가 링크로 이어진다. 이진 탐색 트리와 AVL 트리가 쓴다.
  *             모양이 자료에 따라 달라지므로 **어떤 모양이 되었는지가 곧 성능**이다.
- *   `heap`    **평범한 배열이다.** 부모와 자식을 링크가 아니라 «자리 번호 계산»으로 잇는다
+ *   `heap`    **평범한 배열이다.** 부모와 자식을 링크가 아니라 «인덱스 계산»으로 잇는다
  *             (부모 `(i-1)/2`, 자식 `2i+1`·`2i+2`). 힙을 트리로만 그리면 학생은
  *             링크가 있다고 여기는데, 실제로 힙은 링크를 하나도 쓰지 않는다.
  *             그래서 트리와 배열을 **한 화면에 나란히** 두고 같은 색으로 묶는다.
  *
- * **세는 값이 셋이다.**
+ * **세는 횟수가 셋이다.**
  *
- *   `비교`  두 값을 대 본다              — 트리에서는 이것이 곧 «내려간 깊이»다
+ *   `비교`  두 값을 비교한다              — 트리에서는 이것이 곧 «내려간 깊이»다
  *   `이동`  원소를 다른 «칸»으로 옮긴다  — 힙 쪽에서만 늘어난다
  *   `링크`  링크 하나를 고쳐 쓴다        — 이진 탐색 트리·AVL 쪽에서만 늘어난다
  */
@@ -30,7 +30,7 @@ export function treeResetIds() {
    처음 상태
    --------------------------------------------------------------- */
 
-/** 링크로 이은 트리. **값을 하나씩 넣어 만든다** — 넣는 차례가 모양을 정하기 때문이다. */
+/** 링크로 이은 트리. **값을 하나씩 넣어 만든다** — 넣는 순서가 모양을 정하기 때문이다. */
 export function treeLinkedState(values = [], {balanced = false} = {}) {
     const s = {
         kind: 'linked',
@@ -47,7 +47,7 @@ export function treeLinkedState(values = [], {balanced = false} = {}) {
 
 /** 화면 밖에서 트리를 세울 때 쓴다. **기록을 남기지 않는다** — 처음 상태를 만들거나
  *  검사가 기대값을 따로 구할 때만 부른다. 회전은 하지 않으므로 AVL의 처음 상태는
- *  값을 넣은 차례 그대로의 모양이 된다.
+ *  값을 넣은 순서 그대로의 모양이 된다.
  *
  *  **같은 값은 넣지 않는다.** 화면의 연산(`bstInsert`)이 그렇게 막으므로 여기서만
  *  다르게 굴면, 이 함수를 쓰는 날 두 곳이 어긋난 트리를 만든다. */
@@ -104,7 +104,7 @@ export function treeCloneState(s) {
     };
 }
 
-/** 마디 높이를 다시 잰다. AVL은 이 값으로 균형 인수를 낸다. */
+/** 노드 높이를 다시 측정한다. AVL은 이 값으로 균형 인수를 낸다. */
 export function treeRefreshHeights(s) {
     const walk = (id) => {
         if (id === null) return 0;
@@ -122,7 +122,7 @@ export function balanceOf(s, nd) {
     return h(nd.left) - h(nd.right);
 }
 
-/** 트리 높이. **찾기에 드는 값이 곧 이 수**라, 화면이 늘 보여 준다. */
+/** 트리 높이. **탐색 비용이 곧 이 수**라, 화면이 늘 보여 준다. */
 export function treeHeight(s) {
     if (s.kind === 'heap') return s.size === 0 ? 0 : Math.floor(Math.log2(s.size)) + 1;
     const nd = byId(s, s.root);
@@ -172,16 +172,16 @@ export function treeStateFault(s) {
     }
 
     const ids = new Set(s.nodes.map((n) => n.id));
-    if (ids.size !== s.nodes.length) return '같은 이름의 마디가 둘 있다';
+    if (ids.size !== s.nodes.length) return '같은 이름의 노드가 둘 있다';
 
     const seen = new Set();
     let bad = null;
     const walk = (id, parent, lo, hi) => {
         if (id === null || bad) return 0;
-        if (seen.has(id)) { bad = '같은 마디가 두 번 매달려 있다'; return 0; }
+        if (seen.has(id)) { bad = '같은 노드가 두 번 연결되어 있다'; return 0; }
         seen.add(id);
         const nd = byId(s, id);
-        if (!nd) { bad = `없는 마디(${id})를 가리킨다`; return 0; }
+        if (!nd) { bad = `없는 노드(${id})를 가리킨다`; return 0; }
         if (nd.parent !== parent) { bad = `${nd.v}의 부모 링크가 어긋났다`; return 0; }
         if (nd.v < lo || nd.v > hi) { bad = `${withJosa(nd.v, '이가')} 이진 탐색 트리의 자리를 벗어났다`; return 0; }
         const lh = walk(nd.left, id, lo, nd.v);
@@ -196,10 +196,10 @@ export function treeStateFault(s) {
     walk(s.root, null, -Infinity, Infinity);
     if (bad) return bad;
 
-    // 떠 있는 마디는 아직 매달리지 않은 것이라 줄 밖에 있는 것이 정상이다.
+    // 떠 있는 노드는 아직 연결되지 않은 것이라 줄 밖에 있는 것이 정상이다.
     const settled = s.nodes.filter((n) => !n.floating).length;
-    if (seen.size !== settled) return `매달린 마디가 ${seen.size}개인데 떠 있지 않은 마디는 ${settled}개다`;
-    if (seen.size !== s.size) return `매달린 마디가 ${seen.size}개인데 크기는 ${s.size}이다`;
+    if (seen.size !== settled) return `연결된 노드가 ${seen.size}개인데 떠 있지 않은 노드는 ${settled}개다`;
+    if (seen.size !== s.size) return `연결된 노드가 ${seen.size}개인데 크기는 ${s.size}이다`;
     return null;
 }
 
@@ -267,7 +267,7 @@ export function createTreeRecorder(state) {
 
         /* ---- 링크로 이은 트리 ---- */
 
-        /** 마디 하나를 들여다보며 값을 견준다. **트리에서는 이 횟수가 곧 내려간 깊이다.** */
+        /** 노드 하나를 들여다보며 값을 비교한다. **트리에서는 이 횟수가 곧 내려간 깊이다.** */
         compareAt(id, v) {
             counts.compare++;
             focus = [id];
@@ -278,7 +278,7 @@ export function createTreeRecorder(state) {
             return d;
         },
 
-        /** 값을 견주지 않고 지나가기만 한다. 순회가 쓴다. */
+        /** 값을 비교하지 않고 지나가기만 한다. 순회가 쓴다. */
         visit(id) {
             focus = [id];
             s.cursors.p = id;
@@ -294,7 +294,7 @@ export function createTreeRecorder(state) {
             return nd;
         },
 
-        /** 링크 하나를 고쳐 쓴다. `parentId`가 `null`이면 뿌리 포인터다. */
+        /** 링크 하나를 고쳐 쓴다. `parentId`가 `null`이면 루트 포인터다. */
         link(parentId, childId, side) {
             counts.link++;
             if (parentId === null) {
@@ -332,7 +332,7 @@ export function createTreeRecorder(state) {
             return rec;
         },
 
-        /** 값만 맞바꾼다. 마디는 제자리에 둔다 — **이진 탐색 트리의 「두 자식 지우기」**가
+        /** 값만 맞바꾼다. 노드는 제자리에 둔다 — **이진 탐색 트리의 「두 자식 지우기」**가
          *  실제로 하는 일이 이것이라, 링크를 다시 얽는 것으로 그리면 오히려 어렵다. */
         swapValues(idA, idB) {
             counts.move += 2;
@@ -363,7 +363,7 @@ export function createTreeRecorder(state) {
             return rec;
         },
 
-        /** 힙의 두 칸을 견준다. */
+        /** 힙의 두 칸을 비교한다. */
         heapCompare(i, j) {
             counts.compare++;
             focus = [i, j];
@@ -372,7 +372,7 @@ export function createTreeRecorder(state) {
             return d;
         },
 
-        /** 칸 하나의 값과 찾는 값을 견준다. **세지 않으면 「힙은 찾기가 O(n)」이
+        /** 칸 하나의 값과 찾는 값을 비교한다. **세지 않으면 「힙은 찾기가 O(n)」이
          *  화면의 숫자로 뒷받침되지 않는다** — 말만 남고 근거가 없어진다. */
         heapCompareValue(i, v) {
             counts.compare++;

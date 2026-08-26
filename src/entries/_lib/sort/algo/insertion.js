@@ -12,7 +12,7 @@ export const insertionSortAlgo = {
     group: 'simple',
     view: 'array',
     motion: 'shift',
-    idea: '값을 하나 임시 변수에 저장한 뒤, 앞쪽의 이미 정렬된 부분을 뒤에서부터 훑으며 '
+    idea: '값을 하나 임시 변수에 저장한 뒤, 앞쪽의 이미 정렬된 부분을 뒤에서부터 순회하며 '
         + '큰 것들을 한 칸씩 뒤로 이동시키고 생긴 빈자리에 내려놓습니다.',
     complexity: {best: 'O(n)', avg: 'O(n²)', worst: 'O(n²)', space: 'O(1)'},
     stable: true,

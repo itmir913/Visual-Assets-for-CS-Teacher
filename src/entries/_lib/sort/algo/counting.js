@@ -22,7 +22,7 @@ export const countingSortAlgo = {
     valueMax: 9,
     needs: {nonNegative: true, maxValue: 9},
     idea: '원소끼리 비교하지 않습니다. 값마다 칸을 하나씩 두고 몇 번 나왔는지 센 다음, '
-        + '칸을 작은 값부터 훑으며 센 개수만큼 배열에 다시 씁니다.',
+        + '칸을 작은 값부터 순회하며 센 개수만큼 배열에 다시 씁니다.',
     complexity: {best: 'O(n+k)', avg: 'O(n+k)', worst: 'O(n+k)', space: 'O(n+k)'},
     stable: true,
     inPlace: false,
@@ -30,7 +30,7 @@ export const countingSortAlgo = {
         + '**비교로 정렬할 때만** 걸리는 한계입니다. 대신 k(값의 범위)만큼 칸이 필요해서 '
         + '여기서는 0~9만 다룹니다 — 값이 0~1000000이면 칸도 그만큼 만들어야 합니다. '
         + '한 가지 더: 값만 세어 다시 쓰는 이 방식은 원소에 «딸린 정보»가 있으면 잃어버립니다. '
-        + '그래서 실제 구현은 누적 합을 구해 출력 배열에 옮겨 담는 판을 씁니다.',
+        + '그래서 실제 구현은 누적 합을 구해 출력 배열에 옮겨 담는 방식을 씁니다.',
 
     run(rec) {
         const n = rec.n;
@@ -47,14 +47,14 @@ export const countingSortAlgo = {
             + ' **칸의 수는 원소 수가 아니라 값의 범위가 정합니다.**');
         rec.stripOpen('세는 칸', 'count', keys);
 
-        rec.say('배열을 한 번 훑으며 각 값이 몇 번 나왔는지 셉니다. 원소끼리 비교하지 않습니다.');
+        rec.say('배열을 한 번 순회하며 각 값이 몇 번 나왔는지 셉니다. 원소끼리 비교하지 않습니다.');
         for (let i = 0; i < n; i++) {
             rec.cursor('i', i);
             rec.stripCount(i);
         }
         rec.cursor('i', null);
 
-        rec.say('다 셌습니다. 이제 배열을 비우고, 칸을 작은 값부터 훑으며 센 개수만큼 다시 씁니다.');
+        rec.say('다 셌습니다. 이제 배열을 비우고, 칸을 작은 값부터 순회하며 센 개수만큼 다시 씁니다.');
         rec.vacate(0, n - 1);
 
         let out = 0;
@@ -66,7 +66,7 @@ export const countingSortAlgo = {
                 rec.mark('skip');
                 continue;
             }
-            rec.say(`값 ${withJosa(v, '이가')} ${have}개 있습니다. 넣은 차례 그대로 꺼내 씁니다.`);
+            rec.say(`값 ${withJosa(v, '이가')} ${have}개 있습니다. 넣은 순서 그대로 꺼내 씁니다.`);
             while (rec.stripCell(v).count > 0) {
                 rec.cursor('쓸 자리', out);
                 rec.stripTake(v, out);

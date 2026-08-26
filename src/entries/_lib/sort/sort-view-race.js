@@ -4,7 +4,7 @@
  * **누가 먼저 끝나는가**이기 때문이다. 한 알고리즘을 자세히 볼 자리는 따로 있다.
  *
  * 줄 높이를 못박아 둔다 — 알고리즘이 하나씩 끝나며 「끝!」 표가 붙어도 줄이 밀리지 않아야
- * 아래에 있는 단추가 제자리를 지킨다.
+ * 아래에 있는 버튼이 제자리를 지킨다.
  */
 
 const LANE_H = 40;          // 한 줄
@@ -13,7 +13,7 @@ const BAR_H = 26;           // 줄 안에서 막대가 쓰는 높이
 /* 이름·숫자 칸을 좁게 잡는다. 375px에서 이 둘이 180px을 먹으면
    정작 봐야 할 막대가 131px밖에 안 남는다. */
 const NAME_W = 70;          // 알고리즘 이름 칸
-const TALLY_W = 84;         // 세는 값 칸
+const TALLY_W = 84;         // 세는 횟수 칸
 
 /* **이름을 겹치지 않게 짓는다.** 검사 받침대는 모듈을 한 문맥에 풀어 놓으므로
    다른 파일과 같은 top-level 이름을 쓰면 「already been declared」로 죽는다.
@@ -58,7 +58,7 @@ export function createSortRaceView(host) {
     let lanes = [];     // {row, bars:[], tally, badge, n}
     let n = 0;
     let chartSvg = null;
-    let chartTexts = null;   // 글자를 한 무리에 모아 두고 배율의 역수를 건다
+    let chartTexts = null;   // 글자를 한 그룹에 모아 두고 배율의 역수를 건다
     const CHART_W = 720;
     const CHART_FONT_PX = 12;
 
@@ -144,7 +144,7 @@ export function createSortRaceView(host) {
             style: `width:100%;height:auto;display:block;margin:0 auto;max-width:${W}px;min-width:360px`,
         });
         /* **SVG 글자는 그리는 폭에 비례해 줄어든다.** 720짜리를 520에 그리면
-           `font-size="11"`이 화면에서 7.9px로 앉는다. 글자를 한 무리에 모아 두고
+           `font-size="11"`이 화면에서 7.9px로 앉는다. 글자를 한 그룹에 모아 두고
            그릴 때마다 배율의 역수를 걸어 화면 크기를 일정하게 만든다. */
         chartTexts = raceSvg('g', {'font-size': CHART_FONT_PX});
 
@@ -235,7 +235,7 @@ export function createSortRaceView(host) {
                 const c = lane.frame.counts;
                 /* 숫자는 언제나 **작업량**(비교 + 옮김 + 배열 접근)이다. 도는 동안에는
                    모두 같은 값을 가리키고(그것이 요점이다), 끝난 줄만 제 값에서 멈춘다 —
-                   멈춘 값들을 위아래로 대 보는 것이 곧 등수다. */
+                   멈춘 값들을 위아래로 비교하는 것이 곧 등수다. */
                 const text = lane.done
                     ? `끝 · ${lane.finishedWork.toLocaleString('ko-KR')}`
                     : `${(c.compare + c.move + c.access).toLocaleString('ko-KR')}`;

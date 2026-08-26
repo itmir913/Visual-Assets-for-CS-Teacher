@@ -279,7 +279,7 @@ export function createSortRecorder(values, opts = {}) {
 
         /** 주 배열의 한 구간을 **비운다.** 병합 정렬이 두 부분 배열을 임시 배열로 복사해 온 뒤,
          *  그 구간을 처음부터 다시 채워 넣는다는 것을 그림으로 말해 준다.
-         *  세는 값은 늘지 않는다 — 실제로 옮기는 일이 아니라 화면에서만 비우는 것이다. */
+         *  세는 횟수는 늘지 않는다 — 실제로 옮기는 일이 아니라 화면에서만 비우는 것이다. */
         vacate(lo, hi) {
             for (let i = lo; i <= hi; i++) a[i] = null;
             snap({kind: 'vacate', lo, hi});
@@ -287,7 +287,7 @@ export function createSortRecorder(values, opts = {}) {
         },
 
         /* ---- 값으로 자리를 정하는 칸 줄 ----
-           비교 정렬은 «원소끼리» 대 보지만 분배 정렬은 **값 자체를 칸의 이름으로** 쓴다.
+           비교 정렬은 «원소끼리» 비교하지만 분배 정렬은 **값 자체를 칸의 이름으로** 쓴다.
            그 차이가 화면에 드러나야 「비교 정렬의 한계가 여기엔 걸리지 않는다」가
            말이 아니라 그림이 된다. */
 
@@ -406,7 +406,7 @@ export function runSortAlgorithm(algo, values, opts = {}) {
     algo.run(rec);
     const result = finish();
     const last = result.frames[result.frames.length - 1];
-    // `countOnly` 로 돌린 판은 장이 없다. 그때는 세는 값만 쓸모가 있다.
+    // `countOnly` 로 실행한 회차는 장이 없다. 그때는 세는 횟수만 쓸모가 있다.
     const out = last ? last.a.map((it) => (it ? it.v : NaN)) : null;
     const want = [...values].sort((x, y) => x - y);
     result.sorted = out !== null && out.length === want.length && out.every((v, i) => v === want[i]);
@@ -415,7 +415,7 @@ export function runSortAlgorithm(algo, values, opts = {}) {
 }
 
 /**
- * **안정 정렬인지 실제로 확인한다.** 값이 같은 원소들의 `id` 차례가 그대로면 안정이다.
+ * **안정 정렬인지 실제로 확인한다.** 값이 같은 원소들의 `id` 순서가 그대로면 안정이다.
  * 알고리즘이 스스로 신고한 `stable`과 맞는지는 검사가 대조한다 —
  * 카드에 적힌 말과 화면에서 벌어지는 일이 어긋나면 그게 가장 나쁜 결함이다.
  */

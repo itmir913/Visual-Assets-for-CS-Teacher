@@ -1,9 +1,9 @@
 /* 트리 연산이 어떻게 이루어지는지 — **이 페이지가 가르치려는 것의 알맹이.**
  *
  * 트리에서 학생이 놓치는 것은 「어떤 모양인가」가 아니라 **「그 모양이 왜 그렇게 되었고
- * 그것이 무엇을 정하는가」**다. 오름차순으로 넣은 이진 탐색 트리가 한 줄로 늘어지는 것을
+ * 그것이 무엇을 정하는가」**다. 오름차순으로 넣은 이진 탐색 트리가 한 줄로 이어진 편향 트리가 되는 것을
  * 보기 전에는, 「최악이 O(n)」이 왜 나오는지도 AVL 트리가 왜 있는지도 서지 않는다.
- * 그래서 넣을 때마다 **어디서 왼쪽으로 갈지 오른쪽으로 갈지 견주는 것**을 한 장씩 남기고,
+ * 그래서 넣을 때마다 **어디서 왼쪽으로 갈지 오른쪽으로 갈지 비교하는 것**을 한 장씩 남기고,
  * 회전은 링크를 하나씩 고쳐 쓰는 것으로 남긴다.
  */
 
@@ -39,11 +39,11 @@ function bstInsert(rec, v) {
     rec.clearEmitted();
 
     if (rec.root === null) {
-        rec.say(`트리가 비어 있으므로 ${withJosa(v, '이가')} **뿌리**가 됩니다.`);
+        rec.say(`트리가 비어 있으므로 ${withJosa(v, '이가')} **루트**가 됩니다.`);
         const nd = rec.newNode(v);
         rec.link(null, nd.id, 'root');
         rec.settle(nd.id);
-        return `${withJosa(v, '을를')} 뿌리로 넣었습니다.`;
+        return `${withJosa(v, '을를')} 루트로 넣었습니다.`;
     }
 
     const spot = descend(rec, v);
@@ -58,7 +58,7 @@ function bstInsert(rec, v) {
     rec.mark('spot');
 
     const nd = rec.newNode(v);
-    rec.say(`${spot.parent.v}의 ${spot.side === 'left' ? '왼쪽' : '오른쪽'} 링크를 새 마디로 겁니다.`);
+    rec.say(`${spot.parent.v}의 ${spot.side === 'left' ? '왼쪽' : '오른쪽'} 링크를 새 노드로 겁니다.`);
     rec.link(spot.parent.id, nd.id, spot.side);
     rec.settle(nd.id);
     return `${withJosa(v, '을를')} 넣었습니다. **비교한 횟수가 곧 내려간 깊이**입니다.`;
@@ -94,7 +94,7 @@ function bstSearch(rec, v) {
     return `${withJosa(v, '은는')} 없습니다. **${steps}번 비교하고 끝났습니다** — 없다는 것도 이만큼이면 알 수 있습니다.`;
 }
 
-/** 오른쪽 가지에서 **가장 작은 마디**. 지우려는 값의 바로 다음 값이다. */
+/** 오른쪽 가지에서 **가장 작은 노드**. 지우려는 값의 바로 다음 값이다. */
 function successorOf(rec, nd) {
     rec.say('오른쪽 가지에서 **가장 작은 값**을 찾습니다. 그것이 지우려는 값의 바로 다음 값입니다.');
     let at = rec.node(nd.right);
@@ -131,21 +131,21 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
         return `${withJosa(v, '이가')} 없어 아무것도 지우지 않았습니다.`;
     }
 
-    /* **자식이 둘이면 값을 맞바꾼 뒤 «다음 값»의 마디를 지운다.**
+    /* **자식이 둘이면 값을 맞바꾼 뒤 «다음 값»의 노드를 지운다.**
        링크를 새로 얽어 붙이는 것으로 그리면 그림이 통째로 뒤집혀 따라갈 수가 없다.
        실제 구현도 대개 이렇게 한다 — 옮기는 것은 값 하나뿐이다. */
     if (target.left !== null && target.right !== null) {
         const succ = successorOf(rec, target);
         /* **이 장에서 트리는 잠깐 이진 탐색 트리가 아니다.** 값을 맞바꾸는 순간
-           옮겨 간 값이 제자리를 벗어난다(화면에서도 가로 차례가 어긋나 보인다).
-           곧 그 마디를 떼어 내므로 끝나고 나면 성질이 돌아온다 —
+           옮겨 간 값이 제자리를 벗어난다(화면에서도 가로 순서가 어긋나 보인다).
+           곧 그 노드를 제거하므로 끝나고 나면 성질이 돌아온다 —
            **그 「잠깐」을 밝히지 않으면 자막이 화면을 부정한다.** */
         rec.say(`${target.v} 자리에 **${withJosa(succ.v, '을를')}** 올려놓습니다. `
             + `옮겨 온 자리(${withJosa(target.v, '이가')} 있던 곳)에는 `
             + `이제 ${withJosa(succ.v, '이가')} 두 번 있는 셈이라 `
-            + '**잠깐 규칙이 어긋납니다** — 곧 아래쪽 마디를 떼어 내면 제자리로 돌아옵니다.');
+            + '**잠깐 규칙이 어긋납니다** — 곧 아래쪽 노드를 제거하면 제자리로 돌아옵니다.');
         rec.swapValues(target.id, succ.id);
-        target = succ;   // 이제 지울 것은 «다음 값»이 옮겨 간 마디다
+        target = succ;   // 이제 지울 것은 «다음 값»이 옮겨 간 노드다
     }
 
     const child = target.left !== null ? target.left : target.right;
@@ -154,7 +154,7 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
         : (rec.node(parent).left === target.id ? 'left' : 'right');
 
     rec.say(child === null
-        ? `${withJosa(target.v, '은는')} 자식이 없으므로 그냥 떼어 냅니다.`
+        ? `${withJosa(target.v, '은는')} 자식이 없으므로 그냥 제거합니다.`
         : `${withJosa(target.v, '은는')} 자식이 하나뿐이므로 **그 자식을 제 자리에 올립니다.**`);
     rec.doom(target.id);
     rec.link(parent, child, side);
@@ -173,26 +173,26 @@ function traverse(rec, order) {
     if (rec.root === null) {
         rec.flag('트리가 비어 있습니다.');
         rec.mark('empty');
-        return '비어 있어 훑을 것이 없습니다.';
+        return '비어 있어 순회할 것이 없습니다.';
     }
     const name = {pre: '전위', in: '중위', post: '후위'}[order];
     const walk = (id) => {
         if (id === null) return;
         const nd = rec.node(id);
         if (order === 'pre') {
-            rec.say(`이 마디를 **먼저** 적고 아래로 내려갑니다.`);
+            rec.say(`이 노드를 **먼저** 적고 아래로 내려갑니다.`);
             rec.visit(id);
             rec.emit(nd.v);
         }
         walk(nd.left);
         if (order === 'in') {
-            rec.say('왼쪽을 다 훑었으므로 **이제** 이 마디를 적습니다.');
+            rec.say('왼쪽을 다 순회했으므로 **이제** 이 노드를 적습니다.');
             rec.visit(id);
             rec.emit(nd.v);
         }
         walk(nd.right);
         if (order === 'post') {
-            rec.say('양쪽을 다 훑은 **뒤에** 이 마디를 적습니다.');
+            rec.say('양쪽을 다 순회한 **뒤에** 이 노드를 적습니다.');
             rec.visit(id);
             rec.emit(nd.v);
         }
@@ -200,21 +200,21 @@ function traverse(rec, order) {
     walk(rec.root);
     rec.say(`${name} 순회가 끝났습니다.`);
     rec.mark('done');
-    /* **세는 값이 셋 다 0인 것에 뜻이 있다.** 순회는 값을 견주지도 옮기지도 링크를
+    /* **세는 횟수가 셋 다 0인 것에 뜻이 있다.** 순회는 값을 비교하지도 옮기지도 링크를
        고치지도 않는다 — 이미 만들어진 모양대로 지나갈 뿐이다. 그 0을 밝혀 주지 않으면
        학생은 화면이 고장 났다고 읽는다. */
-    const zero = ' 순회는 값을 **비교하지 않습니다** — 이미 만들어진 모양대로 지나갈 뿐이라 세는 값이 모두 0입니다.';
+    const zero = ' 순회는 값을 **비교하지 않습니다** — 이미 만들어진 모양대로 지나갈 뿐이라 세는 횟수가 모두 0입니다.';
     return (order === 'in'
         ? '중위 순회로 나온 값이 **오름차순**입니다. 왼쪽은 작고 오른쪽은 크다는 규칙을 '
-          + '지키는 트리라면 언제나 그렇습니다 — 돌리고 난 뒤에도 마찬가지입니다.'
-        : `${name} 순회가 끝났습니다. 나온 차례를 중위 순회와 대 보세요.`) + zero;
+          + '지키는 트리라면 언제나 그렇습니다 — 회전한 뒤에도 마찬가지입니다.'
+        : `${name} 순회가 끝났습니다. 나온 순서를 중위 순회와 비교해 보세요.`) + zero;
 }
 
 /* ---------------------------------------------------------------
    AVL 트리 — **회전**
    --------------------------------------------------------------- */
 
-/** 한 번 돌린다. `dir`가 `'right'`면 왼쪽으로 기운 것을 오른쪽으로 돌린다. */
+/** 한 번 회전한다. `dir`가 `'right'`면 왼쪽으로 기운 것을 오른쪽으로 회전한다. */
 function rotate(rec, y, dir) {
     const pivotSide = dir === 'right' ? 'left' : 'right';
     const otherSide = dir === 'right' ? 'right' : 'left';
@@ -224,14 +224,14 @@ function rotate(rec, y, dir) {
         : (rec.node(parent).left === y.id ? 'left' : 'right');
     const moved = x[otherSide];
 
-    rec.say(`**${dir === 'right' ? '오른쪽' : '왼쪽'}으로 돌립니다.** `
+    rec.say(`**${dir === 'right' ? '오른쪽' : '왼쪽'}으로 회전합니다.** `
         + `${withJosa(x.v, '이가')} 위로 올라가고 ${withJosa(y.v, '이가')} 아래로 내려갑니다.`);
     rec.mark('rotate');
 
     rec.say(moved === null
         ? `${x.v}의 ${otherSide === 'left' ? '왼쪽' : '오른쪽'}은 비어 있습니다.`
         : `${withJosa(rec.node(moved).v, '은는')} ${withJosa(x.v, '과와')} ${y.v} 사이의 값이므로 ${y.v}의 `
-          + `${pivotSide === 'left' ? '왼쪽' : '오른쪽'}으로 옮겨 갑니다. **자리가 바뀌어도 크기 차례는 그대로입니다.**`);
+          + `${pivotSide === 'left' ? '왼쪽' : '오른쪽'}으로 옮겨 갑니다. **자리가 바뀌어도 크기 순서는 그대로입니다.**`);
     rec.link(y.id, moved, pivotSide);
     rec.link(x.id, y.id, otherSide);
     rec.link(parent, x.id, sideOfY);
@@ -257,14 +257,14 @@ function avlRebalanceUp(rec, startId) {
             continue;
         }
 
-        rec.say(`${at.v}의 균형 인수가 ${b}입니다. **한쪽이 2 이상 깊어졌으므로 돌려야 합니다.**`);
+        rec.say(`${at.v}의 균형 인수가 ${b}입니다. **한쪽이 2 이상 깊어졌으므로 회전해야 합니다.**`);
         rec.visit(at.id);
 
         if (b > 1) {
             const left = rec.node(at.left);
             if (balanceOf(rec.state, left) < 0) {
                 rec.say(`왼쪽 자식(${left.v})이 다시 오른쪽으로 기울어 있습니다. `
-                    + '**한 번에 못 펴므로 먼저 그 자식을 왼쪽으로 돌립니다.**');
+                    + '**한 번에 균형을 잡지 못하므로 먼저 그 자식을 왼쪽으로 회전합니다.**');
                 rotate(rec, left, 'left');
                 rotations++;
             }
@@ -274,7 +274,7 @@ function avlRebalanceUp(rec, startId) {
             const right = rec.node(at.right);
             if (balanceOf(rec.state, right) > 0) {
                 rec.say(`오른쪽 자식(${right.v})이 다시 왼쪽으로 기울어 있습니다. `
-                    + '**한 번에 못 펴므로 먼저 그 자식을 오른쪽으로 돌립니다.**');
+                    + '**한 번에 균형을 잡지 못하므로 먼저 그 자식을 오른쪽으로 회전합니다.**');
                 rotate(rec, right, 'right');
                 rotations++;
             }
@@ -293,11 +293,11 @@ function avlInsert(rec, v) {
     if (rec.size === before) return out;   // 이미 있어서 안 들어간 판
 
     const added = rec.state.nodes.find((n) => n.v === v);
-    rec.say('넣었으니 **뿌리까지 올라가며 균형을 봅니다.**');
+    rec.say('넣었으니 **루트까지 올라가며 균형을 봅니다.**');
     const rotations = avlRebalanceUp(rec, added ? added.parent : null);
     return rotations === 0
-        ? `${withJosa(v, '을를')} 넣었습니다. **돌릴 것이 없었습니다** — 균형이 이미 −1·0·1 안입니다.`
-        : `${withJosa(v, '을를')} 넣었습니다. **${rotations}번 돌려** 높이를 ${withJosa(treeHeight(rec.state), '으로')} 지켰습니다.`;
+        ? `${withJosa(v, '을를')} 넣었습니다. **회전할 일이 없었습니다** — 균형이 이미 −1·0·1 안입니다.`
+        : `${withJosa(v, '을를')} 넣었습니다. **${rotations}번 회전해** 높이를 ${withJosa(treeHeight(rec.state), '으로')} 지켰습니다.`;
 }
 
 /* ---------------------------------------------------------------
@@ -333,7 +333,7 @@ function heapInsert(rec, v) {
     while (i > 0) {
         const p = parentOf(i);
         rec.say(`부모는 **(${i} − 1) ÷ 2 = ${p}번 칸**입니다. 링크를 따라가는 것이 아니라 `
-            + '**자리 번호를 계산**해서 찾습니다.');
+            + '**인덱스를 계산**해서 찾습니다.');
         if (rec.heapCompare(i, p) <= 0) {
             rec.say('부모가 더 크므로 **여기가 제자리입니다.**');
             rec.mark('settled');
@@ -356,7 +356,7 @@ function heapExtract(rec) {
         return '비어 있어 뺄 것이 없습니다.';
     }
     const top = rec.heapAt(0).v;
-    rec.say(`**가장 큰 값은 늘 뿌리(0번 칸)**에 있습니다. 찾을 것도 없이 꺼내면 됩니다.`);
+    rec.say(`**가장 큰 값은 늘 루트(0번 칸)**에 있습니다. 찾을 것도 없이 꺼내면 됩니다.`);
     rec.heapFocus([0]);
 
     const last = rec.size - 1;
@@ -366,7 +366,7 @@ function heapExtract(rec) {
         return `${withJosa(top, '을를')} 꺼냈습니다. 이제 비었습니다.`;
     }
 
-    rec.say('빈 뿌리를 메우려고 **맨 끝 값을 뿌리로 올립니다.** 빈틈이 가운데 남으면 '
+    rec.say('빈 루트를 메우려고 **맨 끝 값을 루트로 올립니다.** 빈틈이 가운데 남으면 '
         + '배열로 담을 수 없기 때문입니다.');
     rec.heapSwap(0, last);
     rec.heapClear(last);
@@ -408,11 +408,11 @@ function heapFind(rec, v) {
         if (rec.heapCompareValue(i, v) === 0) {
             rec.say(`${i}번 칸에서 찾았습니다.`);
             rec.mark('found');
-            /* **일찍 찾은 판에 「다 봐야 한다」고 말하지 않는다.** 학생이 맨 먼저 찾아보는
+            /* **일찍 찾은 경우에 「다 봐야 한다」고 말하지 않는다.** 학생이 맨 먼저 찾아보는
                값은 대개 화면에서 가장 큰 값인데, 그것은 늘 0번 칸이라 한 번에 걸린다.
                계수기에 「비교 1」이 떠 있는데 글이 「다 봐야 합니다」라고 하면 어긋난다. */
             return i === 0
-                ? '뿌리에 있어 한 번에 찾았습니다. **가장 큰 값이라서 그렇습니다** — '
+                ? '루트에 있어 한 번에 찾았습니다. **가장 큰 값이라서 그렇습니다** — '
                   + '다른 값을 찾아보면 앞에서부터 하나씩 봐야 합니다.'
                 : `${i + 1}칸째에서 찾았습니다. **가지를 버릴 수가 없어 앞에서부터 하나씩 봅니다** — `
                   + '힙이 잘하는 것은 「가장 큰 것 꺼내기」이지 「찾기」가 아닙니다.';
@@ -430,13 +430,13 @@ function heapFind(rec, v) {
 export const bstOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${withJosa(v, '을를')} 넣을 자리를 **뿌리에서부터 비교하며** 찾아 내려갑니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 넣을 자리를 **루트에서부터 비교하며** 찾아 내려갑니다.`,
         run: (rec, {v}) => bstInsert(rec, v),
         cost: () => 'O(높이)',
     },
     {
         id: 'search', name: '찾기', arg: 'value',
-        opening: (rec, {v}) => `${withJosa(v, '이가')} 있는지 **뿌리에서부터** 비교하며 내려갑니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '이가')} 있는지 **루트에서부터** 비교하며 내려갑니다.`,
         run: (rec, {v}) => bstSearch(rec, v),
         cost: () => 'O(높이)',
     },
@@ -448,19 +448,19 @@ export const bstOps = [
     },
     {
         id: 'pre', name: '전위 순회', arg: null,
-        opening: () => '**뿌리 → 왼쪽 → 오른쪽** 차례로 훑습니다.',
+        opening: () => '**루트 → 왼쪽 → 오른쪽** 차례로 순회합니다.',
         run: (rec) => traverse(rec, 'pre'),
         cost: () => 'O(n)',
     },
     {
         id: 'in', name: '중위 순회', arg: null,
-        opening: () => '**왼쪽 → 뿌리 → 오른쪽** 차례로 훑습니다.',
+        opening: () => '**왼쪽 → 루트 → 오른쪽** 차례로 순회합니다.',
         run: (rec) => traverse(rec, 'in'),
         cost: () => 'O(n)',
     },
     {
         id: 'post', name: '후위 순회', arg: null,
-        opening: () => '**왼쪽 → 오른쪽 → 뿌리** 차례로 훑습니다.',
+        opening: () => '**왼쪽 → 오른쪽 → 루트** 차례로 순회합니다.',
         run: (rec) => traverse(rec, 'post'),
         cost: () => 'O(n)',
     },
@@ -469,7 +469,7 @@ export const bstOps = [
 export const avlOps = [
     {
         id: 'insert', name: '넣기', arg: 'value',
-        opening: (rec, {v}) => `${withJosa(v, '을를')} 이진 탐색 트리와 **똑같이 넣은 뒤**, 균형이 무너졌으면 돌립니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 이진 탐색 트리와 **똑같이 넣은 뒤**, 균형이 무너졌으면 회전합니다.`,
         run: (rec, {v}) => avlInsert(rec, v),
         cost: () => 'O(log n)',
     },
@@ -481,13 +481,13 @@ export const avlOps = [
     },
     {
         id: 'remove', name: '빼기', arg: 'value',
-        opening: (rec, {v}) => `${withJosa(v, '을를')} 지운 뒤 **뿌리까지 올라가며** 균형을 봅니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} 지운 뒤 **루트까지 올라가며** 균형을 봅니다.`,
         run: (rec, {v}) => bstRemove(rec, v, {rebalance: true}),
         cost: () => 'O(log n)',
     },
     {
         id: 'in', name: '중위 순회', arg: null,
-        opening: () => '**왼쪽 → 뿌리 → 오른쪽** 차례로 훑습니다. 돌리고 나서도 오름차순인지 보세요.',
+        opening: () => '**왼쪽 → 루트 → 오른쪽** 차례로 순회합니다. 회전한 뒤에도 오름차순인지 보세요.',
         run: (rec) => traverse(rec, 'in'),
         cost: () => 'O(n)',
     },
@@ -502,7 +502,7 @@ export const heapOps = [
     },
     {
         id: 'extract', name: '가장 큰 값 꺼내기', arg: null,
-        opening: () => '**뿌리(0번 칸)**를 꺼내고 빈자리를 메웁니다.',
+        opening: () => '**루트(0번 칸)**를 꺼내고 빈자리를 메웁니다.',
         run: (rec) => heapExtract(rec),
         cost: () => 'O(log n)',
     },
@@ -533,10 +533,10 @@ export const treeCompareOps = [
     {
         id: 'insert-asc', name: '비우고 오름차순으로 여덟 개 넣기', arg: null,
         /* **빈 트리에서 시작한다.** 이미 값이 든 트리에 여덟 개를 더 넣으면 한 줄이
-           되지 않는다 — 새 값들이 기존 마디 아래로 흩어져 매달리기 때문이다.
-           그런데 이 단추가 보이려는 장면이 바로 「한 줄로 늘어진다」이므로,
+           되지 않는다 — 새 값들이 기존 노드 아래로 흩어져 연결되기 때문이다.
+           그런데 이 버튼이 보이려는 장면이 바로 「한 줄로 이어진 편향 트리가 된다」이므로,
            **비우지 않으면 카드가 말한 것과 정반대 화면이 나온다.**
-           그래서 비우는 것을 단추 이름에 적고 화면에서도 그렇게 한다. */
+           그래서 비우는 것을 버튼 이름에 적고 화면에서도 그렇게 한다. */
         clears: true,
         opening: () => '두 트리를 **비우고** 시작합니다. **이미 정렬된 자료**를 차례대로 '
             + '넣어 봅니다 — 흔한 일입니다. 학번 · 날짜 · 번호는 대개 정렬된 채로 들어옵니다.',
@@ -569,16 +569,16 @@ export const treeCompareOps = [
     },
 ];
 
-/** 간판 단추가 넣는 여덟 개. **늘 같은 값이다** — 볼 때마다 달라지면 견줄 수가 없다. */
+/** 간판 버튼이 넣는 여덟 개. **늘 같은 값이다** — 볼 때마다 달라지면 비교할 수가 없다. */
 export const ASC_BATCH = [10, 20, 30, 40, 50, 60, 70, 80];
 
 /* ---------------------------------------------------------------
    처음 상태 세우기
    ---------------------------------------------------------------
 
-   **값 목록이 아니라 「넣은 차례」를 물려받아 다시 넣는다.** 트리는 넣는 차례가 모양을
+   **값 목록이 아니라 「넣은 차례」를 물려받아 다시 넣는다.** 트리는 넣는 순서가 모양을
    정하므로, 담긴 값만 물려주면 탭을 옮기는 것만으로 모양이 달라진다. 특히 중위 순회로
-   뽑은 값은 오름차순이라, 그것을 이진 탐색 트리에 다시 넣으면 **한 줄로 늘어진 트리**가
+   뽑은 값은 오름차순이라, 그것을 이진 탐색 트리에 다시 넣으면 **한 줄로 이어진 편향 트리**가
    된다 — 아무것도 안 했는데 최악이 되어 버린다.
 
    그리고 **화면에서 쓰는 바로 그 연산으로 세운다.** 따로 만들면 처음 모습과

@@ -1,9 +1,9 @@
 /* 화면 배선. **HTML은 뼈대만 두고 여기서 채운다** —
- * 탭도 연산 단추도 범례도 등록부에서 만들어 내므로, 구조를 하나 더하면 화면이 따라온다.
+ * 탭도 연산 버튼도 범례도 등록부에서 만들어 내므로, 구조를 하나 더하면 화면이 따라온다.
  * 손으로 적은 목록이 화면과 등록부 두 군데 있으면 반드시 어긋난다.
  *
  * **담은 값은 구조를 바꿔도 그대로 간다.** 「같은 자료를 이 구조에 넣으면 어떻게 되는가」가
- * 이 페이지의 쓰임이라, 탭을 옮길 때마다 자료가 처음으로 돌아가면 견줄 수가 없다.
+ * 이 페이지의 쓰임이라, 탭을 옮길 때마다 자료가 처음으로 돌아가면 비교할 수가 없다.
  * 그래서 지금 담긴 값을 들고 있다가 옮겨 간 구조를 그 값으로 다시 세운다.
  */
 
@@ -21,10 +21,10 @@ import {DS_VALUE_MAX} from './ds-ops.js';
 
 const DS_LEGEND = [
     {key: 'idle', label: '그대로 있는 것'},
-    {key: 'focus', label: '지금 들여다보는 것'},
+    {key: 'focus', label: '지금 확인하는 칸·노드'},
     {key: 'moving', label: '방금 움직인 것'},
-    {key: 'newborn', label: '아직 매달리지 않은 새 마디'},
-    {key: 'doomed', label: '곧 떼어 낼 것'},
+    {key: 'newborn', label: '아직 연결되지 않은 새 노드'},
+    {key: 'doomed', label: '곧 제거할 노드'},
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -63,9 +63,9 @@ export function mountDsSimulator() {
     const log = [];            // 지금까지 한 연산
 
     /* 그림은 구조가 고른다. **바뀔 때만 새로 만든다** — 연산마다 다시 만들면 상자가 깜빡인다.
-       다만 담는 방식을 바꾸면 그림도 갈리므로 그때는 새로 만들어야 한다. */
+       다만 저장 구조를 바꾸면 그림도 갈리므로 그때는 새로 만들어야 한다. */
     function ensureView(kind) {
-        /* **구조까지 넣어 견준다.** 끝 이름표(스택의 「top」, 큐의 「front」)가 구조마다
+        /* **구조까지 넣어 비교한다.** 끝 이름표(스택의 「top」, 큐의 「front」)가 구조마다
            다르므로, 같은 「칸 그림」이라도 구조가 바뀌면 새로 만들어야 한다. */
         const want = `${kind}:${struct.id}`;
         if (viewKind === want) return;
@@ -80,7 +80,7 @@ export function mountDsSimulator() {
 
     const plan = () => dsPlanOf(struct, implId);
 
-    /* ---- 위쪽: 무리 탭과 구조 칩 ---- */
+    /* ---- 위쪽: 분류 탭과 구조 칩 ---- */
 
     function paintTabs() {
         const groupTabs = $('group-tabs');
@@ -107,8 +107,8 @@ export function mountDsSimulator() {
         }
     }
 
-    /** 담는 방식 단추. **고를 수 없는 구조에서는 줄째 감춘다** —
-     *  단추를 눌러도 아무 일이 없으면 고장으로 읽힌다. */
+    /** 저장 구조 버튼. **고를 수 없는 구조에서는 줄째 감춘다** —
+     *  버튼을 눌러도 아무 일이 없으면 고장으로 읽힌다. */
     function paintImpl() {
         const row = $('impl-row');
         const host = $('impl-buttons');
@@ -128,8 +128,8 @@ export function mountDsSimulator() {
                     rebuildState();
                     paintImpl();
                     paintOps();
-                    /* **개수 표시도 함께 고친다.** 담는 방식이 바뀌면 칸 수라는 개념이
-                       생기거나 없어진다 — 배열은 「5 / 10개」, 마디는 「5개」다.
+                    /* **개수 표시도 함께 고친다.** 저장 구조가 바뀌면 칸 수라는 개념이
+                       생기거나 없어진다 — 배열은 「5 / 10개」, 노드는 「5개」다.
                        이것을 빠뜨리면 다음 연산을 누를 때까지 앞 방식의 표기가 남아,
                        칸 수가 없는 리스트에 상한이 붙거나 꽉 차 가는 배열의 상한이 사라진다. */
                     paintOpsState();
@@ -175,7 +175,7 @@ export function mountDsSimulator() {
         const table = $('struct-cost');
         table.textContent = '';
         const head = document.createElement('tr');
-        for (const [label, w] of [['연산', ''], ['드는 값', 'w-28'], ['왜', '']]) {
+        for (const [label, w] of [['연산', ''], ['비용', 'w-28'], ['왜', '']]) {
             const th = document.createElement('th');
             th.className = `py-1.5 pr-4 text-left font-bold text-slate-500 ${w}`;
             th.textContent = label;
@@ -228,16 +228,16 @@ export function mountDsSimulator() {
         if (kind === 'compare') {
             lines.push('위는 **배열**, 아래는 **단일 연결 리스트**입니다. 같은 값을 담고 같은 연산을 받습니다.');
             lines.push('작업량(접근 + 이동 + 링크)을 똑같이 나눠 주므로 **먼저 「끝」이 붙은 쪽이 일을 덜 한 것**입니다.');
-            lines.push('아래 표는 개수를 키워 가며 측정한 것입니다. **굵고 진한 쪽이 그 개수에서 값이 싼 쪽**입니다.');
+            lines.push('아래 표는 개수를 키워 가며 측정한 것입니다. **굵고 진한 쪽이 그 개수에서 비용이 작은 쪽**입니다.');
         } else if (kind === 'list') {
-            lines.push('마디는 **값 칸과 링크 칸**으로 되어 있습니다. 링크도 마디에 담긴 값 하나입니다.');
+            lines.push('노드는 **값 칸과 링크 칸**으로 되어 있습니다. 링크도 노드에 담긴 값 하나입니다.');
             lines.push('링크 칸의 **빗금**은 가리킬 것이 없다(`null`)는 뜻입니다.');
             lines.push('**방금 고쳐 쓴 링크는 붉게** 그립니다. 이 붉은 줄의 수가 곧 「링크」 횟수입니다.');
-            lines.push('점선 상자는 **아직 줄에 매달리지 않은 새 마디**입니다.');
-            lines.push('마디를 늘어놓은 자리는 **읽기 좋으라고** 정한 것입니다. '
-                + '실제 메모리에서 마디는 흩어져 있고, 넣고 뺄 때 **움직이지 않습니다.**');
+            lines.push('점선 상자는 **아직 리스트에 연결되지 않은 새 노드**입니다.');
+            lines.push('노드를 늘어놓은 자리는 **읽기 좋으라고** 정한 것입니다. '
+                + '실제 메모리에서 노드는 흩어져 있고, 넣고 뺄 때 **움직이지 않습니다.**');
         } else if (kind === 'ring') {
-            lines.push('칸을 **동그랗게 이어 붙였다고 치고** 그렸습니다. 실제로는 그냥 배열이고 자리 번호만 돌립니다.');
+            lines.push('칸을 **동그랗게 이어 붙였다고 치고** 그렸습니다. 실제로는 그냥 배열이고 인덱스만 돌립니다.');
             lines.push('**front**는 다음에 뺄 자리, **rear**는 다음에 넣을 자리입니다.');
             lines.push('둘이 같은 칸을 가리키면 **비었거나 꽉 찬 것**입니다. 그래서 개수를 따로 세어 둡니다.');
         } else {
@@ -245,7 +245,7 @@ export function mountDsSimulator() {
             lines.push('상자가 옆으로 미끄러지면 **밀거나 당긴 것**입니다.');
             lines.push('「이동」은 **칸에 값을 써넣은 횟수**입니다 — 밀어낸 상자 수에 '
                 + '**새 값을 써넣는 한 번이 더해집니다.** 그래서 아무것도 밀지 않는 「뒤에 넣기」도 1입니다.');
-            lines.push('칸 위의 이름표는 **자리 번호를 담은 변수**입니다.');
+            lines.push('칸 위의 이름표는 **인덱스를 담은 변수**입니다.');
         }
         for (const line of lines) {
             const li = document.createElement('li');
@@ -255,7 +255,7 @@ export function mountDsSimulator() {
         }
     }
 
-    /* ---- 연산 단추 ---- */
+    /* ---- 연산 버튼 ---- */
 
     function paintOps() {
         const host = $('ops-host');
@@ -270,8 +270,8 @@ export function mountDsSimulator() {
 
     /** **이 구조가 쓰는 연산 전부**를 보고 입력 칸을 낸다.
      *
-     *  예전에는 «방금 누른» 연산만 보았다. 그러면 자리 번호를 받는 연산을 처음 누를 때
-     *  칸이 아직 감춰져 있어 **번호를 정할 수가 없었다** — 한 번 헛돌리고 나서야 칸이
+     *  예전에는 «방금 누른» 연산만 보았다. 그러면 인덱스를 받는 연산을 처음 누를 때
+     *  칸이 아직 감춰져 있어 **번호를 정할 수가 없었다** — 한 번 헛돌고 나서야 칸이
      *  나타났다. 무엇을 누를지는 학생이 정하는 것이므로 미리 다 내 둔다. */
     function paintArgRow() {
         const args = plan().ops.map((op) => op.arg);
@@ -284,7 +284,7 @@ export function mountDsSimulator() {
 
     /** 적어 넣은 값을 읽는다. **말없이 다른 값으로 바꿔치지 않는다.**
      *
-     *  예전에는 범위 밖이면 무작위 값을 대신 넣었다. 그러면 학생이 `200`을 적고 단추를
+     *  예전에는 범위 밖이면 무작위 값을 대신 넣었다. 그러면 학생이 `200`을 적고 버튼을
      *  누른 뒤 화면에 `37`이 들어가는 것을 보게 된다 — 무엇이 잘못됐는지 알 길이 없다.
      *  바로 옆 「직접 넣기」는 같은 값을 제대로 막고 있었으니, 한 페이지의 두 입력이
      *  다른 규칙으로 논 셈이다.
@@ -303,18 +303,18 @@ export function mountDsSimulator() {
         const i = Number(rawI);
         if (op.arg === 'index' || op.arg === 'valueIndex') {
             if (rawI === '' || !Number.isInteger(i) || i < 0) {
-                $('input-error').textContent = '자리 번호는 0 이상의 정수여야 합니다.';
+                $('input-error').textContent = '인덱스는 0 이상의 정수여야 합니다.';
                 return null;
             }
         }
         return {v: Number.isInteger(v) ? v : 0, i: Number.isInteger(i) ? i : 0, opId: op.id};
     }
 
-    /** 넣을 값을 채워 둔다. **빈 칸을 두지 않는다** — 단추를 눌렀는데 아무 일도
+    /** 넣을 값을 채워 둔다. **빈 칸을 두지 않는다** — 버튼을 눌렀는데 아무 일도
      *  안 나면 고장으로 읽힌다.
      *
      *  **연산이 끝날 때마다 부르지는 않는다.** 카드가 「넣는 값은 하나로 같은데 옮김
-     *  횟수가 전혀 다릅니다」라며 같은 값으로 두 연산을 대 보라고 시키는데, 누를 때마다
+     *  횟수가 전혀 다릅니다」라며 같은 값으로 두 연산을 비교하라고 시키는데, 누를 때마다
      *  값이 무작위로 바뀌면 그 대조를 할 수가 없다. 자료를 갈아 끼울 때만 새로 채운다. */
     function refillValue() {
         $('value-input').value = String(Math.floor(Math.random() * DS_VALUE_MAX) + 1);
@@ -345,9 +345,9 @@ export function mountDsSimulator() {
         }
     }
 
-    /* ---- 돌리기 ---- */
+    /* ---- 실행 ---- */
 
-    /** 표는 연산 목록만 타므로 한 번 재어 두고 다시 쓴다. */
+    /** 표는 연산 목록만 타므로 한 번 측정해 두고 다시 쓴다. */
     let measured = null;
 
     function playFrames(frames, {onFrame} = {}) {
@@ -401,7 +401,7 @@ export function mountDsSimulator() {
                     {kind: 'list', name: '단일 연결 리스트', frame: idleFrame(pair.list), done: true, finishedWork: 0},
                 ],
                 counts: {access: 0, move: 0, link: 0},
-                say: '연산 단추를 누르면 **두 구조가 같은 일을 한꺼번에** 합니다.',
+                say: '연산 버튼을 누르면 **두 구조가 같은 일을 한꺼번에** 합니다.',
             }];
             view.setup(frames, measured, lastOp ? lastOp.id : null);
             $('tally-row').style.display = 'none';
@@ -422,8 +422,8 @@ export function mountDsSimulator() {
             marks: {focus: [], moving: [], linkFix: [], newborn: null, doomed: null, banner: null},
             counts: {access: 0, move: 0, link: 0},
             say: st.size === 0
-                ? '비어 있습니다. **연산 단추**를 눌러 값을 넣어 보세요.'
-                : '연산 단추를 누르면 그 연산이 **어떻게 이루어지는지** 한 단계씩 보입니다.',
+                ? '비어 있습니다. **연산 버튼**를 눌러 값을 넣어 보세요.'
+                : '연산 버튼을 누르면 그 연산이 **어떻게 이루어지는지** 한 단계씩 보입니다.',
         };
     }
 
@@ -435,8 +435,8 @@ export function mountDsSimulator() {
 
         if (struct.id === 'compare') {
             const built = buildDsCompare(op, pair, arg);
-            /* **막힌 판은 상태를 물려받지 않는다.** 한쪽만 나아가면 두 줄의 담긴 것이
-               갈라져, 그 뒤의 견주기가 통째로 뜻을 잃는다 → `ds-compare.js` */
+            /* **막힌 회차는 상태를 물려받지 않는다.** 한쪽만 나아가면 두 줄의 담긴 것이
+               갈라져, 그 뒤의 비교가 통째로 뜻을 잃는다 → `ds-compare.js` */
             if (!built.blocked) {
                 pair = {array: built.runs[0].out.state, list: built.runs[1].out.state};
                 values = dsValues(pair.array);
@@ -468,7 +468,7 @@ export function mountDsSimulator() {
         paintOpsState();
     }
 
-    /** 지금 눌러도 되는 연산인지 단추에 비춘다. **막지는 않는다** —
+    /** 지금 눌러도 되는 연산인지 버튼에 비춘다. **막지는 않는다** —
      *  꽉 찬 배열에 넣어 보는 것도 배울 거리라, 눌러서 「꽉 찼습니다」를 보는 편이 낫다. */
     function paintOpsState() {
         const size = struct.id === 'compare' ? (pair ? pair.array.size : 0) : state.size;
@@ -510,7 +510,7 @@ export function mountDsSimulator() {
             $('input-error').textContent = `칸이 ${DS_CAP}개라 앞의 ${DS_CAP}개만 옮겼습니다.`;
         }
         /* **연산 목록이 구조마다 다르므로 고른 연산도 따라 바꾼다.** 앞 구조의 연산을
-           들고 있으면 입력 칸이 엉뚱한 것을 보인다(값을 받는 자리에 자리 번호 칸). */
+           들고 있으면 입력 칸이 엉뚱한 것을 보인다(값을 받는 자리에 인덱스 칸). */
         lastOp = dsPlanOf(struct, implId).ops[0];
         rebuildState();
         paintTabs();
@@ -593,7 +593,7 @@ export function mountDsSimulator() {
             applyValues(nums);
         });
 
-        /* 창 크기가 바뀌면 동그라미 지름을 다시 잡아야 한다. 줄과 마디 그림은
+        /* 창 크기가 바뀌면 동그라미 지름을 다시 잡아야 한다. 줄과 노드 그림은
            백분율·viewBox라 스스로 따라가지만, 부르는 것이 해로울 것은 없다. */
         window.addEventListener('resize', () => view?.resize?.());
     }

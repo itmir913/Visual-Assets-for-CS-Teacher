@@ -1,11 +1,11 @@
-// 시뮬레이터 **전체를 한 번에** 훑는다. 페이지 원문을 node 에서 돌려 세 가지를 본다.
+// 시뮬레이터 **전체를 한 번에** 살피는다. 페이지 원문을 node 에서 돌려 세 가지를 본다.
 //
 //   1. **뜨는가.** 인라인 스크립트 평가부터 `DOMContentLoaded` · `load` 까지 예외가 없는가.
 //      감사 때 「초기 로드 콘솔 스윕은 0건인데 그 뒤에 오류가 잔뜩」이었던 자리를 자동화한다.
 //   2. **캔버스가 화면 크기 × 화면 배율로 잡히는가.** 배율을 빼먹으면 2배 화면과 4K 교실
 //      화면에서 선과 글자가 흐려진다. 크기를 바꿀 때와 **전체 화면을 드나든 뒤**에도 본다 —
 //      전체 화면 해제는 창 크기가 되돌아오기 전에 알림이 오는 일이 있어 특히 잘 어긋난다.
-//   3. **마크업의 `on*="…"` 가 가리키는 것이 실제로 있는가.** 이름만 훑는 검사는
+//   3. **마크업의 `on*="…"` 가 가리키는 것이 실제로 있는가.** 이름만 살피는 검사는
 //      `on*="obj.method()"` 꼴을 놓친다. 실제로 정의 없는 핸들러가 배포된 적이 있다.
 //
 // **못 보는 것을 밝혀 둔다.** prismjs · chart.js · ml5 · mathjax 를 쓰는 페이지는 그 모듈을
@@ -35,7 +35,7 @@ const OWN_CHECK = {
     'ai/deep-learning': 'check:deep-learning',
 };
 
-/* **`simulator/` 아래를 통째로 훑는다.** 예전에는 `simulator/ai` 를 못박아 두었는데,
+/* **`simulator/` 아래를 통째로 살피는다.** 예전에는 `simulator/ai` 를 못박아 두었는데,
    그러면 새로 만든 갈래(`simulator/cs` 등)가 **검사에 걸리지도 않으면서 통과로 보인다.**
    페이지 이름은 여기서부터 `ai/…` 처럼 폴더를 붙인 상대경로다. */
 function findPages(dir, prefix = '') {
@@ -104,7 +104,7 @@ function checkInlineHandlers(page, sim) {
     const html = fs.readFileSync(path.join(SIM_ROOT, page + '.html'), 'utf8');
     const names = new Set();
     for (const m of html.matchAll(/\son[a-z]+\s*=\s*"([^"]*)"/g)) {
-        // `obj.method(...)` · `fn(...)` 의 **앞머리 이름**만 뽑는다. 이름만 훑는 검사가
+        // `obj.method(...)` · `fn(...)` 의 **앞머리 이름**만 뽑는다. 이름만 살피는 검사가
         // 놓치던 것이 바로 점이 붙은 꼴이다.
         for (const call of m[1].matchAll(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\(/g)) {
             names.add(call[1]);
@@ -131,7 +131,7 @@ function checkInlineHandlers(page, sim) {
             ' } catch (e) { return "없음"; } })()';
         const kind = sim.evalInPage(probe);
 
-        /* **`아직-없음` 은 잘못이 아니다.** 학생이 학습 단추를 누르기 전에는 뷰가 없는
+        /* **`아직-없음` 은 잘못이 아니다.** 학생이 학습 버튼을 누르기 전에는 뷰가 없는
            페이지가 있고, 그 마크업은 `onclick="if(view) view.fit()"` 처럼 막아 두었다.
            여기서 잡으면 멀쩡한 것을 잡는 셈이 된다. */
         if (kind === '없음') bad(`${page} — 마크업이 부르는 \`${chain}(…)\` 이 정의되어 있지 않다`);
@@ -144,11 +144,11 @@ function checkInlineHandlers(page, sim) {
 
 
 /* ================================================================
-   4. 단추를 눌러 보고, 화면에 뜬 숫자가 성한가
+   4. 버튼을 눌러 보고, 화면에 뜬 숫자가 성한가
    ================================================================
-   감사에서 되풀이해 나온 것이 **발산한 값이 그대로 화면에 뜨는 것**과
-   **자동 실행 중에 다른 단추를 누르면 죽는 것**이었다. 둘 다 「뜨는가」만 보는
-   검사로는 잡히지 않는다. 그래서 마크업에 있는 단추를 하나씩 눌러 보고,
+   감사에서 반복해 나온 것이 **발산한 값이 그대로 화면에 뜨는 것**과
+   **자동 실행 중에 다른 버튼을 누르면 죽는 것**이었다. 둘 다 「뜨는가」만 보는
+   검사로는 잡히지 않는다. 그래서 마크업에 있는 버튼을 하나씩 눌러 보고,
    그때마다 예외가 났는지와 **화면 글자에 `NaN`·`Infinity`·`undefined` 가 섞였는지**를 본다.
 
    **타이머는 돌지 않는다.** 이 받침대는 예약된 콜백을 굳이 돌리지 않으므로
@@ -230,7 +230,7 @@ for (const r of rows) {
     console.log('  ' + r.page.padEnd(width) +
         '  캔버스 ' + String(r.canvases).padStart(2) +
         ' · 인라인 핸들러 ' + String(r.handlers).padStart(2) +
-        ' · 눌러 본 단추 ' + String(r.buttons).padStart(2) +
+        ' · 눌러 본 버튼 ' + String(r.buttons).padStart(2) +
         (r.stubbed.length ? '   ← 가짜로 때운 것: ' + r.stubbed.join(', ') : ''));
 }
 

@@ -14,7 +14,7 @@ export const heapSortAlgo = {
     view: 'heap',
     motion: 'swap',
     idea: '**선택 정렬을 개선한 것**입니다. 배열을 완전 이진 트리로 보고, 부모가 자식보다 크도록 정리합니다(최대 힙). '
-        + '그러면 꼭대기가 가장 큰 값이므로 맨 뒤와 교환해 확정하고, '
+        + '그러면 맨 위가 가장 큰 값이므로 맨 뒤와 교환해 확정하고, '
         + '남은 부분을 다시 힙으로 고칩니다.',
     complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(1)'},
     stable: false,
@@ -29,7 +29,7 @@ export const heapSortAlgo = {
         /** 힙에 남아 있는 구간을 화면에 알린다. 뷰가 트리를 어디까지 그릴지 이것으로 안다. */
         const heapRange = (size) => rec.setRanges(size > 0 ? [{lo: 0, hi: size - 1, depth: 0, state: 'heap'}] : []);
 
-        /** 뿌리에서 아래로 내려가며 «부모가 자식보다 크다»를 고친다. */
+        /** 루트에서 아래로 내려가며 «부모가 자식보다 크다»를 고친다. */
         const siftDown = (root, size) => {
             let r = root;
             for (;;) {
@@ -67,15 +67,15 @@ export const heapSortAlgo = {
         for (let i = Math.floor(n / 2) - 1; i >= 0; i--) siftDown(i, n);
 
         rec.clearCursors();
-        rec.say('최대 힙이 되었습니다. 이제 꼭대기가 가장 큰 값입니다.');
+        rec.say('최대 힙이 되었습니다. 이제 맨 위가 가장 큰 값입니다.');
         rec.mark('heap-ready');
 
         for (let end = n - 1; end > 0; end--) {
-            rec.say('꼭대기(가장 큰 값)를 힙의 맨 뒤와 교환합니다. 그 자리는 확정입니다.');
+            rec.say('맨 위(가장 큰 값)를 힙의 맨 뒤와 교환합니다. 그 자리는 확정입니다.');
             rec.swap(0, end);
             rec.fix(end);
             heapRange(end);
-            rec.say('힙이 한 칸 줄었습니다. 새 꼭대기를 제자리로 내려보냅니다.');
+            rec.say('힙이 한 칸 줄었습니다. 새 맨 위를 제자리로 내려보냅니다.');
             rec.mark('shrink');
             siftDown(0, end);
         }

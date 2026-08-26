@@ -1,7 +1,7 @@
 /* 트리를 **실제로 돌려** 대조한다.
  *
  * 트리는 눈으로 봐서는 성한지 알기가 특히 어렵다. 그림이 그럴듯해도 부모 링크가
- * 어긋나 있거나, 회전 뒤 크기 차례가 깨져 있거나, AVL이라면서 균형이 무너져 있을 수 있다.
+ * 어긋나 있거나, 회전 뒤 크기 순서가 깨져 있거나, AVL이라면서 균형이 무너져 있을 수 있다.
  * **카드에 적힌 말과 화면에서 벌어지는 일이 어긋나는 것이 가장 나쁜 결함이다.**
  *
  * **정답을 베끼지 않는다.** 기대값은 트리가 내놓은 것이 아니라 평범한 배열을
@@ -98,11 +98,11 @@ for (const spec of LINKED) {
                         + `있어야 할 것 [${want.join(' ')}]`);
                 }
 
-                /* **찾기의 비교 횟수는 트리 높이를 넘을 수 없다.** 넘으면 「한 번 견줄 때마다
+                /* **찾기의 비교 횟수는 트리 높이를 넘을 수 없다.** 넘으면 「한 번 비교할 때마다
                    반대쪽 가지를 통째로 버린다」가 거짓이 된다. */
                 if (op.id === 'search' && out.counts.compare > Math.max(1, treeHeight(state))) {
                     bad(`${spec.name} · 찾기(${arg.v}) — 높이가 ${treeHeight(state)}인데 `
-                        + `${out.counts.compare}번 견주었다`);
+                        + `${out.counts.compare}번 비교했다`);
                 }
 
                 if (spec.balanced && treeHeight(out.state) > avlBound(out.state.size)) {
@@ -110,7 +110,7 @@ for (const spec of LINKED) {
                         + `높이가 ${treeHeight(out.state)}다 (상한 ${avlBound(out.state.size)})`);
                 }
 
-                /* **순회가 내놓은 차례가 맞는가.** 세 순회를 여기서 따로 계산해 맞춘다. */
+                /* **순회가 내놓은 순서가 맞는가.** 세 순회를 여기서 따로 계산해 맞춘다. */
                 if (['pre', 'in', 'post'].includes(op.id)) {
                     const want2 = walkOrder(state, op.id);
                     const emitted = out.state.emitted;
@@ -130,7 +130,7 @@ for (const spec of LINKED) {
     }
 }
 
-/** 순회 차례를 **따로** 구한다. 시뮬레이터의 순회 코드를 쓰지 않는다. */
+/** 순회 순서를 **따로** 구한다. 시뮬레이터의 순회 코드를 쓰지 않는다. */
 function walkOrder(s, kind) {
     const byId = new Map(s.nodes.map((n) => [n.id, n]));
     const out = [];
@@ -151,10 +151,10 @@ function walkOrder(s, kind) {
 console.log(`이진 탐색 트리·AVL 트리 — ${linkedChecks}판을 돌려 배열로 구한 답과 맞췄다`);
 
 /* ================================================================
-   2. 회전이 **크기 차례를 지키는가**
+   2. 회전이 **크기 순서를 지키는가**
 
    회전은 자리를 바꾸는 일이므로, 잘못 짜면 그림은 반듯해지는데 이진 탐색 트리가
-   아니게 된다. 「자리가 바뀌어도 차례는 그대로」라고 화면이 말하므로 그 말을 붙든다.
+   아니게 된다. 「자리가 바뀌어도 순서는 그대로」라고 화면이 말하므로 그 말을 붙든다.
    ================================================================ */
 
 let rotateChecks = 0;
@@ -169,7 +169,7 @@ for (let trial = 0; trial < 40; trial++) {
         const want = [...soFar].sort((a, b) => a - b);
         const got = treeInorder(out.state);
         if (got.join(',') !== want.join(',')) {
-            bad(`회전 — ${v}을(를) 넣은 뒤 차례가 [${got.join(' ')}]이 되었다. `
+            bad(`회전 — ${v}을(를) 넣은 뒤 순서가 [${got.join(' ')}]이 되었다. `
                 + `있어야 할 것 [${want.join(' ')}]`);
             break;
         }
@@ -178,7 +178,7 @@ for (let trial = 0; trial < 40; trial++) {
         state = out.state;
     }
 }
-console.log(`회전 ${rotateChecks}판 — 돌린 뒤에도 크기 차례가 그대로인지 대조했다`);
+console.log(`회전 ${rotateChecks}판 — 돌린 뒤에도 크기 순서가 그대로인지 대조했다`);
 
 /* ================================================================
    3. 힙 — **꺼내면 큰 것부터 나오는가**
@@ -205,13 +205,13 @@ for (let trial = 0; trial < 30; trial++) {
         if (f) { bad(`힙 — 꺼낸 뒤 성하지 않다: ${f}`); break; }
         /* **꺼낸 값이 실제로 그때의 최댓값인가.** 화면은 「가장 큰 값」이라고 말한다. */
         const wasMax = Math.max(...treeValues(state));
-        if (top !== wasMax) bad(`힙 — 뿌리가 ${top}인데 그때의 최댓값은 ${wasMax}였다`);
+        if (top !== wasMax) bad(`힙 — 루트가 ${top}인데 그때의 최댓값은 ${wasMax}였다`);
         pulled.push(top);
         state = out.state;
     }
     const want = [...values].sort((a, b) => b - a);
     if (pulled.join(',') !== want.join(',')) {
-        bad(`힙 — 꺼낸 차례가 [${pulled.join(' ')}]이다. 있어야 할 것 [${want.join(' ')}]`);
+        bad(`힙 — 꺼낸 순서가 [${pulled.join(' ')}]이다. 있어야 할 것 [${want.join(' ')}]`);
     }
 }
 
@@ -230,17 +230,17 @@ for (let trial = 0; trial < 30; trial++) {
     const state = heapBuild(values, HEAP_CAP);
     const missing = runTreeOperation(heapOps[2], state, {v: 100});
     if (missing.counts.compare !== HEAP_CAP) {
-        bad(`힙 · 값 찾기 — 없는 값을 찾는데 ${missing.counts.compare}번만 견주었다`
+        bad(`힙 · 값 찾기 — 없는 값을 찾는데 ${missing.counts.compare}번만 비교했다`
             + ` (${HEAP_CAP}칸을 다 봐야 한다)`);
     }
 }
-console.log(`힙 ${heapChecks}판 — 꺼낸 차례가 내림차순인지, 꽉 찬 것을 막는지 대조했다`);
+console.log(`힙 ${heapChecks}판 — 꺼낸 순서가 내림차순인지, 꽉 찬 것을 막는지 대조했다`);
 
 /* ================================================================
    4. **카드에 적은 값이 참인가**
    ================================================================ */
 
-/* 「찾기」의 비교 횟수가 높이를 넘지 않는다는 것은 위에서 판마다 보았다.
+/* 「찾기」의 비교 횟수가 높이를 넘지 않는다는 것은 위에서 회차마다 보았다.
    여기서는 **개수를 키웠을 때 실제로 그렇게 자라는지**를 본다. */
 const GROW = [8, 16, 32, 64];
 function searchWorkAt(build, ops, n) {
@@ -255,14 +255,14 @@ for (const spec of LINKED) {
     /* **재는 크기를 다 쓴다.** 양 끝만 보면 가운데가 어떻게 자랐는지 알 수 없다. */
     const seen = GROW.map((n) => searchWorkAt(spec.build, spec.ops, n));
     for (let k = 1; k < GROW.length; k++) {
-        /* 개수를 두 배로 키웠는데 견주는 횟수가 두 배 넘게 늘면 log n이 아니다.
+        /* 개수를 두 배로 키웠는데 비교 횟수가 두 배 넘게 늘면 log n이 아니다.
            (log n이면 두 배마다 «1»씩 는다 — 여유를 두어 2배로 잡는다.) */
         if (seen[k] > Math.max(2, seen[k - 1] * 2)) {
             bad(`${spec.name} · 찾기 — 개수를 ${GROW[k - 1]}→${GROW[k]}로 키우니 `
-                + `견주는 횟수가 ${seen[k - 1]}→${seen[k]}이 되었다`);
+                + `비교 횟수가 ${seen[k - 1]}→${seen[k]}이 되었다`);
         }
     }
-    console.log(`  ${spec.name} 찾기의 견주는 횟수 — `
+    console.log(`  ${spec.name} 찾기의 비교 횟수 — `
         + GROW.map((n, k) => `${n}개 ${seen[k]}`).join(' · '));
 }
 
@@ -284,7 +284,7 @@ measured.sizes.forEach((n, k) => {
             + ` (이진 탐색 ${ascRow.bst[k]} · AVL ${ascRow.avl[k]})`);
     }
     /* **섞어 넣으면 오름차순보다 낮아야 한다.** 예전에는 `높이 > n`을 보았는데,
-       높이는 마디 수를 넘을 수 없으므로 **정의상 걸릴 수 없는 줄**이었다. */
+       높이는 노드 수를 넘을 수 없으므로 **정의상 걸릴 수 없는 줄**이었다. */
     if (n >= 8 && !(shuffleRow.bst[k] < ascRow.bst[k])) {
         bad(`비용 표 — ${n}개에서 섞어 넣은 높이(${shuffleRow.bst[k]})가 `
             + `오름차순(${ascRow.bst[k]})보다 낮지 않다`);
@@ -322,14 +322,14 @@ for (const op of TREE_COMPARE.ops) {
         const b = doneAt(1);
         if (a < 0 || b < 0) { bad(`비용 비교 · ${op.name} — 끝나지 않는 줄이 있다`); continue; }
 
-        /* **끝나는 차례를 작업량과 대 보는 것은 뜻이 없다.**
+        /* **끝나는 순서를 작업량과 대 보는 것은 뜻이 없다.**
          *
          * 배지는 `done: t >= r.total`로 붙고 장은 `t = 0…maxWork`로 만든다. 그러니
          * 「끝 배지가 붙는 장 번호」는 **정의상 작업량과 같은 수**이고, 그것을 작업량과
-         * 견주는 판정은 `x < y && x > y`가 되어 **닿을 수 없는 가지**였다. 실제로 장을
+         * 비교하는 판정은 `x < y && x > y`가 되어 **닿을 수 없는 가지**였다. 실제로 장을
          * 넘기는 규칙을 통째로 없애 놓아도 검사가 「전부 통과」를 냈다.
          *
-         * 그래서 견줄 것을 바꾼다 — **「같은 작업량만큼씩 나눠 준다」는 규칙 자체**다.
+         * 그래서 비교할 것을 바꾼다 — **「같은 작업량만큼씩 나눠 준다」는 규칙 자체**다.
          * 어느 장에서든 각 줄이 보이는 것은 «그때까지 한 일이 t 이하인 마지막 장»이어야 한다.
          * 이것이 참이라야 「먼저 끝난 쪽이 일을 덜 했다」가 비로소 뜻을 가진다. */
         for (let t = 0; t < frames.length; t++) {
@@ -360,7 +360,7 @@ for (const op of TREE_COMPARE.ops) {
                 bad(`비용 비교 · ${op.name} — ${k === 0 ? '이진 탐색' : 'AVL'} 줄이 끝까지 가지 않았다`);
             }
         }
-        /* 배지가 붙는 차례와 실제 작업량의 차례가 같아야 한다(같은 값이면 아무 쪽이나 좋다). */
+        /* 배지가 붙는 순서와 실제 작업량의 순서가 같아야 한다(같은 값이면 아무 쪽이나 좋다). */
         if (trueWork.bst !== trueWork.avl) {
             const first = trueWork.bst < trueWork.avl ? 0 : 1;
             if ((first === 0 ? a : b) > (first === 0 ? b : a)) {
@@ -374,13 +374,13 @@ for (const op of TREE_COMPARE.ops) {
         }
     }
 }
-console.log(`비용 비교 ${raceChecks}판 — 나눠 주는 규칙과 끝나는 차례를 대조했다`);
+console.log(`비용 비교 ${raceChecks}판 — 나눠 주는 규칙과 끝나는 순서를 대조했다`);
 
 /* ================================================================
    AVL 빼기의 **연쇄 회전**
 
-   카드는 「뺄 때의 펴기 · O(log n)곳 · 뿌리까지 올라가며 봐야 한다」고 한다.
-   그런데 앞 절들은 마디 열몇 개짜리 트리에 빼기를 한 번씩만 걸어, **한 번 돌고 멈추어도
+   카드는 「뺄 때의 펴기 · O(log n)곳 · 루트까지 올라가며 봐야 한다」고 한다.
+   그런데 앞 절들은 노드 열몇 개짜리 트리에 빼기를 한 번씩만 걸어, **한 번 돌고 멈추어도
    통과했다.** 실제로 `avlRebalanceUp`이 첫 회전 뒤 곧바로 멈추게 고쳐 놓고 돌렸더니
    검사가 「전부 통과」를 냈다 — 카드가 내세우는 바로 그 성질이 검증되지 않고 있었다.
 
@@ -420,7 +420,7 @@ if (deepestChain < 2) {
         + ' 연쇄를 태우지 못했으므로 이 절이 헛돈다');
 }
 console.log(`AVL 빼기 ${chainChecks}판 — 깊은 트리에서 이어 빼며 균형이 지켜지는지 보았다`
-    + ` (한 판에서 가장 많이 돈 횟수 ${deepestChain})`);
+    + ` (한 회차에서 가장 많이 돈 횟수 ${deepestChain})`);
 
 /* ================================================================
    6. 페이지를 띄워 **트리마다 실제로 눌러 본다**
@@ -441,7 +441,7 @@ function screenSick(sim) {
     return null;
 }
 
-/** 화면에 **보이는** 마디 수. `opacity="0"`으로 물려 둔 것은 세지 않는다. */
+/** 화면에 **보이는** 노드 수. `opacity="0"`으로 물려 둔 것은 세지 않는다. */
 function visibleNodes(sim) {
     let n = 0;
     const walk = (el) => {
@@ -495,19 +495,22 @@ for (const group of [...page.el('group-tabs').children]) {
 
         /* **개수까지 맞춰 본다.** 동그라미는 `setup()`에서 다 만들어지므로 «몇 개
            그렸나»만으로는 `render()`가 아무 일도 안 해도 통과한다. 화면에 «보이는»
-           마디 수가 담긴 값의 개수와 같은지를 본다 — 그것은 render 가 정하는 값이다. */
+           노드 수가 담긴 값의 개수와 같은지를 본다 — 그것은 render 가 정하는 값이다. */
         const shown = visibleNodes(page);
         const size = Number(page.el('size-label').textContent.replace(/[^\d]/g, '')) || 0;
-        if (name !== '나란히 놓기' && shown !== size) {
-            bad(`${name} — 화면에 보이는 마디가 ${shown}개인데 담긴 값은 ${size}개다`);
+        /* **탭 이름을 여기 적지 않는다.** 「나란히 비교」라고 박아 두었더니 그 탭의
+           이름을 「나란히 비교」로 고치는 순간 이 예외가 풀려, 트리 둘을 나란히
+           그리는 탭이 «노드가 두 배다»로 걸렸다. 등록부의 것을 그대로 쓴다. */
+        if (name !== TREE_COMPARE.name && shown !== size) {
+            bad(`${name} — 화면에 보이는 노드가 ${shown}개인데 담긴 값은 ${size}개다`);
         }
-        pageRows.push(`${name}: 보이는 마디 ${shown}/${size} · ${JSON.stringify(tally)}`);
+        pageRows.push(`${name}: 보이는 노드 ${shown}/${size} · ${JSON.stringify(tally)}`);
     }
 }
 console.log('페이지를 띄워 트리·연산을 모두 눌러 보았다');
 for (const r of pageRows) console.log('  ' + r);
 
-/* **자료를 갈아 끼우는 단추가 실제로 자료를 바꾸는가.** */
+/* **자료를 갈아 끼우는 버튼이 실제로 자료를 바꾸는가.** */
 for (const [id, label] of [
     ['btn-ascend', '오름차순으로 세우기'],
     ['btn-random', '새 자료'],
@@ -551,7 +554,7 @@ for (const [raw, why] of [
     ['가나다', '숫자가 아닌 것'],
 ]) {
     const before = page.errors.length;
-    /* **앞 판이 남긴 문구를 지우고 본다.** 안 지우면 이번 판이 조용히 통과해도
+    /* **앞 회차이 남긴 문구를 지우고 본다.** 안 지우면 이번 판이 조용히 통과해도
        앞의 빨간 글씨가 가려 준다 — 검사가 헛돈다. */
     page.el('input-error').textContent = ' ';
     page.el('input-text').value = raw;

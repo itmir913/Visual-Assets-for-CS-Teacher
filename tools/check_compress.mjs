@@ -1,8 +1,8 @@
 // 압축 시뮬레이터의 값을 **따로 구해서** 대 본다.
 //
 // 같은 코드로 두 번 세면 틀린 것도 맞다고 나온다. 그래서 이 파일은 시뮬레이터의
-// 함수를 셈에 쓰지 않고, **여기서 다시 센다** — 런은 손으로 훑어 세고, 허프만의
-// 「가장 짧은 전체 길이」는 **나무를 짓지 않고** 다른 방법으로 구한다.
+// 함수를 셈에 쓰지 않고, **여기서 다시 센다** — 런은 손으로 살펴 세고, 허프만의
+// 「가장 짧은 전체 길이」는 **트리를 짓지 않고** 다른 방법으로 구한다.
 //
 // 못박는 것.
 //   - 되돌리면 원본과 한 글자도 다르지 않다 (압축의 정의다)
@@ -10,7 +10,7 @@
 //   - 허프만이 낸 전체 길이가 **이론상 가장 짧은 값과 같다**
 //   - 허프만 코드는 **접두 부호**다 — 아니면 띄어 적지 않고는 되살릴 수 없다
 //   - 횟수가 고르면 허프만이 **하나도 못 줄인다** — 화면이 그렇게 적어 두었으므로 참이어야 한다
-//   - 같은 글은 **언제나 같은 나무**가 된다
+//   - 같은 글은 **언제나 같은 트리**가 된다
 
 import {frequencies, symbolBits, compressRate} from '../src/entries/_lib/compress/compress-model.js';
 import {rleEncode, rleDecode, runsOf} from '../src/entries/_lib/compress/compress-rle.js';
@@ -55,7 +55,7 @@ function longestRun(text) {
 }
 
 /**
- * 허프만이 낼 수 있는 **가장 짧은 전체 길이**를 나무를 짓지 않고 구한다.
+ * 허프만이 낼 수 있는 **가장 짧은 전체 길이**를 트리를 짓지 않고 구한다.
  *
  * 두 개를 묶을 때마다 «묶인 합»이 전체 길이에 그대로 더해진다는 성질을 쓴다.
  * 어느 잎의 깊이가 얼마인지는 안 보고 **묶은 값을 더하기만 한다** —
@@ -201,9 +201,9 @@ for (const text of 글감) {
         if (h.tableBits !== 표.bits) bad(`${where허}: 표 ${h.tableBits}비트인데 따로 세면 ${표.bits}비트`);
     }
 
-    // **같은 글은 같은 나무가 된다.** 두 번 지어 모양까지 대 본다.
+    // **같은 글은 같은 트리가 된다.** 두 번 지어 모양까지 대 본다.
     if (JSON.stringify(huffmanTree(text)) !== JSON.stringify(tree)) {
-        bad(`${where허}: 두 번 지었더니 나무 모양이 달라졌다`);
+        bad(`${where허}: 두 번 지었더니 트리 모양이 달라졌다`);
     }
 
     // 횟수가 고르고 가짓수가 2의 거듭제곱이면 **하나도 못 줄인다.**
@@ -307,7 +307,7 @@ for (const text of 글감) {
    긴 쪽이 이득이 크므로 그쪽을 골라야 한다.
 
    **이것은 「동점일 때 긴 쪽」을 대 보는 것이 아니다.** 여기 둘은 이득이 달라 동점이
-   아니다. 순회 차례를 뒤집어도 이 검사는 통과한다 — 최댓값을 고르는 데 훑는 차례가
+   아니다. 순회 순서를 뒤집어도 이 검사는 통과한다 — 최댓값을 고르는 데 살피는 순서가
    상관없기 때문이다. **동점 규칙은 값으로 확인하지 못했다.**
    이득이 꼭 같아지는 글을 지어내야 하는데, 그 글이 무엇인지 찾지 못했다. */
 {
@@ -369,7 +369,7 @@ for (const p of COMPRESS_PRESETS) {
         for (const x of 점수) if (x.rate === 최고) 이긴수.set(x.id, 이긴수.get(x.id) + 1);
     }
     for (const [id, n] of 이긴수) {
-        if (n === 0) bad(`프리셋: ${id}가 한 판도 못 이긴다 — 화면에 둘 까닭이 없어진다`);
+        if (n === 0) bad(`프리셋: ${id}가 한 회차도 못 이긴다 — 화면에 둘 까닭이 없어진다`);
         if (n === COMPRESS_PRESETS.length) {
             bad(`프리셋: ${id}가 ${n}판을 다 이긴다 — 「방법마다 잘 줄이는 글이 다르다」가 안 보인다`);
         }
@@ -401,9 +401,9 @@ for (const p of COMPRESS_PRESETS) {
     const 글자 = (id) => String(sim.el(id).textContent ?? '');
     const 속 = (id) => String(sim.el(id).innerHTML ?? '');
 
-    /* **첫 화면은 «첫 장»이다.** 재생기가 처음에 0번 장을 그리므로 줄인 뒤가 0비트이고
+    /* **첫 화면은 «첫 장»이다.** 재생기가 처음에 0번 장을 그리므로 압축 후가 0비트이고
        압축률이 100%로 나온다 — 아직 아무것도 안 내놓았으니 맞는 값이다.
-       끝 값을 보려면 «끝으로» 단추를 눌러야 한다. 누르는 김에 재생기도 함께 밟힌다. */
+       끝 값을 보려면 «끝으로» 버튼을 눌러야 한다. 누르는 김에 재생기도 함께 밟힌다. */
     sim.el('btn-last').click();
 
     const 첫글 = COMPRESS_PRESETS[0].text;
@@ -416,10 +416,10 @@ for (const p of COMPRESS_PRESETS) {
     }
 
     if (글자('count-before') !== String(참.beforeBits)) {
-        bad(`화면: 줄이기 전이 「${글자('count-before')}」인데 ${참.beforeBits}여야 한다`);
+        bad(`화면: 압축 전이 「${글자('count-before')}」인데 ${참.beforeBits}여야 한다`);
     }
     if (글자('count-body') !== String(참.bodyBits)) {
-        bad(`화면: 줄인 뒤가 「${글자('count-body')}」인데 ${참.bodyBits}여야 한다`);
+        bad(`화면: 압축 후가 「${글자('count-body')}」인데 ${참.bodyBits}여야 한다`);
     }
     const 참압축률 = `${compressRate(참.beforeBits, 참.bodyBits)}%`;
     if (글자('count-rate') !== 참압축률) {
@@ -433,7 +433,7 @@ for (const p of COMPRESS_PRESETS) {
     const 칸수 = (속('glyph-row').match(/class="glyph/g) || []).length;
     if (칸수 !== 첫글.length) bad(`화면: 글자 칸이 ${칸수}개인데 글은 ${첫글.length}자다`);
 
-    // 나란히 놓기 표에 세 방법이 다 있고 숫자가 맞는가
+    // 나란히 비교 표에 세 방법이 다 있고 숫자가 맞는가
     const 표 = 속('race-table');
     for (const m of COMPRESS_METHODS) {
         if (!표.includes(m.name)) bad(`화면: 나란히 표에 「${m.name}」 줄이 없다`);
@@ -454,17 +454,17 @@ for (const p of COMPRESS_PRESETS) {
     }
 
     /* **가짜로 때운 것을 반드시 밝힌다.** `tree-view.js`는 d3를 얹을 수가 없어 빈 껍데기다.
-       그러니 **허프만 나무가 화면에 어떻게 그려지는지는 여기서 못 본다** — 이 검사가
-       보증하는 것은 「나무를 그리려다 죽지는 않는다」와 숫자·표·글자 칸까지다. */
+       그러니 **허프만 트리가 화면에 어떻게 그려지는지는 여기서 못 본다** — 이 검사가
+       보증하는 것은 「트리를 그리려다 죽지는 않는다」와 숫자·표·글자 칸까지다. */
     const 때운것 = (sim.stubbed || []).join(', ') || '없음';
     /* **탭과 프리셋을 진짜로 누른다.**
        페이지는 `e.target.closest('[data-method]')`로 위임해 받는다. 받침대가 손으로 만든
        가짜 DOM 이던 동안에는 `closest()`가 늘 `null`이라 **클릭이 통째로 무시되어**,
-       이 검사가 «첫 방법 + 첫 프리셋» 한 판만 밟았다 — 허프만 그리는 길에 `throw`를
+       이 검사가 «첫 방법 + 첫 프리셋» 한 회차만 밟았다 — 허프만 그리는 길에 `throw`를
        심어도 초록이었다. 받침대를 jsdom 으로 갈아 끼운 뒤로는 **그냥 누르면 된다.** */
     const 위임클릭 = (host, attr, value) => {
         const b = sim.doc.querySelector(`[${attr}="${value}"]`);
-        if (!b) return bad(`화면: [${attr}="${value}"] 단추가 없다`);
+        if (!b) return bad(`화면: [${attr}="${value}"] 버튼이 없다`);
         b.click();
     };
 
@@ -479,10 +479,10 @@ for (const p of COMPRESS_PRESETS) {
             const 참판 = m.run(p.text);
             const 어디 = `화면 ${m.id}/${p.id}`;
             if (글자('count-body') !== String(참판.bodyBits)) {
-                bad(`${어디}: 줄인 뒤가 「${글자('count-body')}」인데 ${참판.bodyBits}여야 한다`);
+                bad(`${어디}: 압축 후가 「${글자('count-body')}」인데 ${참판.bodyBits}여야 한다`);
             }
             if (글자('count-before') !== String(참판.beforeBits)) {
-                bad(`${어디}: 줄이기 전이 「${글자('count-before')}」인데 ${참판.beforeBits}여야 한다`);
+                bad(`${어디}: 압축 전이 「${글자('count-before')}」인데 ${참판.beforeBits}여야 한다`);
             }
             /* **덤의 이름은 여기 따로 적어 둔다.** `sideNameOf`로 물어보고 그 답과 대 보면
                같은 코드로 두 번 세는 셈이라, 그 함수를 「엉터리」로 바꿔도 검사가 초록이었다. */
@@ -508,7 +508,7 @@ for (const p of COMPRESS_PRESETS) {
 
     console.log(`  화면 — 방법 ${COMPRESS_METHODS.length} × 프리셋 ${COMPRESS_PRESETS.length}`
         + ` = ${밟은판}판을 눌러 봤다. 가짜로 때운 것: ${때운것}`
-        + (때운것 === '없음' ? '' : ' (나무 «그림»은 이 검사가 보지 못한다)'));
+        + (때운것 === '없음' ? '' : ' (트리 «그림»은 이 검사가 보지 못한다)'));
 }
 
 console.log(`글 ${글감.length}개를 세 방법으로 돌렸다`);

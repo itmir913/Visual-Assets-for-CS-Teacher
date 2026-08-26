@@ -1,26 +1,26 @@
-/* 마디로 담는 구조의 그림 — 단일 · 이중 연결 리스트, 그리고 그것으로 만든 스택 · 큐 · 덱.
+/* 노드로 담는 구조의 그림 — 단일 · 이중 연결 리스트, 그리고 그것으로 만든 스택 · 큐 · 덱.
  *
- * **마디를 「값 칸 + 링크 칸」으로 그린다.** 링크를 마디 밖의 화살표로만 그리면
- * 링크가 «마디 안에 들어 있는 값»이라는 것이 드러나지 않는다. 학생이 「다음 마디를
+ * **노드를 「값 칸 + 링크 칸」으로 그린다.** 링크를 노드 밖의 화살표로만 그리면
+ * 링크가 «노드 안에 들어 있는 값»이라는 것이 드러나지 않는다. 학생이 「다음 노드를
  * 가리키는 것도 결국 저장된 값 하나」임을 보아야 `p = p.next`가 무슨 말인지 선다.
  *
  * **비어 있는 링크에는 빗금을 친다.** 아무것도 안 그리면 「아직 안 그린 것」과
  * 「가리킬 것이 없는 것」이 구별되지 않는다.
  *
- * **마디를 늘어놓은 자리는 읽기 좋으라고 정한 것이지 메모리의 자리가 아니다.**
- * 그래서 넣고 뺄 때 다른 마디가 «미끄러지게» 그리지 않는다 — 미끄러지면 배열의
+ * **노드를 늘어놓은 자리는 읽기 좋으라고 정한 것이지 메모리의 자리가 아니다.**
+ * 그래서 넣고 뺄 때 다른 노드가 «미끄러지게» 그리지 않는다 — 미끄러지면 배열의
  * 「밀기」와 똑같아 보여, 이 페이지가 가르치려는 대비가 통째로 무너진다.
- * 움직여 그리는 것은 **새로 만든 마디가 줄에 들어앉는 순간 하나뿐**이다.
+ * 움직여 그리는 것은 **새로 만든 노드가 줄에 들어앉는 순간 하나뿐**이다.
  */
 
 import {DS_COLORS} from './ds-view-cells.js';
 import {svgEl} from './svg.js';
 
-/* 마디 하나의 크기. 두 자리 숫자와 링크 칸이 들어갈 만큼은 되어야 한다. */
+/* 노드 하나의 크기. 두 자리 숫자와 링크 칸이 들어갈 만큼은 되어야 한다. */
 const NH = 50;
 const GAP = 46;
-const ROW_Y = 82;        // 줄에 매달린 마디의 윗변
-const FLOAT_Y = 168;     // 아직 매달리지 않은 마디
+const ROW_Y = 82;        // 리스트에 연결된 노드의 윗변
+const FLOAT_Y = 168;     // 아직 연결되지 않은 노드
 const PAD_X = 30;
 const VB_H = 244;
 
@@ -40,7 +40,7 @@ export function createDsListView(host) {
     host.textContent = '';
 
     /* 좁은 화면에서는 **이 상자 안에서** 가로로 스크롤한다. 페이지가 통째로 넘치는 것과
-       다르다 — 마디가 열 개면 아무리 줄여도 375px에 들어갈 수가 없다. */
+       다르다 — 노드가 열 개면 아무리 줄여도 375px에 들어갈 수가 없다. */
     const scroller = document.createElement('div');
     Object.assign(scroller.style, {width: '100%', overflowX: 'auto', overflowY: 'hidden'});
     const banner = document.createElement('div');
@@ -58,11 +58,11 @@ export function createDsListView(host) {
     let nodes = new Map();  // id → {g, rect, cells, label, last}
     let doubly = false;
     let vbW = 720;
-    let nw = 96;            // 마디 폭. 이중이면 칸이 하나 더 붙는다
+    let nw = 96;            // 노드 폭. 이중이면 칸이 하나 더 붙는다
     let arrowId = '';
     let hotArrowId = '';
 
-    /** 마디의 왼쪽 위 x. **자리는 프레임의 마디 차례가 정한다.** */
+    /** 노드의 왼쪽 위 x. **자리는 프레임의 노드 순서가 정한다.** */
     const nodeX = (pos) => PAD_X + pos * (nw + GAP);
 
     /** 링크 칸의 가로 범위. 단일은 오른쪽 칸 하나, 이중은 양쪽 끝 칸. */
@@ -79,7 +79,7 @@ export function createDsListView(host) {
         });
         g.appendChild(rect);
 
-        // 값 칸과 링크 칸을 가르는 선. **링크도 마디에 «담긴» 값이라는 표시다.**
+        // 값 칸과 링크 칸을 가르는 선. **링크도 노드에 «담긴» 값이라는 표시다.**
         const seps = [];
         const nextCell = linkCell('next');
         seps.push(svgEl('line', {
@@ -95,8 +95,8 @@ export function createDsListView(host) {
         }
         for (const s of seps) g.appendChild(s);
 
-        /* **값 글자를 마디 무리 «안»에 넣는다.** 밖에 두고 자리를 따로 옮기면,
-           마디가 미끄러지는 동안 글자만 먼저 가 있어 상자와 글자가 따로 논다. */
+        /* **값 글자를 노드 그룹 «안»에 넣는다.** 밖에 두고 자리를 따로 옮기면,
+           노드가 미끄러지는 동안 글자만 먼저 가 있어 상자와 글자가 따로 논다. */
         const valueX = doubly ? (linkCell('prev').w + linkCell('next').x) / 2 : linkCell('next').x / 2;
         const label = svgEl('text', {
             x: valueX, y: NH / 2 + 5, 'text-anchor': 'middle',
@@ -143,8 +143,8 @@ export function createDsListView(host) {
         doubly = first.doubly === true;
         nw = doubly ? 116 : 96;
 
-        /* 이 판에서 마디가 가장 많을 때에 맞춰 폭을 잡는다. 장마다 폭이 바뀌면
-           그림 상자가 늘었다 줄었다 하며 **아래 단추가 아래위로 움직인다.** */
+        /* 이 회차에서 노드가 가장 많을 때에 맞춰 폭을 잡는다. 장마다 폭이 바뀌면
+           그림 상자가 늘었다 줄었다 하며 **아래 버튼이 아래위로 움직인다.** */
         let maxNodes = 1;
         for (const f of frames) maxNodes = Math.max(maxNodes, f.state.nodes.length);
         vbW = Math.max(560, PAD_X * 2 + maxNodes * (nw + GAP) - GAP);
@@ -170,7 +170,7 @@ export function createDsListView(host) {
         gSmall = svgEl('g', {'font-weight': 700});
         svg.appendChild(gLinks);
 
-        // 이 판에 나오는 마디를 미리 다 만들어 둔다.
+        // 이 회차에 나오는 노드를 미리 다 만들어 둔다.
         const seen = new Map();
         for (const f of frames) {
             for (const nd of f.state.nodes) if (!seen.has(nd.id)) seen.set(nd.id, nd);
@@ -181,17 +181,17 @@ export function createDsListView(host) {
         scroller.appendChild(svg);
     }
 
-    /** 머리·꼬리 포인터와 커서 이름표. 장마다 새로 그린다. */
+    /** 머리·tail 포인터와 커서 이름표. 장마다 새로 그린다. */
     function paintLabels(frame, posOf) {
         gSmall.textContent = '';
         const st = frame.state;
         const hot = frame.marks.linkFix.filter((l) => l.from === null);
 
-        /* 머리와 꼬리가 **같은 마디를 가리키는 일이 흔하다**(마디가 하나일 때).
+        /* head와 tail이 **같은 노드를 가리키는 일이 흔하다**(노드가 하나일 때).
            같은 자리에 겹쳐 찍히지 않게 좌우로 조금 벌려 둔다. */
         const pointer = (name, targetId, dir, tone, dx) => {
             const pos = targetId !== null && targetId !== undefined ? posOf.get(targetId) : undefined;
-            /* **가리킬 것이 없어도 이름표는 낸다.** 머리 포인터가 사라지면 학생은
+            /* **가리킬 것이 없어도 이름표는 낸다.** head 포인터가 사라지면 학생은
                「비었다」가 아니라 「그림이 덜 그려졌다」로 읽는다. */
             const x = (pos === undefined ? PAD_X + nw / 2 : nodeX(pos) + nw / 2) + dx;
             const y = 26;
@@ -215,7 +215,7 @@ export function createDsListView(host) {
         pointer('head', st.head, 'next', '#0f766e', st.hasTail ? -22 : 0);
         if (st.hasTail) pointer('tail', st.tail, 'prev', '#b45309', 22);
 
-        // 훑어가는 커서(p·q)는 마디 아래에 붙인다.
+        // 따라가는 커서(p·q)는 노드 아래에 붙인다.
         for (const [name, id] of Object.entries(st.cursors)) {
             const pos = posOf.get(id);
             if (pos === undefined) continue;
@@ -264,8 +264,8 @@ export function createDsListView(host) {
                 const tNd = st.nodes[tp];
                 const ty = (tNd.floating ? FLOAT_Y : ROW_Y) + NH / 2;
                 const tx = tp > pos ? nodeX(tp) : nodeX(tp) + nw;
-                /* 아직 매달리지 않은 마디를 가리키는 링크는 **구부려** 그린다.
-                   곧게 그으면 다른 마디를 뚫고 지나간다. */
+                /* 아직 연결되지 않은 노드를 가리키는 링크는 **구부려** 그린다.
+                   곧게 그으면 다른 노드를 뚫고 지나간다. */
                 const bend = Math.abs(ty - cy) > 20 || Math.abs(tp - pos) > 1;
                 const d = bend
                     ? `M ${cx} ${cy} C ${cx} ${(cy + ty) / 2}, ${tx + (tp > pos ? -26 : 26)} ${ty}, ${tx} ${ty}`
@@ -291,8 +291,8 @@ export function createDsListView(host) {
             const focus = new Set(m.focus);
             const moving = new Set(m.moving);
 
-            /* **배율을 그릴 때마다 다시 재고 글자에 역수를 곱한다.** 한 번 재어 굳혀 두면
-               창을 줄였을 때 그 값이 낡는다. 무리에 한 번만 걸면 마디마다 쓰지 않아도 된다. */
+            /* **배율을 그릴 때마다 다시 측정하고 글자에 역수를 곱한다.** 한 번 측정해 굳혀 두면
+               창을 줄였을 때 그 값이 낡는다. 그룹에 한 번만 걸면 노드마다 쓰지 않아도 된다. */
             const scale = (svg.clientWidth || vbW) / vbW;
             const valueFont = Math.round(VALUE_FONT_PX / scale);
             gSmall.setAttribute('font-size', Math.round(SMALL_FONT_PX / scale));
@@ -320,7 +320,7 @@ export function createDsListView(host) {
                 rec.label.setAttribute('fill', tone.text);
                 for (const s of rec.seps) s.setAttribute('stroke', tone.line);
 
-                /* **움직여 그리는 것은 줄에 들어앉는 마디 하나뿐이다.** 다른 마디까지
+                /* **움직여 그리는 것은 리스트에 들어가는 노드 하나뿐이다.** 다른 노드까지
                    미끄러지게 하면 배열의 「밀기」와 똑같아 보인다 — 여기서는 아무것도
                    밀리지 않는다는 것이 요점이므로, 자리가 바뀌는 것은 소리 없이 바꾼다. */
                 const animate = o.animate && moving.has(id);
@@ -343,7 +343,7 @@ export function createDsListView(host) {
 
         /* **창 크기가 바뀌면 다시 그린다.**
          *
-         * 글자 크기는 «그릴 때 잰 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
+         * 글자 크기는 «그릴 때 측정한 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
          * 브라우저가 알아서 줄여 주는데 **그 역수는 다시 계산되지 않아** 글자만 작아진다.
          * 다시 그리는 것 말고는 고칠 길이 없으므로 마지막 장을 들고 있다가 그대로 다시 그린다.
          * **움직여 그리지 않는다** — 창을 줄이는 것은 단계를 넘기는 것이 아니다. */

@@ -1,8 +1,8 @@
-/* 키워드 인코딩 — **떨어져 있어도 되풀이되면** 기호 하나로 바꾼다.
+/* 키워드 인코딩 — **떨어져 있어도 반복되면** 기호 하나로 바꾼다.
  *
  * 런 렝스가 못 하는 자리를 이것이 한다. `ABABABABAB`에는 «이어진» 반복이 하나도 없어
  * 런 렝스는 길이를 두 배로 늘리고, A와 B가 다섯 번씩이라 허프만도 한 비트씩 주어
- * 하나도 못 줄인다. 그런데 **`AB`가 다섯 번 되풀이된다** — 그것을 기호 하나로 바꾸면
+ * 하나도 못 줄인다. 그런데 **`AB`가 다섯 번 반복된다** — 그것을 기호 하나로 바꾸면
  * 열 글자가 다섯 글자가 된다.
  *
  * **강의노트가 바로 그 글을 두고 「세 방법 가운데 무엇으로 줄일 수 있을까」를 묻는다.**
@@ -55,15 +55,15 @@ function replacePieces(text, piece, symbol) {
 }
 
 /**
- * 지금 글에서 **이득이 가장 큰 조각**을 고른다.
+ * 현재 글에서 **이득이 가장 큰 조각**을 고른다.
  *
  * 이득 = 「줄어드는 글자 수 × 글자 하나의 비트」 − 「사전에 한 줄 적는 비트」.
- * 같으면 **긴 조각을 먼저, 그다음은 앞에 나온 것을** 고른다 — 긴 길이부터 훑고
- * «더 큰» 이득에서만 갈아 끼우므로 그렇게 된다. 판마다 답이 흔들리면 학생이 두 번
+ * 같으면 **긴 조각을 먼저, 그다음은 앞에 나온 것을** 고른다 — 긴 길이부터 확인하고
+ * «더 큰» 이득에서만 갈아 끼우므로 그렇게 된다. 회차마다 답이 흔들리면 학생이 두 번
  * 돌려 다른 그림을 본다.
  *
  * **이 동점 규칙은 검사에서 값으로 확인하지 못했다.** 이득이 꼭 같아지는 글을
- * 지어내야 하는데 찾지 못했다 — 훑는 차례를 뒤집어도 검사가 통과한다.
+ * 지어내야 하는데 찾지 못했다 — 확인 순서를 뒤집어도 검사가 통과한다.
  *
  * @returns {{piece: string, times: number, gain: number}|null}
  */
@@ -105,7 +105,7 @@ function entryBitsOf(wBody, wDict) {
     return (len) => wBody + len * wDict;
 }
 
-/** 지금 글에 실제로 나오는 글자 가짓수로 폭을 낸다. */
+/** 현재 글에 실제로 나오는 글자 가짓수로 폭을 낸다. */
 const widthOf = (s) => symbolBits(new Set(s).size);
 
 export function keywordEncode(text, opts = {}) {
@@ -113,16 +113,16 @@ export function keywordEncode(text, opts = {}) {
     const rec = createCompressRecorder(text, {...opts, kinds: kinds0});
     if (!text.length) {
         /* **빈 글에서도 `dict`와 `encoded`를 채워 내보낸다.** 여기서 그냥 나가면 둘이
-           `undefined`로 남고, 되돌리기가 그것을 훑다가 죽는다. 지금 화면은 빈 입력을
+           `undefined`로 남고, 되돌리기가 그것을 순회하다 죽는다. 지금 화면은 빈 입력을
            막지만 **막는 곳이 하나 없어지면 조용히 죽는 자리**라 여기서 세워 둔다. */
-        rec.say('줄일 글이 없습니다.').step('idle');
+        rec.say('압축할 글이 없습니다.').step('idle');
         const 빈것 = rec.done();
         빈것.dict = [];
         빈것.encoded = '';
         return 빈것;
     }
 
-    /* **폭은 「지금 글에 실제로 나오는 것」이 정한다.**
+    /* **폭은 「현재 글에 실제로 나오는 것」이 정한다.**
      *
      * 처음에는 쓸 기호 셋을 미리 세어 폭을 넓게 잡아 두었다. 그러자 `ABABABABAB`이
      * 글자 두 가지(1비트)에서 다섯 가지(3비트)가 되어 **줄인 보람이 통째로 사라졌다** —
@@ -132,14 +132,14 @@ export function keywordEncode(text, opts = {}) {
      * 나오지 않는다. 쓰지도 않을 것을 구별하려고 자리를 넓혀 둘 까닭이 없다.
      * **셀 것은 「넣을 수 있었던 것」이 아니라 「실제로 나온 것」이다.**
      *
-     * 고를 때는 그때의 글로 폭을 잡고, 다 고른 뒤에 **끝난 글로 다시 잰다.**
+     * 고를 때는 그때의 글로 폭을 잡고, 다 고른 뒤에 **끝난 글로 다시 측정한다.**
      * 그래서 고르는 규칙은 어림이지만 **화면에 적히는 숫자는 언제나 서로 맞는다.** */
     let now = text;
     const dict = [];
     const wDict = symbolBits(kinds0);
 
     rec.carry({now, dict: []})
-        .say(`글자가 ${kinds0}가지입니다. <b>떨어져 있어도 되풀이되는 조각</b>을 찾아 `
+        .say(`글자가 ${kinds0}가지입니다. <b>떨어져 있어도 반복되는 조각</b>을 찾아 `
             + `기호 하나로 바꿉니다.`)
         .step('start');
 
@@ -150,13 +150,13 @@ export function keywordEncode(text, opts = {}) {
             rec.carry({now, dict: [...dict]})
                 .say(dict.length
                     ? '더 바꿀 만한 조각이 없습니다. <b>바꿔서 아끼는 것보다 사전에 적는 것이 더 크면</b> 멈춥니다.'
-                    : '되풀이되는 조각이 없어 <b>바꿀 것이 없습니다.</b> 이 글은 키워드 인코딩으로 줄지 않습니다.')
+                    : '반복되는 조각이 없어 <b>바꿀 것이 없습니다.</b> 이 글은 키워드 인코딩으로 줄지 않습니다.')
                 .step('stop');
             break;
         }
 
         rec.carry({now, dict: [...dict], picked: found.piece})
-            .say(`<b>${found.piece}</b>${josa(found.piece, '이가')} ${found.times}번 되풀이됩니다. `
+            .say(`<b>${found.piece}</b>${josa(found.piece, '이가')} ${found.times}번 반복됩니다. `
                 + `${found.times}번을 기호 하나씩으로 바꾸면 `
                 + `<b>${found.times * (found.len - 1)}글자</b>가 줄어듭니다.`)
             .step('pick');
@@ -174,7 +174,7 @@ export function keywordEncode(text, opts = {}) {
             .step('swap');
     }
 
-    /* 다 바꾸고 나서 **끝난 글로 폭을 다시 잰다.** 바꾸는 동안 사라진 글자가 있으면
+    /* 다 바꾸고 나서 **끝난 글로 폭을 다시 측정한다.** 바꾸는 동안 사라진 글자가 있으면
        그만큼 좁아진다 — 그것이 이 방법이 줄이는 방식의 절반이다. */
     const wBody = widthOf(now);
     const entry = entryBitsOf(wBody, wDict);
@@ -195,8 +195,8 @@ export function keywordEncode(text, opts = {}) {
     }
     /* **글자가 줄어도 비트는 늘 수 있다.** 기호가 «새 글자 한 가지»로 세어져 칸이
        넓어지면, 글자 수가 준 것보다 칸이 넓어진 것이 더 클 수 있다.
-       고를 때 쓴 폭은 그때의 글로 잰 것이라 끝난 뒤의 폭을 미리 알 수 없어서다.
-       **그 판에서 「줄어듭니다」로만 끝내면 바로 아래 계수기의 음수와 어긋난다** —
+       고를 때 쓴 폭은 그때의 글로 측정한 것이라 끝난 뒤의 폭을 미리 알 수 없어서다.
+       **그 회차에서 「줄어듭니다」로만 끝내면 바로 아래 계수기의 음수와 어긋난다** —
        런 렝스가 늘어나는 자리에서 그렇다고 밝히는 것과 같은 자리다. */
     const 늘었나 = wBody * now.length > text.length * wDict;
     rec.carry({now, dict: [...dict]})
@@ -216,7 +216,7 @@ export function keywordEncode(text, opts = {}) {
     return out;
 }
 
-/** 되돌리기. **사전을 거꾸로 되짚는다** — 검사가 이것으로 원본과 대 본다. */
+/** 되돌리기. **사전을 거꾸로 되짚는다** — 검사가 이것으로 원본과 대조한다. */
 export function keywordDecode(encoded, dict) {
     let s = encoded;
     for (let i = dict.length - 1; i >= 0; i--) {

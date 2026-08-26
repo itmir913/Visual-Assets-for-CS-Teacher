@@ -3,7 +3,7 @@
  * 그림 자체는 새로 그리지 않고 트리 그림에 맡긴다. 여기서는 줄을 나누고
  * **높이와 작업량을 옆에 적는 일**만 한다.
  *
- * **높이를 크게 적어 둔다.** 이 탭에서 견주는 것이 결국 높이이기 때문이다 —
+ * **높이를 크게 적어 둔다.** 이 탭에서 비교하는 것이 결국 높이이기 때문이다 —
  * 작업량 숫자만 있으면 「왜 그만큼 들었는가」가 그림과 이어지지 않는다.
  */
 
@@ -78,7 +78,7 @@ export function createTreeCompareView(host) {
     function paintTable(measured) {
         table.textContent = '';
         const head = document.createElement('tr');
-        for (const label of ['넣는 차례', '트리', ...measured.sizes.map((n) => `${n}개`)]) {
+        for (const label of ['넣는 순서', '트리', ...measured.sizes.map((n) => `${n}개`)]) {
             const th = document.createElement('th');
             Object.assign(th.style, {
                 textAlign: label.endsWith('개') ? 'right' : 'left',

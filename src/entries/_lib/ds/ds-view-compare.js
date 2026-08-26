@@ -1,10 +1,10 @@
 /* 비용 비교의 그림 — **두 구조를 위아래로 나란히 놓는다.**
  *
- * 그림 자체는 새로 그리지 않는다. 위 줄은 칸 그림에, 아래 줄은 마디 그림에 맡기고
+ * 그림 자체는 새로 그리지 않는다. 위 줄은 칸 그림에, 아래 줄은 노드 그림에 맡기고
  * 여기서는 **줄을 나누고 작업량을 옆에 적는 일**만 한다. 그림을 새로 그리면
  * 「같은 구조를 나란히 놓았을 뿐」이라는 것이 흐려지고, 두 벌이 되어 어긋나기 시작한다.
  *
- * **표는 개수를 키워 가며 잰 것이다.** 한 판을 넘겨서는 «지금 이 개수»의 값만 보이는데,
+ * **표는 개수를 키워 가며 측정한 것이다.** 한 회차를 넘겨서는 «지금 이 개수»의 값만 보이는데,
  * 정작 가르칠 것은 「개수가 늘면 어떻게 벌어지는가」다.
  */
 
@@ -65,7 +65,7 @@ export function createDsCompareView(host) {
         });
     }
 
-    /* 표는 그림 아래에 둔다. **재는 것이 그림과 다른 이야기**이므로 섞지 않는다. */
+    /* 표는 그림 아래에 둔다. **측정하는 것이 그림과 다른 이야기**이므로 섞지 않는다. */
     const tableNote = box('p', {
         fontWeight: '700', color: '#0f172a', margin: '4px 0 6px',
     }, '개수를 키워 가며 측정한 작업량 (접근 + 이동 + 링크)');
@@ -141,7 +141,7 @@ export function createDsCompareView(host) {
     return {
         /**
          * @param {object[]} frames 나란히 놓은 장
-         * @param {object} measured `measureDsWork`가 잰 것
+         * @param {object} measured `measureDsWork`가 측정한 것
          * @param {string} currentOpId 지금 고른 연산. 표에서 그 줄을 도드라지게 한다
          */
         setup(frames, measured, currentOpId) {

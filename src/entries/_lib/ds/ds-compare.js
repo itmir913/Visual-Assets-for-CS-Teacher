@@ -1,6 +1,6 @@
 /* 비용 비교 — **같은 연산을 배열과 연결 리스트에 한꺼번에 물린다.**
  *
- * 한 구조씩 볼 때는 「싸다·비싸다」가 숫자로만 남는데, 나란히 돌리면
+ * 한 구조씩 볼 때는 「비용이 작다·크다」가 숫자로만 남는데, 나란히 실행하면
  * **어느 쪽이 무엇을 하느라 오래 걸리는지**가 그림이 된다.
  *
  * **무엇을 똑같이 나눠 주는가 — 「걸음」이 아니라 「작업량」이다.**
@@ -18,7 +18,7 @@ import {runDsOperation, dsArrayState, dsListState} from './ds-model.js';
 /** 한 장에 든 일의 양. **화면의 세 숫자를 그대로 더한다** — 화면과 축이 어긋날 수 없게. */
 export const dsWorkOf = (counts) => counts.access + counts.move + counts.link;
 
-/** 손대지 않은 모습 한 장. 막혀서 무른 판에 쓴다. */
+/** 손대지 않은 모습 한 장. 막혀서 무른 회차에 쓴다. */
 function idleOf(state, why, isStuck) {
     return {
         state,
@@ -32,15 +32,15 @@ function idleOf(state, why, isStuck) {
     };
 }
 
-/** 아래 표에서 개수를 키워 가며 재는 자리. 화면의 칸 수(`DS_CAP`)와 무관하다 —
- *  재는 것은 그림이 아니라 **개수가 늘 때 값이 어떻게 벌어지는가**이기 때문이다. */
+/** 아래 표에서 개수를 키워 가며 측정하는 자리. 화면의 칸 수(`DS_CAP`)와 무관하다 —
+ *  측정하는 것은 그림이 아니라 **개수가 늘 때 값이 어떻게 벌어지는가**이기 때문이다. */
 export const DS_MEASURE_SIZES = [4, 8, 16, 32, 64];
 
 /**
  * 두 구조에 같은 연산을 물려 **작업량을 한 칸씩 나란히 넘길 수 있는 장**을 만든다.
  *
  * @param {object} op     비용 비교의 연산(`pair`에 배열용·리스트용이 들어 있다)
- * @param {object} states `{array, list}` — 앞 판이 끝난 상태 둘
+ * @param {object} states `{array, list}` — 앞 회차가 끝난 상태 둘
  * @param {*}      arg    연산이 받는 값
  */
 export function buildDsCompare(op, states, arg) {
@@ -59,8 +59,8 @@ export function buildDsCompare(op, states, arg) {
      * 받습니다」라고 말한다 — 게다가 **아무 일도 안 한 배열이 작업량 0으로 「일을 덜
      * 했다」**가 되었다. 이 페이지가 가르치려는 것의 정반대를 가르친 셈이다.
      *
-     * 그래서 한쪽이라도 막히면 그 판은 통째로 무른다. 화면에는 왜 아무 일도 일어나지
-     * 않았는지를 적는다 — 조용히 지나가면 단추가 고장 난 것으로 읽힌다. */
+     * 그래서 한쪽이라도 막히면 그 회차는 통째로 무른다. 화면에는 왜 아무 일도 일어나지
+     * 않았는지를 적는다 — 조용히 지나가면 버튼이 고장 난 것으로 읽힌다. */
     const stuckList = runs.filter((r) => r.out.frames.some((f) => f.marks.banner));
     const stuck = stuckList[0];
     if (stuck) {
@@ -92,7 +92,7 @@ export function buildDsCompare(op, states, arg) {
 
     for (let t = 0; t <= maxWork; t++) {
         const lanes = runs.map((r, k) => {
-            // 「지금까지 t만큼 일했을 때」의 마지막 장. 훑어 온 자리를 이어 쓰므로 전체가 O(장 수)다.
+            // 「지금까지 t만큼 일했을 때」의 마지막 장. 지나온 자리를 이어 쓰므로 전체가 O(장 수)다.
             while (cursor[k] + 1 < r.out.frames.length && r.work[cursor[k] + 1] <= t) cursor[k]++;
             return {
                 kind: r.kind,
@@ -126,8 +126,8 @@ export function buildDsCompare(op, states, arg) {
 }
 
 /**
- * **장을 남기지 않고 개수를 키워 가며 작업량만 잰다.**
- * 한 판을 넘겨서는 볼 수 없는 것 — 개수가 늘 때 두 구조의 값이 어떻게 벌어지는가 — 을 본다.
+ * **장을 남기지 않고 개수를 키워 가며 작업량만 측정한다.**
+ * 한 회차를 넘겨서는 볼 수 없는 것 — 개수가 늘 때 두 구조의 값이 어떻게 벌어지는가 — 을 본다.
  *
  * @returns {{sizes:number[], rows:{op:object, array:number[], list:number[]}[]}}
  */
@@ -137,7 +137,7 @@ export function measureDsWork(ops, sizes = DS_MEASURE_SIZES) {
         const list = [];
         for (const n of sizes) {
             const values = Array.from({length: n}, (_, i) => ((i * 37) % 90) + 5);
-            /* 칸을 하나 넉넉히 잡는다. **꽉 차서 못 넣는 판을 재면 「값이 싸다」가 되어**
+            /* 칸을 하나 넉넉히 잡는다. **꽉 차서 못 넣는 회차를 측정하면 「비용이 작다」가 되어**
                개수를 키운 뜻이 사라진다. */
             const arrState = dsArrayState(n + 1, values);
             const listState = dsListState(values, {doubly: false, hasTail: false});

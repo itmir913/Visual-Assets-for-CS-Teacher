@@ -2,8 +2,8 @@
  *
  * 힙에서 학생이 가져가야 하는 것은 「부모가 자식보다 크다」가 아니라
  * **「이 트리에는 링크가 하나도 없다」**이다. 힙은 평범한 배열이고, 부모와 자식은
- * 자리 번호 계산(`(i−1)/2`, `2i+1`)으로만 이어져 있다. 트리만 그리면 학생은
- * 링크가 있다고 여기고, 배열만 그리면 왜 자리 번호가 그렇게 뛰는지 알 수 없다.
+ * 인덱스 계산(`(i−1)/2`, `2i+1`)으로만 이어져 있다. 트리만 그리면 학생은
+ * 링크가 있다고 여기고, 배열만 그리면 왜 인덱스가 그렇게 뛰는지 알 수 없다.
  * **둘을 잇는 것 자체가 수업 내용**이라 한 화면에 함께 둔다.
  *
  * 배열 줄은 새로 그리지 않고 `ds-view-cells.js`에 맡긴다 — 선형 자료구조 페이지에서
@@ -14,7 +14,7 @@ import {createDsCellsView, DS_COLORS} from './ds-view-cells.js';
 import {svgEl} from './svg.js';
 
 /* **파일 안에서만 쓰는 상수에도 앞머리를 붙인다.** 검사 받침대(`tools/_sim-harness.mjs`)는
-   모듈을 한 자리에 모아 돌리므로, 트리 그림과 힙 그림이 같은 페이지에 함께 실리면
+   모듈을 한 자리에 모아 실행하므로, 트리 그림과 힙 그림이 같은 페이지에 함께 실리면
    `const R` 같은 이름이 두 번 선언되어 **페이지가 통째로 죽는다.** 묶는 도구는 이름을
    알아서 바꿔 주지만 받침대는 그러지 않는다 — 그리고 우리가 화면을 확인하는 것은
    받침대 쪽이다. */
@@ -54,7 +54,7 @@ export function createTreeHeapView(host) {
     let vbW = 520;
     let vbH = 300;
 
-    /** 자리 `i`의 화면 좌표. **자리 번호가 곧 자리다** — 링크가 없다는 뜻이다. */
+    /** 자리 `i`의 화면 좌표. **인덱스가 곧 자리다** — 링크가 없다는 뜻이다. */
     function xy(i) {
         const L = heapLevelOf(i);
         const posInLevel = i - (Math.pow(2, L) - 1);
@@ -103,8 +103,8 @@ export function createTreeHeapView(host) {
             items.set(id, {g, circle, label, last: {}});
         }
 
-        /* **마디마다 배열 자리를 적어 둔다.** 트리와 배열을 잇는 것이 이 그림의 요점인데,
-           번호가 없으면 「어느 마디가 몇 번 칸인가」를 눈으로 셀 수밖에 없다. */
+        /* **노드마다 배열 자리를 적어 둔다.** 트리와 배열을 잇는 것이 이 그림의 요점인데,
+           번호가 없으면 「어느 노드가 몇 번 칸인가」를 눈으로 셀 수밖에 없다. */
         for (let i = 0; i < cap; i++) {
             const p = xy(i);
             const t = svgEl('text', {x: p.x, y: p.y - HEAP_R - 5});
@@ -146,7 +146,7 @@ export function createTreeHeapView(host) {
             const valueFont = Math.round(HEAP_VALUE_FONT_PX / scale);
             gIndex.setAttribute('font-size', Math.round(HEAP_INDEX_FONT_PX / scale));
 
-            // 가지 — **자리 번호로 이어 그린다.** 링크를 읽는 것이 아니다.
+            // 가지 — **인덱스로 이어 그린다.** 링크를 읽는 것이 아니다.
             gEdges.textContent = '';
             for (let i = 1; i < st.size; i++) {
                 const p = xy(Math.floor((i - 1) / 2));
@@ -194,7 +194,7 @@ export function createTreeHeapView(host) {
 
         /* **창 크기가 바뀌면 다시 그린다.**
          *
-         * 글자 크기는 «그릴 때 잰 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
+         * 글자 크기는 «그릴 때 측정한 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
          * 브라우저가 알아서 줄여 주는데 **그 역수는 다시 계산되지 않아** 글자만 작아진다.
          * 다시 그리는 것 말고는 고칠 길이 없으므로 마지막 장을 들고 있다가 그대로 다시 그린다.
          * **움직여 그리지 않는다** — 창을 줄이는 것은 단계를 넘기는 것이 아니다. */

@@ -1,23 +1,23 @@
 /* 링크로 이은 트리의 그림 — 이진 탐색 트리와 AVL 트리.
  *
- * **자리는 트리 «모양»에서 나온다.** 중위 순회 차례가 가로 자리, 깊이가 세로 자리다.
+ * **자리는 트리 «모양»에서 나온다.** 중위 순회 순서가 가로 자리, 깊이가 세로 자리다.
  * 이렇게 두면 왼쪽 자식은 반드시 왼쪽에, 오른쪽 자식은 반드시 오른쪽에 그려진다 —
  * 「왼쪽은 작고 오른쪽은 크다」가 **배치 자체로** 지켜지므로 그림이 규칙을 어길 수 없다.
  *
- * **회전은 움직여 그린다.** AVL에서 학생이 가져가야 하는 것은 「돌린다」는 말이 아니라
- * 마디들이 실제로 자리를 바꾸며 **높이가 줄어드는 장면**이다. 정적인 그림 두 장으로는
- * 무엇이 어디로 갔는지 따라갈 수 없다. 그래서 마디마다 무리(`<g>`)를 하나씩 두고
+ * **회전은 움직여 그린다.** AVL에서 학생이 가져가야 하는 것은 「회전한다」는 말이 아니라
+ * 노드들이 실제로 자리를 바꾸며 **높이가 줄어드는 장면**이다. 정적인 그림 두 장으로는
+ * 무엇이 어디로 갔는지 따라갈 수 없다. 그래서 노드마다 그룹(`<g>`)을 하나씩 두고
  * 자리만 바꾼다 — 지웠다 다시 그리면 움직임이 사라진다.
  */
 
 import {svgEl} from './svg.js';
 
-const R = 21;            // 마디 반지름
-const SLOT = 62;         // 중위 차례 한 칸의 가로 폭
+const R = 21;            // 노드 반지름
+const SLOT = 62;         // 중위 순회 순서 한 칸의 가로 폭
 const LEVEL = 74;        // 한 층의 세로 폭
 const TOP = 42;
 const PAD_X = 26;
-const FLOAT_GAP = 60;    // 아직 매달리지 않은 마디를 얼마나 아래에 둘지
+const FLOAT_GAP = 60;    // 아직 연결되지 않은 노드를 얼마나 아래에 둘지
 
 const SCALE_FLOOR = 0.66;
 const VALUE_FONT_PX = 15;
@@ -31,7 +31,7 @@ export const TREE_TONES = {
     doomed: {bg: '#e2e8f0', line: '#94a3b8', text: '#475569'},
 };
 
-/** 중위 차례와 깊이를 한꺼번에 구한다. **자리를 정하는 유일한 곳이다.** */
+/** 중위 순서와 깊이를 한꺼번에 구한다. **자리를 정하는 유일한 곳이다.** */
 export function treeLayout(st) {
     const byId = new Map(st.nodes.map((n) => [n.id, n]));
     const pos = new Map();
@@ -52,7 +52,7 @@ export function treeLayout(st) {
 
 /**
  * @param {HTMLElement} host 그림이 들어갈 빈 상자
- * @param {object} opts `showBalance` — 균형 인수를 마디 옆에 적을지(AVL)
+ * @param {object} opts `showBalance` — 균형 인수를 노드 옆에 적을지(AVL)
  */
 export function createTreeLinkedView(host, opts = {}) {
     host.textContent = '';
@@ -86,8 +86,8 @@ export function createTreeLinkedView(host, opts = {}) {
         scroller.textContent = '';
         nodes = new Map();
 
-        /* **이 판에서 가장 넓고 가장 깊을 때에 맞춰 폭과 높이를 잡는다.**
-           장마다 크기가 바뀌면 그림 상자가 늘었다 줄었다 하며 아래 단추가 움직인다. */
+        /* **이 회차에서 가장 넓고 가장 깊을 때에 맞춰 폭과 높이를 잡는다.**
+           장마다 크기가 바뀌면 그림 상자가 늘었다 줄었다 하며 아래 버튼이 움직인다. */
         let cols = 1;
         let levels = 1;
         for (const f of frames) {
@@ -125,7 +125,7 @@ export function createTreeLinkedView(host, opts = {}) {
             x: 0, y: 5, 'text-anchor': 'middle', fill: TREE_TONES.idle.text, 'font-weight': 800,
         });
         label.textContent = String(nd.v);
-        /* 균형 인수는 **마디 오른쪽 위**에 붙인다. AVL에서 회전이 언제 일어나는지는
+        /* 균형 인수는 **노드 오른쪽 위**에 붙인다. AVL에서 회전이 언제 일어나는지는
            이 수를 봐야만 알 수 있어, 없으면 회전이 갑자기 일어나는 것처럼 보인다. */
         const tag = svgEl('text', {
             x: R + 2, y: -R + 4, 'text-anchor': 'start', fill: '#7c3aed', 'font-weight': 800,
@@ -167,7 +167,7 @@ export function createTreeLinkedView(host, opts = {}) {
             const smallFont = Math.round(SMALL_FONT_PX / scale);
             gMarks.setAttribute('font-size', smallFont);
 
-            /* 높이는 «지금 상태»에서 다시 잰다. 마디에 적힌 `height`를 믿으면
+            /* 높이는 «지금 상태»에서 다시 측정한다. 노드에 적힌 `height`를 믿으면
                높이를 아직 안 고친 중간 장에서 균형 인수가 엉뚱하게 나온다. */
             const byId = new Map(st.nodes.map((n) => [n.id, n]));
             const realH = new Map();
@@ -181,7 +181,7 @@ export function createTreeLinkedView(host, opts = {}) {
             };
             measure(st.root);
 
-            // 가지를 먼저 깔아야 마디 뒤로 간다.
+            // 가지를 먼저 깔아야 노드 뒤로 간다.
             gEdges.textContent = '';
             for (const nd of st.nodes) {
                 const p = pos.get(nd.id);
@@ -203,14 +203,14 @@ export function createTreeLinkedView(host, opts = {}) {
             }
 
             gMarks.textContent = '';
-            /* 뿌리 포인터. **비었을 때도 낸다** — 사라지면 「그림이 덜 그려졌다」로 읽힌다. */
+            /* 루트 포인터. **비었을 때도 낸다** — 사라지면 「그림이 덜 그려졌다」로 읽힌다. */
             const rootPos = st.root !== null && st.root !== undefined ? pos.get(st.root) : null;
             const rootHot = m.linkFix.some((l) => l.from === null);
             const rx = rootPos ? xy(rootPos).x : PAD_X + SLOT / 2;
             const rootLabel = svgEl('text', {
                 x: rx, y: 16, 'text-anchor': 'middle', fill: '#0f766e',
             });
-            rootLabel.textContent = '뿌리';
+            rootLabel.textContent = '루트';
             gMarks.appendChild(rootLabel);
             if (rootPos) {
                 gEdges.appendChild(svgEl('line', {
@@ -270,7 +270,7 @@ export function createTreeLinkedView(host, opts = {}) {
                     }
                 }
 
-                /* 아직 매달리지 않은 마디는 **줄 아래에** 따로 띄운다. */
+                /* 아직 연결되지 않은 노드는 **줄 아래에** 따로 띄운다. */
                 const at = p ? xy(p) : {
                     x: PAD_X + (0.5 + floatCount++) * SLOT,
                     y: vbH - R - 12,
@@ -280,7 +280,7 @@ export function createTreeLinkedView(host, opts = {}) {
             }
 
             emitted.textContent = st.emitted.length
-                ? `훑은 차례:  ${st.emitted.join('  ·  ')}`
+                ? `순회 순서:  ${st.emitted.join('  ·  ')}`
                 : '';
 
             if (m.banner) {
@@ -293,7 +293,7 @@ export function createTreeLinkedView(host, opts = {}) {
 
         /* **창 크기가 바뀌면 다시 그린다.**
          *
-         * 글자 크기는 «그릴 때 잰 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
+         * 글자 크기는 «그릴 때 측정한 배율»의 역수로 정한다. 그런데 창을 줄이면 도형은
          * 브라우저가 알아서 줄여 주는데 **그 역수는 다시 계산되지 않아** 글자만 작아진다.
          * 다시 그리는 것 말고는 고칠 길이 없으므로 마지막 장을 들고 있다가 그대로 다시 그린다.
          * **움직여 그리지 않는다** — 창을 줄이는 것은 단계를 넘기는 것이 아니다. */

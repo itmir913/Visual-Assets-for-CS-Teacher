@@ -40,7 +40,7 @@ export function rleEncode(text, opts = {}) {
     const w = rec.width;
 
     if (!text.length) {
-        rec.say('줄일 글이 없습니다.').step('idle');
+        rec.say('압축할 글이 없습니다.').step('idle');
         return rec.done();
     }
 
@@ -71,7 +71,7 @@ export function rleEncode(text, opts = {}) {
     return out;
 }
 
-/** 되돌리기. **검사가 이것으로 원본과 대 본다** — 되돌아오지 않으면 압축이 아니다. */
+/** 되돌리기. **검사가 이것으로 원본과 대조한다** — 되돌아오지 않으면 압축이 아니다. */
 export function rleDecode(pieces) {
     return pieces.map((p) => p.ch.repeat(p.n)).join('');
 }

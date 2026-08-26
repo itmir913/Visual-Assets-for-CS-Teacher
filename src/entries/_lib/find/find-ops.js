@@ -1,10 +1,10 @@
-/* 찾는 방법마다 한 판이 어떻게 흘러가는가.
+/* 찾는 방법마다 한 회차가 어떻게 흘러가는가.
  *
  * **연산은 화면을 모른다.** 기록기에 부탁만 하고, 그 부탁이 스냅샷으로 쌓인다.
- * 돌려주는 문자열은 판이 끝났을 때 아래에 뜨는 «맺음말»이다.
+ * 돌려주는 문자열은 회차가 끝났을 때 아래에 뜨는 «맺음말»이다.
  *
  * **비용은 함수로 적어 둔다**(`cost`). 상태를 받는 함수인 데 뜻이 있다 —
- * 같은 「찾기」라도 자료가 정렬되어 있느냐, 칸이 얼마나 찼느냐에 따라 드는 값이 갈리고,
+ * 같은 「찾기」라도 자료가 정렬되어 있느냐, 칸이 얼마나 찼느냐에 따라 비용이 갈리고,
  * 그 갈림이 이 페이지가 가르칠 것이기 때문이다. 검사(`tools/check_find.mjs`)가
  * 개수를 키워 가며 실제 작업량이 여기 적은 대로 자라는지 본다.
  */
@@ -16,7 +16,7 @@ import {withJosa} from '../josa.js';
 export const FIND_VALUE_MAX = 99;
 
 /* ---------------------------------------------------------------
-   드는 값 — 검사가 읽는다
+   비용 — 검사가 읽는다
    --------------------------------------------------------------- */
 
 const O1 = {big: 'O(1)', of: () => 1};
@@ -27,7 +27,7 @@ const OLOG = {big: 'O(log n)', of: (st) => Math.max(1, Math.ceil(Math.log2(st.si
    순차 탐색
    --------------------------------------------------------------- */
 
-/** 앞에서부터 하나씩 대 본다. **자료에 아무 조건도 걸지 않는다** — 이것이 값이다. */
+/** 앞에서부터 하나씩 비교한다. **자료에 아무 조건도 걸지 않는다** — 이것이 값이다. */
 function seqFind(rec, v) {
     rec.clearFlag();
     if (rec.size === 0) {
@@ -35,21 +35,21 @@ function seqFind(rec, v) {
         rec.mark('empty');
         return '비어 있어 아무 일도 하지 않았습니다.';
     }
-    rec.say(`${withJosa(v, '을를')} 앞에서부터 하나씩 대 봅니다.`);
+    rec.say(`${withJosa(v, '을를')} 앞에서부터 하나씩 비교합니다.`);
     rec.mark('start');
 
     for (let i = 0; i < rec.size; i++) {
         rec.cursor('i', i);
         /* **두 수를 반드시 갈라 놓는다.** `${앞값}${찾는값}`으로 이어 붙이면 3과 41이
-           「341」이라는 없는 수가 되어, 「대 본다」를 가르치는 자리에서 대상이 사라진다. */
+           「341」이라는 없는 수가 되어, 「비교한다」를 가르치는 자리에서 대상이 사라진다. */
         rec.say(`${i}번을 봅니다. ${withJosa(rec.peek(i).v, '은는')} ${v}입니까?`);
         if (rec.probe(i, v) === 0) {
             rec.cursor('i', null);
-            return `${i}번에서 찾았습니다. **${i + 1}번 대 보았습니다.**`;
+            return `${i}번에서 찾았습니다. **${i + 1}번 비교했습니다.**`;
         }
     }
     rec.cursor('i', null);
-    return `${withJosa(v, '은는')} 없습니다. **끝까지 ${rec.size}번 대 보았습니다** — `
+    return `${withJosa(v, '은는')} 없습니다. **끝까지 ${rec.size}번 비교했습니다** — `
         + '없다는 것을 알려면 하나도 빠뜨리지 않고 다 봐야 합니다.';
 }
 
@@ -58,7 +58,7 @@ function seqFind(rec, v) {
    --------------------------------------------------------------- */
 
 /**
- * 가운데를 짚고 반을 버린다.
+ * 가운데를 확인하고 반을 버린다.
  *
  * **정렬되어 있지 않으면 못 찾는다.** 그런데 이 코드는 그것을 «검사하지 않는다» —
  * 일부러 그렇게 두었다. 흐트러진 자료에서 있는 값을 놓치는 장면을 학생이 직접 보는 것이
@@ -90,7 +90,7 @@ function binFind(rec, v) {
 
         if (cmp === 0) {
             rec.clearCursors();
-            return `${mid}번에서 찾았습니다. **${looked}번 대 보았습니다.**`;
+            return `${mid}번에서 찾았습니다. **${looked}번 비교했습니다.**`;
         }
         if (cmp < 0) {
             rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 작으니 **${mid}번까지는 볼 것 없습니다.**`);
@@ -125,11 +125,11 @@ function binFind(rec, v) {
    해시 — 체이닝
    --------------------------------------------------------------- */
 
-/** 사슬을 훑으며 값을 찾는다. 찾으면 그 자리, 없으면 -1. */
+/** 사슬을 순회하며 값을 찾는다. 찾으면 그 자리, 없으면 -1. */
 function walkChain(rec, at, v) {
     const chain = rec.state.buckets[at];
     for (let k = 0; k < chain.length; k++) {
-        rec.say(`${at}번 줄의 ${k + 1}번째는 ${chain[k].v}입니다. ${v}입니까?`);
+        rec.say(`${at}번 칸 리스트의 ${k + 1}번째는 ${chain[k].v}입니다. ${v}입니까?`);
         if (rec.test(at, v, k)) return k;
     }
     return -1;
@@ -147,10 +147,10 @@ function chainPut(rec, v) {
         return '이미 들어 있어 넣지 않았습니다.';
     }
     const before = rec.state.buckets[at].length;
-    rec.say(`${at}번 줄 끝에 매답니다.`);
+    rec.say(`${at}번 칸의 리스트 끝에 연결합니다.`);
     rec.place(at, v, before);
     return before > 0
-        ? `${withJosa(v, '을를')} ${at}번에 넣었습니다. **이미 있던 ${before}개 뒤에 매달았습니다** — 충돌입니다.`
+        ? `${withJosa(v, '을를')} ${at}번에 넣었습니다. **이미 있던 ${before}개 뒤에 연결했습니다** — 충돌입니다.`
         : `${withJosa(v, '을를')} ${at}번에 넣었습니다. **그 칸은 비어 있었습니다.**`;
 }
 
@@ -164,15 +164,15 @@ function chainFind(rec, v) {
     const k = walkChain(rec, at, v);
     const len = rec.state.buckets[at].length;
     if (k >= 0) {
-        return `${at}번 줄의 ${k + 1}번째에서 찾았습니다. `
+        return `${at}번 칸 리스트의 ${k + 1}번째에서 찾았습니다. `
             + `**계산 한 번에 비교 ${k + 1}번입니다.**`;
     }
     if (len === 0) {
-        return `${withJosa(v, '은는')} 없습니다. **${at}번 줄이 비어 있으니 그것으로 끝입니다** — `
+        return `${withJosa(v, '은는')} 없습니다. **${at}번 칸이 비어 있으니 그것으로 끝입니다** — `
             + '없다는 것을 알아내는 데도 계산 한 번뿐입니다.';
     }
-    return `${withJosa(v, '은는')} 없습니다. ${at}번 줄의 ${len}개를 다 보았습니다 — `
-        + '**칸이 아니라 그 줄만 봅니다.**';
+    return `${withJosa(v, '은는')} 없습니다. ${at}번 칸 리스트의 ${len}개를 다 보았습니다 — `
+        + '**다른 칸은 보지 않고 그 칸의 리스트만 봅니다.**';
 }
 
 function chainRemove(rec, v) {
@@ -185,10 +185,10 @@ function chainRemove(rec, v) {
         rec.flag(`${withJosa(v, '은는')} 들어 있지 않습니다.`);
         return '없어서 아무것도 빼지 않았습니다.';
     }
-    rec.say(`${at}번 줄에서 ${withJosa(v, '을를')} 떼어 냅니다.`);
+    rec.say(`${at}번 칸 리스트에서 ${withJosa(v, '을를')} 제거합니다.`);
     rec.erase(at, k);
-    return `${withJosa(v, '을를')} 뺐습니다. **줄에서 하나 떼어 내면 끝입니다** — `
-        + '뒤엣것을 당길 일이 없습니다.';
+    return `${withJosa(v, '을를')} 뺐습니다. **리스트에서 하나만 제거하면 끝입니다** — `
+        + '뒤에 있는 원소를 당길 일이 없습니다.';
 }
 
 /* ---------------------------------------------------------------
@@ -332,7 +332,7 @@ export const FIND_OPEN_OPS = [
     {id: 'hash-remove', name: '빼기', arg: 'value', cost: O1, run: openRemove},
 ];
 
-/** 나란히 놓기가 쓰는 「찾기」 셋. **같은 값을 셋에 한꺼번에 물린다.** */
+/** 나란히 비교가 쓰는 「찾기」 셋. **같은 값을 셋에 한꺼번에 물린다.** */
 export const FIND_RACE_OPS = {
     seq: FIND_SEQ_OPS[0],
     bin: FIND_BIN_OPS[0],

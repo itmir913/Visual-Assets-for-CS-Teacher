@@ -7,7 +7,7 @@
 // 출처 `null` 때문에 CORS로 막힌다. 진입점 하나로 모으면 빌드가 평범한 스크립트
 // 하나로 눌러 담는다 → tools/vite/classic-scripts.js
 //
-// 전체 화면 단추는 라이브러리가 아니라 시뮬레이터 공통 동작이라 여기서 함께 받는다.
+// 전체 화면 버튼은 라이브러리가 아니라 시뮬레이터 공통 동작이라 여기서 함께 받는다.
 
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';

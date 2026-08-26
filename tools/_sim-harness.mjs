@@ -128,7 +128,7 @@ export function makeCtx(canvas) {
 /* ================================================================
    진입점에서 시작해 **상대경로 import 를 따라간다.**
 
-   예전에는 진입점에 적힌 `_lib/…` 이름을 **한 겹만** 훑어 얹었다. 시뮬레이터 한 장이
+   예전에는 진입점에 적힌 `_lib/…` 이름을 **한 겹만** 살펴 얹었다. 시뮬레이터 한 장이
    인라인 스크립트 하나로 되어 있던 동안에는 그것으로 충분했지만, **페이지를 모듈로
    쪼개면 알맹이가 통째로 검사 밖으로 빠진다** — 뜨기만 하면 통과가 되어 검사가 헛돈다.
 
@@ -191,7 +191,7 @@ function splitClause(clause) {
 const defaultVar = (file) => '__default__' + path.basename(file).replace(/\W/g, '_');
 
 /**
- * 진입점의 import 그래프를 훑어 **의존 먼저** 늘어놓는다.
+ * 진입점의 import 그래프를 살펴 **의존 먼저** 늘어놓는다.
  * @returns {{order: string[], stubbed: string[], status: Map<string,string>}}
  */
 function moduleGraph(entryFile) {
@@ -289,7 +289,7 @@ export function loadSim(name, opts = {}) {
 
     /* ---- 진짜 DOM ----
        페이지 원문을 jsdom 에 그대로 물린다. `outside-only` 라 페이지의 `<script>` 는
-       jsdom 이 돌리지 않는다 — **차례를 우리가 쥐어야** 하기 때문이다(진입점이 `defer`다).
+       jsdom 이 돌리지 않는다 — **순서를 우리가 쥐어야** 하기 때문이다(진입점이 `defer`다).
 
        **손으로 만든 가짜 DOM 을 버린 까닭.** 가짜는 물어보는 것마다 그럴듯한 값을
        내놓지만 «진짜와 다르게» 내놓는다. `closest()` 가 늘 `null` 이라 위임해 받는 클릭이
@@ -445,7 +445,7 @@ export function loadSim(name, opts = {}) {
         }
     };
 
-    /** id 가 붙은 요소를 전부. 화면에 무엇이 찍혔는지 훑을 때 쓴다. */
+    /** id 가 붙은 요소를 전부. 화면에 무엇이 찍혔는지 살펴볼 때 쓴다. */
     const idElements = () => [...doc.querySelectorAll('[id]')];
 
     return {
@@ -462,7 +462,7 @@ export function loadSim(name, opts = {}) {
         },
         idElements,
         /**
-         * 화면에 찍힌 글자. **`byId` 를 훑어 `_text`·`_html` 을 읽던 자리를 대신한다** —
+         * 화면에 찍힌 글자. **`byId` 를 살펴 `_text`·`_html` 을 읽던 자리를 대신한다** —
          * 그 둘은 손으로 만든 스텁의 속살이었고 진짜 DOM 에는 없다.
          */
         texts: () => idElements().map((e) => ({

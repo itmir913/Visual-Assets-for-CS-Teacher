@@ -4,22 +4,22 @@
  * 부탁 한 번마다 **스냅샷이 한 장** 쌓인다. 재생·되감기·스크럽은 그 장을 되짚는 것뿐이다.
  *
  * **다른 것이 하나 있다. 정렬은 「자료를 주면 끝까지 도는」 것이고
- * 자료구조는 「연산 한 번이 한 판」이다.** 그래서 이 기록기는 빈 상태에서 시작하지 않고
- * **앞 판이 끝난 상태를 물려받아** 시작한다. 판이 끝나면 그 끝 상태가 다음 판의 시작이다.
+ * 자료구조는 「연산 한 번이 한 회차」이다.** 그래서 이 기록기는 빈 상태에서 시작하지 않고
+ * **앞 회차가 끝난 상태를 물려받아** 시작한다. 회차가 끝나면 그 끝 상태가 다음 회차의 시작이다.
  * 되감기는 «지금 연산» 안에서만 된다 — 연산을 무르는 것이 아니라 그 연산이 어떻게
- * 이루어지는지를 앞뒤로 훑는 것이다.
+ * 이루어지는지를 앞뒤로 살펴보는 것이다.
  *
- * **담는 방식이 둘이라 상태도 둘이다.**
+ * **저장 구조가 둘이라 상태도 둘이다.**
  *
  *   `array`  칸이 «미리 정해진 수»만큼 있고 원소는 그 안에 앉는다.
- *            앞에 넣으려면 뒤엣것을 전부 밀어야 한다 — 그 밀기가 곧 비용이다.
- *   `list`   마디가 각자 떨어져 있고 **링크로만** 이어진다. 넣고 빼는 것은 링크를
- *            고쳐 쓰는 일이라 싸지만, k번째를 보려면 처음부터 링크를 따라가야 한다.
+ *            앞에 넣으려면 뒤에 있는 것을 전부 밀어야 한다 — 그 밀기가 곧 비용이다.
+ *   `list`   노드가 각자 떨어져 있고 **링크로만** 이어진다. 넣고 빼는 것은 링크를
+ *            고쳐 쓰는 일이라 비용이 작지만, k번째를 보려면 처음부터 링크를 따라가야 한다.
  *
- * **세는 값이 셋이다.** 하나로 뭉뚱그리면 두 방식의 차이가 사라진다 —
+ * **세는 횟수가 셋이다.** 하나로 뭉뚱그리면 두 방식의 차이가 사라진다 —
  * 연결 리스트의 「이동 0」과 배열의 「링크 0」은 각각 그 방식의 성질 그 자체다.
  *
- *   `접근`  칸이나 마디를 하나 들여다본다
+ *   `접근`  칸이나 노드를 하나 들여다본다
  *   `이동`  원소를 다른 «칸»으로 옮긴다              배열 쪽에서만 늘어난다
  *   `링크`  링크 하나를 고쳐 쓴다                    리스트 쪽에서만 늘어난다
  */
@@ -32,7 +32,7 @@ export function dsItem(v) {
     return {v, id: nextItemId++};
 }
 
-/** 검사가 되풀이해 돌 때 id가 끝없이 커지지 않게 되돌린다. 화면에서는 부를 일이 없다. */
+/** 검사가 반복해 돌 때 id가 끝없이 커지지 않게 되돌린다. 화면에서는 부를 일이 없다. */
 export function dsResetIds() {
     nextItemId = 1;
 }
@@ -55,10 +55,10 @@ export function dsArrayState(cap, values = [], extra = {}) {
     };
 }
 
-/** 마디가 링크로 이어진 상태. 단일 · 이중 연결 리스트가 쓴다.
+/** 노드가 링크로 이어진 상태. 단일 · 이중 연결 리스트가 쓴다.
  *  `nodes`의 «차례»는 화면에 놓는 차례일 뿐이고, 이어짐을 정하는 것은 `next`·`prev`다.
  *
- *  **꼬리 포인터를 두는지가 따로 있다.** 단일 연결 리스트에 꼬리 포인터가 없으면
+ *  **tail 포인터를 두는지가 따로 있다.** 단일 연결 리스트에 tail 포인터가 없으면
  *  「뒤에 넣기」가 O(n)이 되는데, **그 차이가 이 페이지에서 가르칠 것 가운데 하나**라
  *  구조마다 정할 수 있어야 한다. 없으면 `tail`은 늘 `null`이고 연산은 그것을 쓸 수 없다. */
 export function dsListState(values = [], {doubly = false, hasTail = doubly} = {}) {
@@ -101,7 +101,7 @@ export function dsCloneState(s) {
    --------------------------------------------------------------- */
 
 /**
- * @param {object} state 앞 판이 끝난 상태. **이 함수는 원본을 건드리지 않는다.**
+ * @param {object} state 앞 회차가 끝난 상태. **이 함수는 원본을 건드리지 않는다.**
  * @returns `{rec, begin, finish}`. 연산은 `run(rec, ...)` 안에서 `rec`만 쓴다.
  */
 export function createDsRecorder(state) {
@@ -110,12 +110,12 @@ export function createDsRecorder(state) {
     const counts = {access: 0, move: 0, link: 0};
 
     let note = '';
-    let focus = [];        // 지금 들여다보는 칸·마디
+    let focus = [];        // 지금 들여다보는 칸·노드
     let moving = [];       // 방금 움직인 것
     let linkFix = [];      // 방금 고쳐 쓴 링크 [{from, to, dir}]
-    let newborn = null;    // 아직 매달리지 않은 새 마디
-    let doomed = null;     // 곧 사라질 칸·마디
-    let banner = null;     // 「꽉 찼습니다」처럼 판 전체에 붙는 말
+    let newborn = null;    // 아직 연결되지 않은 새 노드
+    let doomed = null;     // 곧 사라질 칸·노드
+    let banner = null;     // 「꽉 찼습니다」처럼 회차 전체에 붙는 말
 
     function snap(act) {
         frames.push({
@@ -133,8 +133,8 @@ export function createDsRecorder(state) {
             say: note,
         });
         /* 한 장짜리 표시는 그리고 나면 끈다. 다음 장까지 남으면 어디를 보라는 건지 흐려진다.
-           **`newborn`과 `doomed`는 끄지 않는다** — 그 마디가 화면에 있는 동안 내내
-           「아직 안 매달린 것」·「곧 사라질 것」이어야 하고, 치우는 것은 연산이 정한다. */
+           **`newborn`과 `doomed`는 끄지 않는다** — 그 노드가 화면에 있는 동안 내내
+           「아직 연결되지 않은 것」·「곧 사라질 것」이어야 하고, 치우는 것은 연산이 정한다. */
         focus = [];
         moving = [];
         linkFix = [];
@@ -147,7 +147,7 @@ export function createDsRecorder(state) {
 
         /** 설명 한 줄. 지금부터 쌓이는 장에 붙는다. */
         say(text) { note = text; return rec; },
-        /** 판 전체에 붙는 말. 「꽉 찼습니다」처럼 **연산이 아무 일도 못 한** 자리에 쓴다. */
+        /** 회차 전체에 붙는 말. 「꽉 찼습니다」처럼 **연산이 아무 일도 못 한** 자리에 쓴다. */
         flag(text) { banner = text; return rec; },
         clearFlag() { banner = null; return rec; },
 
@@ -164,7 +164,7 @@ export function createDsRecorder(state) {
 
         /* ---- 칸(배열) ---- */
 
-        /** 칸 하나를 들여다본다. **인덱스로 바로 짚는 것이라 몇 번째든 한 번이다** —
+        /** 칸 하나를 들여다본다. **인덱스로 바로 접근하는 것이라 몇 번째든 한 번이다** —
          *  이것이 배열의 성질이고, 리스트의 `walk`와 나란히 놓았을 때 뜻이 산다. */
         at(i) {
             counts.access++;
@@ -210,7 +210,7 @@ export function createDsRecorder(state) {
 
         setSize(v) { s.size = v; return rec; },
 
-        /* ---- 마디(연결 리스트) ---- */
+        /* ---- 노드(연결 리스트) ---- */
 
         nodeById: (id) => s.nodes.find((nd) => nd.id === id) || null,
         nodeAt: (pos) => s.nodes[pos] || null,
@@ -219,7 +219,7 @@ export function createDsRecorder(state) {
         get head() { return s.head; },
         get tail() { return s.tail; },
 
-        /** 새 마디를 만든다. **아직 아무 데도 매달려 있지 않다** — 화면에서는 줄 아래
+        /** 새 노드를 만든다. **아직 아무 곳에도 연결되어 있지 않다** — 화면에서는 줄 아래
          *  따로 떠 있다. 링크를 걸기 «전»의 이 상태를 보여 주는 것이 요점이다. */
         newNode(v, pos) {
             const nd = {...dsItem(v), next: null, prev: null, floating: true};
@@ -230,7 +230,7 @@ export function createDsRecorder(state) {
         },
 
         /** 링크 하나를 고쳐 쓴다. **자료구조에서 실제로 일어나는 일은 이것뿐이다.**
-         *  `fromId`가 `null`이면 머리·꼬리 포인터를 고쳐 쓰는 것이고, 그것도 한 번으로 센다. */
+         *  `fromId`가 `null`이면 머리·tail 포인터를 고쳐 쓰는 것이고, 그것도 한 번으로 센다. */
         link(fromId, toId, dir = 'next') {
             counts.link++;
             if (fromId === null) {
@@ -244,7 +244,7 @@ export function createDsRecorder(state) {
             return rec;
         },
 
-        /** 마디를 줄에 **내려놓는다.** 링크가 다 걸린 뒤라야 부른다. */
+        /** 노드를 줄에 **내려놓는다.** 링크가 다 걸린 뒤라야 부른다. */
         settle(id) {
             const nd = rec.nodeById(id);
             nd.floating = false;
@@ -254,7 +254,7 @@ export function createDsRecorder(state) {
             return rec;
         },
 
-        /** 링크를 **따라간다.** 마디 하나를 지나는 것이 한 번이다 —
+        /** 링크를 **따라간다.** 노드 하나를 지나는 것이 한 번이다 —
          *  k번째에 닿으려면 k번 걸리는 것이 곧 연결 리스트의 비용이다. */
         walk(id, name = 'p') {
             counts.access++;
@@ -264,7 +264,7 @@ export function createDsRecorder(state) {
             return rec.nodeById(id);
         },
 
-        /** 곧 떼어 낼 마디로 찍는다. 아직 지우지는 않는다. */
+        /** 곧 제거할 노드로 찍는다. 아직 지우지는 않는다. */
         doom(id) {
             doomed = id;
             focus = [id];
@@ -272,7 +272,7 @@ export function createDsRecorder(state) {
             return rec;
         },
 
-        /** 마디를 **없앤다.** 링크를 다 돌려 놓은 뒤에 부른다. */
+        /** 노드를 **없앤다.** 링크를 다 돌려 놓은 뒤에 부른다. */
         dropNode(id) {
             const nd = rec.nodeById(id);
             s.nodes = s.nodes.filter((x) => x.id !== id);
@@ -311,8 +311,8 @@ export function createDsRecorder(state) {
  * 연산 하나를 처음부터 끝까지 돌려 스냅샷 열을 얻는다.
  *
  * @param {object} op    등록부의 연산
- * @param {object} state 앞 판이 끝난 상태
- * @param {*}      arg   연산이 받는 값(넣을 값 · 자리 번호). 없으면 `null`
+ * @param {object} state 앞 회차가 끝난 상태
+ * @param {*}      arg   연산이 받는 값(넣을 값 · 인덱스). 없으면 `null`
  */
 export function runDsOperation(op, state, arg) {
     const {rec, begin, finish} = createDsRecorder(state);
@@ -338,9 +338,9 @@ export function dsStateFault(s) {
     }
 
     const byId = new Map(s.nodes.map((nd) => [nd.id, nd]));
-    if (byId.size !== s.nodes.length) return '같은 이름의 마디가 둘 있다';
+    if (byId.size !== s.nodes.length) return '같은 이름의 노드가 둘 있다';
 
-    // 떠 있는 마디는 줄에 없는 것이 정상이다. 줄만 따로 세어 본다.
+    // 떠 있는 노드는 줄에 없는 것이 정상이다. 줄만 따로 세어 본다.
     const settled = s.nodes.filter((nd) => !nd.floating);
     const chain = [];
     let at = s.head;
@@ -348,38 +348,38 @@ export function dsStateFault(s) {
     while (at !== null && at !== undefined) {
         if (guard++ > s.nodes.length + 2) return '링크가 고리를 이룬다';
         const nd = byId.get(at);
-        if (!nd) return `링크가 없는 마디(${at})를 가리킨다`;
+        if (!nd) return `링크가 없는 노드(${at})를 가리킨다`;
         chain.push(nd);
         at = nd.next;
     }
     if (chain.length !== settled.length) {
-        return `줄에 매달린 마디가 ${chain.length}개인데 떠 있지 않은 마디는 ${settled.length}개다`;
+        return `리스트에 연결된 노드가 ${chain.length}개인데 떠 있지 않은 노드는 ${settled.length}개다`;
     }
-    if (chain.length !== s.size) return `줄이 ${chain.length}개인데 크기는 ${s.size}이다`;
+    if (chain.length !== s.size) return `연결된 리스트가 ${chain.length}개인데 크기는 ${s.size}이다`;
     if (s.hasTail) {
-        if (chain.length && s.tail !== chain[chain.length - 1].id) return '꼬리 포인터가 마지막 마디를 가리키지 않는다';
-        if (!chain.length && s.tail !== null) return '비었는데 꼬리 포인터가 남아 있다';
+        if (chain.length && s.tail !== chain[chain.length - 1].id) return 'tail 포인터가 마지막 노드를 가리키지 않는다';
+        if (!chain.length && s.tail !== null) return '비었는데 tail 포인터가 남아 있다';
     } else if (s.tail !== null) {
-        return '꼬리 포인터를 두지 않기로 한 구조인데 값이 들어 있다';
+        return 'tail 포인터를 두지 않기로 한 구조인데 값이 들어 있다';
     }
-    if (!chain.length && s.head !== null) return '비었는데 머리 포인터가 남아 있다';
+    if (!chain.length && s.head !== null) return '비었는데 head 포인터가 남아 있다';
 
     if (s.doubly) {
         for (let i = 0; i < chain.length; i++) {
             const want = i === 0 ? null : chain[i - 1].id;
-            if (chain[i].prev !== want) return `${i}번째 마디의 되돌아가는 링크가 어긋났다`;
+            if (chain[i].prev !== want) return `${i}번째 노드의 역방향 링크가 어긋났다`;
         }
     }
     return null;
 }
 
-/** 줄에 매달린 차례대로 값을 뽑는다. **`nodes` 차례가 아니라 링크를 따라간다** —
+/** 리스트에 연결된 순서대로 값을 뽑는다. **`nodes` 순서가 아니라 링크를 따라간다** —
  *  둘이 어긋나는 것이야말로 잡아야 할 결함이라, 여기서 링크를 믿어야 대조가 뜻을 가진다. */
 export function dsValues(s) {
     if (s.store === 'array') {
-        /* **원형 큐는 칸 차례로 읽으면 안 된다.** 자리 번호가 끝을 지나 돌아온 뒤에는
-           칸에 놓인 차례와 줄을 선 차례가 다르다 — front에서 개수만큼 돌며 읽어야
-           실제로 나올 차례가 나온다. 칸 차례로 읽으면 넣은 순서가 뒤바뀐 채로
+        /* **원형 큐는 칸 순서로 읽으면 안 된다.** 인덱스가 끝을 지나 돌아온 뒤에는
+           칸에 놓인 순서와 줄을 선 순서가 다르다 — front에서 개수만큼 돌며 읽어야
+           실제로 나올 순서가 나온다. 칸 순서로 읽으면 넣은 순서가 뒤바뀐 채로
            다른 구조에 옮겨 가고, 그러면 탭을 옮겼을 뿐인데 자료가 달라진다. */
         if (s.ring) {
             const out = [];

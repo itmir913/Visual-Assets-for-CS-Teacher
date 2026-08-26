@@ -29,6 +29,9 @@ STANDALONE: list[dict] = _CFG["standalone"]
 # 폴더에 속하지 않는 낱개 페이지.
 PAGES: list[dict] = _CFG["files"]
 
+# 최소 글자 크기 검사를 건너뛰는 폴더. **비어 있는 것이 목표다.**
+FONT_EXEMPT: list[str] = _CFG.get("font_exempt", [])
+
 # 재귀로 훑을 폴더 전부.
 DIRS: list[str] = [u["dir"] for u in SUBJECTS + STANDALONE]
 

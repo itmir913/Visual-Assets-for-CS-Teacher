@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from logs import get_logger  # noqa: E402
-from subjects import STANDALONE, html_files  # noqa: E402
+from subjects import FONT_EXEMPT, html_files  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -25,10 +25,14 @@ ROOT = Path(__file__).resolve().parent.parent
 # **경로를 여기 직접 적지 않는다.** subjects.json이 유일한 출처이므로 폴더가
 # 옮겨져도 따라온다. 시뮬레이터를 다른 자리로 옮길 계획이 있어서 특히 중요하다.
 
-# 글자 크기 규칙은 강의노트의 것이다 — CLAUDE.md: 「시뮬레이터의 조작 UI는
-# 이 규칙의 범위 밖이다」. standalone은 강의노트가 아니므로 이 검사를 건너뛴다.
-# (제목·태그 중첩·표 래퍼 같은 나머지 규칙은 그대로 적용한다.)
-FONT_EXEMPT_DIRS = [s["dir"] for s in STANDALONE]
+# 글자 크기 검사를 건너뛰는 폴더. **standalone 전체를 빼지 않는다** — 시뮬레이터라도
+# 학생이 읽는 글이므로 교실 뒷자리 기준은 그대로 걸린다(2026-08-26 사용자 확정).
+# 예외로 남은 것은 손질을 아직 못 한 폴더뿐이고, 손질하는 대로 목록에서 빠진다.
+#
+# **그림 «안»의 글자는 이 검사가 보지 않는다.** SVG·캔버스 라벨은 자리가 좁아 값을
+# 따로 잡고, 그것은 시뮬레이터마다 다른 판단이라 기계가 한 줄로 자를 수 없다.
+# 여기서 보는 것은 HTML로 찍는 것 — 버튼 · 표 · 설명문 · <style> 블록이다.
+FONT_EXEMPT_DIRS = FONT_EXEMPT
 
 # 전면 재작성을 기다리느라 검사에서 빼 둘 폴더. 지금 고쳐도 파일명·번호 체계가
 # 바뀌면서 버려질 때만 쓴다. 「프로그래밍(C)」와 「프로그래밍(Python)」이

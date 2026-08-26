@@ -1,5 +1,9 @@
 /* 스냅샷 열을 재생한다. 재생 · 멈춤 · 한 단계 앞뒤 · 스크럽 · 속도.
  *
+ * **정렬에서 태어났지만 정렬에 매인 데가 없다.** 스냅샷 열과 그리는 함수만 받으므로
+ * 무엇을 그리든 상관하지 않는다 — 그래서 정렬 · 선형 자료구조 · 트리가 이것 하나를 쓴다.
+ * 쓰는 곳이 셋을 넘어선 2026-08-26에 `sort/`에서 `_lib/`로 올리고 이름에서 정렬을 뗐다.
+ *
  * **되감기와 애니메이션은 서로 싸운다.** 트랜지션은 시간이 걸리는데 되감기와
  * 스크럽은 아무 데로나 뛴다. 그래서 규칙을 하나로 못박는다.
  *
@@ -11,7 +15,7 @@
  */
 
 /** 속도 단계. 값은 한 장에 머무는 밀리초다. */
-export const SORT_SPEEDS = [
+export const PLAY_SPEEDS = [
     {id: 'slow', name: '느리게', ms: 900},
     {id: 'normal', name: '보통', ms: 380},
     {id: 'fast', name: '빠르게', ms: 120},
@@ -27,11 +31,11 @@ const ANIMATE_MIN_MS = 100;
  *  - `render`   (frame, prev, {animate, ms}) => void
  *  - `onState`  ({index, total, playing, atEnd}) => void
  */
-export function createSortPlayer({frames, render, onState}) {
+export function createStepPlayer({frames, render, onState}) {
     let index = 0;
     let playing = false;
     let timer = null;
-    let ms = SORT_SPEEDS[1].ms;
+    let ms = PLAY_SPEEDS[1].ms;
 
     const total = frames.length;
     const clamp = (i) => Math.max(0, Math.min(total - 1, i));

@@ -16,7 +16,7 @@ import {buildTreeCompare, measureTreeHeight, treeWorkOf} from './tree-compare.js
 import {createTreeLinkedView, TREE_TONES} from './tree-view-linked.js';
 import {createTreeHeapView} from './tree-view-heap.js';
 import {createTreeCompareView} from './tree-view-compare.js';
-import {createSortPlayer, SORT_SPEEDS} from '../sort/sort-player.js';
+import {createStepPlayer, PLAY_SPEEDS} from '../step-player.js';
 import {TREE_VALUE_MAX} from './tree-ops.js';
 
 const TREE_LEGEND = [
@@ -287,7 +287,7 @@ export function mountTreeSimulator() {
         scrub.min = '0';
         scrub.value = '0';
 
-        player = createSortPlayer({
+        player = createStepPlayer({
             frames,
             render: (frame, prev, o) => {
                 view.render(frame, prev, o);
@@ -482,21 +482,21 @@ export function mountTreeSimulator() {
     /* ---- 조작 줄 ---- */
 
     function currentSpeedMs() {
-        const picked = SORT_SPEEDS.find((s) => s.id === $('speed').value);
-        return (picked || SORT_SPEEDS[1]).ms;
+        const picked = PLAY_SPEEDS.find((s) => s.id === $('speed').value);
+        return (picked || PLAY_SPEEDS[1]).ms;
     }
 
     function wireControls() {
         const speed = $('speed');
         speed.textContent = '';
-        for (const s of SORT_SPEEDS) {
+        for (const s of PLAY_SPEEDS) {
             const o = document.createElement('option');
             o.value = s.id;
             o.textContent = s.name;
-            if (s.id === SORT_SPEEDS[1].id) o.selected = true;
+            if (s.id === PLAY_SPEEDS[1].id) o.selected = true;
             speed.appendChild(o);
         }
-        speed.value = SORT_SPEEDS[1].id;
+        speed.value = PLAY_SPEEDS[1].id;
         speed.addEventListener('change', () => player?.setSpeed(currentSpeedMs()));
 
         $('btn-play').addEventListener('click', () => player?.toggle());

@@ -16,12 +16,8 @@ import {buildDsCompare, measureDsWork, dsWorkOf} from './ds-compare.js';
 import {createDsCellsView, DS_COLORS} from './ds-view-cells.js';
 import {createDsListView} from './ds-view-list.js';
 import {createDsCompareView} from './ds-view-compare.js';
-import {createSortPlayer, SORT_SPEEDS} from '../sort/sort-player.js';
+import {createStepPlayer, PLAY_SPEEDS} from '../step-player.js';
 import {DS_VALUE_MAX} from './ds-ops.js';
-
-/* **재생기는 정렬 시뮬레이터의 것을 그대로 쓴다.** 스냅샷 열을 받아 자리만 옮기는 것이라
-   정렬에 매인 데가 없다 — 이름만 정렬 쪽에 남아 있다. 자리를 `_lib/`로 올리는 것은
-   정렬 쪽 파일을 함께 고쳐야 하는 일이라 뒤로 미룬다. */
 
 const DS_LEGEND = [
     {key: 'idle', label: '그대로 있는 것'},
@@ -361,7 +357,7 @@ export function mountDsSimulator() {
         scrub.min = '0';
         scrub.value = '0';
 
-        player = createSortPlayer({
+        player = createStepPlayer({
             frames,
             render: (frame, prev, o) => {
                 view.render(frame, prev, o);
@@ -536,21 +532,21 @@ export function mountDsSimulator() {
     /* ---- 조작 줄 ---- */
 
     function currentSpeedMs() {
-        const picked = SORT_SPEEDS.find((s) => s.id === $('speed').value);
-        return (picked || SORT_SPEEDS[1]).ms;
+        const picked = PLAY_SPEEDS.find((s) => s.id === $('speed').value);
+        return (picked || PLAY_SPEEDS[1]).ms;
     }
 
     function wireControls() {
         const speed = $('speed');
         speed.textContent = '';
-        for (const s of SORT_SPEEDS) {
+        for (const s of PLAY_SPEEDS) {
             const o = document.createElement('option');
             o.value = s.id;
             o.textContent = s.name;
-            if (s.id === SORT_SPEEDS[1].id) o.selected = true;
+            if (s.id === PLAY_SPEEDS[1].id) o.selected = true;
             speed.appendChild(o);
         }
-        speed.value = SORT_SPEEDS[1].id;
+        speed.value = PLAY_SPEEDS[1].id;
         speed.addEventListener('change', () => player?.setSpeed(currentSpeedMs()));
 
         $('btn-play').addEventListener('click', () => player?.toggle());

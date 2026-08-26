@@ -14,7 +14,7 @@
    1. **인라인 `style.width` 를 얹지 않는다.** 여기서 px 을 박으면 그 값과 `w-full h-full`
       이 계산한 값이 소수점에서 어긋나, 부모의 `overflow-hidden` 이 없는 자리(전체 화면
       모드가 그렇다)에서 **스크롤바로 드러난다.** CSS 크기는 CSS 가 정하게 둔다.
-   2. **`getBoundingClientRect()` 가 아니라 `clientWidth`/`clientHeight` 로 잰다.**
+   2. **`getBoundingClientRect()` 가 아니라 `clientWidth`/`clientHeight` 로 측정한다.**
       rect 는 테두리까지 포함하고 소수로 나오므로, 테두리가 있는 상자에서는 캔버스의
       실제 CSS 크기보다 크게 잡힌다. 그러면 그림이 미세하게 줄어든 채 그려진다.
    3. **`scale()` 이 아니라 `setTransform()` 으로 덮어쓴다.** `scale` 은 지금 변환에
@@ -32,7 +32,7 @@
    시뮬레이터는 모두 그것을 듣고 자기를 다시 재므로 페이지마다 손볼 것이 없다.
 
    **되돌이가 생기지 않는다** — 이 라이브러리는 캔버스에 인라인 크기를 얹지 않으므로
-   다시 재도 상자 크기는 그대로다. 그래도 실제로 달라졌을 때만 알리도록 한 번 더 막아 둔다. */
+   다시 측정해도 상자 크기는 그대로다. 그래도 실제로 달라졌을 때만 알리도록 한 번 더 막아 둔다. */
 const watched = new WeakSet();
 
 function keepFitted(box) {

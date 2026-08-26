@@ -7,7 +7,7 @@
 // 라이브러리를 갈아 끼울 수 없다. 페이지가 vendor/p5/p5.min.js를 직접 <script>로
 // 걸고, 그 파일은 tools/vite/vendor-public.js가 원본 그대로 실어 나른다.
 // p5는 전역 모드로 도므로 window에 얹을 필요도 없다.
-// 전체 화면 단추는 라이브러리가 아니라 시뮬레이터 공통 동작이라 여기서 함께 받는다.
+// 전체 화면 버튼은 라이브러리가 아니라 시뮬레이터 공통 동작이라 여기서 함께 받는다.
 
 import '../../_lib/fullscreen.js';
 import '../../_lib/sim-scroll.js';

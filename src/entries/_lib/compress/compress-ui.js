@@ -51,8 +51,12 @@ export function mountCompressSimulator() {
         .join('');
 
     /* 무대 안쪽. **글·조각·부가 정보 셋을 늘 같은 순서로 둔다** — 방법을 바꿔도 눈이 같은 자리를 본다. */
+    /* `cmp-rows` — **트리를 그리는 방법에서만 넓은 화면에서 두 칸이 된다.**
+       글자 줄은 한 줄짜리인데 트리는 350px을 넘어, 위아래로 쌓으면 세로 768px 화면에서
+       코드표가 화면 밖으로 밀렸다. 클래스는 `paintTree` 가 붙이고 뗀다
+       → src/styles/simulator.css 의 `cmp-2col` */
     $('view-host').innerHTML = `
-        <div class="space-y-4">
+        <div class="cmp-rows space-y-4">
             <div>
                 <p class="font-black text-slate-900 mb-1">압축 전</p>
                 <div class="flex flex-wrap gap-1" id="glyph-row"></div>
@@ -140,9 +144,17 @@ export function mountCompressSimulator() {
     /** 허프만의 숲과 트리. **d3 트리는 루트가 하나여야 하므로 숲은 보이지 않는 루트에 묶는다.** */
     function paintTree(frame, duration) {
         const wrap = $('tree-wrap');
+        const rows = wrap.parentElement;
         const m = methodOf(methodId);
-        if (m.view !== 'tree') { wrap.classList.add('hidden'); return; }
+        if (m.view !== 'tree') {
+            wrap.classList.add('hidden');
+            /* **트리가 없으면 한 칸으로 되돌린다.** 두 칸인 채로 두면 런 렝스에서
+               글자 줄이 반쪽 폭에 눌리고 오른쪽이 통째로 빈다. */
+            rows.classList.remove('cmp-2col');
+            return;
+        }
         wrap.classList.remove('hidden');
+        rows.classList.add('cmp-2col');
 
         const ex = frame.extra || {};
         const roots = ex.root ? [ex.root] : (ex.forest || []);

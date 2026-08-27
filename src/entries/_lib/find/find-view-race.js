@@ -70,10 +70,14 @@ export function createFindRaceView(host, measureHost) {
         const tally = raceBox('span', {
             fontWeight: '700', color: '#475569', fontVariantNumeric: 'tabular-nums',
         });
+        /* **자리를 미리 잡아 두고 보이기만 껐다 켠다.** `display: none` 으로 두면
+           끝난 줄에 배지가 «생겨나» 상자가 3px 자란다(2026-08-27 측정). 고작 3px인데,
+           전체 화면에서 높이가 빠듯하면 그것이 스크롤 막대를 불러 칸이 좁아지고
+           그림이 통째로 옆으로 밀렸다 → src/styles/simulator.css 의 `scrollbar-gutter`. */
         const badge = raceBox('span', {
             fontWeight: '800', color: '#065f46', background: '#d1fae5',
             border: '1px solid #6ee7b7', borderRadius: '9999px',
-            padding: '1px 10px', display: 'none',
+            padding: '1px 10px', display: 'inline-block', visibility: 'hidden',
         }, '끝');
         head.appendChild(title);
         head.appendChild(tally);
@@ -173,7 +177,7 @@ export function createFindRaceView(host, measureHost) {
                 lanes[k].tally.textContent =
                     `비교 ${c.compare} · 접근 ${c.access} · 계산 ${c.hash}`
                     + `  →  작업량 ${findWorkOf(c)}`;
-                lanes[k].badge.style.display = lane.done ? 'inline-block' : 'none';
+                lanes[k].badge.style.visibility = lane.done ? 'visible' : 'hidden';
             }
         },
 

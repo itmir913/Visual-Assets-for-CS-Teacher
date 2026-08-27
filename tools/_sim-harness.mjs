@@ -360,6 +360,9 @@ export function loadSim(name, opts = {}) {
     W.matchMedia = () => ({matches: false, addEventListener() {}, addListener() {}, removeEventListener() {}});
     // 상자가 자라는 것을 지켜보는 쪽은 흉내 내지 않는다 — 이 받침대는 크기를 직접 흔든다.
     W.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+    // 화면에 들어왔는지 지켜보는 쪽도 마찬가지다. jsdom 에는 아예 없어서, 없으면
+    // 스크롤 표시(입구 페이지)를 다는 스크립트가 그 자리에서 죽는다.
+    W.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } };
     W.fetch = () => Promise.reject(new Error('no network'));
     W.alert = () => {};
     W.scrollTo = () => {};

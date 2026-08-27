@@ -36,7 +36,12 @@ function findPages(dir, prefix = '') {
     return out;
 }
 
+/* 시뮬레이터가 아니라 **입구**인 페이지. 링크 목록뿐이라 무대가 있을 까닭이 없다.
+   루트 index.html에서 구워 낸다 → tools/gen_simulator_index.py */
+const ENTRANCE = ['index'];
+
 const PAGES = findPages(SIM_ROOT)
+    .filter((p) => !ENTRANCE.includes(p))
     .filter((p) => !PENDING.some((d) => p.startsWith(d + '/')))
     .sort();
 

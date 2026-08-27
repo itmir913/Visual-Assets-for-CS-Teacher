@@ -309,6 +309,67 @@
     height: 100%;
 }
 
+/* ── 「나란히 비교」의 줄 ────────────────────────────────────── */
+/* **나란히 놓고 보라는 탭인데 스크롤해야 둘째 줄이 보이면 비교가 되지 않는다.**
+   좁은 화면에서는 위아래로 쌓고(줄 하나에 폭을 다 준다), 넓은 화면에서는 옆으로 편다.
+   `align-items: start` 를 주어 짧은 줄이 긴 줄만큼 늘어나지 않게 한다 —
+   늘어나면 상자 안이 텅 비어 두 줄의 크기가 뜻 없이 달라 보인다. */
+.sim-lanes {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
+@media (min-width: 1024px) {
+    .sim-lanes-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* 나란히 놓은 그림은 **제 자연 폭을 못박아 둔다**(트리 그림은 486px). 그대로 두면
+   전체 화면의 넓은 칸에서 반만 쓰고, 교실 뒤에서는 노드에 적힌 값이 보이지 않는다.
+   **`viewBox` 가 있으므로 천장을 풀어도 비율은 `preserveAspectRatio` 가 지킨다.**
+   폭만 풀면 세로가 남으므로, 칸까지 높이를 이어 준 뒤 그림에 높이를 넘긴다.
+   인라인 style 로 박혀 있어 `!important` 가 아니면 이기지 못한다. */
+.fs-stage:is(:fullscreen, .fs-on) .sim-lanes-fill {
+    align-items: stretch;
+    height: 100%;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .sim-lanes-fill > div {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* 줄 상자의 마지막 칸이 그림이다(첫 칸은 이름·작업량 줄). 그 안에서 남는 높이를
+   갖는 것은 **첫째 자식(그림 상자)뿐**이다 — 뒤에 오는 순회 결과 줄과 경고 띠까지
+   늘리면 세 칸이 저마다 제 높이를 고집해 상자를 뚫는다. */
+.fs-stage:is(:fullscreen, .fs-on) .sim-lanes-fill > div > :last-child {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .sim-lanes-fill > div > :last-child > :first-child {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.fs-stage:is(:fullscreen, .fs-on) .sim-lanes-fill svg {
+    max-width: none !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* 「개수를 키워 가며 측정한 표」가 조작 칸에 들어오면 22rem 으로는 표가 가로로 구른다.
+   그 탭에서만 칸을 넓힌다 — 다른 탭에서 넓히면 트리 그림이 그만큼 좁아진다. */
+.fs-stage:is(:fullscreen, .fs-on).fs-tall .fs-cols:has(> .fs-side .sim-measure:not(.hidden)) > .fs-side {
+    flex: 0 0 clamp(22rem, 32vw, 34rem);
+}
+
 /* ── 자료 서랍 ──────────────────────────────────────────────── */
 /* 자료를 갈아 끼우는 일(프리셋 · 개수 · 직접 넣기)은 **자주 하지 않는데 자리를 많이
    먹는다.** 평소에는 무대 아래에 그냥 놓아 두고, 전체 화면에서만 오른쪽에서 나오는

@@ -74,11 +74,15 @@ export function mountFindSimulator() {
         /* **방법까지 넣어 비교한다.** 순차와 이진은 같은 칸 그림을 쓰지만, 탭을 옮기면
            커서 이름표(i ↔ lo·mid·hi)가 통째로 갈리므로 새로 만드는 편이 깨끗하다. */
         const want = `${kind}:${struct.id}`;
+        /* **측정한 표는 「나란히 비교」에서만 나온다.** 자리는 조작 칸에 고정으로 두고
+           내용만 갈아 끼운다 → simulator.css 의 `sim-measure` */
+        const measureHost = $('measure-host');
+        measureHost.classList.toggle('hidden', kind !== 'race');
         if (viewKind === want) return;
         viewKind = want;
         const host = $('view-host');
         if (kind === 'hash') view = createFindHashView(host);
-        else if (kind === 'race') view = createFindRaceView(host);
+        else if (kind === 'race') view = createFindRaceView(host, measureHost);
         else view = createFindCellsView(host);
     }
 

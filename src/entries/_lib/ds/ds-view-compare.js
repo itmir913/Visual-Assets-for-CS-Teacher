@@ -1,11 +1,15 @@
-/* 비용 비교의 그림 — **두 구조를 위아래로 나란히 놓는다.**
+/* 비용 비교의 그림 — **두 구조를 나란히 놓는다.**
  *
- * 그림 자체는 새로 그리지 않는다. 위 줄은 칸 그림에, 아래 줄은 노드 그림에 맡기고
+ * 그림 자체는 새로 그리지 않는다. 한 줄은 칸 그림에, 다른 줄은 노드 그림에 맡기고
  * 여기서는 **줄을 나누고 작업량을 옆에 적는 일**만 한다. 그림을 새로 그리면
  * 「같은 구조를 나란히 놓았을 뿐」이라는 것이 흐려지고, 두 벌이 되어 어긋나기 시작한다.
  *
+ * **넓은 화면에서는 두 줄을 옆으로 편다** → simulator.css 의 `sim-lanes`.
+ * 위아래로 쌓으면 둘째 줄을 보려고 스크롤해야 하는데, 그러면 나란히 놓은 뜻이 없다.
+ *
  * **표는 개수를 키워 가며 측정한 것이다.** 한 회차를 넘겨서는 «지금 이 개수»의 값만 보이는데,
- * 정작 가르칠 것은 「개수가 늘면 어떻게 벌어지는가」다.
+ * 정작 가르칠 것은 「개수가 늘면 어떻게 벌어지는가」다. 그리고 **그림과 다른 이야기**라
+ * 조작 칸으로 내보낸다 — 그림 아래에 두면 전체 화면에서 그림을 밀어낸다.
  */
 
 import {createDsCellsView} from './ds-view-cells.js';
@@ -24,14 +28,22 @@ const LANE_TITLE = {
     list: {name: '단일 연결 리스트', tone: '#0f766e'},
 };
 
-export function createDsCompareView(host) {
+/**
+ * @param {HTMLElement} host        그림이 들어갈 자리
+ * @param {HTMLElement} measureHost 측정한 표가 들어갈 자리(조작 칸). 없으면 표를 그리지 않는다
+ */
+export function createDsCompareView(host, measureHost) {
     host.textContent = '';
+
+    const lanesBox = box('div', {});
+    lanesBox.className = 'sim-lanes sim-lanes-2';
+    host.appendChild(lanesBox);
 
     const lanes = [];
     for (const kind of ['array', 'list']) {
         const wrap = box('div', {
             border: '1px solid #e2e8f0', borderRadius: '12px',
-            padding: '10px 12px', marginBottom: '12px', background: '#fff',
+            padding: '10px 12px', background: '#fff', minWidth: '0',
         });
         const head = box('div', {
             display: 'flex', flexWrap: 'wrap', alignItems: 'baseline',
@@ -55,7 +67,7 @@ export function createDsCompareView(host) {
         const stage = box('div', {});
         wrap.appendChild(head);
         wrap.appendChild(stage);
-        host.appendChild(wrap);
+        lanesBox.appendChild(wrap);
 
         lanes.push({
             kind,
@@ -65,16 +77,22 @@ export function createDsCompareView(host) {
         });
     }
 
-    /* 표는 그림 아래에 둔다. **측정하는 것이 그림과 다른 이야기**이므로 섞지 않는다. */
-    const tableNote = box('p', {
-        fontWeight: '700', color: '#0f172a', margin: '4px 0 6px',
-    }, '개수를 키워 가며 측정한 작업량 (접근 + 이동 + 링크)');
-    const tableWrap = box('div', {width: '100%', overflowX: 'auto'});
+    /* 표는 **조작 칸**에 둔다. 측정하는 것이 그림과 다른 이야기이므로 섞지 않고,
+       그림 바로 아래에 두면 전체 화면에서 그림을 화면 밖으로 밀어낸다. */
     const table = document.createElement('table');
-    Object.assign(table.style, {width: '100%', borderCollapse: 'collapse', minWidth: '480px'});
-    tableWrap.appendChild(table);
-    host.appendChild(tableNote);
-    host.appendChild(tableWrap);
+    if (measureHost) {
+        measureHost.textContent = '';
+        measureHost.appendChild(box('p', {
+            fontWeight: '700', color: '#0f172a', margin: '0 0 6px',
+        }, '개수를 키워 가며 측정한 작업량 (접근 + 이동 + 링크)'));
+        const tableWrap = box('div', {width: '100%', overflowX: 'auto'});
+        /* **바닥 폭을 못박지 않는다.** 칸 글자를 전부 `nowrap` 으로 두었으므로
+           표는 스스로 min-content 아래로 줄지 않는다 — 임의의 바닥을 더 얹으면
+           그만큼 조작 칸에서 가로로 구를 뿐 읽기 좋아지지 않는다. */
+        Object.assign(table.style, {width: '100%', borderCollapse: 'collapse'});
+        tableWrap.appendChild(table);
+        measureHost.appendChild(tableWrap);
+    }
 
     function paintTable(measured, currentOpId) {
         table.textContent = '';
@@ -148,7 +166,7 @@ export function createDsCompareView(host) {
             for (let k = 0; k < lanes.length; k++) {
                 lanes[k].view.setup(frames.map((f) => f.lanes[k].frame));
             }
-            if (measured) paintTable(measured, currentOpId);
+            if (measured && measureHost) paintTable(measured, currentOpId);
         },
 
         render(frame, prev, o = {}) {

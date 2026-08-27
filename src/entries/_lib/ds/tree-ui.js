@@ -73,11 +73,15 @@ export function mountTreeSimulator() {
     let measured = null;
 
     function ensureView(kind) {
+        /* **측정한 표는 「나란히 비교」에서만 나온다.** 자리는 조작 칸에 고정으로 두고
+           내용만 갈아 끼운다 → simulator.css 의 `sim-measure` */
+        const measureHost = $('measure-host');
+        measureHost.classList.toggle('hidden', kind !== 'compare');
         if (viewKind === kind) return;
         viewKind = kind;
         const host = $('view-host');
         if (kind === 'heap') view = createTreeHeapView(host);
-        else if (kind === 'compare') view = createTreeCompareView(host);
+        else if (kind === 'compare') view = createTreeCompareView(host, measureHost);
         else view = createTreeLinkedView(host, {showBalance: kind === 'linked-balance'});
     }
 

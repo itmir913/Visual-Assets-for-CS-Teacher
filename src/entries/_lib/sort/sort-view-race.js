@@ -5,6 +5,11 @@
  *
  * 줄 높이를 못박아 둔다 — 알고리즘이 하나씩 끝나며 「끝!」 표가 붙어도 줄이 밀리지 않아야
  * 아래에 있는 버튼이 제자리를 지킨다.
+ *
+ * **넓은 화면에서는 줄과 곡선을 옆으로 편다** → simulator.css 의 `sim-lanes`.
+ * 열한 줄이면 줄만 500px을 넘어, 아래에 놓인 곡선이 화면 밖으로 나간다.
+ * **둘을 함께 봐야 하는 그림이다** — 지금 도는 줄의 등수가 곡선의 어느 자리인지가
+ * 이 탭에서 가르칠 것이기 때문이다.
  */
 
 const LANE_H = 40;          // 한 줄
@@ -45,15 +50,22 @@ const RACE_COLORS = [
 export function createSortRaceView(host) {
     host.textContent = '';
 
-    const lanesBox = raceBox('div', {position: 'relative', width: '100%'});
-    const chartBox = raceBox('div', {width: '100%', marginTop: '14px', overflowX: 'auto'});
+    const grid = raceBox('div', {});
+    grid.className = 'sim-lanes sim-lanes-2';
+    const lanesBox = raceBox('div', {position: 'relative', width: '100%', minWidth: '0'});
+    /* 곡선과 범례는 한 칸에 묶는다. 격자 칸으로 따로 놓으면 좁은 화면에서
+       범례가 곡선과 갈라져 다른 줄에 앉는다. */
+    const chartCol = raceBox('div', {minWidth: '0'});
+    const chartBox = raceBox('div', {width: '100%', overflowX: 'auto'});
     const legendBox = raceBox('div', {
         display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: '6px',
         fontSize: '11px', fontWeight: '700', color: '#475569',
     });
-    host.appendChild(lanesBox);
-    host.appendChild(chartBox);
-    host.appendChild(legendBox);
+    chartCol.appendChild(chartBox);
+    chartCol.appendChild(legendBox);
+    grid.appendChild(lanesBox);
+    grid.appendChild(chartCol);
+    host.appendChild(grid);
 
     let lanes = [];     // {row, bars:[], tally, badge, n}
     let n = 0;

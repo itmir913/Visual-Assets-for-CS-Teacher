@@ -69,13 +69,17 @@ export function mountDsSimulator() {
         /* **구조까지 넣어 비교한다.** 끝 이름표(스택의 「top」, 큐의 「front」)가 구조마다
            다르므로, 같은 「칸 그림」이라도 구조가 바뀌면 새로 만들어야 한다. */
         const want = `${kind}:${struct.id}`;
+        /* **측정한 표는 「나란히 비교」에서만 나온다.** 자리는 조작 칸에 고정으로 두고
+           내용만 갈아 끼운다 → simulator.css 의 `sim-measure` */
+        const measureHost = $('measure-host');
+        measureHost.classList.toggle('hidden', kind !== 'compare');
         if (viewKind === want) return;
         viewKind = want;
         const host = $('view-host');
         const endMarks = struct.endMarks;
         if (kind === 'list') view = createDsListView(host);
         else if (kind === 'ring') view = createDsCellsView(host, {layout: 'ring'});
-        else if (kind === 'compare') view = createDsCompareView(host);
+        else if (kind === 'compare') view = createDsCompareView(host, measureHost);
         else view = createDsCellsView(host, {layout: 'row', endMarks});
     }
 

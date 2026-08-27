@@ -5,5 +5,5 @@
 // 굳이 함께 적는 것은 **같은 CSS를 링크하는 페이지를 여기에 다 적어 두기 위해서다** —
 // 나중에 구운 쪽에만 있는 클래스가 생겨도 저절로 굽힌다. → tools/gen_simulator_index.py
 export default {
-    content: ['./index.html', './simulator/index.html'],
+    content: ['./index.html', './simulator/index.html', './privacy/index.html'],
 };

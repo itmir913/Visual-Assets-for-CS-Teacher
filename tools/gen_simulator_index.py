@@ -59,7 +59,13 @@ SIM_HREF_RE = re.compile(r'href="simulator/')
 # 머리말의 「시뮬레이터 모아보기」 버튼. **여기서는 제 페이지를 가리키게 된다.**
 SHORTCUT_RE = re.compile(r'\n *<a id="simulator-shortcut".*?</a>', re.DOTALL)
 SHORTCUT_NOTE_RE = re.compile(r'\n *<!-- 시뮬레이터만 모은 입구.*?-->', re.DOTALL)
-NOTICE_RE = re.compile(r'href="\./THIRD-PARTY-NOTICES\.txt"')
+# 루트를 기준으로 적힌 주소. 한 단 안에서 보려면 앞에 한 단을 더 붙여야 한다.
+# **하나씩 못박는다.** 루트 푸터에 링크가 하나 더 붙었는데 여기 안 적으면
+# 입구에서만 죽는 주소가 되는데, 그건 아무도 안 눌러 보는 자리다.
+ROOT_HREFS = [
+    ('href="./THIRD-PARTY-NOTICES.txt"', 'href="../THIRD-PARTY-NOTICES.txt"'),
+    ('href="privacy/index.html"', 'href="../privacy/index.html"'),
+]
 
 # **일부러** index.html에 걸지 않는 시뮬레이터. 지금은 없다.
 # 적을 때는 왜 안 거는지도 함께 적는다 — 안 적으면 「빠뜨린 것」과 구별되지 않는다.
@@ -102,8 +108,11 @@ def build(src: str) -> str:
     if n == 0:
         raise Stale("시뮬레이터 링크를 하나도 못 찾았다")
 
-    # 5. 루트에 있던 파일을 가리키던 것은 한 단 올라간다.
-    out = _sub_once(NOTICE_RE, 'href="../THIRD-PARTY-NOTICES.txt"', out, "라이선스 고지 링크")
+    # 5. 루트를 기준으로 적힌 주소는 한 단 올라간다.
+    for src_href, dst_href in ROOT_HREFS:
+        if out.count(src_href) != 1:
+            raise Stale(f"{src_href}: {out.count(src_href)}곳을 찾았다 (1곳이어야 한다)")
+        out = out.replace(src_href, dst_href)
 
     # **제목은 손대지 않는다.** `<title>`은 `<h1>`과 같아야 한다는 규칙이 있고
     # (check_html의 「제목 일치」), hero의 `<h1>`은 사이트 이름이라 바꿀 것이 아니다.

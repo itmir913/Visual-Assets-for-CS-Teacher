@@ -68,7 +68,9 @@ export function createFindCellsView(host) {
         const availH = host.clientHeight || 0;
         if (!availW || !availH || !cap) return;
         const k = Math.min(availW / Math.max(100, cap * 48), availH / NAT_H, ZOOM_MAX);
-        field.style.zoom = k > 1.02 ? String(Math.round(k * 100) / 100) : '';
+        /* **올림이 아니라 버림이다.** 반올림하면 배율이 남는 자리보다 커질 수 있어,
+           원형 큐에서 714px 짜리 그림이 712px 상자에 앉아 2px 스크롤바가 생겼다. */
+        field.style.zoom = k > 1.02 ? String(Math.floor(k * 100) / 100) : '';
     }
 
     return {

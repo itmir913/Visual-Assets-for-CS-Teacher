@@ -135,7 +135,9 @@ export function createDsCellsView(host, opts = {}) {
         const natW = isRing ? parseFloat(fieldMetrics().width) : Math.max(100, cap * 46);
         const natH = isRing ? parseFloat(fieldMetrics().height) : NAT_H;
         const k = Math.min(availW / natW, availH / natH, ZOOM_MAX);
-        field.style.zoom = k > 1.02 ? String(Math.round(k * 100) / 100) : '';
+        /* **올림이 아니라 버림이다.** 반올림하면 배율이 남는 자리보다 커질 수 있어,
+           원형 큐에서 714px 짜리 그림이 712px 상자에 앉아 2px 스크롤바가 생겼다. */
+        field.style.zoom = k > 1.02 ? String(Math.floor(k * 100) / 100) : '';
     }
 
     function makeItem(item) {

@@ -14,7 +14,7 @@ export const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
 const cfg = JSON.parse(readFileSync(resolve(ROOT, 'subjects.json'), 'utf-8'));
 
 /**
- * 과목 다섯 + 시뮬레이터 + index.
+ * subjects.json이 정하는 것 전부 — 과목 · standalone · 낱개 페이지.
  * **단위마다 Tailwind를 한 번씩 굽는다.** 파일마다 굽던 때는 146번이었고 3분 32초가 걸렸다.
  */
 export const UNITS = [

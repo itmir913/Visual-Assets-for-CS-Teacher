@@ -9,6 +9,9 @@
  *   3. 평균선에서 시작하는가 — 시작 자리가 「관계를 하나도 쓰지 않은 선」이라야
  *      나아졌는지 나빠졌는지가 분명하다.
  *   4. 오차 곡선의 골짜기가 **닫힌 해와 같은 자리**인가, 화살표가 그쪽을 가리키는가.
+ *   5. 그림을 누르면 그 자리에 점이 생기는가. 그때 **놓아 둔 선이 흔들리지 않는가.**
+ *   6. 곡선이 그림 칸 «안»에 그려지고, 골짜기 바닥이 바닥 가까이 오는가 —
+ *      0부터 그리면 볼 것인 바닥 언저리가 한 줄로 눌린다.
  *
  * **못 보는 것.** jsdom 에는 레이아웃이 없다. 사각형이 서로 겹쳐 보이는지, 곡선의
  * 축 이름이 그림을 뚫는지는 브라우저 몫이다.
@@ -42,11 +45,14 @@ for (const o of rects) {
 const dashes = canvas._ctx.ops.filter((o) => o.op === 'path' && o.pts.length === 2
     && near(o.pts[0][0], o.pts[1][0], 0.01) && !o.rect);
 if (dashes.length < 40) bad(`오차선이 ${dashes.length}개뿐이다`);
-const sides = rects.map((o) => o.rect[2]).sort((a, b) => a - b);
-const drops = dashes.map((o) => Math.abs(o.pts[0][1] - o.pts[1][1])).sort((a, b) => a - b);
-for (let i = 0; i < Math.min(sides.length, drops.length); i++) {
-    if (!near(sides[i], drops[i], 0.01)) {
-        bad(`사각형의 한 변(${sides[i].toFixed(2)})이 그 점의 오차(${drops[i].toFixed(2)})와 다르다`);
+/* **개수로 짝짓지 않는다.** 오차가 반 픽셀도 안 되는 점은 사각형을 그리지 않으므로
+   둘의 개수가 어긋나고, 차례로 견주면 엉뚱한 짝이 맞부딪힌다. 같은 값을 가진 오차선이
+   있는지로 본다. */
+const drops = dashes.map((o) => Math.abs(o.pts[0][1] - o.pts[1][1]));
+for (const o of rects) {
+    const side = o.rect[2];
+    if (!drops.some((d) => near(d, side, 0.01))) {
+        bad(`한 변이 ${side.toFixed(2)}인 사각형에 짝이 되는 오차선이 없다`);
         break;
     }
 }
@@ -130,8 +136,62 @@ if (arrowDir() !== 1) bad('기울기가 골짜기보다 작은데 화살표가 �
 setSlope(want + (ec.range.aMax - ec.range.aMin) * 0.25);
 if (arrowDir() !== -1) bad('기울기가 골짜기보다 큰데 화살표가 왼쪽을 가리키지 않는다');
 
+/* ---- 5. 그림을 눌러 점을 찍는가 ---------------------------------------- */
+const before = hf.data.points.length;
+const keepA = hf.a, keepB = hf.b;
+const canvasW = doc.getElementById('handFitCanvas').clientWidth;
+const canvasH = doc.getElementById('handFitCanvas').clientHeight;
+doc.getElementById('handFitCanvas').dispatchEvent(new page.window.MouseEvent('pointerdown', {
+    bubbles: true, clientX: canvasW / 2, clientY: canvasH / 2
+}));
+if (hf.data.points.length !== before + 1) {
+    bad(`그림을 눌렀는데 점이 늘지 않았다(${before} → ${hf.data.points.length})`);
+} else {
+    const added = hf.data.points[hf.data.points.length - 1];
+    const bd0 = hf.data.getBounds();
+    if (!(added.x > bd0.minX && added.x < bd0.maxX && added.y > bd0.minY && added.y < bd0.maxY)) {
+        bad(`찍은 점이 그림 밖의 값이다(${added.x}, ${added.y})`);
+    }
+    // **놓아 둔 선을 건드리지 않아야 한다** — 여기서 되돌리면 맞춰 놓은 것이 날아간다.
+    if (!near(hf.a, keepA, 1e-9) || !near(hf.b, keepB, 1e-9)) {
+        bad(`점을 찍었더니 놓아 둔 선이 움직였다(${keepA}, ${keepB} → ${hf.a}, ${hf.b})`);
+    }
+    // 눈금은 다시 잡혀야 한다 — 새 최적합선이 슬라이더 밖으로 나가면 손이 닿지 않는다.
+    if (hf.fit && (hf.fit.a < hf.range.aMin || hf.fit.a > hf.range.aMax)) {
+        bad('점을 찍은 뒤 최적 기울기가 슬라이더 눈금 밖으로 나갔다');
+    }
+}
+
+/* ---- 6. 곡선이 칸 안에 있고 바닥이 눌리지 않았는가 --------------------- */
+const gh = doc.getElementById('curveGraph');
+const curvePath = g._ctx.ops.filter((o) => o.op === 'path' && o.pts.length > 100).pop();
+if (!curvePath) bad('오차 곡선을 그린 자취가 없다');
+else {
+    /* 곡선은 **일부러 위로 벗어난다** — 골짜기를 확대하려고 천장을 잘랐기 때문이다.
+       그래서 「칸 안에 있는가」가 아니라 **잘라 내는 칸을 실제로 걸었는가**를 본다.
+       (jsdom 은 clip 을 실제로 적용하지 않으므로 그린 명령으로 확인한다.) */
+    const T2 = 26, B2 = 46, L2 = 108, R2 = 24;
+    const W = gh.clientWidth, H = gh.clientHeight;
+    const clip = g._ctx.ops.some((o) => o.rect && o.clip
+        && near(o.rect[0], L2, 0.5) && near(o.rect[1], T2, 0.5)
+        && near(o.rect[2], W - L2 - R2, 0.5) && near(o.rect[3], H - T2 - B2, 0.5));
+    if (!clip) bad('곡선을 그림 칸으로 잘라 내지 않는다 — 천장을 넘는 팔이 축 이름 위에 그려진다');
+}
+
+const cr = ec.curveRange;
+if (!cr) bad('오차 곡선이 세로 눈금을 남기지 않는다');
+else {
+    if (!(cr.lo <= cr.vMin)) bad('골짜기 바닥이 세로 눈금 아래로 잘렸다');
+    if (!(cr.cur <= cr.hi)) bad('지금 서 있는 자리가 세로 눈금 위로 잘렸다 — 빨간 점이 보이지 않는다');
+    // **골짜기가 한 줄로 눌리지 않는가.** 곡선을 통째로 담으면 여기서 걸린다.
+    if (!((cr.vMin - cr.lo) >= (cr.hi - cr.lo) * 0.05)) {
+        bad(`골짜기 바닥이 가로축에 붙어 눌린다(바닥 ${cr.vMin.toFixed(0)}, 눈금 ${cr.lo.toFixed(0)}~${cr.hi.toFixed(0)})`);
+    }
+    if (!(cr.hi <= cr.vMax * 1.07)) bad('세로 눈금의 천장이 곡선의 가장 큰 값보다 높다 — 눈금이 남아돈다');
+}
+
 console.log(`최소제곱 두 절 — 정사각형 ${rects.length}개의 한 변이 오차와 같은지, `
     + '최적합선이 슬라이더 안에 있고 그 자리에서 합이 가장 작은지, '
-    + '오차 곡선의 골짜기가 닫힌 해와 같은지 보았다');
+    + '오차 곡선의 골짜기가 닫힌 해와 같은지, 눌러 찍은 점이 들어가는지 보았다');
 console.log(fail === 0 ? '전부 통과' : `어긋난 것 ${fail}건`);
 process.exit(fail ? 1 : 0);

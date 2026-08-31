@@ -103,6 +103,9 @@ export function makeCtx(canvas) {
             if (k === 'rect') return (x, y, w, h) => { if (cur) cur.rect = [x, y, w, h]; };
             if (k === 'arc') return (x, y, r) => t.ops.push({op: 'arc', x, y, r});
             if (k === 'stroke') return () => { if (cur) cur.style = t._stroke; };
+            /* **잘라 내는 칸을 적어 둔다.** 이것이 없으면 「clip 을 걸었는가」를 볼 길이
+               없어, `ctx.clip()` 한 줄을 지워도 검사가 그대로 통과한다. */
+            if (k === 'clip') return () => { if (cur) cur.clip = true; };
             /* **`fillStyle` 은 `arc()` 뒤에 정해지는 일이 많다.** 그리는 시점에 색을 적으면
                전부 엉뚱한 색으로 기록되어, 찾는 도형을 하나도 못 찾고 그냥 통과한다. */
             if (k === 'fill') return () => { const last = t.ops.at(-1); if (last) last.fill = t._fill; };

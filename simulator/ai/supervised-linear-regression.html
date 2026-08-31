@@ -252,13 +252,18 @@
             <div class="w-full lg:w-[58%] min-w-0 flex flex-col gap-4">
                 <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
                      style="aspect-ratio: 4/3;">
-                    <canvas id="handFitCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                    <canvas id="handFitCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
                 </div>
                 <!-- 정사각형의 가로 폭은 x축의 값이 아니다. 밝혀 두지 않으면 학생이
                      「x로도 그만큼 틀렸다」로 읽는다. -->
                 <p class="text-base text-slate-500 font-medium leading-snug break-keep">
                     보라색 사각형의 가로 폭은 <strong>넓이를 보이려고 세로 길이와 같게 그린 것</strong>입니다.
                     x축의 값이 아닙니다.
+                </p>
+                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
+                    <i class="fa-solid fa-hand-pointer mr-1 text-violet-500"></i>
+                    <strong>그림을 누르면 그 자리에 점이 하나 늘어납니다.</strong>
+                    처음으로 되돌리려면 아래 예제 버튼을 다시 누르세요.
                 </p>
 
                 <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
@@ -403,10 +408,11 @@
             <div class="w-full lg:w-[50%] min-w-0 flex flex-col gap-3">
                 <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
                      style="aspect-ratio: 4/3;">
-                    <canvas id="curveScatter" class="absolute top-0 left-0 w-full h-full"></canvas>
+                    <canvas id="curveScatter" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
                 </div>
                 <p class="text-base text-slate-500 font-medium leading-snug break-keep">
                     <strong class="text-slate-700">자료와 내 선.</strong> 점선 하나하나가 오차입니다.
+                    그림을 누르면 그 자리에 점이 하나 늘어나고, <strong>오른쪽 곡선의 모양도 함께 바뀝니다.</strong>
                 </p>
             </div>
             <div class="w-full lg:w-[50%] min-w-0 flex flex-col gap-3">
@@ -418,6 +424,7 @@
                 <p class="text-base text-slate-500 font-medium leading-snug break-keep">
                     <strong class="text-slate-700">이 곡선은 절편 b를 지금 값으로 고정하고 기울기 a만 바꿔 본 것입니다.</strong>
                     b를 움직이면 곡선 전체가 바뀌므로, 골짜기 바닥이 곧 정답 기울기인 것은 아닙니다.
+                    골짜기의 모양이 보이도록 <strong>세로 축은 0에서 시작하지 않습니다</strong> — 축 양 끝에 적힌 값을 함께 보세요.
                 </p>
             </div>
         </div>
@@ -1130,7 +1137,7 @@
     function fmtNum(v) {
         if (!isFinite(v)) return '—';
         const m = Math.abs(v);
-        if (m >= 100000) return Math.round(v).toLocaleString('ko-KR');
+        if (m >= 10000) return Math.round(v).toLocaleString('ko-KR');
         if (m >= 100) return v.toFixed(1);
         if (m >= 10) return v.toFixed(2);
         return v.toFixed(3);
@@ -1147,6 +1154,16 @@
 
         resize() {
             window.fitCanvas(this.canvas, this.ctx);
+        }
+
+        /** 화면에서 누른 자리를 자료의 값으로 되돌린다. 그림에 점을 찍을 때 쓴다. */
+        pixelToData(px, py, bounds) {
+            const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+            if (!(w > 0 && h > 0)) return null;
+            return {
+                x: bounds.minX + (px / w) * (bounds.maxX - bounds.minX),
+                y: bounds.minY + ((h - py) / h) * (bounds.maxY - bounds.minY)
+            };
         }
 
         draw(points, bounds, opt) {
@@ -1248,12 +1265,14 @@
             const ux = (bd.maxX - bd.minX) || 1;
             const uy = (bd.maxY - bd.minY) || 1;
             const unit = uy / ux;
+            /* **최적합선을 가운데 두고 좁게 잡는다.** 0을 가운데 두고 넓게 잡았더니
+               쓸모 있는 구간이 눈금의 한 귀퉁이로 몰려, 오차 곡선이 골짜기가 아니라
+               벽처럼 보였다. 시작 자리인 기울기 0은 반드시 안에 들어가야 한다. */
             this.fit = bestFitLine(this.data.points);
-            let aMin = -3 * unit, aMax = 3 * unit;
+            const mid = this.fit ? this.fit.a : 0;
+            let aMin = Math.min(0, mid - 1.5 * unit), aMax = Math.max(0, mid + 1.5 * unit);
             let bMin = bd.minY - uy, bMax = bd.maxY + uy;
             if (this.fit) {
-                aMin = Math.min(aMin, this.fit.a - unit);
-                aMax = Math.max(aMax, this.fit.a + unit);
                 bMin = Math.min(bMin, this.fit.b - uy);
                 bMax = Math.max(bMax, this.fit.b + uy);
             }
@@ -1272,6 +1291,29 @@
         syncSliders() {
             this.el(this.ids.slope).value = this.toSlider(this.a, this.range.aMin, this.range.aMax);
             this.el(this.ids.intercept).value = this.toSlider(this.b, this.range.bMin, this.range.bMax);
+        }
+
+        /* 그림을 눌러 점을 찍는다. **자료를 학생이 만들어 보게 하는 자리다** —
+           점 하나를 멀리 찍어 두면 그것 하나가 선을 얼마나 끌어당기는지가 보인다.
+           지우는 길은 예제 버튼을 다시 누르는 것이다. */
+        bindPointAdding(plot) {
+            plot.canvas.addEventListener('pointerdown', (e) => {
+                const rect = plot.canvas.getBoundingClientRect();
+                const at = plot.pixelToData(e.clientX - rect.left, e.clientY - rect.top, this.data.getBounds());
+                if (!at || !isFinite(at.x) || !isFinite(at.y)) return;
+                this.data.addPoint(Number(at.x.toFixed(2)), Number(at.y.toFixed(2)));
+                this.afterDataChange();
+                this.render();
+            });
+        }
+
+        /* 점이 늘면 최적합선도 눈금의 양 끝도 달라진다. **놓아 둔 선은 그대로 두고**
+           눈금만 다시 잡는다 — 여기서 평균선으로 되돌리면 학생이 맞춰 놓은 것이 날아간다. */
+        afterDataChange() {
+            this.recomputeRange();
+            this.a = Math.min(Math.max(this.a, this.range.aMin), this.range.aMax);
+            this.b = Math.min(Math.max(this.b, this.range.bMin), this.range.bMax);
+            this.syncSliders();
         }
 
         bindSliders() {
@@ -1307,6 +1349,7 @@
             this.plot = new FitPlot('handFitCanvas');
             this.history = [];
             this.bindSliders();
+            this.bindPointAdding(this.plot);
             for (const id of ['hfChkResidual', 'hfChkSquare', 'hfChkBest', 'hfChkR']) {
                 this.el(id).addEventListener('change', () => this.render());
             }
@@ -1380,6 +1423,7 @@
                 slopeVal: 'ecSlopeVal', interceptVal: 'ecInterceptVal'
             });
             this.plot = new FitPlot('curveScatter');
+            this.bindPointAdding(this.plot);
             this.curve = document.getElementById('curveGraph');
             this.curveCtx = this.curve.getContext('2d');
             this.resizeCurve();
@@ -1423,7 +1467,7 @@
             const ctx = this.curveCtx;
             const w = this.curve.clientWidth, h = this.curve.clientHeight;
             ctx.clearRect(0, 0, w, h);
-            const L = 64, R = 20, T = 26, B = 46;      // 축 이름이 들어갈 자리
+            const L = 108, R = 24, T = 26, B = 46;     // 축 이름과 눈금 값이 들어갈 자리
             if (!(w > L + R + 40 && h > T + B + 40) || this.data.points.length === 0) return;
 
             const {aMin, aMax} = this.range;
@@ -1432,9 +1476,21 @@
             for (let i = 0; i <= N; i++) {
                 vals.push(squaredErrorSum(this.data.points, aMin + (aMax - aMin) * i / N, this.b));
             }
+            /* **곡선 전부를 담으면 골짜기가 납작해진다.** 눈금 양 끝의 합은 바닥의
+               수십 배라, 다 담는 순간 정작 볼 것인 바닥 언저리가 한 줄로 눌린다.
+               그래서 **바닥의 세 배쯤까지만 그리고 위로 벗어나는 팔은 잘라 낸다.**
+               지금 서 있는 자리는 늘 보이게 천장을 밀어 올리므로, 골짜기에 다가갈수록
+               저절로 확대된다. 0에서 시작하지 않는다는 것은 축 양 끝에 값을 적고
+               그림 아래 글로 밝힌다. */
             const vMax = Math.max.apply(null, vals) || 1;
+            const vMin = Math.min.apply(null, vals);
+            const cur = squaredErrorSum(this.data.points, this.a, this.b);
+            const floor = vMin > 0 ? vMin * 3 : vMax * 0.05;
+            const hi = Math.min(vMax * 1.06, Math.max(floor, cur * 1.06)) || 1;
+            const lo = Math.max(0, vMin - (hi - vMin) * 0.15);
+            this.curveRange = {lo: lo, hi: hi, vMin: vMin, vMax: vMax, cur: cur};
             const px = (a) => L + (a - aMin) / (aMax - aMin) * (w - L - R);
-            const py = (v) => (h - B) - (v / vMax) * (h - T - B);
+            const py = (v) => (h - B) - ((v - lo) / (hi - lo)) * (h - T - B);
 
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 1.5;
@@ -1450,6 +1506,9 @@
             ctx.fillText('기울기 a', (L + w - R) / 2, h - 14);
             ctx.fillText(fmtNum(aMin), L, h - B + 20);
             ctx.fillText(fmtNum(aMax), w - R, h - B + 20);
+            ctx.textAlign = 'right';
+            ctx.fillText(fmtNum(hi), L - 8, T + 6);
+            ctx.fillText(fmtNum(lo), L - 8, h - B + 4);
             // **세로로 눕혀 쓴다.** 가로로 쓰면 왼쪽 위를 차지해, 골짜기가 눈금의
             // 왼쪽 끝에 있을 때 「가장 작은 자리」 표와 겹친다.
             ctx.save();
@@ -1458,6 +1517,12 @@
             ctx.textAlign = 'center';
             ctx.fillText('오차 제곱의 합', 0, 0);
             ctx.restore();
+
+            // 천장을 넘는 팔은 칸 밖으로 나간다. 잘라 내지 않으면 축 이름 위에 그려진다.
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(L, T, w - L - R, h - T - B);
+            ctx.clip();
 
             ctx.strokeStyle = '#7c3aed';
             ctx.lineWidth = 3;
@@ -1477,11 +1542,6 @@
                 ctx.lineTo(px(av), h - B);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                ctx.fillStyle = '#059669';
-                ctx.textAlign = 'center';
-                // 눈금 끝에 붙어도 글자가 잘리지 않게 안쪽으로 물린다.
-                ctx.fillText('가장 작은 자리',
-                    Math.min(Math.max(px(av), L + 48), w - R - 48), T - 8);
             }
 
             const cx = px(this.a), cy = py(squaredErrorSum(this.data.points, this.a, this.b));
@@ -1518,6 +1578,16 @@
                 ctx.closePath();
                 ctx.fillStyle = '#059669';
                 ctx.fill();
+            }
+            ctx.restore();
+
+            // **잘라 내는 칸 밖에 쓴다.** 안에서 쓰면 칸 위쪽에 놓인 이 글자가 잘려 나간다.
+            if (av !== null && av >= aMin && av <= aMax) {
+                ctx.fillStyle = '#059669';
+                ctx.textAlign = 'center';
+                // 눈금 끝에 붙어도 글자가 잘리지 않게 안쪽으로 물린다.
+                ctx.fillText('가장 작은 자리',
+                    Math.min(Math.max(px(av), L + 48), w - R - 48), T - 8);
             }
         }
     }

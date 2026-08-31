@@ -148,6 +148,8 @@
         <div class="hidden md:flex space-x-8 font-bold text-slate-500 text-base">
             <a href="#intro" class="hover:text-blue-600 transition">도입</a>
             <a href="#concept" class="hover:text-blue-600 transition">개념설명</a>
+            <a href="#hand-fit" class="hover:text-blue-600 transition">손으로 맞추기</a>
+            <a href="#error-curve" class="hover:text-blue-600 transition">오차 곡선</a>
             <a href="#activity" class="hover:text-blue-600 transition">시뮬레이터</a>
         </div>
     </div>
@@ -225,6 +227,254 @@
                         모은 자료에서 관찰된 관계일 뿐, <strong>x를 바꾸면 y가 따라 바뀐다는 뜻은 아닙니다</strong>
                         (상관관계 &ne; 인과관계). 예제 이름의 화살표는 '무엇으로 무엇을 맞혀 보는가'를 가리킬 뿐입니다.</li>
                 </ul>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ══ 손으로 맞추기 ═══════════════════════════════════════════════════
+         자동 학습으로 곧장 넘어가면 학생은 **줄여야 할 것이 무엇인지 본 적 없이**
+         버튼만 누른다. 여기서 오차를 제곱한 것을 «넓이»로 보이고, 그 합을 학생이
+         손으로 줄여 본 뒤에 아래 절로 간다. -->
+    <section id="hand-fit"
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+        <button type="button" class="fs-btn" data-fullscreen="hand-fit"
+                title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+        <div class="mb-8 space-y-2 text-center md:text-left">
+            <span class="text-violet-600 font-bold tracking-widest uppercase text-base fs-hide">Least Squares</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">손으로 맞추기 — 오차 제곱의 합 줄이기</h2>
+            <p class="text-slate-600 text-lg fs-hide">기울기와 절편을 직접 움직여 보라색 정사각형의 넓이 합이 가장 작아지는 선을 찾아보세요.</p>
+        </div>
+
+        <div class="fs-fill flex flex-col lg:flex-row gap-6 items-stretch">
+            <div class="w-full lg:w-[58%] min-w-0 flex flex-col gap-4">
+                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
+                     style="aspect-ratio: 4/3;">
+                    <canvas id="handFitCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                </div>
+                <!-- 정사각형의 가로 폭은 x축의 값이 아니다. 밝혀 두지 않으면 학생이
+                     「x로도 그만큼 틀렸다」로 읽는다. -->
+                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
+                    보라색 사각형의 가로 폭은 <strong>넓이를 보이려고 세로 길이와 같게 그린 것</strong>입니다.
+                    x축의 값이 아닙니다.
+                </p>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                                onclick="handFit.loadExample(1)">
+                            <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 → 시험 점수
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                                onclick="handFit.loadExample(2)">
+                            <i class="fa-solid fa-temperature-high mr-1"></i> 기온 → 아이스크림 판매
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                                onclick="handFit.loadExample(3)">
+                            <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 → 게임 점수
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                                onclick="handFit.loadExample(4)">
+                            <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
+                        </button>
+                    </div>
+                    <p id="handFitDesc" class="mt-3 text-base text-violet-700 font-medium min-h-5 text-center leading-snug break-keep"></p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-wrap gap-x-6 gap-y-3">
+                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                        <input type="checkbox" id="hfChkResidual" checked class="w-4 h-4 accent-rose-500"> 오차선 보기
+                    </label>
+                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                        <input type="checkbox" id="hfChkSquare" checked class="w-4 h-4 accent-violet-500"> 오차 제곱 보기
+                    </label>
+                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                        <input type="checkbox" id="hfChkBest" class="w-4 h-4 accent-emerald-500"> 최적합선 보기
+                    </label>
+                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                        <input type="checkbox" id="hfChkR" class="w-4 h-4 accent-sky-500"> 상관계수 보기
+                    </label>
+                </div>
+            </div>
+
+            <div class="w-full lg:w-[42%] min-w-0 flex flex-col gap-5">
+                <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white">
+                    <p class="font-black text-slate-300 text-base flex items-center uppercase tracking-widest mb-3">
+                        <i class="fa-solid fa-sliders mr-2"></i>내 선 만들기</p>
+                    <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-600 shadow-inner mb-4">
+                        <span id="hfEquation" class="math-font text-2xl font-black text-violet-300">y = ax + b</span>
+                    </div>
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="hfSlopeSlider" class="text-base font-bold text-slate-300">기울기 (a)</label>
+                            <span id="hfSlopeVal" class="math-font text-base font-black text-violet-300">0.000</span>
+                        </div>
+                        <input type="range" id="hfSlopeSlider" min="0" max="1000" step="1" value="500"
+                               class="w-full accent-violet-500 cursor-pointer">
+                    </div>
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="hfInterceptSlider" class="text-base font-bold text-slate-300">절편 (b)</label>
+                            <span id="hfInterceptVal" class="math-font text-base font-black text-violet-300">0.000</span>
+                        </div>
+                        <input type="range" id="hfInterceptSlider" min="0" max="1000" step="1" value="500"
+                               class="w-full accent-violet-500 cursor-pointer">
+                    </div>
+                    <button id="hfReset"
+                            class="w-full py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center">
+                        <i class="fa-solid fa-rotate-right mr-2"></i>평균선으로 되돌리기
+                    </button>
+                </div>
+
+                <div class="bg-violet-50/60 p-5 rounded-2xl border border-violet-100 flex flex-col gap-3">
+                    <div class="bg-white px-4 py-3 rounded-xl border-2 border-violet-200 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-violet-700 text-base">오차 제곱의 합</span>
+                            <span id="hfSum" class="font-black text-violet-700 math-font text-xl">0</span>
+                        </div>
+                        <!-- 화면의 보라 넓이 총량과 같은 것이라고 붙여 읽히도록 막대로 함께 보인다.
+                             가득 찬 상태는 기울기가 0인 평균선이다 — 관계를 하나도 쓰지 않은 선. -->
+                        <div class="mt-2 h-3 w-full bg-violet-100 rounded-full overflow-hidden">
+                            <div id="hfBar" class="h-full bg-violet-500 rounded-full transition-all" style="width: 0"></div>
+                        </div>
+                        <p class="mt-2 text-base text-slate-500 font-medium leading-snug break-keep">
+                            점 개수로 나눈 평균(MSE) <span id="hfMse" class="math-font font-bold text-slate-700">0</span>
+                            — 아래 자동 학습이 줄이는 값이 이것입니다.
+                        </p>
+                    </div>
+                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-slate-500 text-base">가장 작은 합보다</span>
+                        <span id="hfGap" class="font-black text-slate-800 math-font">0</span>
+                    </div>
+                    <div id="hfBadge"
+                         class="hidden bg-emerald-500 text-white px-4 py-3 rounded-xl font-black text-center text-base">
+                        <i class="fa-solid fa-circle-check mr-1"></i> 가장 작은 합의 1.05배 안에 들었습니다
+                    </div>
+                    <!-- 상관계수는 기본으로 감춰 둔다. 켜는 순간 「r = 기울기」 오개념을 그 자리에서 막는다. -->
+                    <div id="hfRRow" class="hidden bg-white px-4 py-3 rounded-xl border border-sky-200 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-sky-700 text-base">상관계수 (r)</span>
+                            <span id="hfR" class="font-black text-sky-700 math-font">0.000</span>
+                        </div>
+                        <p class="mt-2 text-base text-slate-500 font-medium leading-snug break-keep">
+                            r은 점들이 <strong>직선에 얼마나 몰려 있는지</strong>이지, 선이 얼마나 가파른지가 아닙니다.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
+                    <p class="font-bold text-slate-600 text-base mb-2"><i
+                            class="fa-solid fa-clock-rotate-left mr-2"></i>내가 놓아 본 선</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-base">
+                            <thead>
+                            <tr class="text-slate-500 border-b border-slate-200">
+                                <th class="text-left font-bold py-1">기울기 a</th>
+                                <th class="text-left font-bold py-1">절편 b</th>
+                                <th class="text-right font-bold py-1">합</th>
+                            </tr>
+                            </thead>
+                            <tbody id="hfHistory" class="math-font text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══ 오차 곡선 ═══════════════════════════════════════════════════════
+         「줄이는 방향」을 아래 절이 말로만 하고 있었다. 여기서 골짜기를 먼저 눈으로
+         보여 두면, 자동 학습의 한 걸음이 **이미 본 그림 위의 움직임**이 된다. -->
+    <section id="error-curve"
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+        <button type="button" class="fs-btn" data-fullscreen="error-curve"
+                title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+        <div class="mb-8 space-y-2 text-center md:text-left">
+            <span class="text-amber-600 font-bold tracking-widest uppercase text-base fs-hide">Error Curve</span>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800">오차 곡선 — 골짜기의 바닥을 찾아가기</h2>
+            <p class="text-slate-600 text-lg fs-hide">기울기를 바꿀 때 오차 제곱의 합이 어떻게 변하는지 그려 봅니다.</p>
+        </div>
+
+        <div class="fs-fill flex flex-col lg:flex-row gap-6 items-stretch">
+            <div class="w-full lg:w-[50%] min-w-0 flex flex-col gap-3">
+                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
+                     style="aspect-ratio: 4/3;">
+                    <canvas id="curveScatter" class="absolute top-0 left-0 w-full h-full"></canvas>
+                </div>
+                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
+                    <strong class="text-slate-700">자료와 내 선.</strong> 점선 하나하나가 오차입니다.
+                </p>
+            </div>
+            <div class="w-full lg:w-[50%] min-w-0 flex flex-col gap-3">
+                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
+                     style="aspect-ratio: 4/3;">
+                    <canvas id="curveGraph" class="absolute top-0 left-0 w-full h-full"></canvas>
+                </div>
+                <!-- 이 한 줄이 없으면 학생은 골짜기 바닥을 곧바로 「정답 기울기」로 읽는다. -->
+                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
+                    <strong class="text-slate-700">이 곡선은 절편 b를 지금 값으로 고정하고 기울기 a만 바꿔 본 것입니다.</strong>
+                    b를 움직이면 곡선 전체가 바뀌므로, 골짜기 바닥이 곧 정답 기울기인 것은 아닙니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white flex flex-col gap-3">
+                <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="ecSlopeSlider" class="text-base font-bold text-slate-300">기울기 (a)</label>
+                        <span id="ecSlopeVal" class="math-font text-base font-black text-amber-300">0.000</span>
+                    </div>
+                    <input type="range" id="ecSlopeSlider" min="0" max="1000" step="1" value="500"
+                           class="w-full accent-amber-500 cursor-pointer">
+                </div>
+                <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="ecInterceptSlider" class="text-base font-bold text-slate-300">절편 (b)</label>
+                        <span id="ecInterceptVal" class="math-font text-base font-black text-amber-300">0.000</span>
+                    </div>
+                    <input type="range" id="ecInterceptSlider" min="0" max="1000" step="1" value="500"
+                           class="w-full accent-amber-500 cursor-pointer">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
+                            onclick="errorCurve.loadExample(1)">
+                        <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 → 시험 점수
+                    </button>
+                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
+                            onclick="errorCurve.loadExample(2)">
+                        <i class="fa-solid fa-temperature-high mr-1"></i> 기온 → 아이스크림 판매
+                    </button>
+                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
+                            onclick="errorCurve.loadExample(3)">
+                        <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 → 게임 점수
+                    </button>
+                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
+                            onclick="errorCurve.loadExample(4)">
+                        <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
+                    </button>
+                </div>
+                <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-100 flex flex-col gap-2">
+                    <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-slate-500 text-base">지금 선의 합</span>
+                        <span id="ecSum" class="font-black text-slate-800 math-font">0</span>
+                    </div>
+                    <div class="bg-white px-4 py-2 rounded-xl border border-amber-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-amber-700 text-base">이 절편에서 가장 작은 합</span>
+                        <span id="ecMin" class="font-black text-amber-700 math-font">0</span>
+                    </div>
+                    <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span class="font-bold text-slate-500 text-base">그때의 기울기</span>
+                        <span id="ecMinA" class="font-black text-slate-800 math-font">0</span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -424,6 +674,47 @@
         }
     }
 
+    /* 예제 자료는 **최상위에 한 번만** 만든다. 절마다 새로 만들면 난수가 달라져,
+       「손으로 맞추기」에서 찾은 선과 아래 자동 학습이 찾은 선이 **다른 자료 위의 답**이 된다.
+       자료를 쥐는 것(DataManager)은 절마다 따로지만, 시작 값은 같은 것을 읽는다. */
+    // type으로 매개변수 통일, count 변수 추가(예: 50개)
+    function generateData(type, count = 50) {
+        const data = [];
+
+        for (let i = 1; i <= count; i++) {
+            let x = i;
+            let y = 0;
+
+            // y 값이 축 이름과 어긋나지 않도록 범위를 잡는다.
+            // (점수는 100점 만점을 넘지 않게, 판매량과 속도는 음수가 되지 않게)
+            switch (type) {
+                case 1:
+                    y = 0.8 * x + 40 + (Math.random() * 20 - 10);
+                    break;
+                case 2:
+                    y = 1.5 * x + 30 + (Math.random() * 60 - 30);
+                    break;
+                case 3:
+                    y = 12 * x + 100 + (Math.random() * 300 - 50);
+                    break;
+                case 4:
+                    y = 300 / x + 10 + (Math.random() * 15 - 7.5);
+                    break;
+            }
+
+            data.push({x: Number(x.toFixed(2)), y: Number(y.toFixed(2))});
+        }
+        return data;
+    }
+
+    const EXAMPLES = {
+        // 관찰 자료의 기울기를 인과로 읽지 않도록 비교 화법으로 쓴다.
+        1: {desc: "밤샘 공부 시간이 긴 학생일수록 시험 점수가 높게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(1)},
+        2: {desc: "기온이 높은 날일수록 아이스크림 판매량이 많게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(2)},
+        3: {desc: "게임 연습 시간이 긴 사람일수록 게임 점수가 높게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(3)},
+        4: {desc: "공유기에서 먼 자리일수록 WiFi 속도가 느리게 측정된 자료입니다. (수업용으로 지어낸 값)", data: generateData(4)}
+    };
+
     class RegressionModel {
         constructor() {
             this.w = 0;
@@ -546,43 +837,7 @@
             this.animationId = null;
             this.lastWidth = window.innerWidth;
 
-            // type으로 매개변수 통일, count 변수 추가(예: 50개)
-            function generateData(type, count = 50) {
-                const data = [];
-
-                for (let i = 1; i <= count; i++) {
-                    let x = i;
-                    let y = 0;
-
-                    // y 값이 축 이름과 어긋나지 않도록 범위를 잡는다.
-                    // (점수는 100점 만점을 넘지 않게, 판매량과 속도는 음수가 되지 않게)
-                    switch (type) {
-                        case 1:
-                            y = 0.8 * x + 40 + (Math.random() * 20 - 10);
-                            break;
-                        case 2:
-                            y = 1.5 * x + 30 + (Math.random() * 60 - 30);
-                            break;
-                        case 3:
-                            y = 12 * x + 100 + (Math.random() * 300 - 50);
-                            break;
-                        case 4:
-                            y = 300 / x + 10 + (Math.random() * 15 - 7.5);
-                            break;
-                    }
-
-                    data.push({x: Number(x.toFixed(2)), y: Number(y.toFixed(2))});
-                }
-                return data;
-            }
-
-            this.examples = {
-                // 관찰 자료의 기울기를 인과로 읽지 않도록 비교 화법으로 쓴다.
-                1: {desc: "밤샘 공부 시간이 긴 학생일수록 시험 점수가 높게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(1)},
-                2: {desc: "기온이 높은 날일수록 아이스크림 판매량이 많게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(2)},
-                3: {desc: "게임 연습 시간이 긴 사람일수록 게임 점수가 높게 나타난 자료입니다. (수업용으로 지어낸 값)", data: generateData(3)},
-                4: {desc: "공유기에서 먼 자리일수록 WiFi 속도가 느리게 측정된 자료입니다. (수업용으로 지어낸 값)", data: generateData(4)}
-            };
+            this.examples = EXAMPLES;
 
             this.bindEvents();
             this.updateUI();
@@ -834,9 +1089,444 @@
         }
     }
 
+    /* ══ 손으로 맞추기 · 오차 곡선 ═══════════════════════════════════════
+       두 절은 **자기 자료를 따로 쥔다.** 아래 자동 학습 절과 상태를 나눠 쥐면
+       누가 마지막에 고쳤는지를 내내 따라다녀야 한다. 공유하는 것은 시작 값(EXAMPLES)
+       뿐이라, 손대기 전까지는 같은 그림이고 손대면 갈라진다. */
+
+    /** 최소제곱의 닫힌 해. 점이 둘 미만이거나 x가 한 자리에 몰려 있으면 null. */
+    function bestFitLine(points) {
+        const n = points.length;
+        if (n < 2) return null;
+        let sx = 0, sy = 0;
+        for (const p of points) {
+            sx += p.x;
+            sy += p.y;
+        }
+        const mx = sx / n, my = sy / n;
+        let sxx = 0, sxy = 0, syy = 0;
+        for (const p of points) {
+            const dx = p.x - mx, dy = p.y - my;
+            sxx += dx * dx;
+            sxy += dx * dy;
+            syy += dy * dy;
+        }
+        if (!(sxx > 0)) return null;
+        const a = sxy / sxx;
+        return {a: a, b: my - a * mx, r: syy > 0 ? sxy / Math.sqrt(sxx * syy) : 0, meanY: my};
+    }
+
+    /** 오차를 제곱해 모두 더한 값. 화면에 그린 정사각형 넓이의 총합과 같은 것이다. */
+    function squaredErrorSum(points, a, b) {
+        let s = 0;
+        for (const p of points) {
+            const d = (a * p.x + b) - p.y;
+            s += d * d;
+        }
+        return s;
+    }
+
+    /** 자릿수가 크게 다른 예제를 한 서식으로 찍는다. 점이 없으면 숫자 대신 줄표를 낸다. */
+    function fmtNum(v) {
+        if (!isFinite(v)) return '—';
+        const m = Math.abs(v);
+        if (m >= 100000) return Math.round(v).toLocaleString('ko-KR');
+        if (m >= 100) return v.toFixed(1);
+        if (m >= 10) return v.toFixed(2);
+        return v.toFixed(3);
+    }
+
+    /** 산점도 · 내 선 · 오차 · 오차 제곱을 그리는 그림판. 두 절이 함께 쓴다. */
+    class FitPlot {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+        }
+
+        resize() {
+            window.fitCanvas(this.canvas, this.ctx);
+        }
+
+        draw(points, bounds, opt) {
+            const ctx = this.ctx;
+            const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+            if (!(w > 0 && h > 0) || points.length === 0) return;
+
+            const toPx = (x) => (x - bounds.minX) / (bounds.maxX - bounds.minX) * w;
+            const toPy = (y) => h - (y - bounds.minY) / (bounds.maxY - bounds.minY) * h;
+
+            /* 오차 제곱 — **픽셀 기준 정사각형**으로 그린다. 자료 단위로 그리면 x축과
+               y축의 축척이 달라 직사각형이 되어, 「제곱 = 넓이」라는 그림이 깨진다.
+               가로 폭이 x축의 값이 아니라는 것은 그림 아래에 밝혀 두었다. */
+            if (opt.showSquare) {
+                ctx.fillStyle = 'rgba(139, 92, 246, 0.22)';
+                ctx.strokeStyle = 'rgba(139, 92, 246, 0.55)';
+                ctx.lineWidth = 1;
+                for (const p of points) {
+                    const px = toPx(p.x), py = toPy(p.y), pf = toPy(opt.a * p.x + opt.b);
+                    const side = Math.abs(py - pf);
+                    if (!(side > 0.5)) continue;
+                    // 오른쪽으로 넘칠 자리에서는 왼쪽으로 눕힌다. 넓이는 그대로다.
+                    const left = px + side > w ? px - side : px;
+                    // `fillRect`가 아니라 경로로 그린다 — 검사 받침대가 그린 사각형을
+                    // 좌표로 적어 두므로, **넓이가 오차의 제곱인지**를 기계가 따질 수 있다.
+                    ctx.beginPath();
+                    ctx.rect(left, Math.min(py, pf), side, side);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+
+            if (opt.showResidual) {
+                ctx.strokeStyle = 'rgba(225, 29, 72, 0.75)';
+                ctx.setLineDash([4, 4]);
+                ctx.lineWidth = 1.5;
+                for (const p of points) {
+                    const px = toPx(p.x);
+                    ctx.beginPath();
+                    ctx.moveTo(px, toPy(p.y));
+                    ctx.lineTo(px, toPy(opt.a * p.x + opt.b));
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+            }
+
+            const drawLine = (a, b, color, width) => {
+                ctx.beginPath();
+                ctx.moveTo(toPx(bounds.minX), toPy(a * bounds.minX + b));
+                ctx.lineTo(toPx(bounds.maxX), toPy(a * bounds.maxX + b));
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.stroke();
+            };
+            if (opt.best) drawLine(opt.best.a, opt.best.b, '#10b981', 3);
+            drawLine(opt.a, opt.b, '#4f46e5', 4);
+
+            for (const p of points) {
+                ctx.beginPath();
+                ctx.arc(toPx(p.x), toPy(p.y), 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+    }
+
+    /** 슬라이더로 직선을 놓아 보는 절이 함께 쓰는 몸통. 자료·눈금 범위·슬라이더를 맡는다. */
+    class SliderFitController {
+        constructor(ids) {
+            this.ids = ids;
+            this.data = new DataManager();
+            this.a = 0;
+            this.b = 0;
+            this.fit = null;
+            this.range = {aMin: -1, aMax: 1, bMin: -1, bMax: 1};
+        }
+
+        el(id) {
+            return document.getElementById(id);
+        }
+
+        /* 슬라이더는 0~1000의 정수를 오간다. 자료마다 값의 크기가 크게 다른데,
+           `step`에 소수를 박으면 예제를 바꿀 때마다 눈금이 어긋난다. */
+        fromSlider(t, min, max) {
+            return min + (max - min) * (Number(t) / 1000);
+        }
+
+        toSlider(v, min, max) {
+            return max > min ? Math.round((v - min) / (max - min) * 1000) : 500;
+        }
+
+        /** 눈금의 양 끝. **최적합선이 반드시 슬라이더 안에 들어오게** 잡는다. */
+        recomputeRange() {
+            const bd = this.data.getBounds();
+            const ux = (bd.maxX - bd.minX) || 1;
+            const uy = (bd.maxY - bd.minY) || 1;
+            const unit = uy / ux;
+            this.fit = bestFitLine(this.data.points);
+            let aMin = -3 * unit, aMax = 3 * unit;
+            let bMin = bd.minY - uy, bMax = bd.maxY + uy;
+            if (this.fit) {
+                aMin = Math.min(aMin, this.fit.a - unit);
+                aMax = Math.max(aMax, this.fit.a + unit);
+                bMin = Math.min(bMin, this.fit.b - uy);
+                bMax = Math.max(bMax, this.fit.b + uy);
+            }
+            this.range = {aMin: aMin, aMax: aMax, bMin: bMin, bMax: bMax};
+        }
+
+        /* 시작 자리는 **기울기가 0인 평균선**이다. 관계를 하나도 쓰지 않은 선이라
+           여기서부터는 무엇을 해도 나아지는지 나빠지는지가 분명하다. */
+        resetToMeanLine() {
+            const pts = this.data.points;
+            this.a = 0;
+            this.b = pts.length ? pts.reduce((t, p) => t + p.y, 0) / pts.length : 0;
+            this.syncSliders();
+        }
+
+        syncSliders() {
+            this.el(this.ids.slope).value = this.toSlider(this.a, this.range.aMin, this.range.aMax);
+            this.el(this.ids.intercept).value = this.toSlider(this.b, this.range.bMin, this.range.bMax);
+        }
+
+        bindSliders() {
+            this.el(this.ids.slope).addEventListener('input', (e) => {
+                this.a = this.fromSlider(e.target.value, this.range.aMin, this.range.aMax);
+                this.render();
+            });
+            this.el(this.ids.intercept).addEventListener('input', (e) => {
+                this.b = this.fromSlider(e.target.value, this.range.bMin, this.range.bMax);
+                this.render();
+            });
+        }
+
+        loadExample(id) {
+            this.data.setPoints(EXAMPLES[id].data);
+            if (this.ids.desc) this.el(this.ids.desc).textContent = EXAMPLES[id].desc;
+            this.recomputeRange();
+            this.resetToMeanLine();
+            this.render();
+        }
+
+        render() {
+        }
+    }
+
+    /** 오차 제곱의 합을 학생이 손으로 줄여 보는 절. */
+    class HandFitController extends SliderFitController {
+        constructor() {
+            super({
+                slope: 'hfSlopeSlider', intercept: 'hfInterceptSlider',
+                slopeVal: 'hfSlopeVal', interceptVal: 'hfInterceptVal', desc: 'handFitDesc'
+            });
+            this.plot = new FitPlot('handFitCanvas');
+            this.history = [];
+            this.bindSliders();
+            for (const id of ['hfChkResidual', 'hfChkSquare', 'hfChkBest', 'hfChkR']) {
+                this.el(id).addEventListener('change', () => this.render());
+            }
+            this.el('hfReset').addEventListener('click', () => {
+                this.resetToMeanLine();
+                this.render();
+            });
+            // 슬라이더에서 손을 뗀 자리마다 남긴다 — 어느 쪽으로 옮겼을 때 줄었는지가 보인다.
+            this.el(this.ids.slope).addEventListener('change', () => this.remember());
+            this.el(this.ids.intercept).addEventListener('change', () => this.remember());
+            window.addEventListener('resize', () => this.render());
+            this.loadExample(1);
+        }
+
+        loadExample(id) {
+            this.history = [];
+            this.el('hfHistory').innerHTML = '';
+            super.loadExample(id);
+        }
+
+        remember() {
+            const pts = this.data.points;
+            if (!pts.length) return;
+            this.history.unshift({a: this.a, b: this.b, s: squaredErrorSum(pts, this.a, this.b)});
+            this.history = this.history.slice(0, 5);
+            this.el('hfHistory').innerHTML = this.history.map((h) =>
+                '<tr class="border-b border-slate-100">' +
+                '<td class="py-1">' + fmtNum(h.a) + '</td>' +
+                '<td class="py-1">' + fmtNum(h.b) + '</td>' +
+                '<td class="py-1 text-right font-bold">' + fmtNum(h.s) + '</td></tr>').join('');
+        }
+
+        render() {
+            const pts = this.data.points;
+            this.plot.draw(pts, this.data.getBounds(), {
+                a: this.a,
+                b: this.b,
+                showResidual: this.el('hfChkResidual').checked,
+                showSquare: this.el('hfChkSquare').checked,
+                best: this.el('hfChkBest').checked ? this.fit : null
+            });
+
+            this.el('hfEquation').textContent =
+                'y = ' + fmtNum(this.a) + 'x ' + (this.b >= 0 ? '+ ' : '- ') + fmtNum(Math.abs(this.b));
+            this.el(this.ids.slopeVal).textContent = fmtNum(this.a);
+            this.el(this.ids.interceptVal).textContent = fmtNum(this.b);
+
+            const n = pts.length;
+            const sum = squaredErrorSum(pts, this.a, this.b);
+            this.el('hfSum').textContent = n ? fmtNum(sum) : '—';
+            this.el('hfMse').textContent = n ? fmtNum(sum / n) : '—';
+
+            // 막대가 가득 찬 상태는 평균선이다. 그보다 줄어든 만큼이 직선이 벌어 준 것이다.
+            const base = this.fit ? squaredErrorSum(pts, 0, this.fit.meanY) : 0;
+            this.el('hfBar').style.width = base > 0 ? Math.min(100, (sum / base) * 100).toFixed(1) + '%' : '0';
+
+            const bestSum = this.fit ? squaredErrorSum(pts, this.fit.a, this.fit.b) : null;
+            this.el('hfGap').textContent = bestSum === null ? '—' : '+ ' + fmtNum(Math.max(0, sum - bestSum));
+            this.el('hfBadge').classList.toggle('hidden', !(bestSum !== null && sum <= bestSum * 1.05));
+
+            this.el('hfRRow').classList.toggle('hidden', !this.el('hfChkR').checked);
+            this.el('hfR').textContent = this.fit ? this.fit.r.toFixed(3) : '—';
+        }
+    }
+
+    /** 기울기를 바꿀 때 합이 어떻게 변하는지 — 골짜기를 눈으로 보이는 절. */
+    class ErrorCurveController extends SliderFitController {
+        constructor() {
+            super({
+                slope: 'ecSlopeSlider', intercept: 'ecInterceptSlider',
+                slopeVal: 'ecSlopeVal', interceptVal: 'ecInterceptVal'
+            });
+            this.plot = new FitPlot('curveScatter');
+            this.curve = document.getElementById('curveGraph');
+            this.curveCtx = this.curve.getContext('2d');
+            this.resizeCurve();
+            window.addEventListener('resize', () => {
+                this.resizeCurve();
+                this.render();
+            });
+            this.bindSliders();
+            this.loadExample(1);
+        }
+
+        resizeCurve() {
+            window.fitCanvas(this.curve, this.curveCtx);
+        }
+
+        /** 절편을 지금 값으로 **고정했을 때** 합이 가장 작아지는 기울기. */
+        valleySlope() {
+            let sxx = 0, sxy = 0;
+            for (const p of this.data.points) {
+                sxx += p.x * p.x;
+                sxy += p.x * (p.y - this.b);
+            }
+            return sxx > 0 ? sxy / sxx : null;
+        }
+
+        render() {
+            const pts = this.data.points;
+            this.plot.draw(pts, this.data.getBounds(),
+                {a: this.a, b: this.b, showResidual: true, showSquare: false, best: null});
+            this.el(this.ids.slopeVal).textContent = fmtNum(this.a);
+            this.el(this.ids.interceptVal).textContent = fmtNum(this.b);
+
+            const av = this.valleySlope();
+            this.el('ecSum').textContent = pts.length ? fmtNum(squaredErrorSum(pts, this.a, this.b)) : '—';
+            this.el('ecMin').textContent = av === null ? '—' : fmtNum(squaredErrorSum(pts, av, this.b));
+            this.el('ecMinA').textContent = av === null ? '—' : fmtNum(av);
+            this.drawCurve(av);
+        }
+
+        drawCurve(av) {
+            const ctx = this.curveCtx;
+            const w = this.curve.clientWidth, h = this.curve.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+            const L = 64, R = 20, T = 26, B = 46;      // 축 이름이 들어갈 자리
+            if (!(w > L + R + 40 && h > T + B + 40) || this.data.points.length === 0) return;
+
+            const {aMin, aMax} = this.range;
+            const N = 120;
+            const vals = [];
+            for (let i = 0; i <= N; i++) {
+                vals.push(squaredErrorSum(this.data.points, aMin + (aMax - aMin) * i / N, this.b));
+            }
+            const vMax = Math.max.apply(null, vals) || 1;
+            const px = (a) => L + (a - aMin) / (aMax - aMin) * (w - L - R);
+            const py = (v) => (h - B) - (v / vMax) * (h - T - B);
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(L, T);
+            ctx.lineTo(L, h - B);
+            ctx.lineTo(w - R, h - B);
+            ctx.stroke();
+
+            ctx.font = 'bold 15px sans-serif';
+            ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center';
+            ctx.fillText('기울기 a', (L + w - R) / 2, h - 14);
+            ctx.fillText(fmtNum(aMin), L, h - B + 20);
+            ctx.fillText(fmtNum(aMax), w - R, h - B + 20);
+            // **세로로 눕혀 쓴다.** 가로로 쓰면 왼쪽 위를 차지해, 골짜기가 눈금의
+            // 왼쪽 끝에 있을 때 「가장 작은 자리」 표와 겹친다.
+            ctx.save();
+            ctx.translate(20, (T + h - B) / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillText('오차 제곱의 합', 0, 0);
+            ctx.restore();
+
+            ctx.strokeStyle = '#7c3aed';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i <= N; i++) {
+                const X = px(aMin + (aMax - aMin) * i / N), Y = py(vals[i]);
+                if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+            }
+            ctx.stroke();
+
+            if (av !== null && av >= aMin && av <= aMax) {
+                ctx.strokeStyle = '#059669';
+                ctx.setLineDash([5, 4]);
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px(av), T);
+                ctx.lineTo(px(av), h - B);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#059669';
+                ctx.textAlign = 'center';
+                // 눈금 끝에 붙어도 글자가 잘리지 않게 안쪽으로 물린다.
+                ctx.fillText('가장 작은 자리',
+                    Math.min(Math.max(px(av), L + 48), w - R - 48), T - 8);
+            }
+
+            const cx = px(this.a), cy = py(squaredErrorSum(this.data.points, this.a, this.b));
+            ctx.strokeStyle = 'rgba(225, 29, 72, 0.5)';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx, h - B);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#e11d48';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 어느 쪽으로 가야 줄어드는지. 아래 절의 「오차를 줄이는 방향」이 이 화살표다.
+            if (av !== null && Math.abs(av - this.a) > (aMax - aMin) / 200) {
+                const dir = av > this.a ? 1 : -1;
+                const x0 = cx + dir * 14, x1 = cx + dir * 48, y = cy - 20;
+                ctx.strokeStyle = '#059669';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x0, y);
+                ctx.lineTo(x1, y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x1, y);
+                ctx.lineTo(x1 - dir * 10, y - 6);
+                ctx.lineTo(x1 - dir * 10, y + 6);
+                ctx.closePath();
+                ctx.fillStyle = '#059669';
+                ctx.fill();
+            }
+        }
+    }
+
     window.onload = () => {
         window.uiController = new UIController();
         uiController.loadExample(1);
+        window.handFit = new HandFitController();
+        window.errorCurve = new ErrorCurveController();
     };
 </script>
 <script>

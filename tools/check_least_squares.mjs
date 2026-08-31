@@ -15,6 +15,8 @@
  *   7. **골짜기에 다가가면 실제로 확대되는가.** 창이 좁아지는 것만으로는 모자란다 —
  *      빨간 점이 창 안에서 바닥 쪽으로 다가와야 「다가가고 있다」가 보인다.
  *   8. 자료를 비워도 성한가. 비운 자리에서 학생이 점을 찍기 시작한다.
+ *   9. **점을 찍어도 그림의 틀이 흔들리지 않는가.** 자료에 맞춰 틀을 다시 잡으면
+ *      둘째 점을 찍는 순간 먼저 찍은 점이 화면을 가로질러 옮겨 간다.
  *
  * **못 보는 것.** jsdom 에는 레이아웃이 없다. 사각형이 서로 겹쳐 보이는지, 곡선의
  * 축 이름이 그림을 뚫는지는 브라우저 몫이다.
@@ -44,12 +46,12 @@ for (const o of rects) {
     if (!near(w, h, 0.01)) { bad(`사각형이 정사각형이 아니다: ${w.toFixed(2)} × ${h.toFixed(2)}`); break; }
 }
 
-/* 한 변이 그 점의 오차(세로 픽셀 길이)와 같은가 — 오차선과 짝지어 견주어 본다. */
+/* 한 변이 그 점의 오차(세로 픽셀 길이)와 같은가 — 오차선과 짝지어 비교한다. */
 const dashes = canvas._ctx.ops.filter((o) => o.op === 'path' && o.pts.length === 2
     && near(o.pts[0][0], o.pts[1][0], 0.01) && !o.rect);
 if (dashes.length < 40) bad(`오차선이 ${dashes.length}개뿐이다`);
 /* **개수로 짝짓지 않는다.** 오차가 반 픽셀도 안 되는 점은 사각형을 그리지 않으므로
-   둘의 개수가 어긋나고, 차례로 견주면 엉뚱한 짝이 맞부딪힌다. 같은 값을 가진 오차선이
+   둘의 개수가 어긋나고, 차례로 비교하면 엉뚱한 짝이 맞부딪힌다. 같은 값을 가진 오차선이
    있는지로 본다. */
 const drops = dashes.map((o) => Math.abs(o.pts[0][1] - o.pts[1][1]));
 for (const o of rects) {
@@ -222,6 +224,25 @@ doc.getElementById('handFitCanvas').dispatchEvent(new page.window.MouseEvent('po
     bubbles: true, clientX: canvasW / 3, clientY: canvasH / 3
 }));
 if (hf.data.points.length !== 1) bad('자료를 비운 뒤에 그림을 눌렀는데 점이 찍히지 않는다');
+
+/* ---- 9. 점을 찍어도 틀이 흔들리지 않는가 ------------------------------- */
+const frameOf = () => JSON.stringify(hf.frame);
+const before2 = frameOf();
+const first = hf.data.points[0];
+doc.getElementById('handFitCanvas').dispatchEvent(new page.window.MouseEvent('pointerdown', {
+    bubbles: true, clientX: canvasW * 0.7, clientY: canvasH * 0.7
+}));
+if (frameOf() !== before2) bad(`틀 «안»에 점을 찍었는데 틀이 다시 잡혔다(${before2} → ${frameOf()})`);
+const moved = hf.data.points[0];
+if (!near(moved.x, first.x, 1e-9) || !near(moved.y, first.y, 1e-9)) {
+    bad('둘째 점을 찍었더니 먼저 찍은 점의 값이 달라졌다');
+}
+// 틀 «밖»을 누르면 그쪽으로 넓어져야 한다 — 찍은 점이 화면 밖에 남으면 안 된다.
+const wide = hf.frame.maxX;
+doc.getElementById('handFitCanvas').dispatchEvent(new page.window.MouseEvent('pointerdown', {
+    bubbles: true, clientX: canvasW * 1.4, clientY: canvasH * 0.5
+}));
+if (!(hf.frame.maxX > wide)) bad('틀 밖에 점을 찍었는데 틀이 넓어지지 않는다 — 그 점이 화면 밖에 남는다');
 
 for (const [name, id] of [['손으로 맞추기', 'hfRandom'], ['오차 곡선', 'ecRandom']]) {
     doc.getElementById(id).click();

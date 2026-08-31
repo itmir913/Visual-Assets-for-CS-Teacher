@@ -164,7 +164,7 @@
             <p class="text-slate-600 text-lg font-medium">선형 회귀는 데이터와 직선 사이의 '오차'를 최소화하는 방향으로 선을 조금씩 수정합니다.</p>
         </div>
 
-        <div class="relative grid grid-cols-1 md:grid-cols-4 gap-6 mt-12">
+        <div class="relative grid grid-cols-1 md:grid-cols-2  lg:grid-cols-4 gap-6 mt-12">
             <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col items-center text-center transform transition-transform">
                 <div class="w-14 h-14 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-2xl">
                     <i class="fa-solid fa-braille"></i>
@@ -1279,6 +1279,25 @@
             this.b = 0;
             this.fit = null;
             this.range = {aMin: -1, aMax: 1, bMin: -1, bMax: 1};
+            this.frame = this.data.getBounds();
+        }
+
+        /* **그림의 틀은 자료를 갈아 끼울 때만 다시 잡는다.** 점을 하나 찍을 때마다
+           자료에 맞춰 다시 잡았더니, 빈 화면에 둘째 점을 찍는 순간 틀이 0~10에서
+           두 점 사이로 확 줄면서 **먼저 찍은 점이 화면을 가로질러 옮겨 가고, 좁아진
+           틀 안에서 오차 사각형이 화면을 뒤덮었다.** 학생 눈에는 그림이 팍 튄다. */
+        resetFrame() {
+            this.frame = this.data.getBounds();
+        }
+
+        /** 찍은 점이 틀 밖이면 그쪽만 넓힌다. **좁히지는 않는다.** */
+        growFrame(pt) {
+            const f = this.frame;
+            const padX = (f.maxX - f.minX) * 0.08, padY = (f.maxY - f.minY) * 0.08;
+            if (pt.x < f.minX) f.minX = pt.x - padX;
+            if (pt.x > f.maxX) f.maxX = pt.x + padX;
+            if (pt.y < f.minY) f.minY = pt.y - padY;
+            if (pt.y > f.maxY) f.maxY = pt.y + padY;
         }
 
         el(id) {
@@ -1297,15 +1316,18 @@
 
         /** 눈금의 양 끝. **최적합선이 반드시 슬라이더 안에 들어오게** 잡는다. */
         recomputeRange() {
-            const bd = this.data.getBounds();
+            const bd = this.frame;
             const ux = (bd.maxX - bd.minX) || 1;
             const uy = (bd.maxY - bd.minY) || 1;
             const unit = uy / ux;
             /* **최적합선을 가운데 두고 좁게 잡는다.** 0을 가운데 두고 넓게 잡았더니
                쓸모 있는 구간이 눈금의 한 귀퉁이로 몰려, 오차 곡선이 골짜기가 아니라
                벽처럼 보였다. 시작 자리인 기울기 0은 반드시 안에 들어가야 한다. */
+            /* 점이 둘뿐이면 최적합선이 그 둘을 그대로 지나므로 기울기가 아주 커질 수
+               있다. 그대로 눈금 가운데로 삼으면 슬라이더 한 칸에 선이 뒤집힌다. */
             this.fit = bestFitLine(this.data.points);
-            const mid = this.fit ? this.fit.a : 0;
+            const cap = 4 * unit;
+            const mid = this.fit ? Math.max(-cap, Math.min(cap, this.fit.a)) : 0;
             let aMin = Math.min(0, mid - 1.5 * unit), aMax = Math.max(0, mid + 1.5 * unit);
             let bMin = bd.minY - uy, bMax = bd.maxY + uy;
             if (this.fit) {
@@ -1335,9 +1357,11 @@
         bindPointAdding(plot) {
             plot.canvas.addEventListener('pointerdown', (e) => {
                 const rect = plot.canvas.getBoundingClientRect();
-                const at = plot.pixelToData(e.clientX - rect.left, e.clientY - rect.top, this.data.getBounds());
+                const at = plot.pixelToData(e.clientX - rect.left, e.clientY - rect.top, this.frame);
                 if (!at || !isFinite(at.x) || !isFinite(at.y)) return;
-                this.data.addPoint(Number(at.x.toFixed(2)), Number(at.y.toFixed(2)));
+                const pt = {x: Number(at.x.toFixed(2)), y: Number(at.y.toFixed(2))};
+                this.data.addPoint(pt.x, pt.y);
+                this.growFrame(pt);
                 this.afterDataChange();
                 this.render();
             });
@@ -1370,6 +1394,7 @@
                 this.el(this.ids.desc).textContent =
                     '무작위로 만든 자료입니다. 그림을 눌러 점을 더 찍어 볼 수 있습니다.';
             }
+            this.resetFrame();
             this.recomputeRange();
             this.resetToMeanLine();
             this.render();
@@ -1381,6 +1406,7 @@
             if (this.ids.desc) {
                 this.el(this.ids.desc).textContent = '그림을 눌러 점을 하나씩 찍어 보세요.';
             }
+            this.resetFrame();
             this.recomputeRange();
             this.resetToMeanLine();
             this.render();
@@ -1389,6 +1415,7 @@
         loadExample(id) {
             this.data.setPoints(EXAMPLES[id].data);
             if (this.ids.desc) this.el(this.ids.desc).textContent = EXAMPLES[id].desc;
+            this.resetFrame();
             this.recomputeRange();
             this.resetToMeanLine();
             this.render();
@@ -1453,7 +1480,7 @@
 
         render() {
             const pts = this.data.points;
-            this.plot.draw(pts, this.data.getBounds(), {
+            this.plot.draw(pts, this.frame, {
                 a: this.a,
                 b: this.b,
                 showResidual: this.el('hfChkResidual').checked,
@@ -1522,7 +1549,7 @@
 
         render() {
             const pts = this.data.points;
-            this.plot.draw(pts, this.data.getBounds(),
+            this.plot.draw(pts, this.frame,
                 {a: this.a, b: this.b, showResidual: true, showSquare: false, best: null});
             this.el(this.ids.slopeVal).textContent = fmtNum(this.a);
             this.el(this.ids.interceptVal).textContent = fmtNum(this.b);

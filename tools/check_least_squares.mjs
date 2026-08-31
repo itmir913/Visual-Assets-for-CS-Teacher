@@ -12,6 +12,9 @@
  *   5. 그림을 누르면 그 자리에 점이 생기는가. 그때 **놓아 둔 선이 흔들리지 않는가.**
  *   6. 곡선이 그림 칸 «안»에 그려지고, 골짜기 바닥이 바닥 가까이 오는가 —
  *      0부터 그리면 볼 것인 바닥 언저리가 한 줄로 눌린다.
+ *   7. **골짜기에 다가가면 실제로 확대되는가.** 창이 좁아지는 것만으로는 모자란다 —
+ *      빨간 점이 창 안에서 바닥 쪽으로 다가와야 「다가가고 있다」가 보인다.
+ *   8. 자료를 비워도 성한가. 비운 자리에서 학생이 점을 찍기 시작한다.
  *
  * **못 보는 것.** jsdom 에는 레이아웃이 없다. 사각형이 서로 겹쳐 보이는지, 곡선의
  * 축 이름이 그림을 뚫는지는 브라우저 몫이다.
@@ -190,8 +193,46 @@ else {
     if (!(cr.hi <= cr.vMax * 1.07)) bad('세로 눈금의 천장이 곡선의 가장 큰 값보다 높다 — 눈금이 남아돈다');
 }
 
+/* ---- 7. 다가갈수록 확대되는가 ------------------------------------------ */
+const look = (a) => {
+    setSlope(a);
+    const r = ec.curveRange;
+    return {width: r.aHi - r.aLo, off: Math.abs(ec.a - (r.aLo + r.aHi) / 2) / ((r.aHi - r.aLo) / 2)};
+};
+const far = look(want + (ec.range.aMax - ec.range.aMin) * 0.4);
+const near1 = look(want + (ec.range.aMax - ec.range.aMin) * 0.04);
+if (!(near1.width < far.width / 3)) {
+    bad(`골짜기에 다가갔는데 가로 눈금이 그만큼 좁아지지 않는다(${far.width.toFixed(3)} → ${near1.width.toFixed(3)})`);
+}
+// **창만 좁아지면 확대가 아니다** — 빨간 점이 창 안에서 가운데로 다가와야 한다.
+if (!(near1.off < far.off * 0.8)) {
+    bad(`창이 거리를 그대로 따라가 빨간 점이 제자리다(${far.off.toFixed(3)} → ${near1.off.toFixed(3)})`);
+}
+
+/* ---- 8. 자료를 비워도 성한가 -------------------------------------------- */
+const SICK = /NaN|Infinity|undefined/;
+for (const [name, ctl, clearId] of [['손으로 맞추기', hf, 'hfClear'], ['오차 곡선', ec, 'ecClear']]) {
+    doc.getElementById(clearId).click();
+    if (ctl.data.points.length !== 0) bad(`${name} — 「모두 지우기」를 눌렀는데 점이 남아 있다`);
+    const sick = page.idElements().map((e) => e.textContent || '').filter((t) => SICK.test(t));
+    if (sick.length) bad(`${name} — 자료를 비웠더니 화면에 ${sick[0].trim().slice(0, 40)}`);
+}
+// 비운 자리에서 점을 찍을 수 있어야 한다 — 여기서부터 학생이 자기 자료를 만든다.
+doc.getElementById('handFitCanvas').dispatchEvent(new page.window.MouseEvent('pointerdown', {
+    bubbles: true, clientX: canvasW / 3, clientY: canvasH / 3
+}));
+if (hf.data.points.length !== 1) bad('자료를 비운 뒤에 그림을 눌렀는데 점이 찍히지 않는다');
+
+for (const [name, id] of [['손으로 맞추기', 'hfRandom'], ['오차 곡선', 'ecRandom']]) {
+    doc.getElementById(id).click();
+    const ctl = id === 'hfRandom' ? hf : ec;
+    if (ctl.data.points.length < 5) bad(`${name} — 「랜덤 데이터」가 점을 ${ctl.data.points.length}개만 만들었다`);
+    if (!ctl.fit) bad(`${name} — 무작위 자료에서 최적합선을 구하지 못했다`);
+}
+for (const e of page.errors) bad(`콘솔 오류: ${e.slice(0, 140)}`);
+
 console.log(`최소제곱 두 절 — 정사각형 ${rects.length}개의 한 변이 오차와 같은지, `
     + '최적합선이 슬라이더 안에 있고 그 자리에서 합이 가장 작은지, '
-    + '오차 곡선의 골짜기가 닫힌 해와 같은지, 눌러 찍은 점이 들어가는지 보았다');
+    + '골짜기에 다가가면 확대되는지, 자료를 비우고 찍을 수 있는지 보았다');
 console.log(fail === 0 ? '전부 통과' : `어긋난 것 ${fail}건`);
 process.exit(fail ? 1 : 0);

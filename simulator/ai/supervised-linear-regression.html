@@ -286,6 +286,16 @@
                         </button>
                     </div>
                     <p id="handFitDesc" class="mt-3 text-base text-violet-700 font-medium min-h-5 text-center leading-snug break-keep"></p>
+                    <div class="flex gap-3 mt-3">
+                        <button id="hfRandom"
+                                class="flex-1 px-4 py-3 text-base bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold rounded-xl border border-violet-200">
+                            랜덤 데이터
+                        </button>
+                        <button id="hfClear"
+                                class="flex-1 px-4 py-3 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl border border-slate-200">
+                            모두 지우기
+                        </button>
+                    </div>
                 </div>
 
                 <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-wrap gap-x-6 gap-y-3">
@@ -424,7 +434,8 @@
                 <p class="text-base text-slate-500 font-medium leading-snug break-keep">
                     <strong class="text-slate-700">이 곡선은 절편 b를 지금 값으로 고정하고 기울기 a만 바꿔 본 것입니다.</strong>
                     b를 움직이면 곡선 전체가 바뀌므로, 골짜기 바닥이 곧 정답 기울기인 것은 아닙니다.
-                    골짜기의 모양이 보이도록 <strong>세로 축은 0에서 시작하지 않습니다</strong> — 축 양 끝에 적힌 값을 함께 보세요.
+                    가로 축은 <strong>골짜기 둘레만 보이도록 좁혀지고, 가까이 갈수록 더 크게 확대됩니다.</strong>
+                    세로 축도 0에서 시작하지 않으므로, 축 양 끝에 적힌 값을 함께 보세요.
                 </p>
             </div>
         </div>
@@ -466,6 +477,14 @@
                     <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
                             onclick="errorCurve.loadExample(4)">
                         <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
+                    </button>
+                    <button id="ecRandom"
+                            class="w-full px-3 py-2 text-base bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg border border-amber-200">
+                        랜덤 데이터
+                    </button>
+                    <button id="ecClear"
+                            class="w-full px-3 py-2 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg border border-slate-200">
+                        모두 지우기
                     </button>
                 </div>
                 <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-100 flex flex-col gap-2">
@@ -1143,6 +1162,21 @@
         return v.toFixed(3);
     }
 
+    /* 무작위 자료. **아래 자동 학습 절보다 점을 적게 만든다** — 여기서는 오차 제곱을
+       사각형 하나하나로 보는 것이 일이라, 점이 백 개면 사각형이 서로 덮어 버린다. */
+    function randomPoints(count = 14) {
+        const a = (Math.random() * 3 - 1.5) || 1;
+        const b = Math.random() * 30 + 10;
+        const noise = (Math.random() * 8 + 4);
+        const out = [];
+        for (let i = 0; i < count; i++) {
+            const x = Math.random() * 20 + 1;
+            const y = a * x + b + (Math.random() * 2 - 1) * noise;
+            out.push({x: Number(x.toFixed(2)), y: Number(y.toFixed(2))});
+        }
+        return out;
+    }
+
     /** 산점도 · 내 선 · 오차 · 오차 제곱을 그리는 그림판. 두 절이 함께 쓴다. */
     class FitPlot {
         constructor(canvasId) {
@@ -1170,7 +1204,9 @@
             const ctx = this.ctx;
             const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
             ctx.clearRect(0, 0, w, h);
-            if (!(w > 0 && h > 0) || points.length === 0) return;
+            // 점이 하나도 없어도 **내 선은 그린다.** 자료를 지우고 직접 찍는 동안
+            // 화면이 통째로 비면 슬라이더를 움직여도 아무 일이 없어 보인다.
+            if (!(w > 0 && h > 0)) return;
 
             const toPx = (x) => (x - bounds.minX) / (bounds.maxX - bounds.minX) * w;
             const toPy = (y) => h - (y - bounds.minY) / (bounds.maxY - bounds.minY) * h;
@@ -1327,6 +1363,29 @@
             });
         }
 
+        /** 무작위 자료로 갈아 끼운다. 선은 평균선에서 다시 시작한다. */
+        loadRandom() {
+            this.data.setPoints(randomPoints());
+            if (this.ids.desc) {
+                this.el(this.ids.desc).textContent =
+                    '무작위로 만든 자료입니다. 그림을 눌러 점을 더 찍어 볼 수 있습니다.';
+            }
+            this.recomputeRange();
+            this.resetToMeanLine();
+            this.render();
+        }
+
+        /** 자료를 비운다. **여기서부터 학생이 그림을 눌러 자기 자료를 만든다.** */
+        clearData() {
+            this.data.clear();
+            if (this.ids.desc) {
+                this.el(this.ids.desc).textContent = '그림을 눌러 점을 하나씩 찍어 보세요.';
+            }
+            this.recomputeRange();
+            this.resetToMeanLine();
+            this.render();
+        }
+
         loadExample(id) {
             this.data.setPoints(EXAMPLES[id].data);
             if (this.ids.desc) this.el(this.ids.desc).textContent = EXAMPLES[id].desc;
@@ -1356,6 +1415,16 @@
             this.el('hfReset').addEventListener('click', () => {
                 this.resetToMeanLine();
                 this.render();
+            });
+            this.el('hfRandom').addEventListener('click', () => {
+                this.history = [];
+                this.el('hfHistory').innerHTML = '';
+                this.loadRandom();
+            });
+            this.el('hfClear').addEventListener('click', () => {
+                this.history = [];
+                this.el('hfHistory').innerHTML = '';
+                this.clearData();
             });
             // 슬라이더에서 손을 뗀 자리마다 남긴다 — 어느 쪽으로 옮겼을 때 줄었는지가 보인다.
             this.el(this.ids.slope).addEventListener('change', () => this.remember());
@@ -1432,6 +1501,8 @@
                 this.render();
             });
             this.bindSliders();
+            this.el('ecRandom').addEventListener('click', () => this.loadRandom());
+            this.el('ecClear').addEventListener('click', () => this.clearData());
             this.loadExample(1);
         }
 
@@ -1470,25 +1541,33 @@
             const L = 108, R = 24, T = 26, B = 46;     // 축 이름과 눈금 값이 들어갈 자리
             if (!(w > L + R + 40 && h > T + B + 40) || this.data.points.length === 0) return;
 
-            const {aMin, aMax} = this.range;
+            /* **볼 자리를 골짜기 둘레로 좁힌다.** 눈금 전부를 담으면 골짜기가 두 벽
+               사이의 한 점이 되어, 정작 볼 것이 안 보인다. 가까이 갈수록 창을 좁혀
+               **다가갈수록 확대되게** 한다.
+
+               창을 거리에 그대로 맞추면 안 된다 — 그러면 빨간 점이 늘 창의 같은 자리에
+               머물러 **다가가는 것이 보이지 않는다.** 거리의 제곱근에 맞추면 창이 거리보다
+               천천히 좁아져, 확대되면서 점도 바닥으로 다가온다. */
+            const half = (this.range.aMax - this.range.aMin) / 2;
+            const center = av === null ? (this.range.aMin + this.range.aMax) / 2 : av;
+            const gapA = Math.abs(this.a - center);
+            const d = Math.max(gapA * 1.05, Math.sqrt(gapA * half), half / 40);
+            const aMin = center - d, aMax = center + d;
             const N = 120;
             const vals = [];
             for (let i = 0; i <= N; i++) {
                 vals.push(squaredErrorSum(this.data.points, aMin + (aMax - aMin) * i / N, this.b));
             }
-            /* **곡선 전부를 담으면 골짜기가 납작해진다.** 눈금 양 끝의 합은 바닥의
-               수십 배라, 다 담는 순간 정작 볼 것인 바닥 언저리가 한 줄로 눌린다.
-               그래서 **바닥의 세 배쯤까지만 그리고 위로 벗어나는 팔은 잘라 낸다.**
-               지금 서 있는 자리는 늘 보이게 천장을 밀어 올리므로, 골짜기에 다가갈수록
-               저절로 확대된다. 0에서 시작하지 않는다는 것은 축 양 끝에 값을 적고
-               그림 아래 글로 밝힌다. */
+            /* 세로는 그 창에 실제로 나온 값에 맞춘다. 창이 좁으므로 0부터 그리면
+               골짜기가 도로 납작해진다 — **0에서 시작하지 않는다는 것은 축 양 끝에 값을
+               적고 그림 아래 글로 밝힌다.** */
             const vMax = Math.max.apply(null, vals) || 1;
             const vMin = Math.min.apply(null, vals);
+            const span = (vMax - vMin) || vMax || 1;
+            const lo = Math.max(0, vMin - span * 0.10);
+            const hi = vMax + span * 0.06;
             const cur = squaredErrorSum(this.data.points, this.a, this.b);
-            const floor = vMin > 0 ? vMin * 3 : vMax * 0.05;
-            const hi = Math.min(vMax * 1.06, Math.max(floor, cur * 1.06)) || 1;
-            const lo = Math.max(0, vMin - (hi - vMin) * 0.15);
-            this.curveRange = {lo: lo, hi: hi, vMin: vMin, vMax: vMax, cur: cur};
+            this.curveRange = {lo: lo, hi: hi, vMin: vMin, vMax: vMax, cur: cur, aLo: aMin, aHi: aMax};
             const px = (a) => L + (a - aMin) / (aMax - aMin) * (w - L - R);
             const py = (v) => (h - B) - ((v - lo) / (hi - lo)) * (h - T - B);
 

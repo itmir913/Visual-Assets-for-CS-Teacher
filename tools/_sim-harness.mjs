@@ -307,6 +307,17 @@ export function loadSim(name, opts = {}) {
     const sandbox = dom.getInternalVMContext();
     const doc = dom.window.document;
 
+    /* **감춤을 정하는 Tailwind 낱개 규칙만 손으로 들여온다.**
+       jsdom 은 페이지의 `<style>` 은 셈에 넣지만 `<link>` 로 건 스타일은 받아 오지 않는다.
+       그래서 `.hidden` 이 아무 뜻도 없어, **탭을 감춘 것과 열어 둔 것이 구분되지 않았다.**
+       Tailwind 전체를 구워 넣을 일은 아니고, 「지금 보이는가」를 가르는 것만 적는다.
+       `.hidden` 을 뒤에 두는 것이 Tailwind 의 차례다 — `block hidden` 을 함께 단 탭이
+       있어서 **순서가 뒤바뀌면 감춘 것이 보이는 것으로 읽힌다.**
+       머리의 맨 앞에 꽂아 페이지의 `<style>` 이 이것을 이기게 둔다(실제 차례와 같다). */
+    const shim = doc.createElement('style');
+    shim.textContent = '.block{display:block}.flex{display:flex}.grid{display:grid}.hidden{display:none}';
+    doc.head.insertBefore(shim, doc.head.firstChild);
+
     /* ---- jsdom 에 없는 것 ----
        **레이아웃과 캔버스가 없다.** 그래서 크기는 받침대가 쥐고 흔들고, 캔버스 컨텍스트는
        그린 명령을 적어 두는 가짜를 그대로 쓴다. **없는 것을 밝혀 두는 것이 검사의 절반이다** —
@@ -350,10 +361,14 @@ export function loadSim(name, opts = {}) {
     W.HTMLCanvasElement.prototype.getContext = function () { return makeCtx(this); };
     W.HTMLCanvasElement.prototype.toDataURL = () => 'data:,';
 
-    // 전체 화면은 jsdom 에 없다. 받침대가 직접 흔든다 → `fireFullscreenChange`
-    doc.exitFullscreen = () => Promise.resolve();
+    /* 전체 화면은 jsdom 에 없다. 받침대가 흉내 낸다 — **부르면 대상이 진짜로 바뀌고
+       `fullscreenchange` 가 나른다.** 그래야 「켜 놓은 채 무엇을 눌렀을 때」를 검사할 수
+       있다(전체 화면에서 탭을 바꾸면 무대가 따라오는가). 밖에서 흔드는 문은
+       `fireFullscreenChange` 로 그대로 둔다. */
+    let setFullscreen = () => {};   // 사건을 쏘는 `fire` 를 갖춘 뒤 아래에서 채운다
+    doc.exitFullscreen = () => { setFullscreen(null); return Promise.resolve(); };
     Object.defineProperty(doc, 'fullscreenEnabled', {value: true, configurable: true});
-    proto.requestFullscreen = function () { return Promise.resolve(); };
+    proto.requestFullscreen = function () { setFullscreen(this); return Promise.resolve(); };
 
     /* ---- 창에 얹는 것 ---- */
     W.console = {log() {}, warn() {}, error(...a) { errors.push(a.join(' ')); }, info() {}, debug() {}};
@@ -441,14 +456,45 @@ export function loadSim(name, opts = {}) {
     };
     W.addEventListener('error', (e) => errors.push(String(e.error?.message || e.message)));
 
+    /* 실제 차례 — 공통 모듈(`_lib/fullscreen.js`)이 먼저 등록되어 resize 를 쏘고,
+       그 뒤에 페이지의 핸들러가 돈다. */
+    setFullscreen = (target) => {
+        Object.defineProperty(doc, 'fullscreenElement', {value: target || null, configurable: true});
+        fire(W, 'resize');
+        fire(doc, 'fullscreenchange');
+    };
+
+    /* **마크업에 적은 `onclick` 도 돌게 한다.**
+       jsdom 은 스크립트를 우리가 쥐고 돌리는 모드(`outside-only`)라 **속성으로 적은
+       핸들러를 아예 엮지 않는다.** 그래서 탭을 `onclick="switchTab('2d')"` 로 바꾸는
+       페이지는 눌러도 아무 일이 없었고, **검사는 그것을 「통과」로 읽었다** —
+       가짜가 조용히 헛도는 바로 그 자리다. 속성 글을 페이지 문맥에서 그대로 돌린다. */
+    const wireInlineHandlers = () => {
+        for (const el of doc.querySelectorAll('[onclick]')) {
+            if (el._inlineWired) continue;
+            el._inlineWired = true;
+            const src = el.getAttribute('onclick');
+            el.addEventListener('click', function (ev) {
+                sandbox.__inlineThis = this;
+                sandbox.__inlineEvent = ev;
+                try {
+                    vm.runInContext(`(function (event) {${src}}).call(__inlineThis, __inlineEvent)`,
+                        sandbox, {filename: 'onclick.js'});
+                } catch (e) { errors.push(`onclick: ${e.message}`); }
+            });
+        }
+    };
+
     const lifecycle = () => {
         Object.defineProperty(doc, 'readyState', {value: 'interactive', configurable: true});
+        wireInlineHandlers();
         fire(doc, 'DOMContentLoaded');
         Object.defineProperty(doc, 'readyState', {value: 'complete', configurable: true});
         fire(W, 'load');
         if (typeof W.onload === 'function') {
             try { W.onload(); } catch (e) { errors.push(`onload: ${e.message}`); }
         }
+        wireInlineHandlers();     // 스크립트가 뒤에 만들어 붙인 것까지 줍는다
     };
 
     /** id 가 붙은 요소를 전부. 화면에 무엇이 찍혔는지 살펴볼 때 쓴다. */
@@ -459,13 +505,7 @@ export function loadSim(name, opts = {}) {
         lifecycle,
         setBox: (w, h) => { state.box.w = w; state.box.h = h; },
         fireResize: () => fire(W, 'resize'),
-        fireFullscreenChange: (target) => {
-            /* 실제 차례 — 공통 모듈(`_lib/fullscreen.js`)이 먼저 등록되어 resize 를 쏘고,
-               그 뒤에 페이지의 핸들러가 돈다. */
-            Object.defineProperty(doc, 'fullscreenElement', {value: target || null, configurable: true});
-            fire(W, 'resize');
-            fire(doc, 'fullscreenchange');
-        },
+        fireFullscreenChange: (target) => setFullscreen(target),
         idElements,
         /**
          * 화면에 찍힌 글자. **`byId` 를 살펴 `_text`·`_html` 을 읽던 자리를 대신한다** —

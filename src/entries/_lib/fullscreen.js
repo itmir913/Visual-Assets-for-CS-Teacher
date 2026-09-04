@@ -107,65 +107,6 @@ function addDrawerClose() {
     });
 }
 
-/** 화면에 나와 있는가. **자기만 보지 않고 조상까지 거슬러 본다** —
- *  탭을 감추는 자리가 무대 자신이 아니라 **무대를 싼 바깥 상자**인 페이지가 있다
- *  (결정 트리가 그렇다: `sec-cat` 을 감추고 무대 `catStage` 는 그 안에 있다). */
-function isShown(el) {
-    for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
-        if (getComputedStyle(n).display === 'none') return false;
-    }
-    return true;
-}
-
-/** 지금 화면에 나와 있는 무대.
- *
- * **전체 화면인 것 하나는 빼고 센다.** 그것만은 `display` 가 참말을 하지 않는다 —
- * 무대에 걸린 전체 화면 규칙(`:has(> .fs-fill)` 등)이 특정도로 `.hidden` 을 이겨서,
- * 페이지가 감춘 뒤에도 `flex` 로 남는다. 나머지 무대는 그 규칙이 닿지 않아 정직하다. */
-function shownStages() {
-    const fs = document.fullscreenElement;
-    return [...document.querySelectorAll('.fs-stage')].filter((el) => el !== fs && isShown(el));
-}
-
-/* **탭을 바꾸면 전체 화면도 따라간다.**
-
-   무대를 탭마다 하나씩 두는 페이지는 탭을 바꾸면 **전체 화면인 그 무대가 감춰지고**
-   옆의 형제가 드러난다. 그런데 드러난 형제는 top layer 밖이라 전체 화면에는 아예
-   그려지지 않고, 감춰진 쪽은 위에 적은 특정도 탓에 그대로 남는다 —
-   **탭 줄은 새 탭을 가리키는데 화면은 옛 탭인 채로 멈춘다.**
-
-   **페이지의 `switchTab` 마다 적지 않고 여기서 맡는다.** 탭을 바꾸는 코드는 페이지마다
-   다르게 자라므로(`.hidden` 토글 · `.tab-content.active` · 저마다의 `switchTab`),
-   거기에 한 줄씩 적어 두면 반드시 한 곳이 빠진다. 닫는 문을 여기서 달아 주는 것과
-   같은 이치다 → `addDrawerClose`.
-
-   **누른 김에, 그 클릭 처리 안에서 옮긴다.** 브라우저는 사용자 조작 없는
-   `requestFullscreen` 을 거부하므로 뒤로 미룰 수 없다. 이미 전체 화면일 때 다른 요소를
-   요청하면 나갔다 들어오지 않고 **대상만 바뀐다.** 뒤따르는 `fullscreenchange` 가
-   `fs-on` 과 탭 줄(`fs-dock`)을 새 무대로 옮기고 `resize` 를 쏜다. */
-let shownBeforeClick = null;
-
-function bindTabRetarget() {
-    document.addEventListener('click', (e) => {
-        const fs = document.fullscreenElement;
-        shownBeforeClick = fs && fs.classList.contains('fs-stage') && fs.contains(e.target)
-            ? shownStages() : null;
-    }, true);
-
-    /* 페이지의 핸들러는 눌린 것 자신에 걸려 있어 여기(문서까지 거슬러 온 뒤)보다 먼저 돈다.
-       **새로 드러난 무대가 있을 때만** 옮긴다 — 전체 화면 안의 여느 버튼을 눌렀을 때
-       엉뚱하게 전환하지 않는다. */
-    document.addEventListener('click', () => {
-        const before = shownBeforeClick;
-        shownBeforeClick = null;
-        if (!before) return;
-        const next = shownStages().find((el) => !before.includes(el));
-        if (next && next.requestFullscreen) {
-            Promise.resolve(next.requestFullscreen()).catch(() => {});
-        }
-    });
-}
-
 function bind() {
     /* **iOS 사파리(아이폰)에는 요소 전체 화면이 없다.** `requestFullscreen` 자체가
        없어서, 그냥 두면 눌러도 아무 일이 없는 죽은 버튼이 남는다.
@@ -204,7 +145,6 @@ function bind() {
     });
 
     addDrawerClose();
-    bindTabRetarget();
 
     document.addEventListener('fullscreenchange', () => {
         syncStageClass();

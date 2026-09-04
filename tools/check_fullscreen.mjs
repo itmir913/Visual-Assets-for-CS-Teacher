@@ -56,7 +56,7 @@ const NOT_SIM = 'header, footer, nav, .fs-outside, .fs-dock';
 let pages = 0;
 for (const name of PAGES) {
     const page = loadSim(name);
-    const {doc, window: W} = page;
+    const {doc} = page;
     /* **살아 있게 만든 뒤에 본다.** 진입점이 `defer` 라 이것을 부르지 않으면
        `fullscreen.js` 도 UI 도 붙지 않아, 짜임이 깨져 있어도 조용히 통과한다. */
     page.lifecycle();
@@ -182,43 +182,6 @@ for (const name of PAGES) {
         if (d.parentElement !== dockHome[i]) bad(`${name} — 나왔는데 fs-dock 이 있던 자리로 돌아가지 않았다`);
     });
     if (stage.classList.contains('fs-drawer-open')) bad(`${name} — 나왔는데 서랍이 열린 채로 남아 있다`);
-
-    /* ---- 8. **켠 채로 탭을 바꾸면 무대가 따라오는가** --------------------
-       무대를 탭마다 하나씩 두는 페이지는, 탭을 바꾸면 전체 화면인 그 무대가 감춰지고
-       옆의 형제가 드러난다. 드러난 형제는 top layer 밖이라 전체 화면에 그려지지 않으므로,
-       **누구도 옮겨 주지 않으면 화면이 옛 탭에 갇힌다** — 탭 줄만 새 탭을 가리킨다.
-       옮기는 일은 `_lib/fullscreen.js` 가 맡는다.
-
-       **여기서 보는 것은 「전체 화면 아닌 무대가 열려 있지 않은가」 하나다.** 열려 있다면
-       화면에 나와야 할 것이 전체 화면 밖에 있다는 뜻이고, 그것이 곧 갇힌 상태다.
-       (검사가 켜고 끄는 것은 `fs-on` 이 아니라 받침대의 전체 화면이다 → _sim-harness.mjs) */
-    /* **조상까지 거슬러 본다.** 탭을 감추는 자리가 무대 자신이 아니라 무대를 싼 바깥
-       상자인 페이지가 있다(결정 트리). 자기만 보면 늘 「열려 있다」로 읽힌다. */
-    const isShown = (el) => {
-        for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
-            if (W.getComputedStyle(n).display === 'none') return false;
-        }
-        return true;
-    };
-    if (stages.length > 1 && docks.length) {
-        const open = stages.find(isShown);
-        if (!open) bad(`${name} — 무대가 여럿인데 열려 있는 것이 하나도 없다`);
-        else {
-            open.requestFullscreen();
-            for (const b of docks.flatMap((d) => [...d.querySelectorAll('button')])) {
-                const 이름 = (b.textContent || b.id || '').trim().slice(0, 14);
-                b.click();
-                const now = doc.fullscreenElement;
-                if (!now) { bad(`${name} · 「${이름}」 — 탭을 눌렀더니 전체 화면이 꺼졌다`); break; }
-                const 밖에 = stages.filter((s) => s !== now && isShown(s)).map((s) => s.id);
-                if (밖에.length) {
-                    bad(`${name} · 「${이름}」 — 탭을 바꿨는데 전체 화면은 「${now.id}」에 갇혔다`
-                        + ` (전체 화면 밖에서 열린 무대: ${밖에.join(' · ')})`);
-                }
-            }
-            doc.exitFullscreen();
-        }
-    }
 
     for (const e of page.errors) bad(`${name} — 콘솔 오류: ${e.slice(0, 120)}`);
 }

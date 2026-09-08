@@ -1,7 +1,7 @@
 /* 연산 하나가 어떻게 이루어지는지 — **이 페이지가 가르치려는 것의 알맹이.**
  *
  * 자료구조를 배우는 학생이 헷갈리는 자리는 「무엇을 할 수 있는가」가 아니라
- * **「그것을 하는 데 실제로 무슨 일이 몇 번 벌어지는가」**다. 「배열은 앞에 넣기가
+ * **「그것을 하는 데 실제로 무슨 일이 몇 번 벌어지는가」**다. 「배열은 앞에 삽입이
  * 느리다」는 말은 외울 수 있지만, **뒤에 있는 것이 하나씩 밀려나는 것을 보기 전에는**
  * 왜 느린지가 서지 않는다. 그래서 밀기 한 칸을 한 장으로 남긴다.
  *
@@ -121,7 +121,7 @@ function arrayFind(rec, v) {
  * 빼는 것이 되는 일이라고 배운다. 게다가 같은 4번을 「읽기」로 물으면 제대로 막았으니,
  * 한 페이지가 같은 인덱스를 두 가지로 다룬 셈이다.
  *
- * @param {number} last 쓸 수 있는 가장 큰 인덱스(넣기는 `size`, 읽기·빼기는 `size - 1`)
+ * @param {number} last 쓸 수 있는 가장 큰 인덱스(삽입은 `size`, 읽기·삭제는 `size - 1`)
  * @returns {boolean} 범위 밖이면 `true`. 그때는 부르는 쪽이 바로 돌아간다
  */
 function outOfRange(rec, i, last, what) {
@@ -185,7 +185,7 @@ function listInsertAt(rec, i, v) {
     rec.link(nd.id, after ? after.id : null, 'next');
 
     if (before) {
-        rec.say(`${i - 1}번 노드의 링크를 새 노드로 바꿉니다. **이 한 줄이 「끼워 넣기」의 전부입니다.**`);
+        rec.say(`${i - 1}번 노드의 링크를 새 노드로 바꿉니다. **이 한 줄이 「삽입」의 전부입니다.**`);
         rec.link(before.id, nd.id, 'next');
     } else {
         rec.say('맨 앞에 넣는 것이므로 **head 포인터**를 새 노드로 바꿉니다.');
@@ -320,34 +320,34 @@ function listFind(rec, v) {
 /** 배열로 담는 구조가 쓰는 연산 만들기. */
 export const dsArrayOps = {
     insertFront: {
-        id: 'insert-front', name: '앞에 넣기', arg: 'value',
+        id: 'insert-front', name: '앞에 삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 앞(0번)**에 넣으려 합니다.`,
         run: (rec, {v}) => arrayInsertAt(rec, 0, v),
     },
     insertBack: {
-        id: 'insert-back', name: '뒤에 넣기', arg: 'value',
+        id: 'insert-back', name: '뒤에 삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 뒤(${rec.size}번)**에 넣으려 합니다.`,
         run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
     },
     insertAt: {
-        id: 'insert-at', name: 'k번째에 넣기', arg: 'valueIndex',
+        id: 'insert-at', name: 'k번째에 삽입', arg: 'valueIndex',
         opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번 자리**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : arrayInsertAt(rec, i, v)),
     },
     removeFront: {
-        id: 'remove-front', name: '앞에서 빼기', arg: null,
+        id: 'remove-front', name: '앞에서 삭제', arg: null,
         opening: () => '**맨 앞(0번)**을 빼려 합니다.',
         run: (rec) => arrayRemoveAt(rec, 0),
     },
     removeBack: {
-        id: 'remove-back', name: '뒤에서 빼기', arg: null,
+        id: 'remove-back', name: '뒤에서 삭제', arg: null,
         opening: (rec) => `**맨 뒤(${Math.max(0, rec.size - 1)}번)**를 빼려 합니다.`,
         run: (rec) => arrayRemoveAt(rec, Math.max(0, rec.size - 1)),
     },
     removeAt: {
-        id: 'remove-at', name: 'k번째 빼기', arg: 'index',
+        id: 'remove-at', name: 'k번째 삭제', arg: 'index',
         opening: (rec, {i}) => `**${i}번 자리**를 빼려 합니다.`,
         run: (rec, {i}) => (outOfRange(rec, i, rec.size - 1, '뺄')
             ? '그 자리에는 뺄 것이 없습니다.'
@@ -369,34 +369,34 @@ export const dsArrayOps = {
  *  같은 이름의 연산이 얼마나 다른 일을 하는지가 이 페이지의 요점이기 때문이다. */
 export const dsListOps = {
     insertFront: {
-        id: 'insert-front', name: '앞에 넣기', arg: 'value',
+        id: 'insert-front', name: '앞에 삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 앞**에 넣으려 합니다.`,
         run: (rec, {v}) => listInsertAt(rec, 0, v),
     },
     insertBack: {
-        id: 'insert-back', name: '뒤에 넣기', arg: 'value',
+        id: 'insert-back', name: '뒤에 삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 뒤**에 넣으려 합니다.`,
         run: (rec, {v}) => listInsertAt(rec, rec.size, v),
     },
     insertAt: {
-        id: 'insert-at', name: 'k번째에 넣기', arg: 'valueIndex',
+        id: 'insert-at', name: 'k번째에 삽입', arg: 'valueIndex',
         opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번째**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : listInsertAt(rec, i, v)),
     },
     removeFront: {
-        id: 'remove-front', name: '앞에서 빼기', arg: null,
+        id: 'remove-front', name: '앞에서 삭제', arg: null,
         opening: () => '**맨 앞**을 빼려 합니다.',
         run: (rec) => listRemoveAt(rec, 0),
     },
     removeBack: {
-        id: 'remove-back', name: '뒤에서 빼기', arg: null,
+        id: 'remove-back', name: '뒤에서 삭제', arg: null,
         opening: () => '**맨 뒤**를 빼려 합니다.',
         run: (rec) => listRemoveAt(rec, Math.max(0, rec.size - 1)),
     },
     removeAt: {
-        id: 'remove-at', name: 'k번째 빼기', arg: 'index',
+        id: 'remove-at', name: 'k번째 삭제', arg: 'index',
         opening: (rec, {i}) => `**${i}번째**를 빼려 합니다.`,
         run: (rec, {i}) => (outOfRange(rec, i, rec.size - 1, '뺄')
             ? '그 자리에는 뺄 것이 없습니다.'
@@ -439,12 +439,12 @@ function peekEnd(rec, i, where) {
 export const dsStackOps = {
     array: [
         {
-            id: 'push', name: '넣기 (push)', arg: 'value',
+            id: 'push', name: '삽입 (push)', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 위에 쌓습니다.**`,
             run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
         },
         {
-            id: 'pop', name: '빼기 (pop)', arg: null,
+            id: 'pop', name: '삭제 (pop)', arg: null,
             opening: () => '**맨 위**를 꺼냅니다.',
             run: (rec) => arrayRemoveAt(rec, Math.max(0, rec.size - 1)),
         },
@@ -456,12 +456,12 @@ export const dsStackOps = {
     ],
     list: [
         {
-            id: 'push', name: '넣기 (push)', arg: 'value',
+            id: 'push', name: '삽입 (push)', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 위에 쌓습니다.**`,
             run: (rec, {v}) => listInsertAt(rec, 0, v),
         },
         {
-            id: 'pop', name: '빼기 (pop)', arg: null,
+            id: 'pop', name: '삭제 (pop)', arg: null,
             opening: () => '**맨 위**를 꺼냅니다.',
             run: (rec) => listRemoveAt(rec, 0),
         },
@@ -483,12 +483,12 @@ export const dsStackOps = {
 export const dsQueueOps = {
     array: [
         {
-            id: 'enqueue', name: '넣기 (enqueue)', arg: 'value',
+            id: 'enqueue', name: '삽입 (enqueue)', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **줄 뒤에 세웁니다.**`,
             run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
         },
         {
-            id: 'dequeue', name: '빼기 (dequeue)', arg: null,
+            id: 'dequeue', name: '삭제 (dequeue)', arg: null,
             opening: () => '**줄 맨 앞** 사람을 내보냅니다.',
             run: (rec) => arrayRemoveAt(rec, 0),
         },
@@ -500,12 +500,12 @@ export const dsQueueOps = {
     ],
     list: [
         {
-            id: 'enqueue', name: '넣기 (enqueue)', arg: 'value',
+            id: 'enqueue', name: '삽입 (enqueue)', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **줄 뒤에 세웁니다.**`,
             run: (rec, {v}) => listInsertAt(rec, rec.size, v),
         },
         {
-            id: 'dequeue', name: '빼기 (dequeue)', arg: null,
+            id: 'dequeue', name: '삭제 (dequeue)', arg: null,
             opening: () => '**줄 맨 앞** 사람을 내보냅니다.',
             run: (rec) => listRemoveAt(rec, 0),
         },
@@ -527,44 +527,44 @@ export const dsQueueOps = {
 export const dsDequeOps = {
     array: [
         {
-            id: 'push-front', name: '앞에 넣기', arg: 'value',
+            id: 'push-front', name: '앞에 삽입', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **앞쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => arrayInsertAt(rec, 0, v),
         },
         {
-            id: 'push-back', name: '뒤에 넣기', arg: 'value',
+            id: 'push-back', name: '뒤에 삽입', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **뒤쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
         },
         {
-            id: 'pop-front', name: '앞에서 빼기', arg: null,
+            id: 'pop-front', name: '앞에서 삭제', arg: null,
             opening: () => '**앞쪽 끝**을 뺍니다.',
             run: (rec) => arrayRemoveAt(rec, 0),
         },
         {
-            id: 'pop-back', name: '뒤에서 빼기', arg: null,
+            id: 'pop-back', name: '뒤에서 삭제', arg: null,
             opening: () => '**뒤쪽 끝**을 뺍니다.',
             run: (rec) => arrayRemoveAt(rec, Math.max(0, rec.size - 1)),
         },
     ],
     list: [
         {
-            id: 'push-front', name: '앞에 넣기', arg: 'value',
+            id: 'push-front', name: '앞에 삽입', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **앞쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => listInsertAt(rec, 0, v),
         },
         {
-            id: 'push-back', name: '뒤에 넣기', arg: 'value',
+            id: 'push-back', name: '뒤에 삽입', arg: 'value',
             opening: (rec, {v}) => `${withJosa(v, '을를')} **뒤쪽 끝**에 넣습니다.`,
             run: (rec, {v}) => listInsertAt(rec, rec.size, v),
         },
         {
-            id: 'pop-front', name: '앞에서 빼기', arg: null,
+            id: 'pop-front', name: '앞에서 삭제', arg: null,
             opening: () => '**앞쪽 끝**을 뺍니다.',
             run: (rec) => listRemoveAt(rec, 0),
         },
         {
-            id: 'pop-back', name: '뒤에서 빼기', arg: null,
+            id: 'pop-back', name: '뒤에서 삭제', arg: null,
             opening: () => '**뒤쪽 끝**을 뺍니다.',
             run: (rec) => listRemoveAt(rec, Math.max(0, rec.size - 1)),
         },
@@ -579,12 +579,12 @@ export const dsDequeOps = {
    연산이 비용 — **여기 한곳에 적는다**
    ---------------------------------------------------------------
 
-   화면의 카드는 「앞에 넣기는 O(n)」이라고 말한다. **그 말이 참인지 검사가 실제로
+   화면의 카드는 「앞에 삽입은 O(n)」이라고 말한다. **그 말이 참인지 검사가 실제로
    측정해 본다** — 개수를 키워 가며 작업량이 어떻게 자라는지를 보고 여기 적힌 것과 맞춘다.
    카드에 적힌 말과 화면에서 벌어지는 일이 어긋나는 것이 가장 나쁜 결함이라,
    말을 사람이 적는 이상 기계가 붙들어야 한다.
 
-   **상태를 받는 함수인 것에 뜻이 있다.** 같은 「뒤에 넣기」라도 tail 포인터가 있으면
+   **상태를 받는 함수인 것에 뜻이 있다.** 같은 「뒤에 삽입」이라도 tail 포인터가 있으면
    O(1)이고 없으면 O(n)이다 — 그 갈림이 이 페이지가 가르치려는 것 가운데 하나다. */
 
 const O1 = () => 'O(1)';
@@ -627,7 +627,7 @@ setCost(dsDequeOps.list, {
 /** 원형 큐. `front`·`rear`는 커서가 아니라 **상태**다 — 연산이 끝나도 남는다. */
 export const dsRingOps = [
     {
-        id: 'enqueue', name: '넣기 (enqueue)', arg: 'value',
+        id: 'enqueue', name: '삽입 (enqueue)', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} **rear 자리**에 넣으려 합니다.`,
         run: (rec, {v}) => {
             const s = rec.state;
@@ -655,7 +655,7 @@ export const dsRingOps = [
         },
     },
     {
-        id: 'dequeue', name: '빼기 (dequeue)', arg: null,
+        id: 'dequeue', name: '삭제 (dequeue)', arg: null,
         opening: (rec) => `**front 자리(${rec.state.front}번)**에서 빼려 합니다.`,
         run: (rec) => {
             const s = rec.state;

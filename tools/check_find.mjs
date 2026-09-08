@@ -154,12 +154,12 @@ for (const mode of ['chain', 'open']) {
                 const out = runFindOperation(put, state, v);
                 state = out.state;
                 if (!full) truth.add(v);
-                if (out.counts.hash !== 1) bad(`[${mode}] 넣기가 해시를 ${out.counts.hash}번 돌렸다`);
+                if (out.counts.hash !== 1) bad(`[${mode}] 삽입이 해시를 ${out.counts.hash}번 돌렸다`);
             } else if (r < 0.8) {
                 const out = runFindOperation(remove, state, v);
                 state = out.state;
                 truth.delete(v);
-                if (out.counts.hash !== 1) bad(`[${mode}] 빼기가 해시를 ${out.counts.hash}번 돌렸다`);
+                if (out.counts.hash !== 1) bad(`[${mode}] 삭제가 해시를 ${out.counts.hash}번 돌렸다`);
             } else {
                 const out = runFindOperation(find, state, v);
                 const got = hitAt(out) >= 0;

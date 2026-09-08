@@ -98,12 +98,12 @@ function closingLine(runs, lanes) {
  * **장을 남기지 않고 개수를 키워 가며 높이만 측정한다.**
  * 한 회차를 넘겨서는 볼 수 없는 것 — 개수가 늘 때 두 트리의 높이가 어떻게 갈리는가 — 을 본다.
  *
- * @param {object} ops `{bstInsert, avlInsert}` — 등록부의 「넣기」 두 벌
+ * @param {object} ops `{bstInsert, avlInsert}` — 등록부의 「삽입」 두 벌
  * @returns {{sizes:number[], rows:object[]}}
  */
 export function measureTreeHeight(ops, sizes = TREE_MEASURE_SIZES) {
     const rows = [];
-    for (const [orderId, orderName] of [['asc', '오름차순으로 넣기'], ['shuffle', '섞어서 넣기']]) {
+    for (const [orderId, orderName] of [['asc', '오름차순으로 삽입'], ['shuffle', '섞어서 삽입']]) {
         const bst = [];
         const avl = [];
         for (const n of sizes) {

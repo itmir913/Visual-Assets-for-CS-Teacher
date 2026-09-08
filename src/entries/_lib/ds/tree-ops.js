@@ -429,19 +429,19 @@ function heapFind(rec, v) {
 
 export const bstOps = [
     {
-        id: 'insert', name: '넣기', arg: 'value',
+        id: 'insert', name: '삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 넣을 자리를 **루트에서부터 비교하며** 찾아 내려갑니다.`,
         run: (rec, {v}) => bstInsert(rec, v),
         cost: () => 'O(높이)',
     },
     {
-        id: 'search', name: '찾기', arg: 'value',
+        id: 'search', name: '탐색', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '이가')} 있는지 **루트에서부터** 비교하며 내려갑니다.`,
         run: (rec, {v}) => bstSearch(rec, v),
         cost: () => 'O(높이)',
     },
     {
-        id: 'remove', name: '빼기', arg: 'value',
+        id: 'remove', name: '삭제', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 찾아 지웁니다. **자식이 몇인지에 따라 하는 일이 다릅니다.**`,
         run: (rec, {v}) => bstRemove(rec, v),
         cost: () => 'O(높이)',
@@ -468,19 +468,19 @@ export const bstOps = [
 
 export const avlOps = [
     {
-        id: 'insert', name: '넣기', arg: 'value',
+        id: 'insert', name: '삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 이진 탐색 트리와 **똑같이 넣은 뒤**, 균형이 무너졌으면 회전합니다.`,
         run: (rec, {v}) => avlInsert(rec, v),
         cost: () => 'O(log n)',
     },
     {
-        id: 'search', name: '찾기', arg: 'value',
+        id: 'search', name: '탐색', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 찾습니다. 하는 일은 이진 탐색 트리와 같습니다 — **높이가 다를 뿐입니다.**`,
         run: (rec, {v}) => bstSearch(rec, v),
         cost: () => 'O(log n)',
     },
     {
-        id: 'remove', name: '빼기', arg: 'value',
+        id: 'remove', name: '삭제', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 지운 뒤 **루트까지 올라가며** 균형을 봅니다.`,
         run: (rec, {v}) => bstRemove(rec, v, {rebalance: true}),
         cost: () => 'O(log n)',
@@ -495,7 +495,7 @@ export const avlOps = [
 
 export const heapOps = [
     {
-        id: 'insert', name: '넣기', arg: 'value',
+        id: 'insert', name: '삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} **배열 맨 끝에 놓고 부모와 비교하며 올라갑니다.**`,
         run: (rec, {v}) => heapInsert(rec, v),
         cost: () => 'O(log n)',
@@ -531,7 +531,7 @@ function insertMany(rec, values, {rebalance}) {
 /** 비용 비교 탭이 쓰는 연산. `pair`에 이진 탐색 트리용·AVL용이 들어 있다. */
 export const treeCompareOps = [
     {
-        id: 'insert-asc', name: '전체 삭제 후 오름차순으로 여덟 개 넣기', arg: null,
+        id: 'insert-asc', name: '전체 삭제 후 오름차순으로 여덟 개 삽입', arg: null,
         /* **빈 트리에서 시작한다.** 이미 값이 든 트리에 여덟 개를 더 넣으면 한 줄이
            되지 않는다 — 새 값들이 기존 노드 아래로 흩어져 연결되기 때문이다.
            그런데 이 버튼이 보이려는 장면이 바로 「한 줄로 이어진 편향 트리가 된다」이므로,
@@ -552,7 +552,7 @@ export const treeCompareOps = [
         },
     },
     {
-        id: 'insert', name: '한 개 넣기', arg: 'value',
+        id: 'insert', name: '한 개 삽입', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 두 트리에 함께 넣습니다.`,
         pair: {
             bst: {run: (rec, {v}) => bstInsert(rec, v)},
@@ -560,7 +560,7 @@ export const treeCompareOps = [
         },
     },
     {
-        id: 'search', name: '찾기', arg: 'value',
+        id: 'search', name: '탐색', arg: 'value',
         opening: (rec, {v}) => `${withJosa(v, '을를')} 두 트리에서 함께 찾습니다. **비교 횟수를 보세요.**`,
         pair: {
             bst: {run: (rec, {v}) => bstSearch(rec, v)},

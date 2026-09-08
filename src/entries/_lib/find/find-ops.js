@@ -313,23 +313,23 @@ function openRemove(rec, v) {
    --------------------------------------------------------------- */
 
 export const FIND_SEQ_OPS = [
-    {id: 'seq-find', name: '찾기', arg: 'value', cost: ON, run: seqFind},
+    {id: 'seq-find', name: '탐색', arg: 'value', cost: ON, run: seqFind},
 ];
 
 export const FIND_BIN_OPS = [
-    {id: 'bin-find', name: '찾기', arg: 'value', cost: OLOG, run: binFind},
+    {id: 'bin-find', name: '탐색', arg: 'value', cost: OLOG, run: binFind},
 ];
 
 export const FIND_CHAIN_OPS = [
-    {id: 'hash-put', name: '넣기', arg: 'value', cost: O1, run: chainPut},
-    {id: 'hash-find', name: '찾기', arg: 'value', cost: O1, run: chainFind},
-    {id: 'hash-remove', name: '빼기', arg: 'value', cost: O1, run: chainRemove},
+    {id: 'hash-put', name: '삽입', arg: 'value', cost: O1, run: chainPut},
+    {id: 'hash-find', name: '탐색', arg: 'value', cost: O1, run: chainFind},
+    {id: 'hash-remove', name: '삭제', arg: 'value', cost: O1, run: chainRemove},
 ];
 
 export const FIND_OPEN_OPS = [
-    {id: 'hash-put', name: '넣기', arg: 'value', cost: O1, run: openPut},
-    {id: 'hash-find', name: '찾기', arg: 'value', cost: O1, run: openFind},
-    {id: 'hash-remove', name: '빼기', arg: 'value', cost: O1, run: openRemove},
+    {id: 'hash-put', name: '삽입', arg: 'value', cost: O1, run: openPut},
+    {id: 'hash-find', name: '탐색', arg: 'value', cost: O1, run: openFind},
+    {id: 'hash-remove', name: '삭제', arg: 'value', cost: O1, run: openRemove},
 ];
 
 /** 나란히 비교가 쓰는 「찾기」 셋. **같은 값을 셋에 한꺼번에 물린다.** */

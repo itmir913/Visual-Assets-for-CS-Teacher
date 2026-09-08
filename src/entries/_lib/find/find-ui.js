@@ -387,9 +387,9 @@ export function mountFindSimulator() {
         const v = readValue();
         if (v === null) return;
 
-        /* **넣기에도 같은 상한을 건다.** 상한은 해시 표가 아니라 «칸 그림»이 걸어 둔 것이라
+        /* **삽입에도 같은 상한을 건다.** 상한은 해시 표가 아니라 «칸 그림»이 걸어 둔 것이라
            (칸이 너무 많으면 좁은 화면에서 한 칸이 글자보다 좁아진다), 해시 탭에서 넘겨 담으면
-           그 자료를 그대로 물려받는 순차·이진 탭이 대신 무너진다. 「직접 넣기」에만 걸어
+           그 자료를 그대로 물려받는 순차·이진 탭이 대신 무너진다. 「직접 입력」에만 걸어
            두었더니 버튼으로는 얼마든지 넘길 수 있었다. */
         if (op.id === 'hash-put' && values.length >= FIND_MAX_N && !values.includes(v)) {
             $('input-error').textContent = `${FIND_MAX_N}개까지만 추가할 수 있습니다.`;

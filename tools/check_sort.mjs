@@ -402,7 +402,7 @@ for (const preset of SORT_PRESETS) {
 console.log(`알고리즘 비교 ${raceChecks}판 — 끝나는 순서가 작업량의 순서와 같은지 대조했다`);
 
 /* ================================================================
-   「직접 넣기」로 막아야 할 값을 넣어 본다
+   「직접 입력」로 막아야 할 값을 넣어 본다
 
    계수·기수 정렬은 음수를 받으면 그 자리에서 죽는다. 막는 것은 `checkSortInput`
    하나뿐인데, 그 가드가 검사에 걸려 있지 않아 **깨져도 아무도 몰랐다.**
@@ -436,7 +436,7 @@ for (const group of [...page.el('group-tabs').children]) {
         }
     }
 }
-console.log('직접 넣기 — 음수를 전체 알고리즘에 넣어 보았다');
+console.log('직접 입력 — 음수를 전체 알고리즘에 넣어 보았다');
 
 console.log(fail === 0 ? '전부 통과' : '어긋난 것 ' + fail + '건');
 process.exit(fail === 0 ? 0 : 1);

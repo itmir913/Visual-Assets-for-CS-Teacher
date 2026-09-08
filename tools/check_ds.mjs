@@ -231,7 +231,7 @@ console.log(`추상 자료형이 정해진 구조 넷 — ${adtChecks}걸음을 
 /* ================================================================
    3. **카드에 적은 값이 참인가** — 개수를 키워 가며 실제로 재 본다
 
-   「앞에 넣기는 O(n)」이라고 적어 두고 실제로는 상수만큼 걸리거나, 「O(1)」이라
+   「앞에 삽입은 O(n)」이라고 적어 두고 실제로는 상수만큼 걸리거나, 「O(1)」이라
    적어 두고 개수만큼 걸리면 학생이 외우는 것이 거짓이 된다. 사람이 적은 말이므로
    기계가 붙든다.
    ================================================================ */
@@ -401,7 +401,7 @@ for (const op of DS_COMPARE.ops) {
 }
 console.log(`비용 비교 ${raceChecks}판 — 끝나는 순서가 작업량의 순서와 같은지 대조했다`);
 
-/* **표가 실제로 가르치려는 것을 보이는가.** 「앞에 넣기는 리스트가 싸고 k번째 읽기는
+/* **표가 실제로 가르치려는 것을 보이는가.** 「앞에 삽입은 리스트가 싸고 k번째 읽기는
    배열이 싸다」가 이 페이지의 요점인데, 재어 보니 그렇지 않다면 표가 거짓말을 한다. */
 const measured = measureDsWork(DS_COMPARE.ops);
 const lastCol = measured.sizes.length - 1;
@@ -570,7 +570,7 @@ for (const group of [...page.el('group-tabs').children]) {
 }
 console.log(`단계를 넘기는 동안 상자 ${heightWatched}곳의 높이가 흔들리지 않는지 보았다`);
 
-/* **직접 넣기로 막아야 할 값을 넣어 본다.** 막는 것은 한 곳뿐인데 그 가드가
+/* **직접 입력로 막아야 할 값을 넣어 본다.** 막는 것은 한 곳뿐인데 그 가드가
    검사에 걸려 있지 않으면 깨져도 아무도 모른다. */
 for (const [raw, why] of [
     ['-3 5 8', '음수'],
@@ -581,12 +581,12 @@ for (const [raw, why] of [
     const before = page.errors.length;
     page.el('input-text').value = raw;
     page.el('btn-apply-input').click();
-    for (const e of page.errors.slice(before)) bad(`직접 넣기(${why}) — 죽었다: ${e}`);
+    for (const e of page.errors.slice(before)) bad(`직접 입력(${why}) — 죽었다: ${e}`);
     if (!page.el('input-error').textContent.trim()) {
-        bad(`직접 넣기(${why}) — 막아야 하는데 아무 말도 하지 않았다`);
+        bad(`직접 입력(${why}) — 막아야 하는데 아무 말도 하지 않았다`);
     }
 }
-console.log('직접 넣기 — 막아야 할 값 넷을 넣어 보았다');
+console.log('직접 입력 — 막아야 할 값 넷을 넣어 보았다');
 
 console.log(fail === 0 ? '전부 통과' : '어긋난 것 ' + fail + '건');
 process.exit(fail === 0 ? 0 : 1);

@@ -377,14 +377,14 @@ for (const op of TREE_COMPARE.ops) {
 console.log(`비용 비교 ${raceChecks}판 — 나눠 주는 규칙과 끝나는 순서를 대조했다`);
 
 /* ================================================================
-   AVL 빼기의 **연쇄 회전**
+   AVL 삭제의 **연쇄 회전**
 
    카드는 「뺄 때의 펴기 · O(log n)곳 · 루트까지 올라가며 봐야 한다」고 한다.
-   그런데 앞 절들은 노드 열몇 개짜리 트리에 빼기를 한 번씩만 걸어, **한 번 돌고 멈추어도
+   그런데 앞 절들은 노드 열몇 개짜리 트리에 삭제를 한 번씩만 걸어, **한 번 돌고 멈추어도
    통과했다.** 실제로 `avlRebalanceUp`이 첫 회전 뒤 곧바로 멈추게 고쳐 놓고 돌렸더니
    검사가 「전부 통과」를 냈다 — 카드가 내세우는 바로 그 성질이 검증되지 않고 있었다.
 
-   그래서 **깊은 트리에서 여러 번 뺀다.** 곁들여 한 번의 빼기가 두 곳 이상 편 판이
+   그래서 **깊은 트리에서 여러 번 뺀다.** 곁들여 한 번의 삭제가 두 곳 이상 편 판이
    실제로 나오는지도 센다. 나오지 않으면 이 절 자체가 헛돈 것이므로 그것도 결함이다.
    ================================================================ */
 
@@ -401,25 +401,25 @@ for (let trial = 0; trial < 25; trial++) {
         chainChecks++;
         const fault = treeStateFault(out.state);
         if (fault) {
-            bad(`AVL 빼기 연쇄 — ${pick}을(를) 뺀 뒤 성하지 않다: ${fault}`
+            bad(`AVL 삭제 연쇄 — ${pick}을(를) 뺀 뒤 성하지 않다: ${fault}`
                 + ` (넣은 차례 ${values.join(' ')})`);
             break;
         }
         if (treeHeight(out.state) > avlBound(out.state.size)) {
-            bad(`AVL 빼기 연쇄 — n=${out.state.size}인데 높이가 ${treeHeight(out.state)}다`);
+            bad(`AVL 삭제 연쇄 — n=${out.state.size}인데 높이가 ${treeHeight(out.state)}다`);
             break;
         }
-        // 한 번의 빼기가 몇 곳을 회전했는가 — 「돌립니다」 장을 센다.
+        // 한 번의 삭제가 몇 곳을 회전했는가 — 「돌립니다」 장을 센다.
         const spins = out.frames.filter((f) => f.act.kind === 'rotate').length;
         deepestChain = Math.max(deepestChain, spins);
         state = out.state;
     }
 }
 if (deepestChain < 2) {
-    bad(`AVL 빼기 연쇄 — 한 번의 빼기가 두 번 넘게 돈 판이 하나도 없다(최대 ${deepestChain}번).`
+    bad(`AVL 삭제 연쇄 — 한 번의 삭제가 두 번 넘게 돈 판이 하나도 없다(최대 ${deepestChain}번).`
         + ' 연쇄를 태우지 못했으므로 이 절이 헛돈다');
 }
-console.log(`AVL 빼기 ${chainChecks}판 — 깊은 트리에서 이어 빼며 균형이 지켜지는지 보았다`
+console.log(`AVL 삭제 ${chainChecks}판 — 깊은 트리에서 이어 빼며 균형이 지켜지는지 보았다`
     + ` (한 회차에서 가장 많이 돈 횟수 ${deepestChain})`);
 
 /* ================================================================
@@ -546,7 +546,7 @@ for (const [id, label] of [
     }
 }
 
-/* **직접 넣기로 막아야 할 값을 넣어 본다.** */
+/* **직접 입력로 막아야 할 값을 넣어 본다.** */
 for (const [raw, why] of [
     ['-3 5 8', '음수'],
     ['1 2 300', '천장을 넘는 값'],
@@ -559,12 +559,12 @@ for (const [raw, why] of [
     page.el('input-error').textContent = ' ';
     page.el('input-text').value = raw;
     page.el('btn-apply-input').click();
-    for (const e of page.errors.slice(before)) bad(`직접 넣기(${why}) — 죽었다: ${e}`);
+    for (const e of page.errors.slice(before)) bad(`직접 입력(${why}) — 죽었다: ${e}`);
     if (!page.el('input-error').textContent.trim()) {
-        bad(`직접 넣기(${why}) — 막아야 하는데 아무 말도 하지 않았다`);
+        bad(`직접 입력(${why}) — 막아야 하는데 아무 말도 하지 않았다`);
     }
 }
-console.log('직접 넣기 — 막아야 할 값 넷을 넣어 보았다');
+console.log('직접 입력 — 막아야 할 값 넷을 넣어 보았다');
 
 console.log(fail === 0 ? '전부 통과' : '어긋난 것 ' + fail + '건');
 process.exit(fail === 0 ? 0 : 1);

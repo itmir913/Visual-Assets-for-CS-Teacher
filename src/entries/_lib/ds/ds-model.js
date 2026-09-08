@@ -59,7 +59,7 @@ export function dsArrayState(cap, values = [], extra = {}) {
  *  `nodes`의 «차례»는 화면에 놓는 차례일 뿐이고, 이어짐을 정하는 것은 `next`·`prev`다.
  *
  *  **tail 포인터를 두는지가 따로 있다.** 단일 연결 리스트에 tail 포인터가 없으면
- *  「뒤에 넣기」가 O(n)이 되는데, **그 차이가 이 페이지에서 가르칠 것 가운데 하나**라
+ *  「뒤에 삽입」이 O(n)이 되는데, **그 차이가 이 페이지에서 가르칠 것 가운데 하나**라
  *  구조마다 정할 수 있어야 한다. 없으면 `tail`은 늘 `null`이고 연산은 그것을 쓸 수 없다. */
 export function dsListState(values = [], {doubly = false, hasTail = doubly} = {}) {
     const nodes = values.map((v) => ({...dsItem(v), next: null, prev: null, floating: false}));

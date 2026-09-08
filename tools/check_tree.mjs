@@ -409,7 +409,7 @@ for (let trial = 0; trial < 25; trial++) {
             bad(`AVL 빼기 연쇄 — n=${out.state.size}인데 높이가 ${treeHeight(out.state)}다`);
             break;
         }
-        // 한 번의 빼기가 몇 곳을 폈는가 — 「돌립니다」 장을 센다.
+        // 한 번의 빼기가 몇 곳을 회전했는가 — 「돌립니다」 장을 센다.
         const spins = out.frames.filter((f) => f.act.kind === 'rotate').length;
         deepestChain = Math.max(deepestChain, spins);
         state = out.state;

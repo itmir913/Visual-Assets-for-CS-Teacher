@@ -324,7 +324,7 @@ function checkCutting(sim, el, 이름) {
     el('graph-opt-edit').checked = true;
     sim.setEditing(true);
     sim.newMap();
-    if (el('graph-opt-edit').checked) bad(`${이름} 끊기: 새 지도를 폈는데 끊기가 켜진 채다`);
+    if (el('graph-opt-edit').checked) bad(`${이름} 끊기: 새 지도를 생성했는데 끊기가 켜진 채다`);
 
     // 노드 클릭은 **끊기를 켜 두어도** 목표 지정이다
     el('graph-opt-edit').checked = true;

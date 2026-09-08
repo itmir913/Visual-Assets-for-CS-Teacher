@@ -266,7 +266,7 @@ function heightMap(sim) {
         if (h) out.set(path, h);
         [...(el.children || [])].forEach((c, i) => walk(c, `${path}/${i}`));
     };
-    /* 진짜 DOM 의 `children` 은 배열이 아니라 `HTMLCollection` 이다 — 펴서 쓴다. */
+    /* 진짜 DOM 의 `children` 은 배열이 아니라 `HTMLCollection` 이다 — 전개해 쓴다. */
     [...sim.el('bars-host').children].forEach((c, i) => walk(c, String(i)));
     return out;
 }

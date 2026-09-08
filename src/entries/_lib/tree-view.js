@@ -556,7 +556,7 @@ export class TreeView {
         const fs = size.fontSize || style.fontSize || this.opt.fontSize;
         const color = style.textColor || '#1e293b';
         const step = fs * this.opt.lineHeight;
-        // 여러 줄이면 가운데를 기준으로 위아래로 펼친다.
+        // 여러 줄이면 가운데를 기준으로 위아래로 배치한다.
         const top = -((lines.length - 1) * step) / 2;
 
         const texts = node.selectAll('text.tv-label').data(lines);

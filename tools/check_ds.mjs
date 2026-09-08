@@ -527,7 +527,7 @@ function heightMap(sim) {
         if (typeof el.viewBox === 'string' && el.viewBox) out.set(path + '@viewBox', el.viewBox);
         [...(el.children || [])].forEach((c, i) => walk(c, `${path}/${i}`));
     };
-    /* 진짜 DOM 의 `children` 은 배열이 아니라 `HTMLCollection` 이다 — 펴서 쓴다. */
+    /* 진짜 DOM 의 `children` 은 배열이 아니라 `HTMLCollection` 이다 — 전개해 쓴다. */
     [...sim.el('view-host').children].forEach((c, i) => walk(c, String(i)));
     return out;
 }

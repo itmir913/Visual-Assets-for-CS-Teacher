@@ -569,11 +569,8 @@
                             id="graph-algo">
                         <option value="bfs">너비 우선 탐색 (BFS)</option>
                         <option value="dfs">깊이 우선 탐색 (DFS)</option>
+                        <option value="ucs">균일 비용 탐색 (UCS)</option>
                     </select>
-                    <p class="hidden mt-2 text-base font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-snug break-keep"
-                       id="graph-ucs-badge">
-                        지금은 <b>균일 비용 탐색</b>으로 돌고 있습니다. 초기화하면 위에서 고른 방법으로 돌아갑니다.
-                    </p>
 
                     <label class="flex items-start gap-3 mt-3 bg-white border-2 border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:border-indigo-300 transition-colors">
                         <input checked class="mt-1 w-4 h-4 accent-indigo-600 shrink-0" id="graph-opt-revisit" type="checkbox">
@@ -648,24 +645,26 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-            <h2 class="fs-hide font-black text-slate-800 text-xl flex items-center gap-2">
+        <!-- **읽는 글이라 전체 화면에서 통째로 접는다.** 낱개로 접으면 빈 카드와 테두리만
+             남아 교실 화면에서 자리만 먹는다 → src/styles/simulator.css 의 `fs-hide` -->
+        <div class="fs-hide bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h2 class="font-black text-slate-800 text-xl flex items-center gap-2">
                 <i class="fa-solid fa-circle-question text-indigo-600"></i>
                 참고 &mdash; 비용이 다를 때는 어떻게 할까
             </h2>
-            <p class="fs-hide text-base text-slate-700 leading-relaxed break-keep">
+            <p class="text-base text-slate-700 leading-relaxed break-keep">
                 너비 우선 탐색이 찾는 것은 <b>거쳐 가는 칸이 가장 적은 길</b>입니다.
                 칸마다 드는 비용이 모두 같다면 그 길이 곧 가장 싼 길이기도 합니다.
                 그런데 <b>간선 비용</b>을 켜면 둘이 갈라집니다 &mdash;
                 두 칸짜리 큰길이 세 칸짜리 골목보다 비쌀 수 있기 때문입니다.
             </p>
-            <p class="fs-hide text-base text-slate-700 leading-relaxed break-keep">
+            <p class="text-base text-slate-700 leading-relaxed break-keep">
                 <b>균일 비용 탐색(uniform-cost search)</b>은 다음에 열어 볼 노드를
                 <b>여기까지 오는 데 든 비용이 가장 적은 것</b>으로 고릅니다.
                 목표가 어디에 있는지는 여전히 모르므로 이것도 <b>맹목적 탐색</b>입니다 &mdash;
                 아는 것은 오직 <b>지나온 길에 든 비용</b>뿐입니다.
             </p>
-            <div class="fs-hide flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4">
+            <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4">
                 <i class="fa-solid fa-circle-info text-amber-500 mt-1 shrink-0"></i>
                 <p class="text-base font-medium leading-relaxed break-keep">
                     균일 비용 탐색은 <b>교과 과정에서 다루는 내용이 아닙니다.</b>
@@ -676,10 +675,6 @@
                     이름까지 외울 필요는 없습니다.
                 </p>
             </div>
-            <button class="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white py-3 px-5 rounded-xl font-bold transition shadow-md flex justify-center items-center gap-2"
-                    id="btn-graph-ucs">
-                <i class="fa-solid fa-scale-balanced"></i> 지금 이 지도에서 균일 비용 탐색으로 풀어 보기
-            </button>
         </div>
     </section>
 
@@ -1016,9 +1011,6 @@
             this.search = null;
             this.isPlaying = false;
             this.playTimer = null;
-            // 「참고」에서 균일 비용 탐색으로 돌릴 때만 값이 들어간다. 초기화하면 비운다.
-            this.forcedAlgo = null;
-
             document.getElementById('btn-graph-new').onclick = () => this.newMap();
             document.getElementById('btn-graph-restore').onclick = () => this.restore();
             document.getElementById('graph-opt-edit').addEventListener('change', () => {
@@ -1030,8 +1022,7 @@
             document.getElementById('btn-graph-play').onclick = () => this.togglePlay();
             document.getElementById('btn-graph-step').onclick = () => this.stepManually();
             document.getElementById('btn-graph-reset').onclick = () => this.resetSearch();
-            document.getElementById('btn-graph-ucs').onclick = () => this.runUniformCost();
-            document.getElementById('graph-algo').addEventListener('change', () => this.resetSearch());
+            document.getElementById('graph-algo').addEventListener('change', () => this.onAlgoChange());
             document.getElementById('graph-opt-revisit').addEventListener('change', () => this.resetSearch());
 
             for (const id of ['graph-opt-directed', 'graph-opt-weighted', 'graph-opt-cyclic']) {
@@ -1092,8 +1083,6 @@
             if (keepGoal && this.graph.byId.has(keepGoal)) M.setGoal(this.graph, keepGoal);
 
             this.search = null;
-            this.forcedAlgo = null;
-            this.updateUcsBadge();
 
             this.initView();
             this.view.setData(this.graph);
@@ -1171,10 +1160,6 @@
             document.getElementById('graph-status').innerHTML = msg;
         }
 
-        updateUcsBadge() {
-            document.getElementById('graph-ucs-badge').classList.toggle('hidden', this.forcedAlgo !== 'ucs');
-        }
-
         // 숨어 있던 동안에는 컨테이너 크기가 0이라 화면을 맞출 수 없었다. 탭을 켤 때 맞춘다.
         onShown() {
             if (!this.graph) this.newMap();
@@ -1203,7 +1188,7 @@
         }
 
         initSearch() {
-            const algo = this.forcedAlgo || document.getElementById('graph-algo').value;
+            const algo = document.getElementById('graph-algo').value;
             this.search = {
                 algo,
                 frontier: [this.graph.start],
@@ -1486,8 +1471,8 @@
 
         startPlay() {
             if (!this.graph) return;
-            // **고른 방법은 그대로 둔다.** `resetSearch`는 「참고」에서 켠 균일 비용까지
-            // 되돌리는데, 다 돌고 나서 다시 누른 것뿐인데 방법이 바뀌면 놀란다.
+            // **자취만 지운다.** `resetSearch`는 상태 바까지 「초기화했습니다」로 덮는데,
+            // 다 돌고 나서 다시 누른 것뿐인데 안내가 초기화 문구로 바뀌면 놀란다.
             if (this.search && this.search.status === 'finished') this.clearSearch();
             this.isPlaying = true;
 
@@ -1527,38 +1512,26 @@
 
         resetSearch(say = true) {
             this.clearSearch();
-            this.forcedAlgo = null;
-            this.updateUcsBadge();
             if (say) this.setStatus('탐색을 초기화했습니다. 방법을 고르고 실행하세요.');
         }
 
         /**
-         * 「참고」 카드에서 부른다. **비용을 안 쓰는 지도에서는 볼 것이 없으므로 비용부터 켠다.**
-         * 비용이 모두 1이면 균일 비용 탐색은 너비 우선 탐색과 똑같이 움직인다.
+         * 방법을 바꾸었을 때. **균일 비용 탐색은 비용이 다를 때라야 볼 것이 있다** —
+         * 모든 길이 1이면 너비 우선 탐색과 한 걸음도 다르지 않게 움직여서,
+         * 골라 놓고도 무엇이 다른지 알 수 없다. 그래서 꺼져 있으면 켜 준다.
          */
-        runUniformCost() {
-            if (!this.graph) this.newMap();
-
-            let 켰다 = false;
+        onAlgoChange() {
             const weighted = document.getElementById('graph-opt-weighted');
-            if (!weighted.checked) {
+            if (document.getElementById('graph-algo').value === 'ucs' && !weighted.checked) {
                 weighted.checked = true;
-                this.applyOptions();
-                켰다 = true;
+                this.applyOptions();      // 같은 지도를 비용이 있는 것으로 다시 그린다
+                this.setStatus('<b>균일 비용 탐색</b>을 고르면서 <b>간선 비용</b>을 켰습니다 — '
+                    + '길마다 드는 비용이 달라야 너비 우선 탐색과 갈라집니다.');
+                return;
             }
-
-            this.stopPlay();
-            this.search = null;
-            this.forcedAlgo = 'ucs';
-            this.updateUcsBadge();
-            this.initSearch();
-            this.paint(0);
-            this.setStatus((켰다 ? '간선 비용을 켰습니다. ' : '') +
-                '<b>균일 비용 탐색</b>으로 돌립니다 — 다음에 열 노드를 <b>여기까지 든 비용</b>으로 고릅니다.');
-
-            document.getElementById('graph-canvas').scrollIntoView({behavior: 'smooth', block: 'center'});
-            this.startPlay();
+            this.resetSearch();
         }
+
     }
 
     /* ==============================================================

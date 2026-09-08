@@ -171,10 +171,9 @@ function checkBlind() {
         el('graph-opt-weighted').checked = combo.weighted;
         el('graph-opt-cyclic').checked = combo.cyclic;
         el('graph-opt-revisit').checked = revisit;
-        el('graph-algo').value = (algo === 'ucs' ? 'bfs' : algo);
+        el('graph-algo').value = algo;
 
         sim.loadPreset(preset);
-        sim.forcedAlgo = (algo === 'ucs') ? 'ucs' : null;
         sim.initSearch();
 
         let guard = 0;

@@ -747,6 +747,11 @@
             this.fScore = new Map();
             this.fScore.set(startId, this.calcF(startId, 0));
 
+            // **몇 번째로 발견한 노드인가.** 동점일 때 먼저 발견한 것부터 꺼내려면
+            // 이 값이 있어야 한다 → `pickNext`.
+            this.foundAt = new Map([[startId, 0]]);
+            this.foundCount = 1;
+
             this.state = 'INIT';
             this.currentNode = null;
             this.path = [];
@@ -798,18 +803,21 @@
             if (this.type === 'bfs') return this.openSet.shift();   // 먼저 넣은 것부터
             if (this.type === 'dfs') return this.openSet.pop();     // 나중에 넣은 것부터
 
-            // f(n)이 같으면 h(n)이 작은 노드를 우선 선택한다.
+            // **f(n)이 같으면 «먼저 발견한» 노드부터 꺼낸다.**
             //
-            // **다익스트라는 이 동점 처리에서도 h 를 보면 안 된다.** h 는 「목표가 어디인가」를
-            // 담은 값인데, 다익스트라는 목표가 어디인지 모른 채 도는 방법이다. 값이 같을 때
-            // 슬쩍 h 로 고르면 화면에서는 목표 쪽부터 열리는 것처럼 보여, 「목표를 보지 않는다」는
-            // 설명과 화면이 어긋난다. 동점은 먼저 넣은 것부터 — `sort` 가 안정 정렬이라
-            // 아무것도 하지 않으면 그렇게 된다.
-            const 동점에h = this.usesH();
+            // 예전에는 동점일 때 h 가 작은 쪽을 골랐다. 그런데 **목표 노드의 h 는 0 이라
+            // 그 규칙을 언제나 이긴다** — 목표를 발견하는 순간, f 가 같은 노드가 아무리
+            // 앞서 발견되어 있어도 목표부터 꺼내 탐색이 거기서 끝났다. 화면에는 「f 로
+            // 고른다」고 적어 놓고 실제로는 목표만 특별 대우한 셈이고, **f 가 같은 다른
+            // 가지를 먼저 열어 보고 되돌아오는 장면**도 그만큼 사라졌다.
+            //
+            // 다익스트라는 h 를 보면 안 되는 이유가 하나 더 있다. h 는 「목표가 어디인가」를
+            // 담은 값인데 다익스트라는 목표를 모른 채 도는 방법이라, 동점에서 슬쩍 h 로
+            // 고르면 화면에서는 목표 쪽부터 열려 설명과 어긋난다. 이제 **다섯 방법이 같은
+            // 동점 규칙**을 쓴다.
             this.openSet.sort((a, b) => {
-                let fDiff = this.fScore.get(a) - this.fScore.get(b);
-                if (fDiff === 0) return 동점에h ? this.getH(a) - this.getH(b) : 0;
-                return fDiff;
+                const fDiff = this.fScore.get(a) - this.fScore.get(b);
+                return fDiff !== 0 ? fDiff : this.foundAt.get(a) - this.foundAt.get(b);
             });
             return this.openSet.shift();
         }
@@ -842,7 +850,11 @@
                     const 비교안내 = ' 알고리즘을 바꿔 <b>열어 본 노드 수</b>를 비교해 보세요.';
 
                     const 말 = {
-                        astar: `🎉 목표 도달! (${성적}) A*는 g(n)+h(n)을 함께 보아 <b>목표 쪽으로 곧장</b> 갑니다.${비교안내}`,
+                        // **「곧장 간다」고 적지 않는다.** A*는 g도 보므로 값이 싼 갈래를 먼저
+                        // 열어 보다가 되돌아온다 — 트리 탭은 그 장면이 나오는 판만 내놓는다
+                        // (→ `rollCostsAndGoal`). 방금 헤매는 것을 본 학생에게 곧장 갔다고
+                        // 말하면, 학생이 외우는 것은 화면이 아니라 이 문장이다.
+                        astar: `🎉 목표 도달! (${성적}) A*는 <b>여기까지 든 비용 g(n)</b>과 <b>남은 거리 h(n)</b>을 함께 봅니다 — 그래서 값이 싼 갈래를 <b>먼저 열어 보다가 되돌아오기도</b> 합니다.${비교안내}`,
                         greedy: `🎉 목표 도달! (${성적}) 최상 우선 탐색은 h(n)만 보고 목표 쪽으로 달립니다. 빠르지만 <b>비용은 따지지 않습니다.</b>${비교안내}`,
                         dijkstra: `🎉 목표 도달! (${성적}) 다익스트라는 <b>여기까지 든 비용 g(n)만</b> 보고 가장 싼 것부터 엽니다. h(n)을 0으로 둔 A*와 같습니다.${비교안내}`,
                         bfs: `🎉 목표 도달! (${성적}) 너비 우선은 목표가 어디인지 모른 채 <b>가까운 곳부터 전부</b> 열어 봅니다. 그래서 열어 본 노드가 가장 많습니다.${비교안내}`,
@@ -905,7 +917,10 @@
                         let fVal = this.calcF(neighbor, tentativeG);
                         this.fScore.set(neighbor, fVal);
 
-                        if (isNew) this.openSet.push(neighbor);
+                        if (isNew) {
+                            this.foundAt.set(neighbor, this.foundCount++);
+                            this.openSet.push(neighbor);
+                        }
                         // f 는 그것으로 고르는 방법에서만 넣는다 — scoresOf 와 같은 규칙이다.
                         const 보여줄값 = {id: neighbor, g: tentativeG, h: this.getH(neighbor)};
                         if (this.usesH()) 보여줄값.f = fVal;
@@ -949,6 +964,13 @@
             current: {bg: '#fde047', border: '#eab308', font: '#1e293b'},
             path: {bg: '#f59e0b', border: '#b45309', font: 'white'},
         };
+
+        /** 간선 비용의 천장. 바닥은 1이다 → `rollCostsAndGoal`. */
+        static MAX_EDGE_COST = 6;
+        /** 길목 밖으로 이만큼은 내려갔다 와야 「곁가지를 파고들었다 되돌아오는」 장면이 된다. */
+        static WANT_DETOUR = 2;
+        /** 비용과 목표를 다시 뽑아 보는 횟수. */
+        static ROLL_TRIES = 30;
 
         constructor() {
             this.container = document.getElementById('tree-network');
@@ -1061,20 +1083,17 @@
                     for (let i = 0; i < childrenCount; i++) {
                         idCounter++;
                         const child = this.addNode(idCounter);
-                        // **간선마다 비용을 다르게 준다.** 이것이 이 화면의 핵심 장치다 —
-                        // 비용이 모두 같으면 칸 수가 곧 비용이라 네 알고리즘이 갈릴 데가 없다.
-                        // 최소가 1이므로 「남은 칸 수」인 h가 남은 비용을 넘지 않는다(admissible).
-                        child.edgeCost = 1 + Math.floor(Math.random() * 3);   // 1 ~ 3
                         this.nodeMap.get(parent).children.push(child);
                         this.childrenOf.get(parent).push(idCounter);
                         nextLevel.push(idCounter);
                     }
                 }
                 currentLevel = nextLevel;
-                if (d === depth) {
-                    this.goalNode = currentLevel[Math.floor(Math.random() * currentLevel.length)];
-                }
             }
+
+            // **모양을 다 만든 뒤에 비용과 목표를 뽑는다.** 둘을 여러 번 다시 뽑아 보아야
+            // 「헛걸음하는 판」을 고를 수 있는데, 모양까지 함께 다시 만들면 화면이 멈춘다.
+            this.rollCostsAndGoal(currentLevel);
 
             this.view.setData(this.root);
 
@@ -1089,6 +1108,78 @@
             this.view.fit(300);
         }
 
+        /**
+         * **간선 비용과 목표를 다시 뽑는다 — A*가 한 번은 헛걸음하는 판이 나올 때까지.**
+         *
+         * h(n)이 목표까지의 «정확한» 칸 수라서, 간선 비용이 1~3이던 동안에는 목표 쪽
+         * 가지가 거의 언제나 f(n)에서 이겼다. 목표가 없는 가지로 내려갔다 되돌아오는
+         * 장면이 안 나온 것은 h(n)이 틀려서가 아니라 **비용의 폭이 좁아 h(n)을 뒤집을
+         * 수 없었기** 때문이다 — 형제 중 목표 쪽이 아닌 노드는 h가 2만큼 크므로,
+         * 비용 차이가 2를 넘어야 비로소 f가 뒤집힌다.
+         *
+         * 그래서 두 가지를 함께 한다. **비용의 천장을 올려** 뒤집힐 여지를 만들고,
+         * **뽑은 판을 실제로 돌려 보아** 헛걸음이 있는 것만 남긴다. 값을 흐려서 만든
+         * 장면이 아니므로 h(n)은 여전히 화면에 적힌 그대로 「남은 칸 수」다.
+         */
+        rollCostsAndGoal(leaves) {
+            let 최선 = null;
+            for (let 시도 = 0; 시도 < TreeSearchSimulator.ROLL_TRIES; 시도++) {
+                for (const node of this.nodeMap.values()) {
+                    if (node.id === this.startNode) continue;
+                    // 최소가 1이므로 「남은 칸 수」인 h가 남은 비용을 넘지 않는다(admissible).
+                    // 게다가 한 칸 내려갈 때 h는 1밖에 안 줄어드는데 비용은 1 이상이라
+                    // **일관적(consistent)이기까지 하다** — 닫은 노드를 다시 열지 않아도 된다.
+                    node.edgeCost = 1 + Math.floor(Math.random() * TreeSearchSimulator.MAX_EDGE_COST);
+                }
+                this.goalNode = leaves[Math.floor(Math.random() * leaves.length)];
+                this.computeHeuristics();
+
+                const 깊이 = this.detourDepth();
+                if (!최선 || 깊이 > 최선.depth) {
+                    최선 = {
+                        depth: 깊이,
+                        goal: this.goalNode,
+                        costs: new Map([...this.nodeMap].map(([id, n]) => [id, n.edgeCost])),
+                    };
+                }
+                if (깊이 >= TreeSearchSimulator.WANT_DETOUR) return 깊이;
+            }
+
+            // **헛걸음이 아예 불가능한 모양도 있다** — 자식이 하나뿐인 트리에는 들어갈
+            // 곁가지가 없다. 그럴 때는 가장 나았던 판으로 되돌리고 넘어간다.
+            최선.costs.forEach((c, id) => {
+                this.nodeMap.get(id).edgeCost = c;
+            });
+            this.goalNode = 최선.goal;
+            this.computeHeuristics();
+            return 최선.depth;
+        }
+
+        /**
+         * **A*를 조용히 한 번 돌려, 목표가 없는 가지로 몇 칸이나 내려갔다 왔는지 센다.**
+         * 화면에는 아무것도 그리지 않는다 — 어떤 트리를 내놓을지 고를 때만 쓴다.
+         *
+         * 자식은 부모를 연 뒤에야 열리므로, 길목 밖 노드가 길목에서 두 칸 아래에 있으면
+         * **그 위 노드도 이미 열렸다**는 뜻이다. 「곁가지를 파고들었다 되돌아왔다」가 이것이다.
+         */
+        detourDepth() {
+            const engine = new HeuristicSearch(
+                this.startNode, this.goalNode, 'astar',
+                (id) => this.childrenOf.get(id) || [],
+                (id) => this.nodeDataMap.get(id).h,
+                (from, to) => this.nodeMap.get(to).edgeCost || 1);
+            for (let 걸음 = 0; !engine.isFinished && 걸음 < 5000; 걸음++) engine.step();
+
+            let 깊이 = 0;
+            for (const id of engine.closedSet) {
+                if (this.goalChain.has(id)) continue;
+                let d = 0;
+                for (let c = id; c !== undefined && !this.goalChain.has(c); c = this.parentOf.get(c)) d++;
+                깊이 = Math.max(깊이, d);
+            }
+            return 깊이;
+        }
+
         // --- 휴리스틱 h(n) 부여 ---
         //
         // **h(n)은 트리에서 목표까지 떨어진 칸 수를 그대로 쓴다.** 화면에 「목표까지 남은
@@ -1099,44 +1190,50 @@
         // '가까워 보이는 함정 가지'에 속아 헛걸음하는 장면을 만들려는 장치였는데, 그 값이
         // 화면의 말과 어긋났다 — 두 칸 떨어진 노드에 h:1이 붙어 한 칸 남았다고 말하는 셈이다.
         //
-        // 값이 정확해진 대신 **최상 우선 탐색과 A*가 이 트리에서는 똑같이 움직인다.** 간선이 아래로만
-        // 나 있어 두 알고리즘 모두 길목을 곧장 따라 내려가기 때문이다. 둘을 가르려면 값을
-        // 흐리는 것이 아니라 간선에 서로 다른 비용을 주어야 한다 — g가 깊이와 달라져야
-        // f = g + h가 h와 갈린다.
+        // **둘을 가르는 것은 값을 흐리는 것이 아니라 간선 비용이다.** h가 정확하면 h만 보는
+        // 최상 우선 탐색은 길목을 곧장 따라 내려간다. g가 깊이와 달라져야 f = g + h가 h와
+        // 갈리므로, 간선마다 비용을 다르게 주고 그 폭을 넓게 잡는다 → `rollCostsAndGoal`.
         //
         // 목표가 바뀌면 h는 전부 새 목표 기준으로 다시 매겨야 한다.
         // 그래서 트리 생성과 목표 변경이 같은 함수를 부른다.
         assignHeuristics() {
-            let parentOf = new Map();
-            this.childrenOf.forEach((kids, from) => kids.forEach(to => parentOf.set(to, from)));
+            this.computeHeuristics();
+            for (const id of this.nodeMap.keys()) this.setNodeStyle(id, 'default');
+            this.paint();
+        }
+
+        /**
+         * **값만 매기고 화면은 건드리지 않는다.** 비용과 목표를 여러 번 다시 뽑는
+         * `rollCostsAndGoal`이 회차마다 이것을 부르므로, 여기서 그리면 화면이 멈춘다.
+         *
+         * 부모 사슬(`parentOf`)과 목표까지의 길목(`goalChain`)도 여기서 세워 둔다 —
+         * 헛걸음을 세는 `detourDepth`가 그 둘을 본다.
+         */
+        computeHeuristics() {
+            this.parentOf = new Map();
+            this.childrenOf.forEach((kids, from) => kids.forEach(to => this.parentOf.set(to, from)));
 
             // 목표에서 루트까지의 조상 사슬: id -> 목표까지의 거리
             let goalChain = new Map();
-            for (let c = this.goalNode, d = 0; c !== undefined; c = parentOf.get(c), d++) {
+            for (let c = this.goalNode, d = 0; c !== undefined; c = this.parentOf.get(c), d++) {
                 goalChain.set(c, d);
             }
+            this.goalChain = new Set(goalChain.keys());
 
             // n에서 조상을 따라 올라가다 목표 사슬(=최소 공통 조상)을 만나면 그 지점까지의 거리를 합산
             const treeDist = (id) => {
                 let d = 0;
-                for (let c = id; c !== undefined; c = parentOf.get(c), d++) {
+                for (let c = id; c !== undefined; c = this.parentOf.get(c), d++) {
                     if (goalChain.has(c)) return d + goalChain.get(c);
                 }
                 return Infinity;
             };
 
-            const hOf = new Map();
             for (const id of this.nodeMap.keys()) {
                 const d = treeDist(id);
                 // 트리가 다시 만들어지는 중이라 사슬이 끊겨 있으면 0으로 둔다.
-                hOf.set(id, Number.isFinite(d) ? d : 0);
+                this.nodeDataMap.set(id, {h: Number.isFinite(d) ? d : 0});
             }
-
-            for (const id of this.nodeMap.keys()) {
-                this.nodeDataMap.set(id, {h: hOf.get(id)});
-                this.setNodeStyle(id, 'default');
-            }
-            this.paint();
         }
 
         // 노드 하나를 만든다. 렌더러가 읽는 것은 baseLabel · valueLines · state 셋뿐이다.

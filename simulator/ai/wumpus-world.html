@@ -26,6 +26,27 @@
             background-color: #f8fafc;
         }
 
+        /* 무대 안의 탭. 고른 것이 무엇인지 **색만이 아니라 굵기와 밑줄로도** 보이게 한다 —
+           빔프로젝터에서 옅은 색 차이는 뒷자리에서 사라진다. */
+        .mode-tab {
+            padding: 0.6rem 1.1rem;
+            border-radius: 0.75rem;
+            border: 2px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        .mode-tab:hover {
+            background: #f8fafc;
+        }
+
+        .mode-tab.is-on {
+            background: #4f46e5;
+            border-color: #4338ca;
+            color: #fff;
+        }
+
         .hero-gradient {
             background: linear-gradient(
                     135deg,
@@ -277,10 +298,21 @@
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
             <i class="fa-solid fa-expand"></i>
         </button>
+        <!-- **탭 줄은 무대 «안»에 둔다.** 무대를 탭마다 따로 두면 전체 화면에서 눌러도
+             화면이 바뀌지 않는다 → src/entries/_lib/fullscreen.js 의 `fs-tabs` -->
+        <div class="sim-tabbar flex flex-wrap gap-2 mb-6" id="mode-tabs">
+            <button type="button" class="mode-tab" data-mode="play">
+                <i class="fa-solid fa-gamepad"></i> 직접 해 보기
+            </button>
+            <button type="button" class="mode-tab" data-mode="ai">
+                <i class="fa-solid fa-robot"></i> AI 추론 관찰
+            </button>
+        </div>
+
         <div class="mb-8 flex flex-col gap-6">
             <div>
-                <h2 class="text-3xl font-black mb-4">실시간 논리 추론 시뮬레이터</h2>
-                <p class="text-slate-500 text-xl fs-hide">에이전트가 단서를 바탕으로 지도를 넓혀갑니다. 멈추지 않고 스스로 답을 찾습니다.</p>
+                <h2 class="text-3xl font-black mb-4" id="stage-title">직접 해 보는 웜퍼스 월드</h2>
+                <p class="text-slate-500 text-xl fs-hide" id="stage-lead">방을 옮길 때마다 그 칸에서 느껴진 것이 지도에 자국으로 남습니다. 어디가 안전한지는 그 자국을 보고 스스로 판단합니다.</p>
             </div>
 
             <div class="flex flex-col sm:flex-row items-stretch gap-4 w-full">
@@ -315,25 +347,100 @@
         <div class="fs-fill grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 
             <div class="flex flex-col gap-6">
-                <div id="grid-container"
-                     class="fs-fit grid gap-2 aspect-square bg-slate-300 p-3 rounded-3xl border-4 border-slate-400"></div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <!-- `tabindex` 는 **키보드 조작을 받기 위한 것**이다. 초점이 여기 와야
+                     화살표가 페이지를 굴리는 대신 캐릭터를 옮긴다 → 아래 keydown -->
+                <div id="grid-container" tabindex="0"
+                     class="fs-fit grid gap-2 aspect-square bg-slate-300 p-3 rounded-3xl border-4 border-slate-400 outline-none focus:ring-4 focus:ring-indigo-300"></div>
+                <!-- 직접 해 보기 — 방향 버튼. **키보드 화살표·WASD 로도 움직인다.** -->
+                <div class="flex flex-col items-center gap-4" id="play-controls">
+                    <div class="grid grid-cols-3 gap-2 w-full max-w-xs">
+                        <div></div>
+                        <button id="btn-up" type="button" aria-label="위로 이동"
+                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                        <div></div>
+                        <button id="btn-left" type="button" aria-label="왼쪽으로 이동"
+                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <button id="btn-grab" type="button"
+                                class="h-16 bg-amber-500 text-white font-bold rounded-2xl shadow-lg text-base leading-snug break-keep active:scale-95">
+                            금 획득
+                        </button>
+                        <button id="btn-right" type="button" aria-label="오른쪽으로 이동"
+                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <div></div>
+                        <button id="btn-down" type="button" aria-label="아래로 이동"
+                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </button>
+                        <div></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 w-full max-w-xs">
+                        <button id="btn-play-reset" type="button"
+                                class="h-14 bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-2xl text-base font-bold">
+                            <i class="fa-solid fa-arrow-rotate-right mr-1"></i> 초기화
+                        </button>
+                        <button id="btn-play-new" type="button"
+                                class="h-14 bg-slate-700 text-white rounded-2xl text-base font-bold">
+                            <i class="fa-solid fa-shuffle mr-1"></i> 새 지도
+                        </button>
+                    </div>
+                    <p class="text-base text-slate-500 text-center break-keep">
+                        <b>격자를 한 번 누르면</b> 키보드 화살표나 <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 로도 움직입니다.
+                    </p>
+                </div>
+
+                <div class="hidden grid-cols-2 md:grid-cols-3 gap-4" id="ai-controls">
                     <button id="btn-step"
                             class="h-20 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl text-2xl flex items-center justify-center gap-3 active:scale-95">
-                        <i class="fa-solid fa-forward-step"></i> Next
+                        <i class="fa-solid fa-forward-step"></i> 다음
                     </button>
                     <button id="btn-run"
                             class="h-20 bg-slate-800 text-white font-bold rounded-2xl shadow-xl text-2xl flex items-center justify-center gap-3">
-                        <i class="fa-solid fa-play"></i> Run
+                        <i class="fa-solid fa-play"></i> 자동 실행
                     </button>
                     <button id="btn-reset"
                             class="h-20 col-span-2 md:col-span-1 bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-2xl text-xl font-bold flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-arrow-rotate-right"></i> Reset
+                        <i class="fa-solid fa-arrow-rotate-right"></i> 초기화
                     </button>
                 </div>
             </div>
 
-            <div class="flex flex-col gap-6 h-[500px] md:h-[600px] lg:h-[550px]">
+            <!-- 직접 해 보기 — 지금 칸에서 느껴진 것과, 지금까지 남긴 자국 -->
+            <div class="flex flex-col gap-6" id="play-panel">
+                <div class="bg-indigo-50 border-2 border-indigo-400 p-6 rounded-3xl">
+                    <h3 class="font-bold text-indigo-800 mb-2 flex items-center text-xl">
+                        <i class="fa-solid fa-satellite-dish mr-3"></i>이 칸에서 느껴지는 것
+                    </h3>
+                    <div id="play-percept" class="text-indigo-900 font-black text-xl min-h-[1.5rem]">
+                        (0,0)에서 시작합니다. 방향 버튼을 눌러 옮겨 보세요.
+                    </div>
+                </div>
+
+                <div class="bg-white border-2 border-slate-400 shadow-inner p-6 rounded-3xl">
+                    <h3 class="font-bold text-slate-800 mb-3 text-xl">
+                        <i class="fa-solid fa-shoe-prints text-indigo-500 mr-3"></i>지도에 남은 자국
+                    </h3>
+                    <div id="play-trace" class="text-base text-slate-600 space-y-1 leading-relaxed"></div>
+                </div>
+
+                <!-- **판정은 적지 않는다.** 「이 칸이 안전하다」를 시뮬레이터가 말해 버리면
+                     추론을 기계가 대신하는 것이라, 이 탭이 하려는 일이 사라진다.
+                     자국은 «본 것»이고, 어디가 안전한지는 학생이 정한다. -->
+                <div class="bg-amber-50 border-2 border-amber-300 p-6 rounded-3xl">
+                    <p class="text-base text-amber-900 leading-relaxed break-keep">
+                        <b>💨 바람</b>은 상하좌우 어딘가에 함정이 있다는 뜻이고,
+                        <b>🤢 냄새</b>는 상하좌우 어딘가에 몬스터가 있다는 뜻입니다.
+                        <b>어느 칸인지까지는 알려 주지 않습니다</b> — 자국을 여러 개 모아야 좁혀집니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="hidden flex-col gap-6 h-[500px] md:h-[600px] lg:h-[550px]" id="ai-panel">
 
                 <div class="bg-indigo-50 border-2 border-indigo-400 p-6 rounded-3xl flex-shrink-0">
                     <h3 class="font-bold text-indigo-800 mb-2 flex items-center text-xl"><i
@@ -453,6 +560,24 @@
 
     let env, agent, runInterval = null;
 
+    /* **학생이 직접 걷는 모드의 상태.**
+       에이전트와 따로 든다 — 세계(`env`)는 같이 쓰지만 「어디까지 가 보았는가」는
+       둘이 다르다. 같은 지도를 학생이 풀어 보고 나서 AI 가 푸는 것을 볼 수 있다.
+
+       **`percepts` 가 이 모드의 전부다.** 칸에 닿는 순간 지각을 적어 두고, 지도가
+       그것을 자국으로 그린다. **판정은 적지 않는다** — 「이 칸이 안전하다」는
+       학생이 자국을 보고 정할 일이고, 시뮬레이터가 대신 말하면 추론할 거리가
+       사라진다. 그래서 여기에는 `safe`·`possiblePit` 같은 칸이 없다. */
+    let player = null;
+    let mode = 'play';
+
+    function newPlayer() {
+        const pl = {x: 0, y: 0, visited: new Set([key(0, 0)]), percepts: new Map(),
+                    hasGold: false, isDead: false, cause: null, moves: 0};
+        pl.percepts.set(key(0, 0), env.getPercepts(0, 0));
+        return pl;
+    }
+
     function changeSize() {
         SIZE = parseInt(document.getElementById('grid-size').value);
         initGame();
@@ -461,15 +586,21 @@
     function initGame() {
         env = new WumpusWorld();
         agent = new Agent();
+        player = newPlayer();
         document.getElementById('log-panel').innerHTML = '';
         document.getElementById('percept-panel').innerText = '대기 중...';
         stopAutoRun();
         renderGrid();
         updateKBUI();
+        if (mode === 'play') {
+            renderPlayPercept();
+            renderPlayTrace();
+        }
         logMessage(`[시스템] ${SIZE}x${SIZE} 환경으로 탐험을 시작합니다.`, 'success');
     }
 
     function renderGrid() {
+        if (mode === 'play') return renderPlayGrid();
         const container = document.getElementById('grid-container');
         const showHidden = document.getElementById('toggle-vision').checked;
 
@@ -561,6 +692,207 @@
         const over = agent.hasGold || agent.isDead;
         document.getElementById('btn-step').disabled = over;
         document.getElementById('btn-run').disabled = over;
+    }
+
+    /* **자국만 그리고 판정은 그리지 않는다.**
+       AI 탭의 `renderGrid` 는 에이전트가 추론해 낸 「안전(초록)·위험 후보(노랑)」까지
+       칠한다. 그것을 여기서도 칠하면 **학생은 초록 칸만 밟으면 되고, 추론은 기계가
+       한 것이 된다.** 여기서 색으로 가르는 것은 「가 본 칸」과 「아직 안 가 본 칸」뿐이다. */
+    function renderPlayGrid() {
+        const container = document.getElementById('grid-container');
+        const showHidden = document.getElementById('toggle-vision').checked;
+
+        container.style.gridTemplateColumns = `repeat(${SIZE}, minmax(0, 1fr))`;
+        container.style.gridTemplateRows = `repeat(${SIZE}, minmax(0, 1fr))`;
+        container.innerHTML = '';
+
+        const iconSizeClass = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
+        const coordTextSize = SIZE <= 5 ? 'text-xs' : 'text-[0.625rem]';
+        const here = key(player.x, player.y);
+
+        for (let y = SIZE - 1; y >= 0; y--) {
+            for (let x = 0; x < SIZE; x++) {
+                const k = key(x, y);
+                const isHere = k === here;
+                const isVisited = player.visited.has(k);
+
+                let bg = 'bg-slate-200';
+                let border = 'border-slate-300';
+                let shadow = '';
+
+                if (isHere) {
+                    if (player.isDead) {
+                        bg = 'bg-rose-300';
+                        border = 'border-rose-500';
+                        shadow = 'shadow-lg z-20 scale-105';
+                    } else if (player.hasGold) {
+                        bg = 'bg-amber-300';
+                        border = 'border-amber-500';
+                        shadow = 'shadow-lg shadow-amber-200 z-20 scale-105';
+                    } else {
+                        bg = 'bg-white';
+                        border = 'border-indigo-500';
+                        shadow = 'shadow-md z-10 scale-105';
+                    }
+                } else if (isVisited) {
+                    bg = 'bg-white';
+                    border = 'border-indigo-400';
+                }
+
+                const cell = document.createElement('div');
+                cell.className = `cell-transition rounded-2xl flex items-center justify-center border-2 `
+                    + `${iconSizeClass} leading-none relative ${bg} ${border} ${shadow}`;
+                cell.innerHTML = `<span class="absolute top-1 left-2 font-bold text-slate-400 ${coordTextSize}">${x},${y}</span>`;
+
+                let contentHTML = '';
+                if (isHere) {
+                    if (player.isDead) contentHTML = '💀';
+                    else if (player.hasGold) contentHTML = '💰';
+                    else contentHTML = '🧑';
+                } else if (isVisited) {
+                    const p = player.percepts.get(k);
+                    let s = '';
+                    if (p && p.breeze) s += '💨';
+                    if (p && p.stench) s += '🤢';
+                    if (p && p.glitter && !player.hasGold) s += '💰';
+                    const multiClass = s.length > 2 ? 'scale-90 tracking-tighter' : '';
+                    contentHTML = `<div class="${multiClass} flex items-center justify-center">${s}</div>`;
+                } else if (showHidden) {
+                    if (env.pits.has(k)) contentHTML = '<span class="opacity-30">🕳️</span>';
+                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '<span class="opacity-30">👹</span>';
+                    else if (env.gold.x === x && env.gold.y === y) contentHTML = '<span class="opacity-30">💰</span>';
+                }
+
+                const contentSpan = document.createElement('span');
+                contentSpan.className = 'flex items-center justify-center';
+                contentSpan.innerHTML = contentHTML;
+                cell.appendChild(contentSpan);
+                container.appendChild(cell);
+            }
+        }
+
+        /* **끝난 판에서는 조작을 잠근다.** AI 탭이 같은 규칙을 쓴다 —
+           눌러도 아무 일이 없는 버튼을 학생은 「고장났나」로 읽는다. */
+        const over = player.hasGold || player.isDead;
+        for (const id of ['btn-up', 'btn-down', 'btn-left', 'btn-right', 'btn-grab']) {
+            document.getElementById(id).disabled = over;
+        }
+    }
+
+    /** 지금 칸에서 느껴지는 것을 말로 적는다. **여기서도 판정은 하지 않는다.** */
+    function renderPlayPercept() {
+        const el = document.getElementById('play-percept');
+        if (player.isDead) {
+            const 무엇 = player.cause === 'wumpus'
+                ? '👹 <b>몬스터가 있는 칸</b>이었습니다'
+                : '🕳️ <b>함정이 있는 칸</b>이었습니다';
+            el.innerHTML = `💀 (${player.x},${player.y}) — ${무엇}.`
+                + ' 앞서 남긴 자국을 되짚어 보고, 「초기화」로 같은 지도를 다시 걸어 보세요.';
+            return;
+        }
+        if (player.hasGold) {
+            el.innerHTML = `💰 <b>금을 손에 넣었습니다!</b> ${player.moves}번 이동해서 찾았습니다.`;
+            return;
+        }
+        const p = player.percepts.get(key(player.x, player.y)) || {};
+        const 말 = [];
+        if (p.breeze) 말.push('💨 <b>바람</b>이 붑니다');
+        if (p.stench) 말.push('🤢 <b>냄새</b>가 납니다');
+        if (p.glitter) 말.push('💰 <b>반짝임</b>이 보입니다 — 「금 획득」을 누르세요');
+        el.innerHTML = `(${player.x},${player.y}) — `
+            + (말.length ? 말.join(', ') : '아무것도 느껴지지 않습니다');
+    }
+
+    /** 지금까지 남긴 자국을 한 자리에 모아 적는다. */
+    function renderPlayTrace() {
+        const el = document.getElementById('play-trace');
+        const 줄 = [];
+        const 끝난칸 = player.isDead ? key(player.x, player.y) : null;
+        for (const k of player.visited) {
+            const p = player.percepts.get(k) || {};
+            let 표 = (p.breeze ? '💨' : '') + (p.stench ? '🤢' : '') + (p.glitter ? '💰' : '');
+            if (k === 끝난칸) 표 = (player.cause === 'wumpus' ? '👹' : '🕳️') + ' ' + 표;
+            줄.push(`<div>(${k}) ${표.trim() || '<span class="text-slate-400">아무것도 없음</span>'}</div>`);
+        }
+        el.innerHTML = 줄.join('');
+    }
+
+    /** 한 칸 옮긴다. **닿는 순간 지각하고 그 자리에 자국을 남긴다.** */
+    function movePlayer(dx, dy) {
+        if (player.isDead || player.hasGold) return;
+        const nx = player.x + dx;
+        const ny = player.y + dy;
+        if (nx < 0 || ny < 0 || nx >= SIZE || ny >= SIZE) {
+            document.getElementById('play-percept').innerHTML =
+                '🧱 <b>벽입니다.</b> 그쪽으로는 갈 수 없습니다.';
+            return;
+        }
+
+        player.x = nx;
+        player.y = ny;
+        player.moves++;
+        const k = key(nx, ny);
+        player.visited.add(k);
+        player.percepts.set(k, env.getPercepts(nx, ny));
+
+        /* **무엇에 당했는지를 남긴다.** 「죽었다」만 알려 주면 학생이 되짚을 것이
+           없다. 함정이었는지 몬스터였는지를 알아야 앞서 본 💨·🤢 자국과 이어 볼 수 있다. */
+        if (env.pits.has(k)) { player.isDead = true; player.cause = 'pit'; }
+        if (env.wumpus.x === nx && env.wumpus.y === ny) { player.isDead = true; player.cause = 'wumpus'; }
+
+        renderGrid();
+        renderPlayPercept();
+        renderPlayTrace();
+    }
+
+    function grabGold() {
+        if (player.isDead || player.hasGold) return;
+        if (env.gold.x === player.x && env.gold.y === player.y) {
+            player.hasGold = true;
+        } else {
+            document.getElementById('play-percept').innerHTML =
+                '✋ <b>이 칸에는 금이 없습니다.</b> 반짝임이 보이는 칸에서만 주울 수 있습니다.';
+            return;
+        }
+        renderGrid();
+        renderPlayPercept();
+    }
+
+    /** 같은 지도를 처음부터. **지도는 그대로 두고 걸어온 자취만 지운다.** */
+    function resetPlay() {
+        player = newPlayer();
+        renderGrid();
+        renderPlayPercept();
+        renderPlayTrace();
+    }
+
+    function setMode(next) {
+        mode = next;
+        const play = next === 'play';
+        document.getElementById('play-controls').classList.toggle('hidden', !play);
+        document.getElementById('play-controls').classList.toggle('flex', play);
+        document.getElementById('ai-controls').classList.toggle('hidden', play);
+        document.getElementById('ai-controls').classList.toggle('grid', !play);
+        document.getElementById('play-panel').classList.toggle('hidden', !play);
+        document.getElementById('play-panel').classList.toggle('flex', play);
+        document.getElementById('ai-panel').classList.toggle('hidden', play);
+        document.getElementById('ai-panel').classList.toggle('flex', !play);
+
+        document.getElementById('stage-title').textContent =
+            play ? '직접 해 보는 웜퍼스 월드' : '실시간 논리 추론 시뮬레이터';
+        document.getElementById('stage-lead').textContent = play
+            ? '방을 옮길 때마다 그 칸에서 느껴진 것이 지도에 자국으로 남습니다. 어디가 안전한지는 그 자국을 보고 스스로 판단합니다.'
+            : '에이전트가 단서를 바탕으로 지도를 넓혀갑니다. 멈추지 않고 스스로 답을 찾습니다.';
+
+        for (const b of document.querySelectorAll('#mode-tabs button')) {
+            b.classList.toggle('is-on', b.dataset.mode === next);
+        }
+        if (!play) stopAutoRun();
+        renderGrid();
+        if (play) {
+            renderPlayPercept();
+            renderPlayTrace();
+        }
     }
 
     function logMessage(msg, type = 'default') {
@@ -806,6 +1138,37 @@
         }
     }
 
+    document.getElementById('btn-up').addEventListener('click', () => movePlayer(0, 1));
+    document.getElementById('btn-down').addEventListener('click', () => movePlayer(0, -1));
+    document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
+    document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
+    document.getElementById('btn-grab').addEventListener('click', grabGold);
+    document.getElementById('btn-play-reset').addEventListener('click', resetPlay);
+    document.getElementById('btn-play-new').addEventListener('click', initGame);
+
+    for (const b of document.querySelectorAll('#mode-tabs button')) {
+        b.addEventListener('click', () => setMode(b.dataset.mode));
+    }
+
+    /* **키보드로도 움직인다.** 방향 버튼만 두면 교실 화면에서 마우스를 계속 잡고 있어야 한다.
+       **문서가 아니라 무대에 건다.** 화살표는 페이지를 굴리는 키이기도 해서, 문서에 걸고
+       `preventDefault` 하면 **이 페이지에서는 화살표로 글을 읽어 내려갈 수가 없게 된다** —
+       무대가 화면에 없을 때도 그렇다. 무대에 걸면 «무대 안에 초점이 있을 때»만 듣는다.
+       격자를 한 번 누르면 초점이 오고, 방향 버튼을 누른 뒤에는 저절로 와 있다.
+       값을 넣는 칸에서는 가로채지 않는다 — 격자 크기를 고르다 화면이 움직이면 안 된다. */
+    const KEYS = {
+        ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+        w: [0, 1], s: [0, -1], a: [-1, 0], d: [1, 0],
+    };
+    document.getElementById('activity').addEventListener('keydown', (e) => {
+        if (mode !== 'play') return;
+        if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+        const dir = KEYS[e.key] || KEYS[e.key.toLowerCase()];
+        if (!dir) return;
+        e.preventDefault();
+        movePlayer(dir[0], dir[1]);
+    });
+
     document.getElementById('btn-step').addEventListener('click', stepSimulation);
     document.getElementById('btn-reset').addEventListener('click', initGame);
 
@@ -840,12 +1203,13 @@
         runInterval = null;
 
         // UI 원복
-        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play"></i> Run';
+        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play"></i> 자동 실행';
         document.getElementById('btn-step').classList.remove('opacity-50', 'pointer-events-none');
         document.getElementById('grid-size').disabled = false;
     }
 
     initGame();
+    setMode('play');
 </script>
 <script>
 /* ============================================================

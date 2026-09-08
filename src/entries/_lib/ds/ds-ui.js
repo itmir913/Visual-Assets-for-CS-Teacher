@@ -515,7 +515,7 @@ export function mountDsSimulator() {
            **말없이 잘라 내지 않는다** — 값이 사라진 것을 고장으로 읽는다. */
         if (values.length > DS_CAP) {
             values = values.slice(0, DS_CAP);
-            $('input-error').textContent = `칸이 ${DS_CAP}개라 앞의 ${DS_CAP}개만 옮겼습니다.`;
+            $('input-error').textContent = `칸이 ${DS_CAP}개라 앞의 ${DS_CAP}개만 가져왔습니다.`;
         }
         /* **연산 목록이 구조마다 다르므로 고른 연산도 따라 바꾼다.** 앞 구조의 연산을
            들고 있으면 입력 칸이 엉뚱한 것을 보인다(값을 받는 자리에 인덱스 칸). */

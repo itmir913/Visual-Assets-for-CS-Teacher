@@ -392,7 +392,7 @@ export function mountFindSimulator() {
            그 자료를 그대로 물려받는 순차·이진 탭이 대신 무너진다. 「직접 넣기」에만 걸어
            두었더니 버튼으로는 얼마든지 넘길 수 있었다. */
         if (op.id === 'hash-put' && values.length >= FIND_MAX_N && !values.includes(v)) {
-            $('input-error').textContent = `${FIND_MAX_N}개까지만 담을 수 있습니다.`;
+            $('input-error').textContent = `${FIND_MAX_N}개까지만 추가할 수 있습니다.`;
             return;
         }
 

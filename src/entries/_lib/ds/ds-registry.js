@@ -156,15 +156,15 @@ const doublyStruct = {
 function adtStruct(spec) {
     return {
         group: 'adt',
-        /* **버튼 이름을 구조마다 정한다.** 「연결 리스트로 담기」라고만 적어 두었더니
+        /* **버튼 이름을 구조마다 정한다.** 「연결 리스트로 구현」이라고만 적어 두었더니
            스택은 head 포인터만 있는 리스트, 큐는 tail 포인터까지 있는 리스트, 덱은 이중
            연결 리스트인데 **셋의 버튼 이름이 같았다.** 같은 이름이 다른 구조를 가리키면
            학생은 그것들이 같은 것이라고 배운다. */
         impls: [
-            {id: 'array', name: '배열로 담기', view: 'array', ops: spec.ops.array},
+            {id: 'array', name: '배열로 구현', view: 'array', ops: spec.ops.array},
             {
                 id: 'list',
-                name: spec.listName || '연결 리스트로 담기',
+                name: spec.listName || '연결 리스트로 구현',
                 view: 'list',
                 ops: spec.ops.list,
             },
@@ -210,7 +210,7 @@ const queueStruct = adtStruct({
     en: 'Queue',
     ops: dsQueueOps,
     listOpts: {doubly: false, hasTail: true},
-    listName: '연결 리스트로 담기 (tail 포인터를 둔다)',
+    listName: '연결 리스트로 구현 (tail 포인터를 둔다)',
     idea: '**넣는 끝과 빼는 끝이 다릅니다.** 먼저 넣은 것이 먼저 나오므로 '
         + '**선입선출(FIFO)**이라고 합니다. 매표소 줄과 같습니다. '
         + '연결 리스트로 담을 때는 **마지막 노드를 가리키는 tail 포인터를 함께 둡니다** — '
@@ -275,7 +275,7 @@ const dequeStruct = adtStruct({
     en: 'Deque',
     ops: dsDequeOps,
     listOpts: {doubly: true},
-    listName: '이중 연결 리스트로 담기',
+    listName: '이중 연결 리스트로 구현',
     idea: '**양쪽 끝에서 모두** 넣고 뺄 수 있습니다. 스택처럼도 큐처럼도 쓸 수 있어 '
         + '「양방향 큐」라고도 합니다. 어느 끝을 쓸지는 쓰는 쪽이 그때그때 정합니다.',
     watch: '**이 시뮬레이터의 배열 구현은 앞쪽 끝의 비용이 큽니다** — 앞에 넣으려면 밀어야 하니까요. '

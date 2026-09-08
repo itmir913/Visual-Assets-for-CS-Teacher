@@ -28,6 +28,13 @@
 
         /* 무대 안의 탭. 고른 것이 무엇인지 **색만이 아니라 굵기와 밑줄로도** 보이게 한다 —
            빔프로젝터에서 옅은 색 차이는 뒷자리에서 사라진다. */
+        /* **탭 줄 아래 구분선을 없앤다.** `.sim-tabbar` 는 sticky 라 밑줄을 하나 긋는데,
+           이 페이지는 탭이 색으로 이미 켜진 곳을 말하고 있어서 선이 하나 더 그이면
+           머리글과 무대가 두 번 갈린 것처럼 보인다. cs 시뮬레이터의 탭 줄은 그대로 둔다. */
+        #mode-tabs {
+            border-bottom: 0;
+        }
+
         .mode-tab {
             padding: 0.6rem 1.1rem;
             border-radius: 0.75rem;
@@ -293,25 +300,28 @@
     </section>
 
     <section class="scroll-mt-24 section-card overflow-hidden fs-stage" id="activity">
-        <!-- 교실 화면용 전체 화면 버튼. 나올 때는 Esc 또는 같은 버튼. -->
-        <button type="button" class="fs-btn" data-fullscreen="activity"
-                title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
-            <i class="fa-solid fa-expand"></i>
-        </button>
         <!-- **탭 줄은 무대 «안»에 둔다.** 무대를 탭마다 따로 두면 전체 화면에서 눌러도
-             화면이 바뀌지 않는다 → src/entries/_lib/fullscreen.js 의 `fs-tabs` -->
-        <div class="sim-tabbar flex flex-wrap gap-2 mb-6" id="mode-tabs">
+             화면이 바뀌지 않는다 → src/entries/_lib/fullscreen.js 의 `fs-tabs`
+
+             **전체 화면 버튼도 이 줄 «안»에 앉힌다.** 무대 모서리에 절대 배치로 띄워
+             두었더니, 전체 화면에서 이 탭 줄이 무대 위쪽을 덮으면서 그 아래 깔려
+             반쯤 잘렸다. cs 시뮬레이터가 같은 까닭으로 탭 줄 안에 둔다. -->
+        <div class="sim-tabbar flex flex-wrap items-center gap-2 mb-6" id="mode-tabs">
             <button type="button" class="mode-tab" data-mode="play">
                 <i class="fa-solid fa-gamepad"></i> 직접 해 보기
             </button>
             <button type="button" class="mode-tab" data-mode="ai">
                 <i class="fa-solid fa-robot"></i> AI 추론 관찰
             </button>
+            <button type="button" class="mode-tab ml-auto" data-fullscreen="activity"
+                    title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
+                <i class="fa-solid fa-expand"></i>
+            </button>
         </div>
 
         <div class="mb-8 flex flex-col gap-6">
             <div>
-                <h2 class="text-3xl font-black mb-4" id="stage-title">직접 해 보는 웜퍼스 월드</h2>
+                <h2 class="text-3xl font-black mb-4 fs-hide" id="stage-title">직접 해 보는 웜퍼스 월드</h2>
                 <p class="text-slate-500 text-xl fs-hide" id="stage-lead">방을 옮길 때마다 그 칸에서 느껴진 것이 지도에 자국으로 남습니다. 어디가 안전한지는 그 자국을 보고 스스로 판단합니다.</p>
             </div>
 
@@ -351,35 +361,11 @@
                      화살표가 페이지를 굴리는 대신 캐릭터를 옮긴다 → 아래 keydown -->
                 <div id="grid-container" tabindex="0"
                      class="fs-fit grid gap-2 aspect-square bg-slate-300 p-3 rounded-3xl border-4 border-slate-400 outline-none focus:ring-4 focus:ring-indigo-300"></div>
-                <!-- 직접 해 보기 — 방향 버튼. **키보드 화살표·WASD 로도 움직인다.** -->
-                <div class="flex flex-col items-center gap-4" id="play-controls">
-                    <div class="grid grid-cols-3 gap-2 w-full max-w-xs">
-                        <div></div>
-                        <button id="btn-up" type="button" aria-label="위로 이동"
-                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
-                            <i class="fa-solid fa-arrow-up"></i>
-                        </button>
-                        <div></div>
-                        <button id="btn-left" type="button" aria-label="왼쪽으로 이동"
-                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <button id="btn-grab" type="button"
-                                class="h-16 bg-amber-500 text-white font-bold rounded-2xl shadow-lg text-base leading-snug break-keep active:scale-95">
-                            금 획득
-                        </button>
-                        <button id="btn-right" type="button" aria-label="오른쪽으로 이동"
-                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                        <div></div>
-                        <button id="btn-down" type="button" aria-label="아래로 이동"
-                                class="h-16 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg text-2xl active:scale-95">
-                            <i class="fa-solid fa-arrow-down"></i>
-                        </button>
-                        <div></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 w-full max-w-xs">
+                <!-- **방향 버튼을 두지 않는다.** 격자 옆에 방향판을 세우면 교실 화면에서
+                     자리만 먹는데, 옮기는 일은 **이웃 칸을 누르는 것**으로 이미 된다.
+                     여기 남는 것은 이웃 칸으로는 할 수 없는 일 셋뿐이다. -->
+                <div class="flex flex-col gap-3" id="play-controls">
+                    <div class="grid grid-cols-3 gap-3">
                         <button id="btn-play-reset" type="button"
                                 class="h-14 bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-2xl text-base font-bold">
                             <i class="fa-solid fa-arrow-rotate-right mr-1"></i> 초기화
@@ -388,24 +374,36 @@
                                 class="h-14 bg-slate-700 text-white rounded-2xl text-base font-bold">
                             <i class="fa-solid fa-shuffle mr-1"></i> 새 지도
                         </button>
+                        <button id="btn-grab" type="button"
+                                class="h-14 bg-amber-500 text-white rounded-2xl text-base font-bold active:scale-95">
+                            <i class="fa-solid fa-hand-sparkles mr-1"></i> 금 획득
+                        </button>
                     </div>
                     <p class="text-base text-slate-500 text-center break-keep">
-                        <b>격자를 한 번 누르면</b> 키보드 화살표나 <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 로도 움직입니다.
+                        <b>이웃 칸을 누르면</b> 그쪽으로 옮깁니다. 격자를 한 번 누른 뒤에는
+                        키보드 화살표나 <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 로도 움직입니다.
                     </p>
                 </div>
 
-                <div class="hidden grid-cols-2 md:grid-cols-3 gap-4" id="ai-controls">
+                <!-- **「초기화」와 「새 지도」를 갈라 둔다.** 예전에는 「초기화」 하나가
+                     지도까지 새로 뽑고 있었다 — 직접 해 보기 탭의 「초기화」는 지도를
+                     그대로 두므로, **같은 낱말이 두 탭에서 다른 일을 하고 있었다.** -->
+                <div class="hidden grid-cols-2 md:grid-cols-4 gap-3" id="ai-controls">
                     <button id="btn-step"
-                            class="h-20 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl text-2xl flex items-center justify-center gap-3 active:scale-95">
-                        <i class="fa-solid fa-forward-step"></i> 다음
+                            class="h-14 bg-indigo-600 text-white rounded-2xl text-base font-bold whitespace-nowrap active:scale-95">
+                        <i class="fa-solid fa-forward-step mr-1"></i> 다음
                     </button>
                     <button id="btn-run"
-                            class="h-20 bg-slate-800 text-white font-bold rounded-2xl shadow-xl text-2xl flex items-center justify-center gap-3">
-                        <i class="fa-solid fa-play"></i> 자동 실행
+                            class="h-14 bg-slate-800 text-white rounded-2xl text-base font-bold whitespace-nowrap">
+                        <i class="fa-solid fa-play mr-1"></i> 자동 실행
                     </button>
                     <button id="btn-reset"
-                            class="h-20 col-span-2 md:col-span-1 bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-2xl text-xl font-bold flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-arrow-rotate-right"></i> 초기화
+                            class="h-14 bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-2xl text-base font-bold whitespace-nowrap">
+                        <i class="fa-solid fa-arrow-rotate-right mr-1"></i> 초기화
+                    </button>
+                    <button id="btn-new-map"
+                            class="h-14 bg-slate-700 text-white rounded-2xl text-base font-bold whitespace-nowrap">
+                        <i class="fa-solid fa-shuffle mr-1"></i> 새 지도
                     </button>
                 </div>
             </div>
@@ -739,9 +737,19 @@
                     border = 'border-indigo-400';
                 }
 
+                /* **이웃 칸이면 눌러서 옮긴다.** 방향판을 없앤 자리를 이것이 메운다 —
+                   터치 화면에는 키보드가 없으므로 누를 길이 하나는 있어야 한다. */
+                const 이웃 = !player.isDead && !player.hasGold
+                    && Math.abs(x - player.x) + Math.abs(y - player.y) === 1;
+
                 const cell = document.createElement('div');
+                if (이웃) {
+                    cell.dataset.step = `${x - player.x},${y - player.y}`;
+                    cell.title = '여기로 이동';
+                }
                 cell.className = `cell-transition rounded-2xl flex items-center justify-center border-2 `
-                    + `${iconSizeClass} leading-none relative ${bg} ${border} ${shadow}`;
+                    + `${iconSizeClass} leading-none relative ${bg} ${border} ${shadow} `
+                    + (이웃 ? 'cursor-pointer hover:brightness-95' : '');
                 cell.innerHTML = `<span class="absolute top-1 left-2 font-bold text-slate-400 ${coordTextSize}">${x},${y}</span>`;
 
                 let contentHTML = '';
@@ -773,10 +781,7 @@
 
         /* **끝난 판에서는 조작을 잠근다.** AI 탭이 같은 규칙을 쓴다 —
            눌러도 아무 일이 없는 버튼을 학생은 「고장났나」로 읽는다. */
-        const over = player.hasGold || player.isDead;
-        for (const id of ['btn-up', 'btn-down', 'btn-left', 'btn-right', 'btn-grab']) {
-            document.getElementById(id).disabled = over;
-        }
+        document.getElementById('btn-grab').disabled = player.hasGold || player.isDead;
     }
 
     /** 지금 칸에서 느껴지는 것을 말로 적는다. **여기서도 판정은 하지 않는다.** */
@@ -866,6 +871,19 @@
         renderPlayTrace();
     }
 
+    /** 같은 지도를 처음부터. **지도는 그대로 두고 에이전트가 알아낸 것만 비운다.**
+     *  지도까지 새로 뽑는 것은 「새 지도」(`initGame`)다 — 둘을 한 버튼에 묶어 두면
+     *  「초기화」가 탭마다 다른 일을 하게 된다. */
+    function resetAgent() {
+        stopAutoRun();
+        agent = new Agent();
+        document.getElementById('log-panel').innerHTML = '';
+        document.getElementById('percept-panel').innerText = '대기 중...';
+        renderGrid();
+        updateKBUI();
+        logMessage('[시스템] 같은 지도에서 처음부터 다시 추론합니다.', 'success');
+    }
+
     function setMode(next) {
         mode = next;
         const play = next === 'play';
@@ -884,7 +902,7 @@
             ? '방을 옮길 때마다 그 칸에서 느껴진 것이 지도에 자국으로 남습니다. 어디가 안전한지는 그 자국을 보고 스스로 판단합니다.'
             : '에이전트가 단서를 바탕으로 지도를 넓혀갑니다. 멈추지 않고 스스로 답을 찾습니다.';
 
-        for (const b of document.querySelectorAll('#mode-tabs button')) {
+        for (const b of document.querySelectorAll('#mode-tabs button[data-mode]')) {
             b.classList.toggle('is-on', b.dataset.mode === next);
         }
         if (!play) stopAutoRun();
@@ -1138,15 +1156,24 @@
         }
     }
 
-    document.getElementById('btn-up').addEventListener('click', () => movePlayer(0, 1));
-    document.getElementById('btn-down').addEventListener('click', () => movePlayer(0, -1));
-    document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
-    document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
     document.getElementById('btn-grab').addEventListener('click', grabGold);
+
+    /* 이웃 칸을 눌러 옮긴다. **칸이 아니라 격자에 건다** — `renderPlayGrid` 가
+       `innerHTML` 을 비우므로, 칸마다 걸면 다시 그릴 때마다 함께 사라진다. */
+    document.getElementById('grid-container').addEventListener('click', (e) => {
+        if (mode !== 'play') return;
+        const cell = e.target.closest('[data-step]');
+        if (!cell) return;
+        const step = cell.dataset.step.split(',').map(Number);
+        movePlayer(step[0], step[1]);
+    });
     document.getElementById('btn-play-reset').addEventListener('click', resetPlay);
     document.getElementById('btn-play-new').addEventListener('click', initGame);
 
-    for (const b of document.querySelectorAll('#mode-tabs button')) {
+    /* **탭 «만» 고른다.** 이 줄에는 전체 화면 버튼도 함께 앉아 있어서, 그냥
+       `#mode-tabs button` 으로 걸면 전체 화면을 누를 때 `setMode(undefined)` 가 불린다 —
+       탭 둘의 표시가 벗겨지고 전체 화면 버튼이 켜진 것처럼 보였다. */
+    for (const b of document.querySelectorAll('#mode-tabs button[data-mode]')) {
         b.addEventListener('click', () => setMode(b.dataset.mode));
     }
 
@@ -1170,14 +1197,15 @@
     });
 
     document.getElementById('btn-step').addEventListener('click', stepSimulation);
-    document.getElementById('btn-reset').addEventListener('click', initGame);
+    document.getElementById('btn-reset').addEventListener('click', resetAgent);
+    document.getElementById('btn-new-map').addEventListener('click', initGame);
 
     document.getElementById('btn-run').addEventListener('click', () => {
         if (runInterval) {
             stopAutoRun();
         } else {
             // UI 변경: 버튼 제어 (Race Condition 방지)
-            document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+            document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-pause mr-1"></i> 일시 정지';
             document.getElementById('btn-step').classList.add('opacity-50', 'pointer-events-none');
             document.getElementById('grid-size').disabled = true;
 
@@ -1203,7 +1231,7 @@
         runInterval = null;
 
         // UI 원복
-        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play"></i> 자동 실행';
+        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play mr-1"></i> 자동 실행';
         document.getElementById('btn-step').classList.remove('opacity-50', 'pointer-events-none');
         document.getElementById('grid-size').disabled = false;
     }

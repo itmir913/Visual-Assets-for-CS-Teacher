@@ -49,9 +49,10 @@ const PAGES = findPages(SIM_ROOT)
 const CONTROL = 'button, input, select, textarea';
 
 /** **시뮬레이터의 조작이 아닌 것.** 페이지 껍데기(머리글의 메뉴 버튼)와, 스스로 확인하는
- *  퀴즈다. 퀴즈는 수업 «뒤»에 각자 푸는 것이라 전체 화면에 들어갈 까닭이 없다.
+ *  퀴즈와, 무대를 고르는 탭 줄(`fs-tabs`)이다. 퀴즈는 수업 «뒤»에 각자 푸는 것이라
+ *  전체 화면에 들어갈 까닭이 없고, 탭은 어느 무대를 켤지 켜기 «전»에 고르는 것이다.
  *  페이지 쪽에서 빼겠다고 밝히려면 그 상자에 `fs-outside` 를 준다. */
-const NOT_SIM = 'header, footer, nav, .fs-outside, .fs-dock';
+const NOT_SIM = 'header, footer, nav, .fs-outside, .fs-tabs';
 
 let pages = 0;
 for (const name of PAGES) {
@@ -115,15 +116,14 @@ for (const name of PAGES) {
     }
 
     /* ---- 4. 전체 화면을 켜고 끄면 fs-on 이 따라오는가 ------------------- */
-    const docks = [...doc.querySelectorAll('.fs-dock')];
-    const dockHome = docks.map((d) => d.parentElement);
     page.fireFullscreenChange(stage);
     if (!stage.classList.contains('fs-on')) {
         bad(`${name} — 전체 화면에 들어갔는데 무대에 fs-on 이 붙지 않는다. 짜임이 통째로 안 듣는다`);
     }
-    /* 탭 줄을 무대 안으로 들여왔는가. **여기까지 봐야 「탭을 바꿀 수 있다」가 참이 된다.** */
-    for (const d of docks) {
-        if (d.parentElement !== stage) bad(`${name} — fs-dock 이 전체 화면 무대 안으로 들어오지 않았다`);
+    /* **탭 줄이 무대 밖에 그대로 있는가.** 안으로 들어오면 눌러도 화면이 바뀌지 않는
+       탭이 생긴다 → src/entries/_lib/fullscreen.js 의 `fs-tabs`. */
+    for (const t of doc.querySelectorAll('.fs-tabs')) {
+        if (stages.some((s) => s.contains(t))) bad(`${name} — 탭 줄(fs-tabs)이 무대 «안»에 있다. 전체 화면에서 눌러도 화면이 바뀌지 않는다`);
     }
 
     /* ---- 5. 서랍 ------------------------------------------------------- */
@@ -178,9 +178,6 @@ for (const name of PAGES) {
     /* ---- 7. 나온 뒤에는 표시가 떨어지는가 ------------------------------- */
     page.fireFullscreenChange(null);
     if (stage.classList.contains('fs-on')) bad(`${name} — 전체 화면에서 나왔는데 fs-on 이 남아 있다`);
-    docks.forEach((d, i) => {
-        if (d.parentElement !== dockHome[i]) bad(`${name} — 나왔는데 fs-dock 이 있던 자리로 돌아가지 않았다`);
-    });
     if (stage.classList.contains('fs-drawer-open')) bad(`${name} — 나왔는데 서랍이 열린 채로 남아 있다`);
 
     for (const e of page.errors) bad(`${name} — 콘솔 오류: ${e.slice(0, 120)}`);

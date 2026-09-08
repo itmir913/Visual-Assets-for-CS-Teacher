@@ -58,30 +58,22 @@ function moveFloats() {
     });
 }
 
-/* **탭 줄을 전체 화면 안으로 들여온다.**
-   무대를 탭마다 하나씩 두는 페이지(맹목적 탐색·정보 이용 탐색·결정 트리)는 탭 줄이
-   무대 «밖»에 있다. 그러면 전체 화면에서 탭을 바꿀 수가 없어, 교사가 켜 놓은 그 하나에
-   갇힌다. 무대를 하나로 합치려면 페이지를 통째로 다시 짜야 하므로, **드나들 때 옮긴다.**
+/* **탭 줄은 전체 화면 «밖»에 남는다** — `fs-tabs`.
 
-   `fs-dock` 을 준 것은 전체 화면에 들어갈 때 그 무대의 «맨 앞»으로 들어가고,
-   나올 때 **있던 자리로 돌아간다.** 자리를 기억해 두지 않으면 페이지가 어그러진다. */
-const docks = new Map();      // el → {parent, next}
+   무대를 탭마다 하나씩 두는 페이지(맹목적 탐색·정보 이용 탐색·결정 트리·딥러닝)에서
+   한동안 탭 줄을 무대 안으로 옮겨 넣었다. 그런데 **그렇게 들여온 탭은 눌러도 화면이
+   바뀌지 않는다** — 눌린 탭의 무대는 전체 화면인 이 요소의 형제라 top layer 밖이고,
+   지금 켜 둔 무대는 전체 화면 규칙이 `.hidden` 을 특정도로 이겨 그대로 남는다.
+   탭 줄만 새 탭을 가리킨 채 화면은 옛 탭에 갇힌다.
 
-function moveDocks() {
-    const fs = document.fullscreenElement;
-    document.querySelectorAll('.fs-dock').forEach((el) => {
-        if (!docks.has(el)) docks.set(el, {parent: el.parentElement, next: el.nextSibling});
-    });
-    for (const [el, home] of docks) {
-        if (!el.isConnected && !home.parent) continue;
-        if (fs && fs.classList.contains('fs-stage')) {
-            if (el.parentElement !== fs) fs.insertBefore(el, fs.firstChild);
-        } else if (home.parent && el.parentElement !== home.parent) {
-            const before = home.next && home.next.isConnected ? home.next : null;
-            home.parent.insertBefore(el, before);
-        }
-    }
-}
+   전체 화면 대상을 옮겨 붙는 것으로 고칠 수는 있었지만(2026-09-04), 누를 때마다
+   전체 화면을 갈아 끼우느라 화면이 굼떴다. **그래서 탭을 전체 화면에서 뺐다**
+   (2026-09-08 사용자 확정). 전체 화면 버튼은 탭마다 그 무대 «안»에 하나씩 있으므로,
+   탭을 바꾸려면 Esc 로 나와 탭을 고르고 그 탭의 버튼을 누른다.
+
+   **이것은 「전체 화면에서 못 누르는 조작은 없는 것과 같다」의 유일한 예외다.**
+   탭은 시뮬레이터를 조작하는 것이 아니라 **어느 시뮬레이터를 볼지 고르는 것**이라
+   무대를 갈아 끼우는 일과 같고, 그 값은 켜기 «전»에 정해진다. */
 
 /** 서랍을 **안에서 닫는 문**을 달아 둔다.
  *
@@ -148,7 +140,6 @@ function bind() {
 
     document.addEventListener('fullscreenchange', () => {
         syncStageClass();
-        moveDocks();
         moveFloats();
         window.dispatchEvent(new Event('resize'));
     });

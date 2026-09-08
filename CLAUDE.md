@@ -463,7 +463,11 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
 - **조작에 `fs-hide`를 주지 않는다.** 세로가 빠듯해도 **줄일 것은 설명이지 조작이 아니다.**
 - **넓은 화면에서 폭을 쓴다.** 어느 쪽으로 나눌지는 **그림 모양**이 정한다 —
   가로로 긴 그림은 위아래로, 세로로 큰 그림은 좌우로. 등록부의 `shape`에 적는다.
-- 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-drawer` · `fs-dock` · `fs-outside`)은
+- **탭 줄만은 예외로 전체 화면 밖에 남긴다**(2026-09-08 사용자 확정). 무대가 탭마다
+  따로인 페이지에서 탭 줄을 안으로 들이면 **눌러도 화면이 바뀌지 않는다** — 눌린 탭의
+  무대는 top layer 밖이다. 전체 화면 대상을 갈아 끼워 고쳐 보았으나 누를 때마다 굼떠서
+  물렀다. 탭은 조작이 아니라 **어느 무대를 켤지 켜기 «전»에 고르는 것**으로 둔다.
+- 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-drawer` · `fs-tabs` · `fs-outside`)은
   [`src/styles/simulator.css`](src/styles/simulator.css) 머리에 있다.
 - `npm run check:fullscreen`이 지킨다. **CSS가 `:fullscreen`이 아니라 `fs-on` 클래스를
   보게 해 두어야 검사가 켜 놓고 볼 수 있다** — `requestFullscreen`은 iframe에서 거부되고

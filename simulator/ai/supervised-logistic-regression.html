@@ -394,6 +394,11 @@
             this.epoch = 0;
             this.predictData = null;
             this.diverged = false;
+            // 손실이 오르내리는지 지켜보는 창 -> `trainStep`
+            this.prevLoss = null;
+            this.windowSteps = 0;
+            this.windowRises = 0;
+            this.badWindows = 0;
         }
 
         sigmoid(z) {
@@ -404,7 +409,7 @@
 
         trainStep(normalizedPoints) {
             if (normalizedPoints.length === 0) return false;
-            let dw = 0, db = 0, N = normalizedPoints.length;
+            let dw = 0, db = 0, loss = 0, N = normalizedPoints.length;
 
             for (let p of normalizedPoints) {
                 let z = this.w * p.x + this.b;
@@ -412,19 +417,45 @@
 
                 dw += (pred - p.y) * p.x;
                 db += (pred - p.y);
+                // 지금 값에서의 손실. 기울기를 구하며 이미 pred 를 냈으므로 덤으로 얻는다.
+                loss -= p.y * Math.log(pred) + (1 - p.y) * Math.log(1 - pred);
             }
 
             dw = dw / N;
             db = db / N;
+            loss = loss / N;
 
             if (Math.abs(dw) < 0.0001 && Math.abs(db) < 0.0001) return true;
+
+            /* **학습률이 크면 손실이 오르내린다 — 그것이 학생이 봐야 할 장면이다.**
+               예전에는 |w| 가 1천만을 넘는지만 보았는데, 그 일은 **이 화면의 조작으로는
+               일어나지 않는다.** x 를 0~1 로 줄여 두어 한 걸음이 아무리 커도 학습률만큼만
+               움직이는데, 학습률 고르개의 천장이 20이기 때문이다. 실제로 측정해 보면 학습률을
+               천장까지 올려도 |w| 는 백을 넘지 않았다. 그래서 「발산! 학습률을 낮추세요」는
+               **뜰 수가 없는 알림**이었고, 그동안 화면은 골짜기를 뛰어넘으며 헤매는 모형을
+               두고 「3000회 더 돌리기」라고 적었다 — 더 돌린다고 될 일이 아닌데도.
+               스무 걸음 가운데 여덟 걸음에서 손실이 올랐으면 내려가는 중이 아니라 튀는 중이다. */
+            this.windowSteps++;
+            if (this.prevLoss !== null && loss > this.prevLoss + 1e-9) this.windowRises++;
+            this.prevLoss = loss;
+            if (this.windowSteps >= 20) {
+                /* **창 «둘»이 잇달아 나빠야 튄다고 본다.** 시작하는 값이 무작위라 첫 스무 걸음은
+                   자리를 잡느라 한두 번 오르내리는데, 한 창만 보고 멈추면 학습률이 알맞을 때도
+                   누르자마자 「발산」이 뜬다. 실제로 그렇게 떴다. */
+                this.badWindows = this.windowRises >= 8 ? (this.badWindows || 0) + 1 : 0;
+                this.windowSteps = 0;
+                this.windowRises = 0;
+                if (this.badWindows >= 2) {
+                    this.diverged = true;
+                    return true;
+                }
+            }
 
             this.w -= this.learningRate * dw;
             this.b -= this.learningRate * db;
             this.epoch++;
 
-            // 학습률을 크게 잡으면 값이 무한대로 튀어 나간다.
-            // 로지스틱은 분리 가능 데이터에서 w 가 원래 커지므로 상한을 넉넉히 잡는다.
+            // 값 자체가 넘치는 것도 그대로 막아 둔다. 자료를 코드로 갈아 끼우면 닿을 수 있다.
             if (!isFinite(this.w) || !isFinite(this.b) ||
                 Math.abs(this.w) > 1e7 || Math.abs(this.b) > 1e7) {
                 this.diverged = true;

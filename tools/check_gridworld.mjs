@@ -150,15 +150,29 @@ for (const [크기, 씨] of [[4, 4242], [5, 777], [6, 31337]]) {
     const env = P('gridWorldController.env');
     const 거리 = 최단거리표(env);
 
-    doc.getElementById('epsilonSlider').value = '0.3';
-    doc.getElementById('alphaSlider').value = '0.5';
-    doc.getElementById('gammaSlider').value = '0.95';
+    const ε = 0.3, α = 0.5, γ = 0.95;
+    doc.getElementById('epsilonSlider').value = String(ε);
+    doc.getElementById('alphaSlider').value = String(α);
+    doc.getElementById('gammaSlider').value = String(γ);
 
-    // 화면의 「한 걸음」을 그대로 눌러 오래 배우게 한다
-    for (let 회 = 0; 회 < 40000; 회++) {
-        P('gridWorldController.step()');
-        if (P('gridWorldController.env.totalEpisodes') >= 400) break;
-    }
+    /* **화면의 「한 걸음」으로 먼저 몇 걸음 걸어 본다** — 슬라이더를 읽어 학습까지 잇는 그 길이
+       실제로 도는지 보려는 것이다. */
+    for (let 회 = 0; 회 < 60; 회++) P('gridWorldController.step()');
+
+    /* 나머지는 **그리지 않고** 배운다. `step()` 은 걸음마다 판 전체를 다시 그려서,
+       4만 걸음을 화면째로 걸으면 이 검사 하나가 1분을 먹는다. 여기서 부르는 것은 페이지의
+       같은 코드(`env.step`·`agent.chooseAction`·`agent.learn`)이고 빠진 것은 그리기뿐이다. */
+    P(`(function () {
+        const c = gridWorldController;
+        const ε = ${ε}, α = ${α}, γ = ${γ};
+        for (let i = 0; i < 400000 && c.env.totalEpisodes < 400; i++) {
+            const x = c.env.agentPos.x, y = c.env.agentPos.y;
+            const a = c.agent.chooseAction(x, y, ε);
+            const r = c.env.step(a);
+            c.agent.learn(x, y, a, r.reward, r.nx, r.ny, r.done, α, γ);
+            if (r.done) c.env.reset();
+        }
+    })()`);
     const 배운회차 = P('gridWorldController.env.totalEpisodes');
     if (배운회차 < 50) { bad(`${크기}×${크기}: 4만 걸음을 걸었는데 회차가 ${배운회차}회뿐이다`); continue; }
 

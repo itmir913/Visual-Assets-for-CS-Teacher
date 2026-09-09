@@ -505,7 +505,24 @@
             this.init();
         }
 
+        /* **풀 수 있는 지도만 내놓는다.**
+           함정을 칸마다 따로 뽑으면 금이 함정에 둘러싸여 **어떻게 추론해도 죽는 지도**가
+           나온다 — 4x4에서 열에 한 번 꼴이었고, 그 가운데 셋에 하나는 출발 칸의 이웃 둘이
+           모두 함정이라 **첫 걸음부터 갇힌** 지도였다. 학생이 직접 걷는 탭에서 그런 지도를
+           받으면 배우는 것은 추론이 아니라 운이다.
+           뽑은 뒤 금까지 갈 길이 있는지 보고, 없으면 다시 뽑는다. */
         init() {
+            for (let 시도 = 0; 시도 < 500; 시도++) {
+                this.place();
+                if (this.pathToGold()) return;
+            }
+            /* 다시 뽑아도 못 얻으면 **함정을 걷어 길을 낸다.** 격자가 크고 함정이 촘촘하면
+               이런 일이 생기는데, 여기서 그냥 두면 못 푸는 지도가 학생에게 나간다. */
+            for (const k of this.pathToGold(true) || []) this.pits.delete(k);
+        }
+
+        /** 금 · 괴물 · 함정을 뽑아 놓는다. 풀 수 있는지는 보지 않는다 -> `init`. */
+        place() {
             const rand = () => {
                 let rx, ry;
                 do {
@@ -527,6 +544,30 @@
                     if (Math.random() < 0.15) this.pits.add(key(x, y));
                 }
             }
+        }
+
+        /**
+         * (0,0)에서 금까지 **함정도 괴물도 밟지 않는 길.** 없으면 `null`.
+         * @param {boolean} 함정무시 길을 낼 자리를 찾을 때만 참 — 함정을 지나도 되는 셈으로 계산한다.
+         */
+        pathToGold(함정무시 = false) {
+            const 막힘 = (x, y) => (this.wumpus.x === x && this.wumpus.y === y)
+                || (!함정무시 && this.pits.has(key(x, y)));
+            if (막힘(0, 0)) return null;
+            const 지나온곳 = new Map([['0,0', []]]);
+            const 대기열 = [{x: 0, y: 0}];
+            while (대기열.length) {
+                const 여기 = 대기열.shift();
+                const 길 = 지나온곳.get(key(여기.x, 여기.y));
+                if (여기.x === this.gold.x && 여기.y === this.gold.y) return 길;
+                for (const 이웃 of getAdj(여기.x, 여기.y)) {
+                    const k = key(이웃.x, 이웃.y);
+                    if (지나온곳.has(k) || 막힘(이웃.x, 이웃.y)) continue;
+                    지나온곳.set(k, [...길, k]);
+                    대기열.push(이웃);
+                }
+            }
+            return null;
         }
 
         getPercepts(x, y) {

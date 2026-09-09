@@ -322,6 +322,18 @@ export function loadSim(name, opts = {}) {
         return {top: 0, left: 0, right: w, bottom: h, width: w, height: h, x: 0, y: 0};
     };
     proto.scrollIntoView = function () {};
+
+    /* **`innerText` 도 없다.** jsdom 은 이것을 아예 모르므로, `el.innerText = 3` 은 DOM 을
+       건드리지 않고 그 요소에 평범한 속성 하나를 붙이고 만다. 그러면 **화면 글자를
+       `textContent` 로 읽는 검사에는 마크업의 옛 값이 그대로 보인다** — 「NaN 이 화면에
+       섞였는가」를 훑는 검사가 그런 페이지에서는 통째로 헛돌았다.
+       레이아웃이 없으니 진짜 `innerText` 처럼 「보이는 글자만」 가릴 수는 없다.
+       **여기서는 `textContent` 와 같은 것으로 둔다** — 없는 것보다 훨씬 가깝다. */
+    Object.defineProperty(W.HTMLElement.prototype, 'innerText', {
+        get() { return this.textContent; },
+        set(v) { this.textContent = String(v); },
+        configurable: true,
+    });
     // SVG 글자 재기는 jsdom 에 없다. `TextMeasurer` 가 0 을 보면 어림값으로 넘어간다.
     W.SVGElement.prototype.getBBox = function () { return {x: 0, y: 0, width: 0, height: 0}; };
 

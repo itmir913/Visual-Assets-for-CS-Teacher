@@ -338,6 +338,18 @@ export function loadSim(name, opts = {}) {
         });
     }
 
+    /* **`transform` 도 없다.** `d3-interpolate` 는 `transform` 을 애니메이션할 때
+       그 요소의 `transform.baseVal.consolidate()` 로 «시작 값»을 읽는데, jsdom 에는
+       SVG 변환이 아예 없어 그 자리에서 죽는다. **트랜지션은 타이머가 깨어날 때 도므로
+       페이지를 띄우는 동안에는 멀쩡하다가 한참 뒤에 터진다** — 검사가 끝난 뒤에도 터진다.
+       `null` 을 돌려주면 d3 는 「시작 값이 없다」로 보고 항등 변환에서 출발한다.
+       **여기서 오는 한계를 밝혀 둔다** — 변환의 «중간 값»은 진짜가 아니다.
+       움직이는 도중의 좌표는 이 받침대로 따질 수 없다(끝난 뒤의 값은 그대로 앉는다). */
+    Object.defineProperty(W.SVGElement.prototype, 'transform', {
+        get() { return {baseVal: {numberOfItems: 0, consolidate: () => null}}; },
+        configurable: true,
+    });
+
     Object.defineProperty(W.SVGSVGElement.prototype, 'viewBox', {
         get() {
             const n = (this.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
@@ -378,7 +390,11 @@ export function loadSim(name, opts = {}) {
        그 이름이 node 전역에 없으면 **`SVGElement is not defined` 로 죽는다.**
        지금 띄운 창의 생성자를 node 전역에 놓아 준다 — 받침대는 한 번에 한 장만 띄우므로
        뒤엣것이 앞엣것을 덮어도 문제가 없다. */
-    for (const 이름 of ['SVGElement', 'Element', 'Node', 'HTMLElement', 'MouseEvent', 'CustomEvent']) {
+    /* **`document` 도 함께 놓는다.** `d3-interpolate` 는 변환 문자열을 풀 때 제 손으로
+       `document.createElementNS` 를 불러 임시 노드를 만든다. 그 이름이 node 전역에 없으면
+       **트랜지션이 도는 «나중»에** `document is not defined` 로 죽는다 — 페이지를 띄우는
+       동안에는 멀쩡하다가 타이머가 깨어날 때 터지므로, 검사가 이미 끝난 뒤에 터지기도 한다. */
+    for (const 이름 of ['SVGElement', 'Element', 'Node', 'HTMLElement', 'MouseEvent', 'CustomEvent', 'document']) {
         if (W[이름]) globalThis[이름] = W[이름];
     }
 

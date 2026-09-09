@@ -11,9 +11,15 @@ npm run build     # 배포와 같은 빌드 → dist/
 npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 같다
 ```
 
-**푸시해도 아무것도 자동으로 돌지 않습니다**(2026-08-26부터). 배포는 GitHub의
-Actions 탭에서 「Build & Deploy」를 **손으로 눌러야** 일어납니다. 검사도 함께 꺼졌으니
-**올리기 전에 `npm run ci`를 손으로 돌립니다.** 까닭과 되살리는 법은
+**푸시하면 검사가 자동으로 돕니다**(2026-09-09부터) — `npm run ci` 와 같은 한 줄을
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)이 돌립니다. 그래도
+**올리기 전에 손으로 한 번 돌리는 편이 빠릅니다** — 러너에서 빨간불을 보고 고치는 것보다
+낫습니다.
+
+**배포는 자동으로 일어나지 않습니다.** GitHub의 Actions 탭에서 「Build & Deploy」를
+**손으로 눌러야** 사이트가 갱신됩니다(2026-08-26 결정). 그때도 **검사를 통과해야만**
+배포됩니다 — 그 워크플로가 제자리에서 `npm run ci` 를 다시 돌리고, Pages 배포는 그
+결과에 매여 있습니다. 까닭은
 [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) 머리말에 있습니다.
 
 **위 셋이 실행점의 전부입니다.** GitHub Actions도 IDE 실행 구성도 이 이름을 부릅니다.

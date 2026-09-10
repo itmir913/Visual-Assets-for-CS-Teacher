@@ -354,7 +354,10 @@ BANNED_WORDS = [
     (r"견[주줄준줍줘줌]", "견주다", "비교하다"),
     (r"되풀이", "되풀이", "반복"),
     # 「재다」— 재고(在庫)는 뜻이 다르므로 뒤따르는 말로 걸러 낸다.
-    (r"(?<![가-힣])(재[어는서지면도려기다]|재고(?!를|\s*관리|\s*맞추기|,\s*고객)"
+    # **활용형은 빠뜨리면 조용히 새어 나간다** — 「재던·재라」가 없어 일곱 곳이
+    # 살아 있었고, 형태소 분석기로 용언을 뽑아 보고서야 드러났다.
+    # 「재야(在野)·재세(在世)」와 겹치는 꼴은 넣지 않는다.
+    (r"(?<![가-힣])(재[어는서지면도려기다던라자]|재고(?!를|\s*관리|\s*맞추기|,\s*고객)"
      r"|잽니다|잰|잴)", "재다", "측정하다"),
 ]
 
@@ -415,6 +418,51 @@ def banned_rules(src: str):
         if m.group(1) != FA_VERSION:
             bad.append(f"{_line_of(src, m.start())}행: Font Awesome "
                        f"{m.group(1)} — {FA_VERSION}으로 통일한다")
+    return bad
+
+
+# ── 앞을 가리키지 않기 ───────────────────────────────────────────────────────
+# **강의노트는 낱개로 읽히고 순서도 바뀐다.** 그래서 뒤를 가리키는 글은
+# 「없는 다음 시간」이나 「다른 차시」를 가리키게 되는데, **어긋나도 아무도
+# 알려 주지 않는다.** 규칙은 CLAUDE.md 「뒤 차시를 글로 예고하지도 않는다」에
+# 있고(2026-08-12 사용자 확정), 이 검사가 그 규칙을 지킨다.
+#
+# **규칙만 있고 검사가 없던 동안 34줄이 쌓였다** — 다섯 과목 모두에 있었다.
+# 사람이 기억으로 지키던 자리가 어떻게 되는지 보여 주는 자리다.
+#
+# 고치는 법은 **뒤를 가리키지 말고 지금 할 수 있는 것만 말하는 것**이다 —
+# 「다음 차시에서 다룹니다」가 아니라 「지금은 ~까지만 씁니다」.
+FORWARD_LESSON = re.compile(r"다음\s*다음\s*차시|다음\s*차시|다음\s*시간|뒤\s*차시|이후\s*차시")
+
+# 같은 파일 «안»에서 절을 가리킬 때도 **차례를 적지 않는다.** 절을 하나
+# 끼워 넣으면 「세 번째 절」이 통째로 어긋나는데, 학생은 세어 보다가 틀린다.
+# **자리가 아니라 이름을 가리킨다** — 「『규칙과 키』 절에서 봅니다」.
+ORDINAL_SECTION = re.compile(
+    r"(?:첫|첫째|둘째|셋째|넷째|다섯째|여섯째|일곱째|여덟째|마지막"
+    r"|[0-9]+\s*번째|[한두세네]\s*번째|[일이삼사오육]\s*번째)\s*절(?![차차])")
+
+# 그 줄에 이 표시가 있으면 넘어간다. **규칙을 설명하려면 막은 말을 적어야 한다.**
+FORWARD_SKIP = "fwd: 예시"
+
+
+def forward_rules(src: str):
+    """뒤를 가리키는 글. 어긋나도 CI가 아니라 학생이 먼저 만난다."""
+    bad = []
+    lines = src.splitlines()
+
+    def 적는다(pos, msg):
+        ln = _line_of(src, pos)
+        if 0 < ln <= len(lines) and FORWARD_SKIP in lines[ln - 1]:
+            return
+        bad.append(f"{ln}행: {msg}")
+
+    for m in FORWARD_LESSON.finditer(src):
+        적는다(m.start(), f"「{m.group(0)}」 — 뒤 차시를 예고하지 않는다. "
+                        f"뒤를 가리키지 말고 「지금은 ~까지만 씁니다」로 쓴다")
+
+    for m in ORDINAL_SECTION.finditer(src):
+        적는다(m.start(), f"「{m.group(0)}」 — 절을 «차례»로 가리키지 않는다. "
+                        f"절을 하나 끼우면 어긋난다. 절의 «이름»을 적는다")
     return bad
 
 
@@ -600,6 +648,7 @@ def check(path: Path, log) -> tuple[int, int]:
     report("고정폭 래퍼", c.wide_unwrapped)
     report("제목 일치", title_rules(path, src))
     report("금지 요소", banned_rules(src))
+    report("앞을 가리킴", forward_rules(src))
     report("머리말", head_rules(src))
     report("좁은 화면 여백", gutter_rules(src))
     report("세로로 쌓은 칸", stack_rules(src))

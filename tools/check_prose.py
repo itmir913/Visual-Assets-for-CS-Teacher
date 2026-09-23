@@ -125,6 +125,9 @@ PATTERNS = [
     # 데이터과학 3-1 에서 새어 나간 예고의 꼴들.
     (r"이 단원 뒤쪽|(?:이어서|다시) 만나게|단원에서 다시 만나", "뒤 차시 예고", "「지금은 ~까지만 씁니다」",
      ["이 단원 뒤쪽에서", "이어서 만나게 됩니다", "Ⅲ단원에서 다시 만나게 됩니다"], ["다시 만나지 않을"]),
+    # 「지금까지 배운」은 앞 차시를 전제한다 — 앞 차시 참조 그물을 빠져나갔다(데이터과학 3-2).
+    (r"지금까지 배운", "「지금까지 배운」", "배운 내용을 이름으로 말한다",
+     ["지금까지 배운 것을 한 번에"], ["지금까지 회귀 모델이"]),
     (r"오늘의 목표", "「오늘의 목표」", "「이 실습의 목표」", ["오늘의 목표"], []),
     # 다른 강의노트로 거는 링크(2026-09-24 사용자 확정). 용어에 건 링크도 앞 차시로 가는
     # 바로가기다 — 순서가 바뀌면 뒤 차시를 가리키고, 글은 링크 없이 읽혀야 한다.
@@ -162,13 +165,17 @@ def _line_of(src: str, pos: int) -> int:
 def check(path: Path) -> list[tuple[int, str]]:
     src = path.read_text(encoding="utf-8")
     lines = src.splitlines()
-    bad = []
+    # 태그가 낱말을 끊으면(「갈라</strong> 준다」) 원문으로는 못 잡는다. 태그를 걷어 낸
+    # 본문도 함께 본다 — 태그 안의 줄바꿈은 남겨 줄 번호를 원문과 맞춘다.
+    text = re.sub(r"<[^>]*>", lambda m: "\n" * m.group(0).count("\n"), src)
+    bad = set()
     for pat, 쓴, 쓸, _, _ in RULES:
-        for m in pat.finditer(src):
-            n = _line_of(src, m.start())
-            if SKIP_LINE in lines[n - 1]:
-                continue
-            bad.append((n, f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다"))
+        for body in (src, text):
+            for m in pat.finditer(body):
+                n = _line_of(body, m.start())
+                if SKIP_LINE in lines[n - 1]:
+                    continue
+                bad.add((n, f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다"))
     return sorted(bad)
 
 

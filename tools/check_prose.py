@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""강의노트 문장 정제에서 물러난 말이 다시 들어오지 않았는가.
+
+    python tools/check_prose.py            # 모든 과목 (CI가 쓰는 방식)
+    python tools/check_prose.py <파일>…    # 짚은 파일만 — 정제 중에 쓴다
+    python tools/check_prose.py --report   # 정제 전 파일까지 과목별로 센다 (종료 코드 0)
+
+## 왜 있는가 — 한 번 배운 것을 다음 과목이 공짜로 받게
+
+문장 정제(2026-09-24, 데이터과학부터)는 사람이 읽고 고치는 일이다. 그런데 고친 말의
+**대부분은 다른 과목에도 똑같이 있다.** 데이터과학에서 「짚다」를 「파악하다」로 갈았다면
+다른 과목의 「짚다」는 읽지 않고도 찾을 수 있어야 한다. 그래서 **정제에서 한 번 물러난
+말은 이 파일의 목록에 올린다** — 다음 과목의 검수는 이 목록을 먼저 돌리고 시작한다.
+
+`check_verbs.py`와 나뉘는 자리 — 그쪽은 **누르는 것의 이름**을 보고, 이쪽은 **강의노트의
+문장**을 본다. 「고르다」는 버튼 이름으로는 물러났지만 문장에서는 그대로 쓴다.
+
+## 톱니 — 정제를 마친 파일만 막는다
+
+목록은 모든 과목을 돌지만 **`DONE`에 적힌 파일에서만 위반으로 친다.** 나머지는 아직
+정제 전이라 걸리는 것이 당연하고, 걸린 자리는 그 과목을 정제할 때의 작업 목록이다
+(`--report`). 파일 하나의 정제가 끝나면 `DONE`에 올린다 — **한 번 올린 파일은
+되돌아가지 않는다.** 모든 과목이 올라가면 `DONE`을 지우고 전체를 막는다.
+
+## 목록에 올리는 법
+
+1. **활용형 정규식**을 쓴다. 한국어 동사는 어미가 어간과 한 글자로 합쳐져
+   (`짚`+`어` → 짚어, `따지`+`어` → **따져**) 어간 접두로는 새어 나간다.
+2. **`예`에 실제로 걸려야 할 꼴을 적는다.** 이 파일은 돌 때마다 먼저 자기 목록을 시험해
+   `예`가 하나라도 안 걸리면 멈춘다. 「재다」가 금지어였는데도 `재던`·`재라`가 빠져
+   일곱 곳이 살아 있던 일을 되풀이하지 않으려는 장치다.
+3. **`아님`에 걸리면 안 되는 꼴을 적는다.** 「갈리다」를 막으며 「헷갈리다」를
+   잡으면 다음 사람이 목록 자체를 안 믿는다.
+4. **넣기 전에 `--report`로 전체를 돌려 오탐이 없는지 본다.**
+
+**설명하려고 막은 말을 적어야 하는 줄에는 `prose: 예시`를 단다.**
+"""
+from __future__ import annotations
+
+import re
+import sys
+from collections import Counter
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from logs import get_logger  # noqa: E402
+from subjects import SUBJECTS  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+SKIP_LINE = "prose: 예시"
+
+# ── 정제를 마친 파일 ─────────────────────────────────────────────────────────
+# 글롭. 사용자 확인까지 끝난 것만 올린다.
+DONE: list[str] = [
+]
+
+
+# ── 물러난 말 ────────────────────────────────────────────────────────────────
+# (정규식, 쓴 말, 쓸 말, 예 — 걸려야 하는 꼴, 아님 — 걸리면 안 되는 꼴)
+# **순우리말 동사는 꼭 필요한 자리가 아니면 한자어 동사로 쓴다**(2026-09-24 사용자 확정).
+# 한국 학생에게 교과서 문장으로 읽히는 쪽이 그쪽이다.
+H = r"(?<![가-힣])"   # 낱말 첫머리 — 「헷갈리다」 속의 「갈리다」 같은 것을 거른다
+VERBS = [
+    (H + r"짚(?:[다고어었는을으지게기]|습|읍)", "짚다", "파악하다 · 지적하다 · 확인하다",
+     ["짚다", "짚어 보면", "짚을 수", "짚고", "짚습니다"], ["짚신"]),
+    (r"뜯어\s?(?:보|봅|봐|봤|볼|본)", "뜯어보다", "분석하다 · 하나씩 살펴보다",
+     ["뜯어봅시다", "뜯어 보면", "뜯어본"], []),
+    (r"들여다\s?(?:보|봅|봐|봤|볼|본)", "들여다보다", "살펴보다",
+     ["들여다봅시다", "들여다보면", "들여다 봐야"], []),
+    (H + r"손(?:보[다고는며면아았야지기]|봅|봐|봤|볼 |본 )", "손보다", "정리하다 · 점검하다 · 수정하다",
+     ["손보는 일", "미리 손봅니다", "손봐야"], ["손 보호"]),
+    (H + r"따(?:지[다고는며면자]|져|졌|질 |진 |집)", "따지다", "비교하다 · 검토하다",
+     ["따져 볼", "따지면", "따집니다"], ["따지막"]),
+    (r"뽑아\s?(?:내|낸|냈|낼|냅)", "뽑아내다", "추출하다 · 추리다",
+     ["뽑아내며", "뽑아 낸"], []),
+    (r"흉내\s?(?:내|낸|냈|낼|냅)", "흉내 내다", "따라 하다 · 활용하다",
+     ["흉내 내면", "흉내낸"], []),
+    (r"밀어\s?올(?:리|린|렸|릴|립|려)", "밀어 올리다", "높이다 · 증가시키다",
+     ["밀어 올린", "밀어올렸다"], []),
+    (H + r"갈(?:리[는고며면지다]|린 |렸|릴 |립)", "갈리다", "구분되다 · 나뉘다",
+     ["갈리는 지점", "갈립니다", "갈린 "], ["헷갈리는", "헷갈립니다"]),
+    (H + r"(?:갈라\s?(?:주|줍|줘|준)|가른다|가르[는고며면])", "가르다", "구분하다 · 나누다",
+     ["갈라 줍니다", "가르는 기준", "가른다"], ["가르치는", "가르쳐"]),
+    (H + r"(?:가릴\s?수|가려\s?(?:내|낸|낼|냅))", "가리다(구별)", "구별하다 · 판단하다",
+     ["가릴 수 있을까", "가려낸다"], ["가려진", "가리키는"]),
+    (r"뒤져서|뒤져\s?(?:보|찾)", "뒤지다", "찾아보다 · 탐색하다",
+     ["뒤져서 찾아봄", "뒤져 보면"], ["뒤지지 않는"]),
+    (r"이리저리", "이리저리", "여러 방향으로 · 다양하게",
+     ["이리저리 살펴보는"], []),
+]
+
+# ── 물러난 틀 ────────────────────────────────────────────────────────────────
+# 낱말이 아니라 **문장의 모양**이다. 사람이 쓴 글에 드물고 생성된 글에 흔한 것만 올린다.
+PATTERNS = [
+    (r"[이가] 곧 [가-힣 ]{1,15}입니다", "「A가 곧 B입니다」 격언투",
+     "사실을 평서문으로 적는다", ["이름이 곧 설명입니다", "이유가 곧 실력입니다"], []),
+    (r"판단의 열쇠", "「판단의 열쇠」", "판단 기준", ["판단의 열쇠"], []),
+    (r"한 걸음 더 들어가", "「한 걸음 더 들어가서」", "빼고 바로 말한다",
+     ["한 걸음 더 들어가서"], []),
+    (r"흔한 오해\s*&mdash;|흔한 오해\s*—", "「흔한 오해 —」 머리말", "문장으로 풀어 쓴다",
+     ["흔한 오해 &mdash;", "흔한 오해 —"], []),
+    # 어원 풀이가 같은 틀로 되풀이되었다 — 「한자의 前과 영어의 pre-가 같은 자리에
+    # 있습니다」 「preview의 그 pre-입니다」가 파일마다 새로 나왔다.
+    (r"같은 자리에 있습니다", "「같은 자리에 있습니다」 어원 틀", "「모두 ~를 뜻합니다」",
+     ["pre-가 같은 자리에 있습니다"], []),
+    (r"의 그 (?:<strong>)?[A-Za-z]+(?:</strong>)?-?입니다", "「~의 그 X-입니다」 어원 틀",
+     "예시는 한 번만, 「~가 그 예입니다」",
+     ["preview(미리 보기)의 그 pre-입니다", "의 그 <strong>dependent</strong>입니다"], []),
+]
+
+RULES = [(re.compile(p), 쓴, 쓸, 예, 아님) for p, 쓴, 쓸, 예, 아님 in VERBS + PATTERNS]
+
+
+def self_test() -> list[str]:
+    """목록의 정규식이 제 예시를 잡는지, 잡으면 안 되는 것을 비껴가는지."""
+    errs = []
+    for pat, 쓴, _, 예, 아님 in RULES:
+        errs += [f"「{쓴}」이 「{e}」를 못 잡는다" for e in 예 if not pat.search(e)]
+        errs += [f"「{쓴}」이 「{e}」를 잘못 잡는다" for e in 아님 if pat.search(e)]
+    return errs
+
+
+def _line_of(src: str, pos: int) -> int:
+    return src.count("\n", 0, pos) + 1
+
+
+def check(path: Path) -> list[tuple[int, str]]:
+    src = path.read_text(encoding="utf-8")
+    lines = src.splitlines()
+    bad = []
+    for pat, 쓴, 쓸, _, _ in RULES:
+        for m in pat.finditer(src):
+            n = _line_of(src, m.start())
+            if SKIP_LINE in lines[n - 1]:
+                continue
+            bad.append((n, f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다"))
+    return sorted(bad)
+
+
+def lecture_notes() -> list[Path]:
+    return [p for s in SUBJECTS for p in sorted((ROOT / s["dir"]).rglob("*.html"))]
+
+
+def is_done(path: Path) -> bool:
+    rel = path.resolve().relative_to(ROOT).as_posix()
+    return any(Path(rel).match(g) for g in DONE)
+
+
+def main() -> int:
+    argv = sys.argv[1:]
+    report = "--report" in argv
+    args = [a for a in argv if a not in ("-v", "--verbose", "--report")]
+    log = get_logger("check_prose", len(args) != len(argv) - report or bool(args))
+
+    errs = self_test()
+    for e in errs:
+        log.error("목록 자체가 틀렸다 — %s", e)
+    if errs:
+        return 2
+
+    # 짚은 파일은 정제 중인 것이므로 DONE 이 아니어도 막는다.
+    files = [Path(a).resolve() for a in args] if args else lecture_notes()
+    total, pending = 0, Counter()
+    for f in files:
+        bad = check(f)
+        shown = f.relative_to(ROOT).as_posix()
+        if args or is_done(f):
+            for n, msg in bad:
+                log.error("%s:%d %s", shown, n, msg)
+            total += len(bad)
+        else:
+            pending[shown.split("/")[0]] += len(bad)
+            if report:
+                for n, msg in bad:
+                    log.warning("%s:%d %s", shown, n, msg)
+
+    남은 = ", ".join(f"{k} {v}" for k, v in pending.most_common()) or "없음"
+    log.info("완료 — 파일 %d, 위반 %d, 정제 전 자리 %s", len(files), total, 남은)
+    return 1 if total and not report else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -34,6 +34,8 @@ HEADING = re.compile(r'(?s)<(h[1-3])\b[^>]*>(.*?)</\1>')
 SECTION = re.compile(r'<section\b[^>]*\bid="([^"]+)"')
 SUMMARY = re.compile(r'(?s)<summary\b[^>]*>(.*?)</summary>')
 TAG = re.compile(r'<[^>]+>')
+# 퀴즈 해설은 onclick 속성 안에 있다. 학생이 읽는 글이라 태그를 벗기기 전에 꺼낸다.
+QUIZ = re.compile(r"(?s)<button\b[^>]*?checkAnswer\(this,\s*(true|false),\s*'((?:[^'\\]|\\.)*)'\)[^>]*>")
 
 ENTITIES = {
     '&middot;': '·', '&mdash;': '—', '&ndash;': '–', '&minus;': '−',
@@ -67,9 +69,15 @@ def extract(path):
     # details 의 summary 는 접혀 있어도 학생이 보는 글이다. 표시를 남긴다.
     body = SUMMARY.sub(lambda m: '\n[접기] ' + clean(m.group(1)) + '\n', body)
 
+    body = QUIZ.sub(lambda m: '\n[해설 %s] %s\n' % ('O' if m.group(1) == 'true' else 'X', m.group(2)), body)
+
     # 섹션 경계와 제목을 마크다운으로 살린다.
     body = SECTION.sub(lambda m: '\n\n@@SECTION %s@@\n' % m.group(1), body)
     body = HEADING.sub(lambda m: '\n\n@@H%s %s@@\n' % (m.group(1)[1], clean(m.group(2))), body)
+
+    # 태그는 줄을 나누기 «전에» 벗긴다. 여러 줄에 걸친 여는 태그를 줄마다 벗기면
+    # 닫는 꺾쇠를 못 만나 클래스 목록이 본문으로 새어 나온다.
+    body = TAG.sub(' ', body)
 
     out, cur_sec = [], None
     for chunk in re.split(r'\n', body):

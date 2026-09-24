@@ -7,7 +7,7 @@ export const cocktailSortAlgo = {
     group: 'simple',
     view: 'array',
     motion: 'swap',
-    idea: '버블 정렬을 한 방향이 아니라 앞뒤로 번갈아 돌립니다. '
+    idea: '버블 정렬을 한 방향이 아니라 앞뒤로 번갈아 실행합니다. '
         + '오른쪽 끝으로 밀고 나면 방향을 돌려 왼쪽 끝으로 끌어옵니다.',
     complexity: {best: 'O(n)', avg: 'O(n²)', worst: 'O(n²)', space: 'O(1)'},
     stable: true,

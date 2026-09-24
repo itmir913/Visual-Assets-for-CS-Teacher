@@ -245,19 +245,26 @@ STYLE_NOW = [
      ["맞습니다.", "정답은 셋입니다!"]),
     (r"checkAnswer\(this,\s*true,\s*'(?:맞습니다|정확합니다|정답입니다|정답)[.!]|"
      r"checkAnswer\(this,\s*true,\s*'[^'.!?]{0,40}!|"
-     r"checkAnswer\(this,\s*false,\s*'(?:맞습니다|아쉽습니다)",
-     "해설 첫머리 판정", "첫 문장에서 이유를 말한다",
+     r"checkAnswer\(this,\s*false,\s*'(?:맞습니다|아쉽습니다|옳습니다|사실입니다|"
+     r"(?:맞는|옳은|올바른|바른|정확한) (?:설명|말|내용|진술)입니다)",
+     "해설 첫머리 판정", "첫 문장에서 그 선택지의 내용이나 까닭을 말한다",
      ["checkAnswer(this, true, '맞습니다. 표본이", "checkAnswer(this, true, '이것이 알맞지 않습니다! 기기",
-      "checkAnswer(this, false, '맞습니다. 그래서"],
-     ["checkAnswer(this, true, '표본이 작으면", "checkAnswer(this, true, '정답 없이 묶는다","checkAnswer(this, false, '맞는 설명입니다."]),
+      "checkAnswer(this, false, '맞습니다. 그래서", "checkAnswer(this, false, '맞는 설명입니다. 풀링은",
+      "checkAnswer(this, false, '옳은 설명입니다."],
+     ["checkAnswer(this, true, '표본이 작으면", "checkAnswer(this, true, '정답 없이 묶는다",
+      "checkAnswer(this, false, '넣은 이유를 검토하는 것은 올바른 태도입니다."]),
     # 기준서 3 — 인용·강조 부호는 「 」 하나.
     (r"[‘’“”«»]|&[lr][sd]quo;|&[lr]aquo;", "굽은 따옴표 · 겹화살괄호", "「 」",
      ["&lsquo;안다&rsquo;", "“네”", "«자리»"], ["「자리」", "'a'"]),
     # 기준서 12 — 라벨 · 영문 머리표 · 해시태그. 「지어낸 예)」처럼 괄호를 닫는 「예」는 라벨이 아니다.
-    (r"\bVS\b(?!\s?Code)|CHECK-?UP|※|&#8251;|핵심 해석\s*:|(?<![가-힣] )(?<![가-힣])예\)\s*[^\s<]",
+    # 「예:」「예시:」도 라벨이다. 괄호 속 「(예: …)」는 문장에 덧붙인 것이라 둔다.
+    (r"\bVS\b(?!\s?Code)|CHECK-?UP|※|&#8251;|핵심 해석\s*:|(?<![가-힣] )(?<![가-힣])예\)\s*[^\s<]|"
+     r"(?<![가-힣A-Za-z(])예(?:시)?\s?:",
      "라벨 · 머리표", "문장으로 풀어 쓰고, 상자 이름은 공통 어휘로",
-     ["A VS B", "CHECK-UP", "※ 참고", "<strong>핵심 해석:</strong>", "예) 긴 가래떡", "(예) 분실물"],
-     ["VS Code", "(수업에서 원리를 확인하려고 지어낸 예)", "(수업용 예)</p>"]),
+     ["A VS B", "CHECK-UP", "※ 참고", "<strong>핵심 해석:</strong>", "예) 긴 가래떡", "(예) 분실물",
+      "예: 나이, 키", "<strong>예시:</strong> 매점", "로봇 청소기 예시:", 'placeholder="예: 사과"'],
+     ["VS Code", "(수업에서 원리를 확인하려고 지어낸 예)", "(수업용 예)</p>", "(예: 로봇 팔, 스피커)",
+      "사례: 가", "해 보기: 주제"]),
     (r"(?<![&\w/#\"'])#[가-힣]", "해시태그", "낱말을 가운뎃점으로 잇는다",
      ["#얼굴인식 #음성인식"], ['href="#퀴즈"', "'#결과'", "&#8251;"]),
 ]
@@ -284,14 +291,21 @@ def game_pieces(path: Path) -> set[str]:
     return set(GAME_PIECES.get(rel, ""))
 
 
+# 판 전체가 게임인 페이지는 이모지 · 특수문자를 통째로 둔다(2026-09-24 사용자 확정) — 말과
+# 상황 알림이 한 그림 체계라, 알림 쪽만 걷어 내면 판과 글이 따로 논다.
+GAME_WHOLE = {"simulator/ai/search-river-crossing.html", "simulator/ai/wumpus-world.html"}
+
+
 def emoji_hits(path: Path, body: str) -> list[tuple[int, str]]:
+    if path.resolve().relative_to(ROOT).as_posix() in GAME_WHOLE:
+        return []
     keep = game_pieces(path)
     return [(m.start(), m.group(0)) for m in EMOJI.finditer(body)
             if not set(m.group(0)) - {"️", "‍"} <= keep]
 
 
 # 기준서 15 — 퀴즈 머리말. 저장소에서 가장 많이 쓴 제목과 부제로 맞춘다(2026-09-24).
-# 부제가 없는 퀴즈는 그대로 둔다 — 부제를 새로 세우는 일은 레이아웃마다 달라서 기계가 못 한다.
+# 부제가 없는 퀴즈도 막는다 — 없던 파일에는 그 파일의 제목 줄 모양대로 부제를 넣었다.
 QUIZ_TITLE = "확인 퀴즈"
 QUIZ_LEAD = "배운 내용을 확인해 봅시다."
 QUIZ_HEAD = re.compile(r'(?s)<section\b[^>]*\bid="quiz".*?<h2\b[^>]*>(.*?)</h2>'
@@ -309,15 +323,77 @@ def quiz_head(src: str) -> list[tuple[int, str]]:
     bad = []
     if _plain(m.group(1)) != QUIZ_TITLE:
         bad.append((m.start(1), f"퀴즈 제목 「{_plain(m.group(1))}」 — 「{QUIZ_TITLE}」로 쓴다"))
-    if m.group(2) is not None and _plain(m.group(2)) != QUIZ_LEAD:
+    if m.group(2) is None:
+        bad.append((m.start(1), f"퀴즈 부제가 없다 — 제목 아래에 「{QUIZ_LEAD}」를 넣는다"))
+    elif _plain(m.group(2)) != QUIZ_LEAD:
         bad.append((m.start(2), f"퀴즈 부제 「{_plain(m.group(2))}」 — 「{QUIZ_LEAD}」로 쓴다"))
     return bad
 
 
 QUIZ_EXAMPLES = (
-    ['<section id="quiz"><h2>퀴즈</h2>', '<section id="quiz"><h2>확인 퀴즈</h2><p>배운 내용을 확인해 봅시다!</p>'],
+    ['<section id="quiz"><h2>퀴즈</h2>', '<section id="quiz"><h2>확인 퀴즈</h2><p>배운 내용을 확인해 봅시다!</p>',
+     '<section id="quiz"><h2>확인 퀴즈</h2><div class="grid">'],
     ['<section id="quiz"><h2>확인 퀴즈</h2><div class="w-20"></div><p>배운 내용을 확인해 봅시다.</p>',
-     '<section id="quiz"><h2>확인 퀴즈</h2><div class="grid">'])
+     '<section id="quiz"><h2>확인 퀴즈</h2>\n<p class="a">배운 내용을 확인해 봅시다.</p>'])
+
+
+# 기준서 3 — 학생 글 속의 곧은따옴표(2026-09-24). 코드(<code> · <pre> · 코드의 문자열)와
+# 태그의 속성 따옴표는 글이 아니다. 학생이 보는 속성(aria-label · title · alt · placeholder)과
+# 퀴즈 해설 문자열은 글로 본다. 글 토막(블록 태그 · 스크립트 줄) 안에서 따옴표를 차례로
+# 짝짓고, 한글이 든 짝만 잡는다 — 「S'」 같은 프라임이나 영어 코드 조각은 비켜 간다.
+Q_CODE = re.compile(r"(?s)<(code|pre|kbd|samp|script|style|svg|math)\b.*?</\1>|<!--.*?-->")
+Q_TAG = re.compile(r"<[^>]*>")
+Q_ATTR = re.compile(r'\b(?:aria-label|title|alt|placeholder)="([^"]*)"')
+Q_EXPL = re.compile(r"checkAnswer\(this,\s*(?:true|false),\s*'((?:[^'\\]|\\.)*)'")
+Q_BLOCK = re.compile(r"</?(?:p|li|h[1-6]|td|th|div|button|label|option|section|ul|ol|table|tr)\b[^>]*>")
+
+
+def _blank(s: str) -> str:
+    return re.sub(r"[^\n]", " ", s)
+
+
+def _quote_body(path: Path, src: str) -> str:
+    """학생 글만 남긴 원문 — 길이와 자리가 원문과 같다."""
+    if path.suffix == ".js":
+        return Q_TAG.sub(lambda m: _blank(m.group(0)), js_strings(src))
+
+    def tag(m):
+        t = m.group(0)
+        keep = [" "] * len(t)
+        for rx in (Q_ATTR, Q_EXPL):
+            for a in rx.finditer(t):
+                keep[a.start(1):a.end(1)] = t[a.start(1):a.end(1)]
+        return "".join(keep).replace("&quot;", "      ")
+
+    s = Q_TAG.sub(tag, Q_CODE.sub(lambda m: _blank(m.group(0)), src))
+    if is_sim(path):
+        for m in SCRIPT.finditer(src):
+            js = Q_TAG.sub(lambda t: _blank(t.group(0)), js_strings(m.group(2)))
+            s = s[:m.start(2)] + js + s[m.end(2):]
+    return s
+
+
+def straight_quotes(path: Path, src: str) -> list[tuple[int, str]]:
+    body = _quote_body(path, src)
+    cuts = {m.start() for m in Q_BLOCK.finditer(src)} | {0, len(src)}
+    scripts = [(0, len(src))] if path.suffix == ".js" else [m.span(2) for m in SCRIPT.finditer(src)]
+    for a, b in scripts:
+        cuts |= {a + i for i, c in enumerate(src[a:b]) if c == "\n"}
+    cuts = sorted(cuts)
+    out = []
+    for a0, b0 in zip(cuts, cuts[1:]):
+        seg = body[a0:b0]
+        for qc in "'\"":
+            pos = [a0 + i for i, c in enumerate(seg) if c == qc
+                   and not (i and seg[i - 1] in "=\\")
+                   and not (0 < i < len(seg) - 1 and seg[i - 1].isascii() and seg[i - 1].isalpha()
+                            and seg[i + 1].isascii() and seg[i + 1].isalpha())]
+            if len(pos) % 2:
+                continue
+            for a, b in zip(pos[::2], pos[1::2]):
+                if re.search("[가-힣]", body[a:b]) and b - a < 200:
+                    out.append((a, re.sub(r"\s+", " ", src[a:b + 1])))
+    return out
 
 
 # ── 문체 기준서: 정제를 마친 과목부터 막는 것 ─────────────────────────────────
@@ -342,20 +418,62 @@ def _text(s: str) -> str:
     return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", "", s))).strip()
 
 
+# 기준서 5의 볼드는 **본문 문단만** 센다(2026-09-24 사용자 확정). 퀴즈 · 표 · 카드(핵심 정리 ·
+# 상자) · 「스스로 확인」 밴드 안의 볼드는 뺀다. 상자는 배경이나 테두리를 가진 요소로 가른다 —
+# 절을 싸는 `section-card`만은 본문 바탕이라 상자가 아니다.
+VOID = {"br", "hr", "img", "input", "meta", "link", "source", "wbr", "area", "col", "path",
+        "circle", "rect", "line", "polyline", "polygon", "ellipse", "stop", "use"}
+BOX_CLASS = re.compile(r"(?:^|\s)(?:bg-|border(?:\s|-|$)|rounded|shadow)")
+TAG_TOKEN = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*?)(/?)>")
+
+
+def box_spans(body: str) -> list[tuple[int, int]]:
+    """본문이 아닌 요소의 (시작, 끝)."""
+    spans, stack = [], []
+    for m in TAG_TOKEN.finditer(body):
+        close, name, attrs, selfclose = m.group(1), m.group(2).lower(), m.group(3), m.group(4)
+        if name in VOID or selfclose:
+            continue
+        if not close:
+            cls = re.search(r'\bclass="([^"]*)"', attrs)
+            cls = cls.group(1) if cls else ""
+            box = (name in ("table", "button") or 'id="quiz"' in attrs
+                   or (name != "section" and "section-card" not in cls and bool(BOX_CLASS.search(cls))))
+            stack.append((name, m.start(), box))
+            continue
+        # 닫는 태그 — 짝이 맞는 가장 가까운 여는 태그까지 걷어 낸다(어긋난 HTML에도 버틴다)
+        for k in range(len(stack) - 1, -1, -1):
+            if stack[k][0] == name:
+                _, start, box = stack[k]
+                del stack[k:]
+                if box or (name == "section" and "checkAnswer" in body[start:m.end()]):
+                    spans.append((start, m.end()))
+                break
+    return spans
+
+
 def style_later(body: str) -> list[tuple[int, str, str]]:
     """(자리, 규칙, 알림). 문단 · 절의 경계는 HTML 구조(<p>, <section>)로 가른다."""
     out = []
+    boxes = box_spans(body)
+
+    def in_box(pos: int) -> bool:
+        return any(a <= pos < b for a, b in boxes)
+
+    prose_p = []
     for m in P_BLOCK.finditer(body):
         inner, text = m.group(1), _text(m.group(1))
         if len(DASH.findall(inner)) >= 2:
             out.append((m.start(), "4 줄표", "한 문단에 줄표가 둘 이상 — 한 번까지 쓴다"))
-        if len(BOLD.findall(inner)) >= 2:
-            out.append((m.start(), "5 볼드", "한 문단에 볼드가 둘 이상 — 한 구절만"))
+        if not in_box(m.start()):
+            prose_p.append((m.start(), len(BOLD.findall(inner))))
+            if prose_p[-1][1] >= 2:
+                out.append((m.start(), "5 볼드", "한 문단에 볼드가 둘 이상 — 한 구절만"))
         if VERDICT.search(text):
             out.append((m.start(), "7 판정문", "문단을 판정문으로 닫았다 — 요점은 첫 문장에"))
     for m in SECTION.finditer(body):
-        if len(BOLD.findall(m.group(0))) > 3:
-            out.append((m.start(), "5 볼드", "한 절에 볼드가 셋을 넘는다"))
+        if sum(n for pos, n in prose_p if m.start() <= pos < m.end()) > 3:
+            out.append((m.start(), "5 볼드", "한 절의 본문 문단에 볼드가 셋을 넘는다"))
     for m in SEAT.finditer(body):
         out.append((m.start(), "6 자리", f"「{m.group(0)}」 — 단계 · 역할 · 대목이면 그 낱말로"))
     for m in LIST_AND.finditer(_strip_keep(body)):
@@ -383,7 +501,10 @@ STYLE_LATER_EXAMPLES = [
     ("<h2>AI와 함께 정리하기</h2>", "11 AI 정리"),
 ]
 STYLE_LATER_NOT = ["<p>가 — 나</p>", "<p><strong>가</strong>입니다</p>", "<p>핵심은 이렇습니다. 그래서 씁니다.</p>",
-                   "<p>빈 자리에 놓습니다</p>"]
+                   "<p>빈 자리에 놓습니다</p>",
+                   '<div class="bg-sky-50 p-4"><p><strong>가</strong>와 <b>나</b></p></div>',
+                   '<table><tr><td><p><strong>가</strong><b>나</b></p></td></tr></table>',
+                   '<section id="quiz"><p><strong>가</strong><b>나</b></p></section>']
 
 # 강의노트에만 거는 규칙(쓴 말로 가리킨다). 시뮬레이터는 강의노트가 아니므로 다른
 # 시뮬레이터 페이지로 거는 링크가 앞 차시 바로가기가 되지 않는다. 나머지 규칙은
@@ -403,6 +524,15 @@ def self_test() -> list[str]:
     예, 아님 = QUIZ_EXAMPLES
     errs += [f"퀴즈 머리말이 「{e}」를 못 잡는다" for e in 예 if not quiz_head(e)]
     errs += [f"퀴즈 머리말이 「{e}」를 잘못 잡는다" for e in 아님 if quiz_head(e)]
+    here = ROOT / "tools" / "check_prose.html"   # 가짜 경로 — 강의노트 HTML로 다룬다
+    for e in ["<p>인공지능은 '학습'을 합니다.</p>", '<p>"이게 탐색이랑 무슨 상관이지?"</p>',
+              "<button aria-label=\"'시작' 버튼\">"]:
+        if not straight_quotes(here, e):
+            errs.append(f"곧은따옴표가 「{e}」를 못 잡는다")
+    for e in ["<p><code>print('안녕')</code></p>", '<p class="a">위치(S\') 정보</p>',
+              '<button onclick="checkAnswer(this, true, \'&quot;점수: &quot;는 글자\')">']:
+        if straight_quotes(here, e):
+            errs.append(f"곧은따옴표가 「{e}」를 잘못 잡는다")
     for e, rule in STYLE_LATER_EXAMPLES:
         if rule not in {r for _, r, _ in style_later(e)}:
             errs.append(f"문체 「{rule}」이 「{e}」를 못 잡는다")
@@ -552,6 +682,8 @@ def check(path: Path, sim: bool = False) -> list[tuple[int, str]]:
                 add(body, m.start(), f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다")
     for pos, e in emoji_hits(path, bodies[0]):
         add(bodies[0], pos, f"「{e}」(이모지) — 지우고 문장으로 쓴다")
+    for pos, e in straight_quotes(path, src):
+        add(src, pos, f"{e}(곧은따옴표) — 「 」로 쓴다")
     if not sim:
         for pos, msg in quiz_head(bodies[0]):
             add(bodies[0], pos, msg)

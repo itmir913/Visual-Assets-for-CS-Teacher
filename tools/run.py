@@ -4,7 +4,8 @@
     npm run check                         모든 검사(산출물 검사 `dist` 는 뺀다)
     npm run check -- prose html           이름을 준 것만
     npm run check -- html 정보/1-1.….html  이름 뒤의 낱말은 그 검사에 넘긴다
-    npm run check -- sim                  묶음 이름 — 시뮬레이터 검사 전부
+    npm run check -- sim                  시뮬레이터 동작 검사 전부
+    npm run check -- sim sort tree        그 가운데 이름을 준 것만
     npm run check -- dist                 산출물 검사. 빌드 뒤에만 뜻이 있다
     npm run audit -- lemma …              감사 도구 하나. 이름이 반드시 있어야 한다
 
@@ -37,7 +38,19 @@ CHECKS: dict[str, list[str]] = {
     "terms": ["tools/check_sim_terms.py"],
     "verbs": ["tools/check_verbs.py"],
     "prose": ["tools/check_prose.py"],
-    # 시뮬레이터 동작
+    # 시뮬레이터 동작 — 아래 SIMS 표를 차례로 돈다. 뒤에 SIMS 의 이름을 주면 그것만.
+    "sim": [],
+    # 산출물. 빌드가 있어야 하므로 기본 목록에서 빠지고 이름으로만 부른다.
+    "dist": ["tools/check_dist.py", "dist"],
+}
+
+# 시뮬레이터 동작 검사. `check -- sim [이름…]` 으로만 부른다 — 이름이 서른 가까이라
+# 최상위에 늘어놓으면 `sim` 과 `sims` 처럼 헷갈리는 이름이 생긴다(실제로 생겼다).
+SIMS: dict[str, list[str]] = {
+    # 모든 페이지 공통 — 뜨는가 · 캔버스 배율 · on* 핸들러가 가리키는 것이 있는가
+    "pages": ["tools/check_sim_pages.mjs"],
+    "fullscreen": ["tools/check_fullscreen.mjs"],
+    # 페이지마다
     "graph": ["tools/check_graph_presets.mjs"],
     "graph-sim": ["tools/check_graph_sims.mjs"],
     "heuristic-tree": ["tools/check_heuristic_tree.mjs"],
@@ -48,8 +61,6 @@ CHECKS: dict[str, list[str]] = {
     "find": ["tools/check_find.mjs"],
     "compress": ["tools/check_compress.mjs"],
     "least-squares": ["tools/check_least_squares.mjs"],
-    "fullscreen": ["tools/check_fullscreen.mjs"],
-    "sims": ["tools/check_sims.mjs"],
     "deep-learning": ["tools/check_deep_learning.mjs"],
     "wumpus": ["tools/check_wumpus.mjs"],
     "nqueen": ["tools/check_nqueen.mjs"],
@@ -64,17 +75,10 @@ CHECKS: dict[str, list[str]] = {
     "bandit": ["tools/check_bandit.mjs"],
     "kmeans": ["tools/check_kmeans.mjs"],
     "vision": ["tools/check_vision.mjs"],
-    # 산출물. 빌드가 있어야 하므로 기본 목록에서 빠지고 이름으로만 부른다.
-    "dist": ["tools/check_dist.py", "dist"],
 }
 
 # 이름으로만 부르는 검사. `npm run ci` 가 빌드 뒤에 따로 부른다.
 BY_NAME_ONLY = {"dist"}
-
-# 묶음 이름 → 검사 이름들. 묶음은 인자를 받지 않는다.
-GROUPS: dict[str, list[str]] = {
-    "sim": [n for n, cmd in CHECKS.items() if cmd[0].endswith(".mjs")],
-}
 
 # 감사 도구 — 판정이 아니라 사람이 읽을 목록을 내놓는다. `ci` 에 넣지 않는다.
 AUDITS: dict[str, list[str]] = {
@@ -95,14 +99,14 @@ def parse(argv: list[str], table: dict[str, list[str]]) -> list[tuple[str, list[
     """`이름 인자… 이름 인자…` 를 `[(이름, [인자…]), …]` 로 가른다."""
     picked: list[tuple[str, list[str]]] = []
     for a in argv:
-        if a in GROUPS and table is CHECKS:
-            picked += [(n, []) for n in GROUPS[a]]
+        if picked and picked[-1][0] == "sim" and a in SIMS:
+            picked[-1][1].append(a)
         elif a in table:
             picked.append((a, []))
         elif picked:
             picked[-1][1].append(a)
         else:
-            raise SystemExit(f"run: 모르는 이름 {a!r} — 있는 이름: {', '.join([*table, *GROUPS])}")
+            raise SystemExit(f"run: 모르는 이름 {a!r} — 있는 이름: {', '.join(table)}")
     return picked
 
 
@@ -114,17 +118,28 @@ def run(kind: str, argv: list[str]) -> int:
             raise SystemExit(f"run: 감사 이름을 주어야 한다 — {', '.join(AUDITS)}")
         picked = [(n, []) for n in CHECKS if n not in BY_NAME_ONLY]
 
-    failed: list[str] = []
+    # `sim [이름…]` 을 SIMS 의 검사들로 풀어 놓는다.
+    flat: list[tuple[str, list[str], list[str]]] = []
     for name, extra in picked:
+        if name == "sim":
+            for n in (extra or list(SIMS)):
+                if n not in SIMS:
+                    raise SystemExit(f"run: 모르는 시뮬레이터 검사 {n!r} — 있는 이름: {', '.join(SIMS)}")
+                flat.append((f"sim {n}", SIMS[n], []))
+        else:
+            flat.append((name, table[name], extra))
+
+    failed: list[str] = []
+    for name, cmd, extra in flat:
         print(f"==> {kind} {name}", flush=True)
         t = time.monotonic()
-        code = subprocess.run(command(table[name], extra), cwd=REPO_ROOT).returncode
+        code = subprocess.run(command(cmd, extra), cwd=REPO_ROOT).returncode
         if code:
             failed.append(name)
             print(f"<== {kind} {name} 실패 (종료 코드 {code}, {time.monotonic() - t:.1f}s)", flush=True)
 
-    if len(picked) > 1:
-        print(f"\n{kind}: {len(picked) - len(failed)}/{len(picked)} 통과", flush=True)
+    if len(flat) > 1:
+        print(f"\n{kind}: {len(flat) - len(failed)}/{len(flat)} 통과", flush=True)
     if failed:
         print(f"{kind}: 실패 — {' '.join(failed)}", flush=True)
         return 1

@@ -361,7 +361,7 @@ for (const w of chosen) {
 }
 
 // **결과를 곧바로 `graph-presets.js`로 적는다.** 중간 파일을 두면 그 파일과 최종본이
-// 어긋난 채 굳는다. 적고 나면 `npm run check -- graph`가 최종본을 다시 판정한다.
+// 어긋난 채 굳는다. 적고 나면 `npm run check -- sim graph`가 최종본을 다시 판정한다.
 const fs = await import('node:fs');
 const {emit} = await import('./gen_graph_presets_emit.mjs');
 fs.writeFileSync(new URL('../src/entries/_lib/graph-presets.js', import.meta.url),

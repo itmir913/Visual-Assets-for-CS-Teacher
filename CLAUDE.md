@@ -42,6 +42,7 @@
 ## 명령은 `package.json`에서만 정의한다
 
 **스크립트 경로를 직접 치지 않는다.** 새 명령이 필요하면 `package.json`에 이름을 붙인다.
+검사·감사는 예외로 `tools/run.py`의 `CHECKS`·`SIMS`·`AUDITS`에 이름을 붙인다 — `package.json`은 검사와 감사를 부르는 한 줄씩만 든다.
 **CI도 IDE 실행 구성도 같은 이름을 부른다** — 여기만 고치면 셋이 함께 바뀐다.
 
 **실행점은 셋뿐이다.** GitHub Actions도 IDE 실행 구성도 이것만 부른다.
@@ -60,12 +61,14 @@
 |---|---|
 | `npm run check` | 검사 전부. 하나가 실패해도 끝까지 돌고 실패한 이름을 모아 보인다 |
 | `npm run check -- <이름>…` | 이름을 준 검사만. 이름 뒤의 낱말은 그 검사에 넘긴다(`npm run check -- html <파일>`) |
+| `npm run check -- sim [<이름>…]` | 시뮬레이터 동작 검사. 이름을 주면 그것만(`npm run check -- sim sort tree`) |
 | `npm run audit -- <이름>` | 판정 없이 목록만 내놓는 감사 도구. `ci` 밖이다 |
 | `gen:*` · `docx` · `prose` | 생성·추출 도구 |
 
 - **검사를 `package.json`에 하나씩 이름 붙이지 않는다.** 검사 목록은
   **`tools/run.py`의 `CHECKS` 한 곳에만** 둔다. 새 검사는 거기 한 줄을 더하면
-  `npm run check`와 `npm run ci`가 저절로 부른다. 감사 도구는 같은 파일의 `AUDITS`다.
+  `npm run check`와 `npm run ci`가 저절로 부른다. 시뮬레이터 동작 검사는 같은 파일의 `SIMS`,
+  감사 도구는 `AUDITS`다. **최상위 이름과 헷갈리는 이름을 만들지 않는다** — `sim`과 `sims`가 나란히 있던 적이 있다.
 - 전체 목록은 [`tools/README.md`](tools/README.md).
 
 ---
@@ -182,7 +185,7 @@
   `npm run check -- html`이 잡는다. **규칙만 있고 검사가 없던 동안 다섯 과목 모두에 쌓였다.**
 - **앞 차시도 가리키지 않는다**(2026-09-24 사용자 확정). 「앞 시간에 배운 대로」도 순서가
   바뀌면 없는 시간을 가리킨다. 필요한 개념은 **그 자리에서 한 문장으로 다시 말한다.**
-  `npm run check -- prose`가 본다 — 정제 전 과목에 많이 남아 있어 정제를 마친 파일부터 막는다.
+  `npm run check -- prose`가 본다.
   - **다른 강의노트로 거는 링크도 같다**(2026-09-24 사용자 확정). 용어에 건 링크 ·
     「○○ 다시 보기」도 앞 차시 바로가기다. **링크를 빼고 그 자리에서 뜻을 말한다.**
     목록(`../index.html`) · 시뮬레이터 · 바깥 주소는 강의노트가 아니므로 걸어도 된다.
@@ -496,7 +499,7 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
   물렀다. 탭은 조작이 아니라 **어느 무대를 켤지 켜기 «전»에 고르는 것**으로 둔다.
 - 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-drawer` · `fs-tabs` · `fs-outside`)은
   [`src/styles/simulator.css`](src/styles/simulator.css) 머리에 있다.
-- `npm run check -- fullscreen`이 지킨다. **CSS가 `:fullscreen`이 아니라 `fs-on` 클래스를
+- `npm run check -- sim fullscreen`이 지킨다. **CSS가 `:fullscreen`이 아니라 `fs-on` 클래스를
   보게 해 두어야 검사가 켜 놓고 볼 수 있다** — `requestFullscreen`은 iframe에서 거부되고
   jsdom에는 아예 없다. 그래서 이 짜임은 오래도록 한 번도 검사되지 않았다.
 
@@ -563,7 +566,8 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
   읽기 전에 그 목록부터 돌린다 — 한 과목에서 배운 것을 다른 과목이 공짜로 받는다.
 - 목록의 줄마다 **걸려야 할 꼴(`예`)과 걸리면 안 되는 꼴(`아님`)**을 적는다. 검사가
   돌 때마다 제 목록을 먼저 시험하므로, 활용형이 새면 검사 자체가 선다.
-- **정제를 마친 파일만 막는다(`DONE`).** 나머지는 `--report`가 과목별로 세는 작업 목록이다.
+- **정제를 마친 파일만 막는다(`DONE`).** 2026-09-24에 다섯 과목이 모두 올라 전체가 막힌다.
+  새 과목은 정제하는 동안 빠져 있고, 그동안 `--report`가 걸린 자리를 작업 목록으로 센다.
   사용자 확인이 끝난 파일을 올리고, 한 번 올린 파일은 되돌리지 않는다.
 - **시뮬레이터도 같은 목록으로 막는다**(2026-09-24 사용자 지시) — 기준이 다르면 강의노트와
   시뮬레이터의 말이 갈라진다. 범위는 `check -- terms`와 같은 import 그래프이고, JS는 문자열

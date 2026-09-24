@@ -32,7 +32,7 @@ export const SORT_N_MAX = SORT_SIZES[SORT_SIZES.length - 1];
  *
  *  전체 알고리즘 × 자료 넷 × 씨앗 다섯을 실제로 돌려 세어 보고 고른 값이다.
  *  n을 조금만 올려도 단계가 제곱으로 불어나 수업 시간에 끝까지 넘겨 볼 수 없게 된다.
- *  **지금 몇 단계인지는 `npm run check -- sort`가 찍는다** — 여기 적으면 알고리즘을 더할 때마다 낡는다. */
+ *  **지금 몇 단계인지는 `npm run check -- sim sort`가 찍는다** — 여기 적으면 알고리즘을 더할 때마다 낡는다. */
 export const SORT_N_DEFAULT = 8;
 
 /** 목록에서 가장 가까운 값. 직접 넣은 자료의 개수를 슬라이더에 맞출 때 쓴다. */

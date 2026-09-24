@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """동작의 이름이 한자어인가 — **저장소 전체를 돈다.**
 
-    python tools/check_verbs.py            # 저장소 전부 (CI가 쓰는 방식)
-    python tools/check_verbs.py <파일>…    # 짚은 파일만
-    python tools/check_verbs.py --report   # 빼 둔 자리까지 세기만 (종료 코드 0)
+    npm run check -- verbs                 # 저장소 전부 (CI가 쓰는 방식)
+    npm run check -- verbs <파일>…         # 짚은 파일만
+    npm run check -- verbs --report        # 빼 둔 자리까지 세기만 (종료 코드 0)
 
 위반이 하나라도 있으면 종료 코드 1. 규칙은 CLAUDE.md 「동작의 이름은 한자어로 쓴다」에
 있고, **이 파일은 그 규칙의 목록을 든다** — 사람이 판단할 자리가 아니라 조회할 자리다.

@@ -10,7 +10,7 @@
 | 파일 | 용도 | 언제 쓰나 |
 |---|---|---|
 | `run.py` | **검사·감사 러너.** 목록(`CHECKS`·`SIMS`·`AUDITS`)이 여기에만 있다. 시뮬레이터 동작 검사는 `check -- sim [이름…]`으로 부른다. 이름을 주면 그것만, 안 주면 산출물 검사를 뺀 전부를 돌고 실패한 이름을 끝에 모은다 | `npm run check` · `npm run audit -- <이름>`으로 부른다 |
-| `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소·**금지 낱말** 검사 | **파일을 고칠 때마다** |
+| `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소·**금지 낱말** · 중복 id 검사 | **파일을 고칠 때마다** |
 | `check_dynamic_classes.py` | 런타임에 조립되는 Tailwind 클래스 검출 | **JS로 클래스를 붙이는 코드를 쓸 때마다** |
 | `check_code.py` | 강의노트가 끌어다 쓰는 `.py`·`.c`의 구문 오류 + `data-src` 마커 해석 | **코드 파일을 고칠 때마다** |
 | `check_index_links.py` | **첫 화면과 강의노트가 서로를 놓치지 않았는지.** `index.html`이 거는 저장소 안 주소가 실제로 있는지, 과목 폴더의 강의노트 가운데 `index.html`이 한 번도 걸지 않은 것이 있는지. 일부러 걸지 않는 강의노트는 `UNLINKED_OK`에 까닭과 함께 적는다 | 강의노트 이름을 바꾸거나 새로 만든 뒤. `npm run ci`가 부른다 |
@@ -254,6 +254,9 @@ npm run check -- html -v           # 전체를 돌면서 항목별 결과까지
   `<div class="min-w-[480px]"><svg class="w-full">` 형태를 오탐하지 않기 위해서다.
 - `<table>`이 `overflow-x-auto` 요소 **안에 실제로 들어 있는지**(조상 스택으로 확인,
   「앞 6줄에 문자열이 있나」식 어림이 아니다)
+- **한 파일 안에 같은 `id`가 두 번 나오는지.** `#quiz` 같은 nav 앵커와 `getElementById`는
+  먼저 나온 쪽으로 가고, SVG `clipPath`는 먼저 나온 도형으로 잘린다. 주석과
+  `<script>`·`<template>` 안은 보지 않는다.
 - **제목이 파일명 · `<title>` · `<h1>` 세 곳에서 같은지.** 비교할 때
   태그와 HTML 엔티티를 풀고 **글자와 숫자만 남긴다** — 파일명은 공백을 `-`로 적고
   본문은 `&middot;`를 쓰므로, 구분 기호를 떼지 않으면 멀쩡한 파일이 걸린다.
@@ -297,7 +300,7 @@ npm run check -- html -v           # 전체를 돌면서 항목별 결과까지
 ```bash
 npm run check -- prose                     # 모든 과목 + 시뮬레이터 (ci가 부르는 방식). DONE 파일과 시뮬레이터를 막는다
 npm run check -- prose <파일>…          # 짚은 파일 — 정제 중에 쓴다. DONE 이 아니어도 막는다
-python tools/check_prose.py --report     # 정제 전 파일의 걸린 자리를 과목별로 (종료 코드 0)
+npm run check -- prose --report          # 정제 전 파일의 걸린 자리를 과목별로 (종료 코드 0)
 ```
 
 규칙은 CLAUDE.md 「강의노트 문장은 정제에서 물러난 말을 다시 쓰지 않는다」에 있다.
@@ -307,7 +310,8 @@ python tools/check_prose.py --report     # 정제 전 파일의 걸린 자리를
 
 **문체 기준서**(CLAUDE.md 「문체 기준서」)도 여기서 본다. 기계로 고칠 수 있는 것
 (`STYLE_NOW` · `EMOJI` · `quiz_head()`)은 곧바로 막고, 사람이 고칠 것(`style_later()`)은
-`STYLE_DONE`에 올린 과목에서만 막는다. `--report`가 마지막에 과목별 · 규칙별 남은 수를 낸다.
+`STYLE_DONE`에 올린 과목에서만 막는다. `DONE`과 `STYLE_DONE` 둘 다 2026-09-25에 다섯 과목이
+모두 올라 전체가 막힌다 — 둘은 새 과목을 정제하는 동안 빼 두는 자리로 남는다. `--report`가 마지막에 과목별 · 규칙별 남은 수를 낸다.
 
 ## `check_verbs.py` — 동작의 이름이 한자어인가
 

@@ -16,8 +16,8 @@ CDN을 쓰던 시절에는 런타임 JIT라 소스를 열면 멀쩡히 보였다
     <div class="${lang.iconClass}">
 
 사용:
-    python tools/check_dynamic_classes.py                 # 저장소 전체
-    python tools/check_dynamic_classes.py "정보*/*.html"   # 글롭도 된다
+    npm run check -- classes                              # 저장소 전체
+    npm run check -- classes "정보*/*.html"                # 글롭도 된다
 
 위반이 있으면 종료 코드 1.
 """

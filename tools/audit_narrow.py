@@ -1,8 +1,8 @@
 """375px에서 «본문 글자가 실제로 몇 px 폭에 놓이는가»를 계산한다.
 
-    python tools/audit_narrow.py                 # 저장소 전체
-    python tools/audit_narrow.py 데이터과학/1-1-1.*.html
-    python tools/audit_narrow.py --limit 260     # 기준을 바꿔 본다
+    npm run audit -- narrow                      # 저장소 전체
+    npm run audit -- narrow 데이터과학/1-1-1.*.html
+    npm run audit -- narrow --limit 260          # 기준을 바꿔 본다
 
 브라우저를 띄우지 않는다. 조상들의 좌우 여백과, flex·grid 형제가 먼저 가져가는
 폭을 차례로 빼서 «남는 폭»을 낸다. md:·lg: 접두사가 붙은 클래스는 375px에서

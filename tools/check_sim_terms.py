@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """시뮬레이터가 쓰는 말이 교과 용어인가 — **HTML만이 아니라 JS까지 본다.**
 
-    python tools/check_sim_terms.py            # 시뮬레이터 전부 (CI가 쓰는 방식)
-    python tools/check_sim_terms.py <파일>…    # 짚은 파일만
+    npm run check -- terms                     # 시뮬레이터 전부 (CI가 쓰는 방식)
+    npm run check -- terms <파일>…             # 짚은 파일만
 
 위반이 하나라도 있으면 종료 코드 1.
 

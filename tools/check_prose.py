@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """강의노트와 시뮬레이터의 문장 정제에서 물러난 말이 다시 들어오지 않았는가.
 
-    python tools/check_prose.py            # 모든 과목 + 시뮬레이터 (CI가 쓰는 방식)
-    python tools/check_prose.py <파일>…    # 짚은 파일만 — 정제 중에 쓴다
-    python tools/check_prose.py --report   # 정제 전 파일까지 과목별로 센다 (종료 코드 0)
+    npm run check -- prose                 # 모든 과목 + 시뮬레이터 (CI가 쓰는 방식)
+    npm run check -- prose <파일>…         # 짚은 파일만 — 정제 중에 쓴다
+    npm run check -- prose --report        # 정제 전 파일까지 과목별로 센다 (종료 코드 0)
 
 ## 왜 있는가 — 한 번 배운 것을 다음 과목이 공짜로 받게
 
@@ -50,6 +50,7 @@
 **기계로 고칠 수 있어 저장소 전체를 한 번에 고친 것**은 `STYLE_NOW` · `EMOJI` ·
 `quiz_head()`가 곧바로 막는다. **사람이 읽고 고쳐야 하는 것**은 `style_later()`가 보고,
 `STYLE_DONE`에 올린 과목에서만 막는다 — 나머지는 `--report`가 과목별 · 규칙별로 센다.
+2026-09-25에 다섯 과목이 모두 올라 지금은 전체가 막힌다.
 """
 from __future__ import annotations
 

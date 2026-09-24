@@ -23,8 +23,8 @@
    → `tools/vite/third-party-notices.js`.
 
 사용법:
-    python tools/check_dist.py            # dist/
-    python tools/check_dist.py <경로>      # 다른 산출물 폴더
+    npm run check -- dist                 # dist/
+    npm run check -- dist <경로>           # 다른 산출물 폴더
 """
 from __future__ import annotations
 

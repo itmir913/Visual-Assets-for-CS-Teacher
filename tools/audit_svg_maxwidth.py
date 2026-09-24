@@ -10,8 +10,8 @@ viewBox 대비 비율만큼 계속 커진다.
 칼럼 등)에 따라 적절한 max-width 값이 다르므로 사람이 정해야 한다.
 
 사용법:
-    python tools/audit_svg_maxwidth.py                # 저장소 전체
-    python tools/audit_svg_maxwidth.py 인공지능기초    # 디렉터리 지정
+    npm run audit -- svg                              # 저장소 전체
+    npm run audit -- svg 인공지능기초                  # 디렉터리 지정
 """
 import re
 import sys

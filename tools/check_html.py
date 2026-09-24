@@ -1,7 +1,7 @@
-"""강의안 HTML 검증: 태그 중첩 + 최소 글자 크기(CSS·SVG) + 테이블 래퍼 + 제목·금지 요소.
+"""강의안 HTML 검증: 태그 중첩 + 최소 글자 크기(CSS·SVG) + 테이블 래퍼 + 제목·금지 요소 + 중복 id.
 
-    python tools/check_html.py                      # 저장소 전체 (CI가 쓰는 방식)
-    python tools/check_html.py 인공지능기초/1-1-2.*.html   # 인자만 검사
+    npm run check -- html                           # 저장소 전체 (CI가 쓰는 방식)
+    npm run check -- html 인공지능기초/1-1-2.*.html        # 인자만 검사
 
 위반이 하나라도 있으면 종료 코드 1로 끝난다(경고는 0).
 
@@ -610,6 +610,28 @@ def stack_rules(src: str):
     return bad
 
 
+def id_rules(src: str):
+    """한 파일 안에 같은 id가 두 번 나오는가.
+
+    nav의 `href="#quiz"`는 **먼저 나온 것**으로 간다. 핵심 정리 절과 퀴즈 절이
+    둘 다 `id="quiz"`였던 파일에서는 퀴즈 바로가기가 핵심 정리로 떨어졌는데,
+    화면은 멀쩡해 보여 **눌러 보기 전에는 아무도 모른다.** `getElementById`도 같다.
+    주석과 `<script>`·`<template>` 안은 태그가 아니므로 보지 않는다.
+    """
+    body = re.sub(r"<!--.*?-->|<(script|template)\b.*?</\1\s*>",
+                  lambda m: re.sub(r"[^\n]", " ", m.group(0)), src, flags=re.S | re.I)
+    seen, bad = {}, []
+    for m in re.finditer(r"<[a-zA-Z][^>]*?\sid\s*=\s*[\"']([^\"']+)[\"']", body):
+        i = m.group(1)
+        line = _line_of(src, m.start())
+        if i in seen:
+            bad.append(f"{line}행: id=\"{i}\"가 {seen[i]}행에도 있다 "
+                       f"— #{i} 로 가는 링크는 먼저 나온 쪽으로 간다")
+        else:
+            seen[i] = line
+    return bad
+
+
 def check(path: Path, log) -> tuple[int, int]:
     """(위반 수, 경고 수)를 돌려준다."""
     src = path.read_text(encoding="utf-8")
@@ -664,6 +686,7 @@ def check(path: Path, log) -> tuple[int, int]:
     report("머리말", head_rules(src))
     report("좁은 화면 여백", gutter_rules(src))
     report("세로로 쌓은 칸", stack_rules(src))
+    report("중복 id", id_rules(src))
 
     return violations, warnings
 

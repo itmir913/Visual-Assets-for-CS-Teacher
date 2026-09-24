@@ -10,5 +10,5 @@ scores["학생 D"] = 68        # 없던 키면 «새로 생긴다»
 scores["학생 A"] = 95        # 있던 키면 «값이 바뀐다»
 print(scores)               # {'학생 A': 95, '학생 B': 85, '학생 C': 72, '학생 D': 68}
 
-del scores["학생 D"]
+del scores["학생 D"]        # 키와 값을 함께 삭제한다
 print(len(scores))          # 3

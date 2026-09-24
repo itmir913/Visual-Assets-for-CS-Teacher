@@ -3,7 +3,7 @@
 # ---
 scores = {"학생 A": 90, "학생 B": 85, "학생 C": 72}
 
-for name in scores:                 # 그냥 훑으면 «키»가 나온다
+for name in scores:                 # 그냥 순회하면 «키»가 나온다
     print(name, scores[name])       # 학생 A 90 / 학생 B 85 / 학생 C 72
 
 for name, score in scores.items():  # 키와 값을 «짝»으로 받는다

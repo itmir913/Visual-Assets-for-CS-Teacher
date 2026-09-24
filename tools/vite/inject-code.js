@@ -16,7 +16,7 @@ import { ROOT, relPath } from './units.js';
 
 /** 확장자별 한 줄 주석 기호. 여기 없는 확장자는 주입 대상이 아니다. */
 const COMMENT_PREFIX = {
-    '.py': '#',
+    '.py': '#', '.r': '#',
     '.c': '//', '.h': '//', '.java': '//', '.js': '//',
 };
 

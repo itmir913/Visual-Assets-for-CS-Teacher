@@ -271,37 +271,34 @@ STYLE_NOW = [
 
 RULES = [(re.compile(p), 쓴, 쓸, 예, 아님) for p, 쓴, 쓸, 예, 아님 in VERBS + PATTERNS + STYLE_NOW]
 
-# 기준서 12의 이모지. 정규식 목록에 넣지 않는 것은 **게임 말**을 비켜 가야 해서다 — 강 건너기의
-# 늑대 · 웜푸스의 금처럼 판 위에 놓이는 그림은 라벨이 아니라 그 시뮬레이터의 그래픽이다.
-# 말은 파일마다 닫힌 목록으로 적는다. 목록에 없는 자리의 같은 그림은 라벨로 친다.
+# 기준서 12의 이모지 — **강의노트에만** 쓴다. 시뮬레이터 화면의 이모지는 지우지 않는다
+# (2026-09-24 사용자 확정). 문체 교정이 시뮬레이터의 알림 · 제목에서 이모지를 걷어 냈다가
+# 되살렸다 — 시뮬레이터에서 이모지는 라벨이 아니라 화면의 그래픽이다.
 EMOJI = re.compile(
     "[\U0001F300-\U0001FAFF✅❌⚠✨✋✂✏⭐❗❓"
     "⏰⌛☕✈❤☀]️?(?:‍[\U0001F300-\U0001FAFF☀-➿]️?)*")
-GAME_PIECES = {
-    "simulator/ai/search-river-crossing.html": "🐺🐑🥬👨🌾",
-    "simulator/ai/wumpus-world.html": "💰💨🕳👹🤢💀🧑✨",
-    "simulator/ai/search-n-queen.html": "👑",
-    "simulator/ai/reinforcement-gridworld.html": "🤖🚩",
-}
 EMOJI_EXAMPLES = (["💡 예", "✏️ 스스로 활동", "🎉 목표 도달"], ["☑ 확인", "✓ 정답", "★", "➔"])
 
 
-def game_pieces(path: Path) -> set[str]:
-    rel = path.resolve().relative_to(ROOT).as_posix()
-    return set(GAME_PIECES.get(rel, ""))
+# 기준서 12 — 상자 이름으로 쓴 배지는 그 절의 제목과 같아야 한다(2026-09-24 사용자 확정).
+# 퀴즈 절에 「스스로 점검하기」 배지를 달고 제목을 「확인 퀴즈」로 두면 한 머리에 이름이 둘이다.
+BADGE_NAMES = ("스스로 점검하기",)
+BADGE_HEAD = re.compile(r'<span\b[^>]*\brounded-full\b[^>]*>\s*([^<]*?)\s*</span>\s*<h2\b[^>]*>(.*?)</h2>', re.S)
+BADGE_EXAMPLES = (['<span class="rounded-full">스스로 점검하기</span>\n<h2 class="x">확인 퀴즈</h2>'],
+                  ['<span class="rounded-full">스스로 점검하기</span>\n<h2 class="x">스스로 점검하기</h2>',
+                   '<span class="rounded-full">CHAPTER 1</span>\n<h2>확인 퀴즈</h2>'])
 
 
-# 판 전체가 게임인 페이지는 이모지 · 특수문자를 통째로 둔다(2026-09-24 사용자 확정) — 말과
-# 상황 알림이 한 그림 체계라, 알림 쪽만 걷어 내면 판과 글이 따로 논다.
-GAME_WHOLE = {"simulator/ai/search-river-crossing.html", "simulator/ai/wumpus-world.html"}
+def badge_head(body: str) -> list[tuple[int, str]]:
+    return [(m.start(), f"배지 「{m.group(1)}」와 절 제목 「{_plain(m.group(2))}」가 다르다 — 배지를 지우거나 제목을 맞춘다")
+            for m in BADGE_HEAD.finditer(body)
+            if m.group(1) in BADGE_NAMES and _plain(m.group(2)) != m.group(1)]
 
 
 def emoji_hits(path: Path, body: str) -> list[tuple[int, str]]:
-    if path.resolve().relative_to(ROOT).as_posix() in GAME_WHOLE:
+    if is_sim(path):
         return []
-    keep = game_pieces(path)
-    return [(m.start(), m.group(0)) for m in EMOJI.finditer(body)
-            if not set(m.group(0)) - {"️", "‍"} <= keep]
+    return [(m.start(), m.group(0)) for m in EMOJI.finditer(body)]
 
 
 # 기준서 15 — 퀴즈 머리말. 저장소에서 가장 많이 쓴 제목과 부제로 맞춘다(2026-09-24).
@@ -521,6 +518,8 @@ def self_test() -> list[str]:
     예, 아님 = EMOJI_EXAMPLES
     errs += [f"이모지가 「{e}」를 못 잡는다" for e in 예 if not EMOJI.search(e)]
     errs += [f"이모지가 「{e}」를 잘못 잡는다" for e in 아님 if EMOJI.search(e)]
+    errs += [f"배지 검사가 「{e}」를 못 잡는다" for e in BADGE_EXAMPLES[0] if not badge_head(e)]
+    errs += [f"배지 검사가 「{e}」를 잘못 잡는다" for e in BADGE_EXAMPLES[1] if badge_head(e)]
     예, 아님 = QUIZ_EXAMPLES
     errs += [f"퀴즈 머리말이 「{e}」를 못 잡는다" for e in 예 if not quiz_head(e)]
     errs += [f"퀴즈 머리말이 「{e}」를 잘못 잡는다" for e in 아님 if quiz_head(e)]
@@ -681,7 +680,13 @@ def check(path: Path, sim: bool = False) -> list[tuple[int, str]]:
             for m in pat.finditer(body):
                 add(body, m.start(), f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다")
     for pos, e in emoji_hits(path, bodies[0]):
+        # 퀴즈 알림의 ✅/❌ 는 글이 아니라 정답·오답 표시다. 감탄사를 뺀 뒤로는 이것이
+        # 알림에 남은 유일한 표지라 지우면 맞혔는지 알 수 없다(2026-09-24 되살림).
+        if "showToast(" in lines[_line_of(bodies[0], pos) - 1]:
+            continue
         add(bodies[0], pos, f"「{e}」(이모지) — 지우고 문장으로 쓴다")
+    for pos, msg in badge_head(bodies[0]):
+        add(bodies[0], pos, msg)
     for pos, e in straight_quotes(path, src):
         add(src, pos, f"{e}(곧은따옴표) — 「 」로 쓴다")
     if not sim:

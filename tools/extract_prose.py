@@ -57,6 +57,41 @@ def clean(s):
     return re.sub(r'[ \t]+', ' ', unescape(TAG.sub(' ', s))).strip()
 
 
+def _padded(make, anchor=None):
+    """원래 덩어리가 먹던 줄바꿈을 채워 줄 번호를 원문과 맞춘다.
+
+    `anchor`는 남길 글이 원문에서 시작하는 자리를 돌려준다. 그 앞의 줄바꿈을 글 앞에
+    두어야 여러 줄에 걸친 `<button`의 해설이 해설이 적힌 줄에 선다.
+    """
+    def repl(m):
+        s = make(m)
+        whole = m.group(0)
+        cut = anchor(m) - m.start() if anchor else 0
+        pre = whole[:cut].count('\n')
+        return '\n' * pre + s + '\n' * (whole.count('\n') - pre - s.count('\n'))
+    return repl
+
+
+def _aria_at(m):
+    a = ARIA.search(m.group(0))
+    return m.start() + (a.start() if a else 0)
+
+
+def prose_text(src):
+    """학생이 읽는 글만 남기되 **줄 번호는 원문 그대로** 둔다 — 검사가 위반 자리를 짚도록.
+
+    `extract`와 같은 판단(무엇이 본문인가)을 쓴다. 다른 점은 줄을 합치지 않는 것뿐이다.
+    태그는 빈 문자열로 걷어 낸다 — 공백으로 바꾸면 태그가 끊은 낱말(「짚<b>어</b>」)이
+    둘로 갈라져 검사를 빠져나간다.
+    """
+    body = DROP.sub(_padded(lambda m: ''), src)
+    body = SVG.sub(_padded(lambda m: ' ' + (ARIA.search(m.group(1)).group(1)
+                                           if ARIA.search(m.group(1)) else '') + ' ', _aria_at), body)
+    body = QUIZ.sub(_padded(lambda m: ' ' + m.group(2) + ' ', lambda m: m.start(2)), body)
+    body = TAG.sub(_padded(lambda m: ''), body)
+    return re.sub(r'[ \t]+', ' ', unescape(body))
+
+
 def extract(path):
     src = io.open(path, encoding='utf-8').read()
     raw_len = len(src)

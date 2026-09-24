@@ -45,6 +45,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from logs import get_logger  # noqa: E402
 from subjects import SUBJECTS  # noqa: E402
+from extract_prose import prose_text  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SKIP_LINE = "prose: 예시"
@@ -165,9 +166,11 @@ def _line_of(src: str, pos: int) -> int:
 def check(path: Path) -> list[tuple[int, str]]:
     src = path.read_text(encoding="utf-8")
     lines = src.splitlines()
-    # 태그가 낱말을 끊으면(「갈라</strong> 준다」) 원문으로는 못 잡는다. 태그를 걷어 낸
-    # 본문도 함께 본다 — 태그 안의 줄바꿈은 남겨 줄 번호를 원문과 맞춘다.
-    text = re.sub(r"<[^>]*>", lambda m: "\n" * m.group(0).count("\n"), src)
+    # 태그나 개체(&nbsp;)가 낱말을 끊으면(「갈라</strong> 준다」) 원문으로는 못 잡는다.
+    # 본문도 함께 본다. 무엇이 본문인지는 extract_prose 가 정한다 — 두 도구가
+    # 서로 다른 본문을 보면 추출해 읽은 것과 검사한 것이 어긋난다.
+    # 원문 패스는 남긴다 — 링크 규칙처럼 태그 속을 봐야 하는 규칙이 있다.
+    text = prose_text(src)
     bad = set()
     for pat, 쓴, 쓸, _, _ in RULES:
         for body in (src, text):

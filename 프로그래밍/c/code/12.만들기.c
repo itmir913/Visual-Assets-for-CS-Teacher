@@ -9,7 +9,7 @@ int main(void) {
     };
     // endregion
 
-    // region: 짚기
+    // region: 칸
     printf("0번 모둠의 첫 차례: %d\n", score[0][0]);   // 80
     printf("1번 모둠의 세 번째: %d\n", score[1][2]);   // 95
 

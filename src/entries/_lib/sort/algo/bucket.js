@@ -64,7 +64,7 @@ export const bucketSortAlgo = {
         }
         const bucketOf = (v) => Math.min(k - 1, Math.floor(((v - lo) * k) / span));
 
-        rec.say(`값이 ${lo}~${hi}입니다. 이 범위를 ${k}개 구간으로 갈라 칸을 하나씩 둡니다.`);
+        rec.say(`값이 ${lo}~${hi}입니다. 이 범위를 ${k}개 구간으로 나누어 칸을 하나씩 둡니다.`);
         rec.stripOpen('값 구간 칸', 'bucket', keys);
 
         rec.say('원소를 자기 구간의 칸에 던져 넣습니다. **여기까지는 비교가 없습니다.**');

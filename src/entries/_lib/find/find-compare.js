@@ -116,7 +116,7 @@ export function buildFindRace(states, v) {
                         + ' 나머지는 아직 찾고 있습니다.'
                     : `셋 다 끝났습니다. **${withJosa(best.name, '이가')}** ${best.total}, `
                       + `**${withJosa(worst.name, '이가')}** ${worst.total}만큼 일했습니다. `
-                      + '**개수가 적어 차이가 작습니다 — 아래 표에서 개수를 키워 보세요.**'),
+                      + '**개수가 적어 차이가 작습니다 — 「개수를 키워 가며 측정한 작업량」 표를 보세요.**'),
         });
     }
 

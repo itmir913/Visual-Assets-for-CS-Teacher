@@ -13,7 +13,7 @@ export const heapSortAlgo = {
     group: 'improved',
     view: 'heap',
     motion: 'swap',
-    idea: '**선택 정렬을 개선한 것**입니다. 배열을 완전 이진 트리로 보고, 부모가 자식보다 크도록 정리합니다(최대 힙). '
+    idea: '**선택 정렬을 개선한 것**입니다. 배열을 완전 이진 트리로 보고, 부모 노드(Parent)가 자식 노드(Child)보다 크도록 정리합니다(최대 힙). '
         + '그러면 맨 위가 가장 큰 값이므로 맨 뒤와 교환해 확정하고, '
         + '남은 부분을 다시 힙으로 고칩니다.',
     complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(1)'},

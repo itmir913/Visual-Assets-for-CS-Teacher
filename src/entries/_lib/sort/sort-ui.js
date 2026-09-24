@@ -217,9 +217,9 @@ export function mountSortSimulator() {
         const lines = [];
 
         if (kind === 'race') {
-            lines.push('줄 하나가 알고리즘 하나입니다. 오른쪽 숫자는 **작업량**(비교 + 옮김 + 배열 접근)입니다.');
+            lines.push('줄 하나가 알고리즘 하나입니다. 줄마다 붙은 숫자는 **작업량**(비교 + 옮김 + 배열 접근)입니다.');
             lines.push('모두 같은 작업량을 나눠 받으므로, **먼저 끝난 줄이 일을 덜 한 것**입니다.');
-            lines.push('아래 곡선은 개수를 키워 가며 측정한 것입니다. 세로는 로그 눈금이라 **기울기가 곧 차수**입니다.');
+            lines.push('작업량 곡선은 개수를 키워 가며 측정한 것입니다. 가로와 세로가 모두 로그 눈금이라 **기울기가 차수를 나타냅니다.**');
         } else {
             if (MOTION_NOTE[algo.motion]) lines.push(MOTION_NOTE[algo.motion]);
 
@@ -334,8 +334,8 @@ export function mountSortSimulator() {
         view.setup(frames, raceWork(chosen));
         paintReadNotes(frames, 'race');
         $('record-note').textContent = n > RACE_MAX_N
-            ? `알고리즘 비교는 ${RACE_MAX_N}개까지만 합니다. 걸음을 하나라도 솎으면 비교가 공정하지 않기 때문입니다`
-              + ` (지금 고른 ${n}개 대신 ${raceN}개로 돌렸습니다).`
+            ? `알고리즘 비교는 ${RACE_MAX_N}개까지만 합니다. 걸음을 하나라도 건너뛰면 비교가 공정하지 않기 때문입니다`
+              + ` (지금 고른 ${n}개 대신 ${raceN}개로 실행했습니다).`
             : ' ';
 
         const scrub = $('scrub');

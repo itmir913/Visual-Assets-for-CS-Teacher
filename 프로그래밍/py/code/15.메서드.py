@@ -11,7 +11,7 @@ class Student:
         return round((self.kor + self.eng) / 2, 1)
 
     def passed(self):
-        return self.average() >= 60             # 메소드가 메소드를 부를 수도 있다
+        return self.average() >= 60             # 메서드가 메서드를 부를 수도 있다
 
 
 a = Student("학생 A", 90, 65)

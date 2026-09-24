@@ -1,6 +1,8 @@
 # ---
 # check: none
 # ---
+# 성적.csv 한 줄은 「이름,국어,영어」다. 학생 A·B 두 줄에 「학생 C,40,55」 줄을 더한 경우다
+
 class Student:
     def __init__(self, name, kor, eng):
         self.name = name

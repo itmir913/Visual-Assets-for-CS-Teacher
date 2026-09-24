@@ -199,11 +199,11 @@ export function mountTreeSimulator() {
         host.textContent = '';
         const lines = [];
         if (kind === 'compare') {
-            lines.push('위는 **이진 탐색 트리**, 아래는 **AVL 트리**입니다. 같은 값을 같은 순서로 받습니다.');
+            lines.push('**이진 탐색 트리**와 **AVL 트리**가 같은 값을 같은 순서로 받습니다.');
             lines.push('작업량(비교 + 이동 + 링크)을 똑같이 나눠 주므로 **먼저 「끝」이 붙은 쪽이 일을 덜 한 것**입니다.');
-            lines.push('아래 표는 개수를 키워 가며 측정한 **높이**입니다. 굵고 진한 쪽이 그 개수에서 낮은 쪽입니다.');
+            lines.push('「개수를 키워 가며 측정한 트리 높이」 표에서 굵고 진한 쪽이 그 개수에서 낮은 쪽입니다.');
         } else if (kind === 'heap') {
-            lines.push('**위 트리와 아래 배열은 같은 것입니다.** 노드 위의 작은 수가 배열의 인덱스입니다.');
+            lines.push('**트리 그림과 배열 그림은 같은 것입니다.** 노드 위의 작은 수가 배열의 인덱스입니다.');
             lines.push('부모는 `(자리 − 1) ÷ 2`, 자식은 `2 × 자리 + 1`과 `2 × 자리 + 2`입니다. **링크가 없습니다.**');
             lines.push('점선 칸은 아직 쓰지 않은 자리입니다. 힙은 **앞에서부터 빈틈없이** 채웁니다.');
         } else {
@@ -333,7 +333,7 @@ export function mountTreeSimulator() {
             marks: {focus: [], moving: [], linkFix: [], newborn: null, doomed: null, banner: null, spot: null},
             counts: {compare: 0, move: 0, link: 0},
             say: st.size === 0
-                ? '비어 있습니다. **연산 버튼**를 눌러 값을 넣어 보세요.'
+                ? '비어 있습니다. **연산 버튼**을 눌러 값을 넣어 보세요.'
                 : '연산 버튼을 누르면 그 연산이 **어떻게 이루어지는지** 한 단계씩 보입니다.',
         };
     }

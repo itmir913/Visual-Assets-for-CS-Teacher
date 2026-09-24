@@ -234,9 +234,9 @@ export function mountDsSimulator() {
         host.textContent = '';
         const lines = [];
         if (kind === 'compare') {
-            lines.push('위는 **배열**, 아래는 **단일 연결 리스트**입니다. 같은 값을 담고 같은 연산을 받습니다.');
+            lines.push('**배열**과 **단일 연결 리스트**가 같은 값을 담고 같은 연산을 받습니다.');
             lines.push('작업량(접근 + 이동 + 링크)을 똑같이 나눠 주므로 **먼저 「끝」이 붙은 쪽이 일을 덜 한 것**입니다.');
-            lines.push('아래 표는 개수를 키워 가며 측정한 것입니다. **굵고 진한 쪽이 그 개수에서 비용이 작은 쪽**입니다.');
+            lines.push('「개수를 키워 가며 측정한 작업량」 표에서는 **굵고 진한 쪽이 그 개수에서 비용이 작은 쪽**입니다.');
         } else if (kind === 'list') {
             lines.push('노드는 **값 칸과 링크 칸**으로 되어 있습니다. 링크도 노드에 담긴 값 하나입니다.');
             lines.push('링크 칸의 **빗금**은 가리킬 것이 없다(`null`)는 뜻입니다.');
@@ -430,7 +430,7 @@ export function mountDsSimulator() {
             marks: {focus: [], moving: [], linkFix: [], newborn: null, doomed: null, banner: null},
             counts: {access: 0, move: 0, link: 0},
             say: st.size === 0
-                ? '비어 있습니다. **연산 버튼**를 눌러 값을 넣어 보세요.'
+                ? '비어 있습니다. **연산 버튼**을 눌러 값을 넣어 보세요.'
                 : '연산 버튼을 누르면 그 연산이 **어떻게 이루어지는지** 한 단계씩 보입니다.',
         };
     }

@@ -139,7 +139,7 @@ function chainPut(rec, v) {
     rec.clearFlag();
     rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const at = rec.hashOf(v);
-    rec.say(`${at}번 칸으로 갑니다. **어디로 갈지 «보지 않고 계산해서» 정했습니다.**`);
+    rec.say(`${at}번 칸으로 갑니다. **어디로 갈지 「보지 않고 계산해서」 정했습니다.**`);
     rec.visit(at);
 
     if (walkChain(rec, at, v) >= 0) {

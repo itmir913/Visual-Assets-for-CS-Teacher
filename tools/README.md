@@ -305,6 +305,10 @@ python tools/check_prose.py --report     # 정제 전 파일의 걸린 자리를
 단다** — 검사가 돌 때마다 먼저 제 목록을 시험해, 정규식이 활용형을 놓치면 멈춘다.
 새 과목을 정제할 때는 `--report`를 먼저 돌려 그 과목의 걸린 자리부터 고친다.
 
+**문체 기준서**(CLAUDE.md 「문체 기준서」)도 여기서 본다. 기계로 고칠 수 있는 것
+(`STYLE_NOW` · `EMOJI` · `quiz_head()`)은 곧바로 막고, 사람이 고칠 것(`style_later()`)은
+`STYLE_DONE`에 올린 과목에서만 막는다. `--report`가 마지막에 과목별 · 규칙별 남은 수를 낸다.
+
 ## `check_verbs.py` — 동작의 이름이 한자어인가
 
 ```bash

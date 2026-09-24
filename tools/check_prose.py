@@ -43,6 +43,13 @@
 4. **넣기 전에 `--report`로 전체를 돌려 오탐이 없는지 본다.**
 
 **설명하려고 막은 말을 적어야 하는 줄에는 `prose: 예시`를 단다.**
+
+## 문체 기준서 — 두 갈래로 막는다
+
+문체 기준서(2026-09-24 사용자 확정)는 CLAUDE.md 「문체 기준서」 절에 있다. 그 가운데
+**기계로 고칠 수 있어 저장소 전체를 한 번에 고친 것**은 `STYLE_NOW` · `EMOJI` ·
+`quiz_head()`가 곧바로 막는다. **사람이 읽고 고쳐야 하는 것**은 `style_later()`가 보고,
+`STYLE_DONE`에 올린 과목에서만 막는다 — 나머지는 `--report`가 과목별 · 규칙별로 센다.
 """
 from __future__ import annotations
 
@@ -227,7 +234,156 @@ PATTERNS = [
      ["preview(미리 보기)의 그 pre-입니다", "의 그 <strong>dependent</strong>입니다"], []),
 ]
 
-RULES = [(re.compile(p), 쓴, 쓸, 예, 아님) for p, 쓴, 쓸, 예, 아님 in VERBS + PATTERNS]
+# ── 문체 기준서: 곧바로 막는 것 ──────────────────────────────────────────────
+# 문체 기준서(2026-09-24 사용자 확정, CLAUDE.md 「문체 기준서」 절) 가운데 **기계로 고칠 수
+# 있어 한 번에 다 고친 것**이다. 과목을 가리지 않고 시뮬레이터 화면 글에도 건다.
+STYLE_NOW = [
+    # 기준서 2 — 정답 해설은 감탄사 없이 이유부터. 오답 해설은 「맞습니다」로 열지 않는다
+    # (「틀린 것은?」 문항에서 오답을 누른 학생이 「맞았다」로 읽는다).
+    (r"(?:맞습니다|정확합니다|정답입니다|정답|훌륭합니다|잘했습니다)!", "해설 첫머리 감탄사",
+     "감탄사를 빼고 첫 문장에서 이유를 말한다", ["맞습니다!", "정답입니다! 잘 이해했습니다."],
+     ["맞습니다.", "정답은 셋입니다!"]),
+    (r"checkAnswer\(this,\s*true,\s*'(?:맞습니다|정확합니다|정답입니다|정답)[.!]|"
+     r"checkAnswer\(this,\s*true,\s*'[^'.!?]{0,40}!|"
+     r"checkAnswer\(this,\s*false,\s*'(?:맞습니다|아쉽습니다)",
+     "해설 첫머리 판정", "첫 문장에서 이유를 말한다",
+     ["checkAnswer(this, true, '맞습니다. 표본이", "checkAnswer(this, true, '이것이 알맞지 않습니다! 기기",
+      "checkAnswer(this, false, '맞습니다. 그래서"],
+     ["checkAnswer(this, true, '표본이 작으면", "checkAnswer(this, true, '정답 없이 묶는다","checkAnswer(this, false, '맞는 설명입니다."]),
+    # 기준서 3 — 인용·강조 부호는 「 」 하나.
+    (r"[‘’“”«»]|&[lr][sd]quo;|&[lr]aquo;", "굽은 따옴표 · 겹화살괄호", "「 」",
+     ["&lsquo;안다&rsquo;", "“네”", "«자리»"], ["「자리」", "'a'"]),
+    # 기준서 12 — 라벨 · 영문 머리표 · 해시태그. 「지어낸 예)」처럼 괄호를 닫는 「예」는 라벨이 아니다.
+    (r"\bVS\b(?!\s?Code)|CHECK-?UP|※|&#8251;|핵심 해석\s*:|(?<![가-힣] )(?<![가-힣])예\)\s*[^\s<]",
+     "라벨 · 머리표", "문장으로 풀어 쓰고, 상자 이름은 공통 어휘로",
+     ["A VS B", "CHECK-UP", "※ 참고", "<strong>핵심 해석:</strong>", "예) 긴 가래떡", "(예) 분실물"],
+     ["VS Code", "(수업에서 원리를 확인하려고 지어낸 예)", "(수업용 예)</p>"]),
+    (r"(?<![&\w/#\"'])#[가-힣]", "해시태그", "낱말을 가운뎃점으로 잇는다",
+     ["#얼굴인식 #음성인식"], ['href="#퀴즈"', "'#결과'", "&#8251;"]),
+]
+
+RULES = [(re.compile(p), 쓴, 쓸, 예, 아님) for p, 쓴, 쓸, 예, 아님 in VERBS + PATTERNS + STYLE_NOW]
+
+# 기준서 12의 이모지. 정규식 목록에 넣지 않는 것은 **게임 말**을 비켜 가야 해서다 — 강 건너기의
+# 늑대 · 웜푸스의 금처럼 판 위에 놓이는 그림은 라벨이 아니라 그 시뮬레이터의 그래픽이다.
+# 말은 파일마다 닫힌 목록으로 적는다. 목록에 없는 자리의 같은 그림은 라벨로 친다.
+EMOJI = re.compile(
+    "[\U0001F300-\U0001FAFF✅❌⚠✨✋✂✏⭐❗❓"
+    "⏰⌛☕✈❤☀]️?(?:‍[\U0001F300-\U0001FAFF☀-➿]️?)*")
+GAME_PIECES = {
+    "simulator/ai/search-river-crossing.html": "🐺🐑🥬👨🌾",
+    "simulator/ai/wumpus-world.html": "💰💨🕳👹🤢💀🧑✨",
+    "simulator/ai/search-n-queen.html": "👑",
+    "simulator/ai/reinforcement-gridworld.html": "🤖🚩",
+}
+EMOJI_EXAMPLES = (["💡 예", "✏️ 스스로 활동", "🎉 목표 도달"], ["☑ 확인", "✓ 정답", "★", "➔"])
+
+
+def game_pieces(path: Path) -> set[str]:
+    rel = path.resolve().relative_to(ROOT).as_posix()
+    return set(GAME_PIECES.get(rel, ""))
+
+
+def emoji_hits(path: Path, body: str) -> list[tuple[int, str]]:
+    keep = game_pieces(path)
+    return [(m.start(), m.group(0)) for m in EMOJI.finditer(body)
+            if not set(m.group(0)) - {"️", "‍"} <= keep]
+
+
+# 기준서 15 — 퀴즈 머리말. 저장소에서 가장 많이 쓴 제목과 부제로 맞춘다(2026-09-24).
+# 부제가 없는 퀴즈는 그대로 둔다 — 부제를 새로 세우는 일은 레이아웃마다 달라서 기계가 못 한다.
+QUIZ_TITLE = "확인 퀴즈"
+QUIZ_LEAD = "배운 내용을 확인해 봅시다."
+QUIZ_HEAD = re.compile(r'(?s)<section\b[^>]*\bid="quiz".*?<h2\b[^>]*>(.*?)</h2>'
+                       r'\s*(?:<div\b[^>]*>\s*</div>\s*)?(?:<p\b[^>]*>(.*?)</p>)?')
+
+
+def _plain(s: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", s)).strip()
+
+
+def quiz_head(src: str) -> list[tuple[int, str]]:
+    m = QUIZ_HEAD.search(src)
+    if not m:
+        return []
+    bad = []
+    if _plain(m.group(1)) != QUIZ_TITLE:
+        bad.append((m.start(1), f"퀴즈 제목 「{_plain(m.group(1))}」 — 「{QUIZ_TITLE}」로 쓴다"))
+    if m.group(2) is not None and _plain(m.group(2)) != QUIZ_LEAD:
+        bad.append((m.start(2), f"퀴즈 부제 「{_plain(m.group(2))}」 — 「{QUIZ_LEAD}」로 쓴다"))
+    return bad
+
+
+QUIZ_EXAMPLES = (
+    ['<section id="quiz"><h2>퀴즈</h2>', '<section id="quiz"><h2>확인 퀴즈</h2><p>배운 내용을 확인해 봅시다!</p>'],
+    ['<section id="quiz"><h2>확인 퀴즈</h2><div class="w-20"></div><p>배운 내용을 확인해 봅시다.</p>',
+     '<section id="quiz"><h2>확인 퀴즈</h2><div class="grid">'])
+
+
+# ── 문체 기준서: 정제를 마친 과목부터 막는 것 ─────────────────────────────────
+# 사람이 읽고 고쳐야 하는 규칙이다. `STYLE_DONE`에 올린 과목에서만 위반으로 치고, 나머지는
+# `--report`가 과목별 작업 목록으로 센다. **강의노트에만 건다.** 톱니는 `DONE`과 같다 —
+# 사용자 확인이 끝난 것만 올리고, 한 번 올린 것은 되돌리지 않는다.
+STYLE_DONE: list[str] = []
+
+P_BLOCK = re.compile(r"(?s)<p\b[^>]*>(.*?)</p>")
+SECTION = re.compile(r"(?s)<section\b.*?</section>")
+DASH = re.compile(r"—|&mdash;")
+BOLD = re.compile(r"<(?:strong|b)\b")
+VERDICT = re.compile(r"(?:[이가] (?:요점|핵심|열쇠|요령)입니다|그것이 [^.]{1,30} 점입니다)\.?\s*$")
+SEAT = re.compile(r"이 자리의|바로 이 자리|자리가 바로")
+LIST_AND = re.compile(r"(?:[^,.<>]{1,15},\s+){2,}[^,.<>]{1,15}\s등의\s[^.]{0,40}?하여\s[^.]{0,80}?다\.")
+REREAD = re.compile(r"다시 읽어|가리고 [가-힣 ]{0,10}(?:적어|써)|위 (?:설명|내용)을 다시")
+AI_BOX = re.compile(r"AI와 함께 정리")
+
+
+def _text(s: str) -> str:
+    from extract_prose import unescape
+    return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", "", s))).strip()
+
+
+def style_later(body: str) -> list[tuple[int, str, str]]:
+    """(자리, 규칙, 알림). 문단 · 절의 경계는 HTML 구조(<p>, <section>)로 가른다."""
+    out = []
+    for m in P_BLOCK.finditer(body):
+        inner, text = m.group(1), _text(m.group(1))
+        if len(DASH.findall(inner)) >= 2:
+            out.append((m.start(), "4 줄표", "한 문단에 줄표가 둘 이상 — 한 번까지 쓴다"))
+        if len(BOLD.findall(inner)) >= 2:
+            out.append((m.start(), "5 볼드", "한 문단에 볼드가 둘 이상 — 한 구절만"))
+        if VERDICT.search(text):
+            out.append((m.start(), "7 판정문", "문단을 판정문으로 닫았다 — 요점은 첫 문장에"))
+    for m in SECTION.finditer(body):
+        if len(BOLD.findall(m.group(0))) > 3:
+            out.append((m.start(), "5 볼드", "한 절에 볼드가 셋을 넘는다"))
+    for m in SEAT.finditer(body):
+        out.append((m.start(), "6 자리", f"「{m.group(0)}」 — 단계 · 역할 · 대목이면 그 낱말로"))
+    for m in LIST_AND.finditer(_strip_keep(body)):
+        out.append((m.start(), "8 나열", "명사 셋 나열 + 「등의 …하여」 — 구체적 예 하나로"))
+    for m in re.finditer(r"스스로 확인", body):
+        end = body.find("</section>", m.end())
+        seg = body[m.end():end if end > 0 else m.end() + 2000]
+        for r in REREAD.finditer(_strip_keep(seg)):
+            out.append((m.end() + r.start(), "9 되읽기", f"「스스로 확인」에 되읽기 지시 「{r.group(0)}」 — 새 상황 하나로"))
+    for m in AI_BOX.finditer(body):
+        out.append((m.start(), "11 AI 정리", "「AI와 함께 정리하기」 — 「핵심 정리」에 흡수하고 지운다"))
+    return out
+
+
+def _strip_keep(s: str) -> str:
+    """태그를 같은 길이의 공백으로 지운다 — 자리가 원문과 맞도록."""
+    return re.sub(r"<[^>]+>", lambda m: " " * len(m.group(0)), s)
+
+
+STYLE_LATER_EXAMPLES = [
+    ("<p>가 — 나 — 다</p>", "4 줄표"), ("<p><strong>가</strong>와 <b>나</b></p>", "5 볼드"),
+    ("<p>그래서 이것이 핵심입니다.</p>", "7 판정문"), ("<p>바로 이 자리에서</p>", "6 자리"),
+    ("<p>나이, 성별, 지역 등의 자료를 분석하여 예측합니다.</p>", "8 나열"),
+    ('스스로 확인</p><p>위 설명을 다시 읽어 보세요.</p></section>', "9 되읽기"),
+    ("<h2>AI와 함께 정리하기</h2>", "11 AI 정리"),
+]
+STYLE_LATER_NOT = ["<p>가 — 나</p>", "<p><strong>가</strong>입니다</p>", "<p>핵심은 이렇습니다. 그래서 씁니다.</p>",
+                   "<p>빈 자리에 놓습니다</p>"]
 
 # 강의노트에만 거는 규칙(쓴 말로 가리킨다). 시뮬레이터는 강의노트가 아니므로 다른
 # 시뮬레이터 페이지로 거는 링크가 앞 차시 바로가기가 되지 않는다. 나머지 규칙은
@@ -241,6 +397,16 @@ def self_test() -> list[str]:
     for pat, 쓴, _, 예, 아님 in RULES:
         errs += [f"「{쓴}」이 「{e}」를 못 잡는다" for e in 예 if not pat.search(e)]
         errs += [f"「{쓴}」이 「{e}」를 잘못 잡는다" for e in 아님 if pat.search(e)]
+    예, 아님 = EMOJI_EXAMPLES
+    errs += [f"이모지가 「{e}」를 못 잡는다" for e in 예 if not EMOJI.search(e)]
+    errs += [f"이모지가 「{e}」를 잘못 잡는다" for e in 아님 if EMOJI.search(e)]
+    예, 아님 = QUIZ_EXAMPLES
+    errs += [f"퀴즈 머리말이 「{e}」를 못 잡는다" for e in 예 if not quiz_head(e)]
+    errs += [f"퀴즈 머리말이 「{e}」를 잘못 잡는다" for e in 아님 if quiz_head(e)]
+    for e, rule in STYLE_LATER_EXAMPLES:
+        if rule not in {r for _, r, _ in style_later(e)}:
+            errs.append(f"문체 「{rule}」이 「{e}」를 못 잡는다")
+    errs += [f"문체 규칙이 「{e}」를 잘못 잡는다" for e in STYLE_LATER_NOT if style_later(e)]
     return errs
 
 
@@ -354,6 +520,11 @@ def html_with_script_strings(src: str) -> str:
     return SCRIPT.sub(lambda m: m.group(1) + js_strings(m.group(2)) + m.group(3), src)
 
 
+def visible_text(path: Path, src: str) -> str:
+    """학생 화면에 나오는 글만 남긴 원문 — 길이와 줄이 원문과 같다(고치는 스크립트도 쓴다)."""
+    return js_strings(src) if path.suffix == ".js" else html_with_script_strings(src)
+
+
 def check(path: Path, sim: bool = False) -> list[tuple[int, str]]:
     src = path.read_text(encoding="utf-8")
     lines = src.splitlines()
@@ -367,16 +538,42 @@ def check(path: Path, sim: bool = False) -> list[tuple[int, str]]:
         # prose_text 는 <script>를 통째로 버린다. 인라인 스크립트의 글은 원문 패스가 본다.
         bodies = (html_with_script_strings(src), prose_text(src))
     bad = set()
+
+    def add(body: str, pos: int, msg: str) -> None:
+        n = _line_of(body, pos)
+        if SKIP_LINE not in lines[n - 1]:
+            bad.add((n, msg))
+
     for pat, 쓴, 쓸, _, _ in RULES:
         if sim and 쓴 in LECTURE_ONLY:
             continue
         for body in bodies:
             for m in pat.finditer(body):
-                n = _line_of(body, m.start())
-                if SKIP_LINE in lines[n - 1]:
-                    continue
-                bad.add((n, f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다"))
+                add(body, m.start(), f"「{m.group(0)}」({쓴}) — 「{쓸}」로 쓴다")
+    for pos, e in emoji_hits(path, bodies[0]):
+        add(bodies[0], pos, f"「{e}」(이모지) — 지우고 문장으로 쓴다")
+    if not sim:
+        for pos, msg in quiz_head(bodies[0]):
+            add(bodies[0], pos, msg)
     return sorted(bad)
+
+
+def check_later(path: Path) -> list[tuple[int, str, str]]:
+    """정제를 마친 과목부터 막는 문체 규칙 — (줄, 규칙, 알림)."""
+    src = path.read_text(encoding="utf-8")
+    lines = src.splitlines()
+    body = html_with_script_strings(src)
+    out = set()
+    for pos, rule, msg in style_later(body):
+        n = _line_of(body, pos)
+        if SKIP_LINE not in lines[n - 1]:
+            out.add((n, rule, msg))
+    return sorted(out)
+
+
+def is_style_done(path: Path) -> bool:
+    rel = path.resolve().relative_to(ROOT).as_posix()
+    return any(Path(rel).match(g) for g in STYLE_DONE)
 
 
 def lecture_notes() -> list[Path]:
@@ -421,6 +618,7 @@ def main() -> int:
     # 짚은 파일은 정제 중인 것이므로 DONE 이 아니어도 막는다.
     files = [Path(a).resolve() for a in args] if args else lecture_notes() + simulators()
     total, pending = 0, Counter()
+    style_pending: dict[str, Counter] = {}
     for f in files:
         bad = check(f, is_sim(f))
         shown = f.relative_to(ROOT).as_posix()
@@ -433,9 +631,24 @@ def main() -> int:
             if report:
                 for n, msg in bad:
                     log.warning("%s:%d %s", shown, n, msg)
+        if is_sim(f) or f.suffix != ".html":
+            continue
+        later = check_later(f)
+        if args or is_style_done(f):
+            for n, _, msg in later:
+                log.error("%s:%d 문체 — %s", shown, n, msg)
+            total += len(later)
+        else:
+            c = style_pending.setdefault(shown.split("/")[0], Counter())
+            c.update(rule for _, rule, _ in later)
 
     남은 = ", ".join(f"{k} {v}" for k, v in pending.most_common()) or "없음"
     log.info("완료 — 파일 %d, 위반 %d, 정제 전 자리 %s", len(files), total, 남은)
+    if report:
+        # 문체 기준서의 사람 몫 — STYLE_DONE 에 올리기 전 과목의 남은 자리를 규칙별로 센다.
+        for subj, c in sorted(style_pending.items(), key=lambda kv: -sum(kv[1].values())):
+            by_rule = ", ".join(f"{r} {v}" for r, v in sorted(c.items()))
+            log.info("문체 정제 전 — %s %d (%s)", subj, sum(c.values()), by_rule or "없음")
     return 1 if total and not report else 0
 
 

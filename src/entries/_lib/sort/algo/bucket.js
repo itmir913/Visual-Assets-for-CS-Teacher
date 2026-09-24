@@ -32,7 +32,7 @@ export const bucketSortAlgo = {
     complexity: {best: 'O(n+k)', avg: 'O(n+k)', worst: 'O(n²)', space: 'O(n+k)'},
     stable: true,
     inPlace: false,
-    watch: '분배 정렬 셋 가운데 **이것만 비교 횟수가 0이 아닙니다** — 칸 «안»은 비교해서 '
+    watch: '분배 정렬 셋 가운데 **이것만 비교 횟수가 0이 아닙니다** — 칸 「안」은 비교해서 '
         + '정렬하기 때문입니다. 그 비용은 **한 칸에 얼마나 몰리는가**로 정해집니다. '
         + '자료 넷을 번갈아 넣고 비교 횟수를 비교해 보세요. 개수도 함께 키워 보면 '
         + '**크기에 따라 순서가 뒤집히는 것**을 볼 수 있습니다 — '
@@ -74,7 +74,7 @@ export const bucketSortAlgo = {
         }
         rec.cursor('i', null);
 
-        rec.say('이제 칸 안을 정리합니다. **칸 «안»은 비교해서 정렬해야 합니다** — 삽입 정렬입니다. '
+        rec.say('이제 칸 안을 정리합니다. **칸 「안」은 비교해서 정렬해야 합니다** — 삽입 정렬입니다. '
             + '한 칸에 몰릴수록 여기서 드는 비용이 커집니다.');
         rec.mark('sort-buckets');
         for (const key of keys) {

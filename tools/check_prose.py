@@ -397,7 +397,11 @@ def straight_quotes(path: Path, src: str) -> list[tuple[int, str]]:
 # 사람이 읽고 고쳐야 하는 규칙이다. `STYLE_DONE`에 올린 과목에서만 위반으로 치고, 나머지는
 # `--report`가 과목별 작업 목록으로 센다. **강의노트에만 건다.** 톱니는 `DONE`과 같다 —
 # 사용자 확인이 끝난 것만 올리고, 한 번 올린 것은 되돌리지 않는다.
-STYLE_DONE: list[str] = []
+STYLE_DONE: list[str] = [
+    # 2026-09-25 인공지능기초 문체 정제 마감
+    "인공지능기초/*.html",
+    "인공지능기초/실습/*.html",
+]
 
 P_BLOCK = re.compile(r"(?s)<p\b[^>]*>(.*?)</p>")
 SECTION = re.compile(r"(?s)<section\b.*?</section>")

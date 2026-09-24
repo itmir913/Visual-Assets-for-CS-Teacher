@@ -9,7 +9,7 @@ export const shellSortAlgo = {
     motion: 'shift',
     idea: '**삽입 정렬을 개선한 것**입니다. 멀리 떨어진 자리끼리 먼저 삽입 정렬을 하고, 그 간격을 반씩 줄여 갑니다. '
         + '마지막 간격이 1이 되면 평범한 삽입 정렬인데, 그때는 이미 거의 정렬되어 있습니다.',
-    complexity: {best: 'O(n log n)', avg: 'O(n^1.5) 안팎', worst: 'O(n²)', space: 'O(1)'},
+    complexity: {best: 'O(n log n)', avg: '간격을 고르는 방식에 따라 다름', worst: 'O(n²)', space: 'O(1)'},
     stable: false,
     inPlace: true,
     /** **간격을 어떻게 고르느냐가 곧 이 알고리즘의 성능이다.** 여기서 쓰는 「반씩 줄이기」는

@@ -5,7 +5,7 @@
 ## 확인
 
 - [ ] `npm run ci`가 통과합니다.
-- [ ] 강의노트 HTML을 고쳤다면 `npm run check:html -- <파일>`을 돌렸습니다.
+- [ ] 강의노트 HTML을 고쳤다면 `npm run check -- html <파일>`을 돌렸습니다.
 
 ## 기여와 저작권
 

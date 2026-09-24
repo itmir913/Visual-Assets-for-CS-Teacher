@@ -8,7 +8,7 @@
 그래서 손으로 쓰지 않는다. 루트 `index.html` 하나만 고치고 여기서 굽는다.
 
     npm run gen:sim-index     다시 굽는다 (index.html을 고쳤으면 이것)
-    npm run check:sim-index   구운 결과와 저장소의 파일이 같은지 본다 (`npm run check`가 부른다)
+    npm run check -- sim-index   구운 결과와 저장소의 파일이 같은지 본다 (`npm run check`가 부른다)
 
 **굽는 것을 저장소에 담는 까닭** — `npm run dev`가 소스 폴더를 그대로 서빙하고
 Vite도 디스크의 `simulator/**/*.html`을 훑어 입력을 정한다. 파일이 없으면
@@ -143,7 +143,7 @@ def main() -> int:
     ap.add_argument("--check", action="store_true",
                     help="쓰지 않고 저장소의 파일과 같은지만 본다")
     args = ap.parse_args()
-    log = get_logger("gen:sim-index" if not args.check else "check:sim-index")
+    log = get_logger("gen:sim-index" if not args.check else "sim-index")
 
     src = (REPO_ROOT / SRC).read_text(encoding="utf-8")
     try:

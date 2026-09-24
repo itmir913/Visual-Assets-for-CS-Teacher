@@ -9,6 +9,7 @@
 
 | 파일 | 용도 | 언제 쓰나 |
 |---|---|---|
+| `run.py` | **검사·감사 러너.** 목록(`CHECKS`·`AUDITS`)이 여기에만 있다. 이름을 주면 그것만, 안 주면 산출물 검사를 뺀 전부를 돌고 실패한 이름을 끝에 모은다 | `npm run check` · `npm run audit -- <이름>`으로 부른다 |
 | `check_html.py` | 태그 중첩 · 최소 글자 크기(CSS·SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소·**금지 낱말** 검사 | **파일을 고칠 때마다** |
 | `check_dynamic_classes.py` | 런타임에 조립되는 Tailwind 클래스 검출 | **JS로 클래스를 붙이는 코드를 쓸 때마다** |
 | `check_code.py` | 강의노트가 끌어다 쓰는 `.py`·`.c`의 구문 오류 + `data-src` 마커 해석 | **코드 파일을 고칠 때마다** |
@@ -78,21 +79,24 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | | |
 |---|---|
 | `build`가 부르는 것 | `vite build` → 배부 문서 생성 |
-| `check:…` 여럿 | `check`가 부른다. **무엇이 있는지는 `package.json`이 정한다** — 여기 베껴 적으면 검사를 더할 때마다 낡는다(실제로 낡았다). `npm run` 으로 목록을 본다 |
-| `check:dist` | 산출물 검사 |
-| `check:html -- <파일>` | 파일 하나 검사 (아래 「사용」) |
-| `audit:pre` · `audit:svg` | 가로 넘침 · SVG 글자 크기 감사 |
-| `audit:narrow` | 375px에서 본문 글자에 남는 폭. **`ci` 밖이다** — 추정이라 몇 px씩 어긋난다 |
-| `audit:josa` | 값 뒤에 손으로 적어 둔 조사. **`ci` 밖이다** — 나올 값이 다 같은 받침이면 맞는 코드다 |
-| `audit:lemma` | 본문이 실제로 쓴 **용언 표제어**를 빈도순으로. **`ci` 밖이고 `pip install kiwipiepy`가 필요하다** |
-| `gen:graph` | 그래프 시뮬레이터의 지도를 다시 뽑는다. **`check:graph`와 짝이다** |
-| `gen:sim-index` | `simulator/index.html`을 루트 `index.html`에서 다시 굽는다. **`check:sim-index`와 짝이다** |
+| `check` | 검사 전부. **무엇이 있는지는 `tools/run.py`의 `CHECKS`가 정한다** — 여기 베껴 적으면 검사를 더할 때마다 낡는다(실제로 낡았다). 모르는 이름을 주면 있는 이름을 늘어놓는다 |
+| `check -- <이름>…` | 이름을 준 검사만. `sim`은 시뮬레이터 동작 검사 묶음 |
+| `check -- html <파일>` | 이름 뒤의 낱말은 그 검사에 넘긴다 (아래 「사용」) |
+| `check -- dist` | 산출물 검사. **이름으로만 부른다** — 빌드가 있어야 하므로 `ci`가 빌드 뒤에 부른다 |
+| `audit -- pre` · `audit -- svg` | 가로 넘침 · SVG 글자 크기 감사 |
+| `audit -- narrow` | 375px에서 본문 글자에 남는 폭. **`ci` 밖이다** — 추정이라 몇 px씩 어긋난다 |
+| `audit -- josa` | 값 뒤에 손으로 적어 둔 조사. **`ci` 밖이다** — 나올 값이 다 같은 받침이면 맞는 코드다 |
+| `audit -- lemma` | 본문이 실제로 쓴 **용언 표제어**를 빈도순으로. **`ci` 밖이고 `pip install kiwipiepy`가 필요하다** |
+| `gen:graph` | 그래프 시뮬레이터의 지도를 다시 뽑는다. **`check -- graph`와 짝이다** |
+| `gen:sim-index` | `simulator/index.html`을 루트 `index.html`에서 다시 굽는다. **`check -- sim-index`와 짝이다** |
 | `prose -- <글롭>` | 서술만 뽑기 |
 | `docx` | 배부 문서 생성 |
 
 **인자를 받는 것은 `--` 뒤에 넘긴다.** 앞에 두면 npm이 자기 것으로 가져간다.
+`check`는 검사 하나가 실패해도 나머지를 다 돌고, 실패한 이름을 끝에 모아 보인다.
+**새 검사는 `CHECKS`에 한 줄을 더하면 끝이다** — `package.json`은 손대지 않는다.
 
-**`audit:lemma`는 금지어 검사와 방향이 반대다.** `check_verbs`·`check_html`의 목록은
+**`audit -- lemma`는 금지어 검사와 방향이 반대다.** `check_verbs`·`check_html`의 목록은
 **닫혀 있어서 «아는 말»만 찾는다** — 「견주다」를 찾으려면 이미 「견주다」를 알아야 한다.
 이 도구는 본문을 읽는 대신 **본문이 쓴 어휘를 통째로 내놓는다.** 강의노트의 용언이
 표제어로는 한 화면에 들어가므로, **모르던 말을 처음으로 볼 수 있다.**
@@ -144,7 +148,7 @@ d3·p5·ml5·chart·vis를 전부 받게 된다. 페이지마다 두면 그 페�
 공통 청크로 남기지 않고 페이지마다 눌러 담는다 — 모듈 스크립트가 `file://`에서
 CORS로 막혀 **릴리즈 zip을 푼 사람에게만 깨진 화면이 가기 때문**이다.
 까닭과 하는 일은 [`vite/classic-scripts.js`](vite/classic-scripts.js)의 머리말에 있고,
-모듈이 남지 않았는지는 `npm run check:dist`가 지킨다.
+모듈이 남지 않았는지는 `npm run check -- dist`가 지킨다.
 
 **옮기며 밟은 함정 넷.** 새 라이브러리를 넣을 때 같은 것을 겪을 수 있다.
 
@@ -169,9 +173,9 @@ MathJax는 실행 중에 `${fontURL}/MathJax_Main-Regular.woff` 식으로 이름
 지금은 반대로, 전체가 기본이고 좁히고 싶을 때만 인자를 준다.
 
 ```bash
-npm run check:html                                  # 저장소 전체 (CI와 같다)
-npm run check:html -- "인공지능기초/1-1-1.*.html"    # 인자를 주면 그것만
-npm run audit:pre
+npm run check -- html                                  # 저장소 전체 (CI와 같다)
+npm run check -- html "인공지능기초/1-1-1.*.html"    # 인자를 주면 그것만
+npm run audit -- pre
 npm run prose -- "데이터과학/1-*.html" --stats
 npm run prose -- "인공지능기초/2-1-*.html" -o 본문.md
 ```
@@ -224,15 +228,15 @@ INFO  check_html: 완료 — 파일 125, 위반 0, 확인 필요 0, 재작성 �
 반대로 저장소 전체를 도는 CI에서는 그 반복이 초록불을 수백 줄로 만든다.
 
 ```bash
-npm run check:html                 # 끝맺음 한 줄
-npm run check:html -- 프로그래밍/py/01-변수와-자료형.html   # 항목별 결과까지
-npm run check:html -- -v           # 전체를 돌면서 항목별 결과까지
+npm run check -- html                 # 끝맺음 한 줄
+npm run check -- html 프로그래밍/py/01-변수와-자료형.html   # 항목별 결과까지
+npm run check -- html -v           # 전체를 돌면서 항목별 결과까지
 ```
 
 **`npm run docx`도 같은 모양이다**(`tools/docx/build.js`). 생성기가 찍는 「완료: …」는
 기본으로 삼키고, **실패하면 그 생성기의 출력을 통째로 내보낸다.**
 
-**표를 찍는 도구 둘(`audit:pre`·`prose`)은 로거로 바꾸지 않았다.** 그 표가 곧 결과물이라
+**표를 찍는 도구 둘(`audit -- pre`·`prose`)은 로거로 바꾸지 않았다.** 그 표가 곧 결과물이라
 수준을 나눌 것이 없다.
 
 ## `check_html.py`가 잡는 것과 못 잡는 것
@@ -291,8 +295,8 @@ npm run check:html -- -v           # 전체를 돌면서 항목별 결과까지
 ## `check_prose.py` — 정제에서 물러난 말이 돌아오지 않았는가
 
 ```bash
-npm run check:prose                     # 모든 과목 + 시뮬레이터 (ci가 부르는 방식). DONE 파일과 시뮬레이터를 막는다
-npm run check:prose -- <파일>…          # 짚은 파일 — 정제 중에 쓴다. DONE 이 아니어도 막는다
+npm run check -- prose                     # 모든 과목 + 시뮬레이터 (ci가 부르는 방식). DONE 파일과 시뮬레이터를 막는다
+npm run check -- prose <파일>…          # 짚은 파일 — 정제 중에 쓴다. DONE 이 아니어도 막는다
 python tools/check_prose.py --report     # 정제 전 파일의 걸린 자리를 과목별로 (종료 코드 0)
 ```
 
@@ -304,8 +308,8 @@ python tools/check_prose.py --report     # 정제 전 파일의 걸린 자리를
 ## `check_verbs.py` — 동작의 이름이 한자어인가
 
 ```bash
-npm run check:verbs                     # 저장소 전체 (ci가 부르는 방식)
-npm run check:verbs -- <파일>…          # 짚은 파일만
+npm run check -- verbs                     # 저장소 전체 (ci가 부르는 방식)
+npm run check -- verbs <파일>…          # 짚은 파일만
 python tools/check_verbs.py --report     # 빼 둔 자리까지 세기만 (종료 코드 0)
 ```
 
@@ -372,8 +376,8 @@ python tools/check_verbs.py --report     # 빼 둔 자리까지 세기만 (종�
 리터럴로 또 있어서 살아남은 것뿐이다.
 
 ```bash
-npm run check:classes                          # 저장소 전체
-npm run check:classes -- "정보*/*.html"          # 글롭도 된다
+npm run check -- classes                          # 저장소 전체
+npm run check -- classes "정보*/*.html"          # 글롭도 된다
 ```
 
 배포 워크플로가 빌드 전에 이 검사를 돌린다. 위반이 있으면 종료 코드 1.
@@ -475,7 +479,7 @@ int main(void) {
 구역으로 일부만 뽑아 쓰면, 구문 검사도 받고 학생에게 통째로 줄 수도 있다.
 
 ```bash
-npm run check:code
+npm run check -- code
 ```
 
 `.c` 검사에는 `gcc`가 필요하다. 없으면 건너뛰되 CI에서는 검사된다.

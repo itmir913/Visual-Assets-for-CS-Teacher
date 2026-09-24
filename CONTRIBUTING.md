@@ -2,7 +2,7 @@
 
 강의노트는 **HTML 한 파일이 곧 한 차시**입니다. 스타일도 라이브러리도 Vite가 넣으므로
 **소스 HTML을 파일로 직접 열면 아무것도 붙지 않습니다** — `npm run dev`로 봅니다.
-의존성은 전부 npm이고, 배포본에 CDN이 남지 않는 것은 `npm run ci`의 `check:dist`가 보증합니다.
+의존성은 전부 npm이고, 배포본에 CDN이 남지 않는 것은 `npm run ci`의 `check -- dist`가 보증합니다.
 
 ```bash
 npm ci            # 최초 1회
@@ -25,7 +25,8 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 **위 셋이 실행점의 전부입니다.** GitHub Actions도 IDE 실행 구성도 이 이름을 부릅니다.
 나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
 [`package.json`](./package.json) 하나뿐입니다** — 스크립트 경로를 직접 치지 않습니다.
-인자는 `--` 뒤에 넘깁니다(`npm run check:html -- <파일>`).
+검사는 `npm run check` 하나로 부르고, 이름을 주면 그것만 돕니다 —
+인자는 `--` 뒤에 넘깁니다(`npm run check -- html <파일>`). 검사 목록은 `tools/run.py`에만 있습니다.
 
 ## 어디에 무엇이 있나
 
@@ -52,7 +53,7 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 | 배부 양식 생성기 | [`tools/docx/README.md`](./tools/docx/README.md) |
 | 한 번 풀어 본 문제의 해법 | [`docs/수정-레시피.md`](./docs/수정-레시피.md) |
 
-**고친 파일마다 `npm run check:html -- <파일>`을 돌립니다.** 인자 없이 돌리면
+**고친 파일마다 `npm run check -- html <파일>`을 돌립니다.** 인자 없이 돌리면
 저장소 전체를 보고, `npm run ci`가 그렇게 부릅니다 — 규칙 위반시 CI가 빨간불이 됩니다.
 
 ## 기여와 저작권

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """본문에 실제로 쓰인 **용언 표제어**를 빈도순으로 뽑는다 — 어휘 감사의 입력.
 
-    npm run audit:lemma                      저장소의 강의노트 전부
-    npm run audit:lemma -- "정보(고등학교)/*.html"   짚은 것만
-    npm run audit:lemma -- --all             「하다·되다」가 붙은 것까지
+    npm run audit -- lemma                      저장소의 강의노트 전부
+    npm run audit -- lemma "정보(고등학교)/*.html"   짚은 것만
+    npm run audit -- lemma --all             「하다·되다」가 붙은 것까지
 
 **`ci`에 넣지 않는다.** 이 스크립트는 판정하지 않고 **찾아 놓기만 한다** —
-어떤 낱말을 갈아 끼울지는 사람이 정한다. `audit:narrow`·`audit:josa`와 같은 자리다.
+어떤 낱말을 갈아 끼울지는 사람이 정한다. `audit -- narrow`·`audit -- josa`와 같은 자리다.
 
 ## 왜 있는가 — 「목록에 없는 말은 못 본다」를 뒤집는다
 

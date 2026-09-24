@@ -14,7 +14,7 @@
  *
  * **크기에 따라 뒤집히는 주장은 크기를 밝히지 않으면 거짓이 된다.** 그래서 화면 글에서는
  * 「자료를 바꿔 가며 직접 비교하라」고만 하고 배수는 적지 않는다.
- * 지금 값은 `npm run check:sort`가 찍는다.
+ * 지금 값은 `npm run check -- sort`가 찍는다.
  */
 
 export const bucketSortAlgo = {

@@ -9,7 +9,7 @@
  * woff2는 2016년 이후 브라우저가 전부 안다. 이 저장소는 이미 ES 모듈과 CSS 그리드를
  * 쓰므로 그보다 오래된 브라우저는 애초에 대상이 아니다.
  *
- * 지운 양은 `npm run check:dist`가 센다 — 여기 적지 않는다.
+ * 지운 양은 `npm run check -- dist`가 센다 — 여기 적지 않는다.
  */
 export default function dropTtfFallback() {
     return {

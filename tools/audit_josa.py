@@ -8,10 +8,10 @@
 **`ci`에 넣지 않는다. 사람이 봐야 판정이 갈리기 때문이다.**
 `${왼쪽/오른쪽}이`처럼 나올 수 있는 값이 **모두 같은 받침**이면 그것은 맞는 코드다.
 기계는 그 「나올 수 있는 값」을 모른다. 그러니 이 스크립트는 **찾아 놓기만 하고
-판정은 사람에게 넘긴다** — `audit:narrow`를 `ci` 밖에 둔 것과 같은 까닭이다.
+판정은 사람에게 넘긴다** — `audit -- narrow`를 `ci` 밖에 둔 것과 같은 까닭이다.
 
-    npm run audit:josa            저장소 전체
-    npm run audit:josa -- <파일>   그 파일만
+    npm run audit -- josa            저장소 전체
+    npm run audit -- josa <파일>   그 파일만
 
 고르는 일은 `src/entries/_lib/josa.js`가 한다.
 """

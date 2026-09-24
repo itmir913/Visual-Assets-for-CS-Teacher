@@ -11,7 +11,7 @@
 // **못 보는 것을 밝혀 둔다.** prismjs · chart.js · ml5 · mathjax 를 쓰는 페이지는 그 모듈을
 // 가짜로 때운다. 그런 페이지는 아래 표에 「가짜로 때운 것」으로 찍히므로,
 // **그 페이지의 통과는 「죽지는 않는다」까지만 뜻한다.** 알맹이는 각 페이지 전용 검사가 본다
-// (`check:graph-sim` · `check:puzzle` · `check:deep-learning`).
+// (`check -- graph-sim` · `check -- puzzle` · `check -- deep-learning`).
 //
 // **d3 를 쓰는 트리·그래프 렌더러는 2026-08-26부터 진짜로 돈다**(받침대가 jsdom 위에서
 // 그 꾸러미를 실제로 얹는다). 그 전에는 빈 껍데기여서, 그리는 코드에 무슨 짓을 해도
@@ -32,7 +32,7 @@ const bad = (m) => {
 /* **전용 검사가 페이지를 통째로 보는 것은 여기서 빼둔다.** 탭·프리셋처럼 페이지만 아는
    구조를 이 훑기가 흉내 내려면 페이지 사정을 여기 베껴 적어야 하고, 그러면 낡는다. */
 const OWN_CHECK = {
-    'ai/deep-learning': 'check:deep-learning',
+    'ai/deep-learning': 'check -- deep-learning',
 };
 
 /* **`simulator/` 아래를 통째로 살피는다.** 예전에는 `simulator/ai` 를 못박아 두었는데,

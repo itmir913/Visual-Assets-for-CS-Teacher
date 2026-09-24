@@ -13,7 +13,7 @@ import {keywordEncode, keywordDecode} from './compress-keyword.js';
  *
  * 셋을 나란히 돌렸을 때 **어느 하나가 늘 이기지 않는 것**이 이 목록의 요건이다.
  * 한 방법이 모든 프리셋에서 이기면 학생은 「그럼 그것만 쓰면 되잖아」로 끝낸다.
- * `check:compress`가 그 조건을 값으로 지킨다.
+ * `check -- compress`가 그 조건을 값으로 지킨다.
  */
 export const COMPRESS_PRESETS = [
     {

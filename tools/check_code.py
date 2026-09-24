@@ -23,8 +23,8 @@
 둘이 어긋나므로 여기서는 하지 않는다.
 
 사용법:
-    npm run check:code            # 저장소 전체
-    npm run check:code -- <경로>   # 지정한 파일만
+    npm run check -- code            # 저장소 전체
+    npm run check -- code <경로>   # 지정한 파일만
 """
 from __future__ import annotations
 

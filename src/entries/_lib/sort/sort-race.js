@@ -22,7 +22,7 @@
  * **크기에 천장이 있다.** 걸음을 하나도 솎지 않아야 어느 알고리즘도 손해를 보지 않는데,
  * 기록 예산(`sort-model.js`의 `sortFrameBudget`)이 `300000/n`이라 n이 커지면
  * 걸음이 많은 알고리즘부터 솎이기 시작한다. 64까지는 어느 알고리즘도 솎이지 않는다 —
- * 그것을 `check:sort`가 대조한다.
+ * 그것을 `check -- sort`가 대조한다.
  */
 
 import {SORT_ALGOS} from './sort-registry.js';

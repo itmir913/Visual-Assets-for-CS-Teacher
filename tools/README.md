@@ -291,7 +291,7 @@ npm run check:html -- -v           # 전체를 돌면서 항목별 결과까지
 ## `check_prose.py` — 정제에서 물러난 말이 돌아오지 않았는가
 
 ```bash
-npm run check:prose                     # 모든 과목 (ci가 부르는 방식). DONE 파일만 막는다
+npm run check:prose                     # 모든 과목 + 시뮬레이터 (ci가 부르는 방식). DONE 파일과 시뮬레이터를 막는다
 npm run check:prose -- <파일>…          # 짚은 파일 — 정제 중에 쓴다. DONE 이 아니어도 막는다
 python tools/check_prose.py --report     # 정제 전 파일의 걸린 자리를 과목별로 (종료 코드 0)
 ```

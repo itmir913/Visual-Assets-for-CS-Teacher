@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""강의노트 문장 정제에서 물러난 말이 다시 들어오지 않았는가.
+"""강의노트와 시뮬레이터의 문장 정제에서 물러난 말이 다시 들어오지 않았는가.
 
-    python tools/check_prose.py            # 모든 과목 (CI가 쓰는 방식)
+    python tools/check_prose.py            # 모든 과목 + 시뮬레이터 (CI가 쓰는 방식)
     python tools/check_prose.py <파일>…    # 짚은 파일만 — 정제 중에 쓴다
     python tools/check_prose.py --report   # 정제 전 파일까지 과목별로 센다 (종료 코드 0)
 
@@ -11,6 +11,14 @@
 **대부분은 다른 과목에도 똑같이 있다.** 데이터과학에서 「짚다」를 「파악하다」로 갈았다면
 다른 과목의 「짚다」는 읽지 않고도 찾을 수 있어야 한다. 그래서 **정제에서 한 번 물러난
 말은 이 파일의 목록에 올린다** — 다음 과목의 검수는 이 목록을 먼저 돌리고 시작한다.
+
+## 시뮬레이터도 같은 기준으로 막는다
+
+강의노트와 시뮬레이터가 다른 기준으로 막히면 둘의 말이 서로 갈라진다(2026-09-24 사용자
+지시). 범위는 `check_sim_terms.scope()`를 그대로 쓴다 — 시뮬레이터 페이지 HTML과, 그
+진입점에서 `import`로 닿는 JS다. **JS와 인라인 `<script>`는 문자열 리터럴 속만 본다.**
+주석 · 식별자 · 코드는 학생 화면에 나오지 않는다. HTML 주석과 `<style>`도 같은 까닭으로
+뺀다. 강의노트에만 맞는 규칙은 `LECTURE_ONLY`에 적는다.
 
 `check_verbs.py`와 나뉘는 자리 — 그쪽은 **누르는 것의 이름**을 보고, 이쪽은 **강의노트의
 문장**을 본다. 「고르다」는 버튼 이름으로는 물러났지만 문장에서는 그대로 쓴다.
@@ -46,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from logs import get_logger  # noqa: E402
 from subjects import SUBJECTS  # noqa: E402
 from extract_prose import prose_text  # noqa: E402
+from check_sim_terms import scope  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SKIP_LINE = "prose: 예시"
@@ -83,8 +92,18 @@ VERBS = [
      ["들여다봅시다", "들여다보면", "들여다 봐야"], []),
     (H + r"손(?:보[다고는며면아았야지기]|봅|봐|봤|볼 |본 )", "손보다", "정리하다 · 점검하다 · 수정하다",
      ["손보는 일", "미리 손봅니다", "손봐야"], ["손 보호"]),
-    (H + r"따(?:지[다고는며면자]|져|졌|질 |진 |집)", "따지다", "비교하다 · 검토하다",
-     ["따져 볼", "따지면", "따집니다"], ["따지막"]),
+    # 「따지지 않」은 시뮬레이터에서 새어 나간 꼴이다.
+    (H + r"따(?:지[다고는며면자지]|져|졌|질 |진 |집)", "따지다", "비교하다 · 검토하다",
+     ["따져 볼", "따지면", "따집니다", "순서를 따지지 않고"], ["따지막"]),
+    # 「솎다 · 돌리다(실행) · 뒤지지 않고」는 시뮬레이터 정제(2026-09-24)에서 물러났다.
+    (H + r"솎(?:[다고는아았을으지기]|습)", "솎다", "건너뛰다 · 제외하다",
+     ["가지를 솎아 내면", "솎는다", "솎습니다"], []),
+    # 실행의 뜻만 막는다 — 「되돌리다 · 돌려주다 · 눈을 돌리다」는 다른 말이다.
+    (H + r"(?<!눈을 )(?<!고개를 )돌려\s?(?:서|보(?![내낸냈낼냅])|봅|봐|봤|볼|본)", "돌려 보다(실행)", "실행해 보다",
+     ["한 번 돌려서", "돌려 보면", "직접 돌려봅시다"],
+     ["되돌려서", "돌려주는", "눈을 돌려 보면", "돌려보내다", "돌려보낸", "돌려보냅니다"]),
+    (r"뒤져서|뒤져\s?(?:보|찾)|뒤지지\s?않(?!는)", "뒤지다", "찾아보다 · 탐색하다",
+     ["뒤져서 찾아봄", "뒤져 보면", "전부 뒤지지 않고"], ["뒤지지 않는"]),
     (r"뽑아\s?(?:내|낸|냈|낼|냅)", "뽑아내다", "추출하다 · 추리다",
      ["뽑아내며", "뽑아 낸"], []),
     (r"흉내\s?(?:내|낸|냈|낼|냅)", "흉내 내다", "따라 하다 · 활용하다",
@@ -111,8 +130,6 @@ VERBS = [
     # 크롤링을 「긁어 오다」로 풀어 썼다 — 교과서와 이어지는 말은 수집이다(소프트웨어와생활 3-1-3).
     (r"긁어\s?(?:오|온|올|와|옵|모으|모아|모은)", "긁어 오다", "수집하다",
      ["긁어 오기", "긁어 온다", "긁어 와서", "긁어 모으기"], ["긁어내다"]),
-    (r"뒤져서|뒤져\s?(?:보|찾)", "뒤지다", "찾아보다 · 탐색하다",
-     ["뒤져서 찾아봄", "뒤져 보면"], ["뒤지지 않는"]),
     (r"이리저리", "이리저리", "여러 방향으로 · 다양하게",
      ["이리저리 살펴보는"], []),
     # 전처리를 파일마다 「다듬는 일」「정리하는 일」로 달리 불렀다 — 한 개념에 한 낱말.
@@ -125,6 +142,12 @@ VERBS = [
 PATTERNS = [
     (r"[이가] 곧 [가-힣 ]{1,15}입니다", "「A가 곧 B입니다」 격언투",
      "사실을 평서문으로 적는다", ["이름이 곧 설명입니다", "이유가 곧 실력입니다"], []),
+    # 「~의 정체입니다 · 남는 장사 · 헤쳐모여 · 타보기」는 시뮬레이터 정제(2026-09-24)에서 물러났다.
+    (r"의 정체(?:입니다|이다|다\.)", "「~의 정체입니다」 격언투", "사실을 평서문으로 적는다",
+     ["이것이 과적합의 정체입니다"], ["정체된 도로"]),
+    (r"남는\s?장사", "「남는 장사」", "「이득」", ["충분히 남는 장사입니다"], []),
+    (r"헤쳐\s?모여", "「헤쳐모여」", "「다시 모으기 · 재배치」", ["헤쳐모여!"], []),
+    (H + r"타\s?보기", "「타보기」", "「체험」", ["타보기", "직접 타 보기"], ["데이터 보기"]),
     (r"판단의 열쇠", "「판단의 열쇠」", "판단 기준", ["판단의 열쇠"], []),
     (r"한 걸음 더 들어가", "「한 걸음 더 들어가서」", "빼고 바로 말한다",
      ["한 걸음 더 들어가서"], []),
@@ -197,6 +220,11 @@ PATTERNS = [
 
 RULES = [(re.compile(p), 쓴, 쓸, 예, 아님) for p, 쓴, 쓸, 예, 아님 in VERBS + PATTERNS]
 
+# 강의노트에만 거는 규칙(쓴 말로 가리킨다). 시뮬레이터는 강의노트가 아니므로 다른
+# 시뮬레이터 페이지로 거는 링크가 앞 차시 바로가기가 되지 않는다. 나머지 규칙은
+# 둘 다에 건다 — 같은 기준으로 막아야 강의노트와 시뮬레이터의 말이 갈라지지 않는다.
+LECTURE_ONLY = {"다른 강의노트로 가는 링크"}
+
 
 def self_test() -> list[str]:
     """목록의 정규식이 제 예시를 잡는지, 잡으면 안 되는 것을 비껴가는지."""
@@ -211,17 +239,129 @@ def _line_of(src: str, pos: int) -> int:
     return src.count("\n", 0, pos) + 1
 
 
-def check(path: Path) -> list[tuple[int, str]]:
+# ── 스크립트에서 학생이 보는 글만 남기기 ────────────────────────────────────────
+# 시뮬레이터의 글은 거의 전부 문자열 리터럴 안에 있다. **주석 · 식별자 · 코드는 보지
+# 않는다** — 개발 주석은 학생에게 보이지 않고, 거기 적힌 옛말은 check_sim_terms 몫이다.
+# 문자열 밖은 공백으로 지우되 줄바꿈은 남겨 위반을 원래 파일의 줄 번호로 짚는다.
+# 정규식 한 줄로 자르면 템플릿 안의 `${ … `…` … }`나 정규식 리터럴 속 따옴표(/'/)에서
+# 문자열 경계를 잃고, 그 뒤의 주석이 통째로 문자열로 읽힌다. 그래서 손으로 한 글자씩 돈다.
+SCRIPT = re.compile(r"(?s)(<script\b[^>]*>)(.*?)(</script>)")
+# 이 글자 뒤의 `/`는 나눗셈이 아니라 정규식 리터럴의 시작이다.
+REGEX_BEFORE = set("(,=:[!&|?{};+-*%<>~^")
+REGEX_KEYWORDS = ("return", "typeof", "case", "in", "of", "delete", "void", "throw")
+
+
+def js_strings(src: str) -> str:
+    """문자열 리터럴의 속만 남기고 나머지는 공백으로 — 줄바꿈은 그대로."""
+    out = [c if c == "\n" else " " for c in src]
+    n, i = len(src), 0
+    # 템플릿 안의 `${`에 들어가면 그 깊이의 중괄호 수를 쌓아 둔다.
+    stack: list[int] = []
+
+    def prev_sig(k: int) -> str:
+        k -= 1
+        while k >= 0 and src[k] in " \t\r\n":
+            k -= 1
+        return src[k] if k >= 0 else ""
+
+    def keyword_before(k: int) -> bool:
+        m = re.search(r"([A-Za-z_$]+)\s*$", src[max(0, k - 12):k])
+        return bool(m) and m.group(1) in REGEX_KEYWORDS
+
+    def template(k: int) -> int:
+        """`k`는 여는 ` 다음. 닫는 ` 다음 자리를 돌려준다(`${`를 만나면 코드로 돌아간다)."""
+        while k < n:
+            c = src[k]
+            if c == "\\":
+                out[k] = src[k]
+                if k + 1 < n:
+                    out[k + 1] = src[k + 1]
+                k += 2
+            elif c == "`":
+                return k + 1
+            elif c == "$" and src.startswith("${", k):
+                stack.append(0)
+                return -(k + 2)          # 음수 — 코드로 돌아가라는 뜻
+            else:
+                out[k] = c
+                k += 1
+        return n
+
+    while i < n:
+        c = src[i]
+        if src.startswith("//", i):
+            j = src.find("\n", i)
+            i = n if j < 0 else j
+        elif src.startswith("/*", i):
+            j = src.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        elif c in "\"'":
+            j = i + 1
+            while j < n and src[j] != c and src[j] != "\n":
+                j += 2 if src[j] == "\\" else 1
+            for k in range(i + 1, min(j, n)):
+                out[k] = src[k]
+            i = j + 1
+        elif c == "`":
+            r = template(i + 1)
+            i = -r if r < 0 else r
+        elif c == "{" and stack:
+            stack[-1] += 1
+            i += 1
+        elif c == "}" and stack:
+            if stack[-1] == 0:
+                stack.pop()
+                r = template(i + 1)       # `${ … }`가 닫히면 템플릿 글로 돌아간다
+                i = -r if r < 0 else r
+            else:
+                stack[-1] -= 1
+                i += 1
+        elif c == "/" and (prev_sig(i) in REGEX_BEFORE or prev_sig(i) == "" or keyword_before(i)):
+            j, cls = i + 1, False        # 정규식 리터럴 — 글이 아니므로 건너뛴다
+            while j < n and src[j] != "\n":
+                if src[j] == "\\":
+                    j += 2
+                    continue
+                if src[j] == "[":
+                    cls = True
+                elif src[j] == "]":
+                    cls = False
+                elif src[j] == "/" and not cls:
+                    break
+                j += 1
+            i = j + 1
+        else:
+            i += 1
+    return "".join(out)
+
+
+HIDDEN = re.compile(r"(?s)<!--.*?-->|<style\b.*?</style>")
+
+
+def html_with_script_strings(src: str) -> str:
+    """HTML은 태그째 두되 인라인 `<script>`는 문자열 리터럴로 줄이고, 주석과
+    `<style>`은 지운다 — 학생 화면에 나오지 않는 글이다."""
+    src = HIDDEN.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), src)
+    return SCRIPT.sub(lambda m: m.group(1) + js_strings(m.group(2)) + m.group(3), src)
+
+
+def check(path: Path, sim: bool = False) -> list[tuple[int, str]]:
     src = path.read_text(encoding="utf-8")
     lines = src.splitlines()
     # 태그나 개체(&nbsp;)가 낱말을 끊으면(「갈라</strong> 준다」) 원문으로는 못 잡는다.
     # 본문도 함께 본다. 무엇이 본문인지는 extract_prose 가 정한다 — 두 도구가
     # 서로 다른 본문을 보면 추출해 읽은 것과 검사한 것이 어긋난다.
     # 원문 패스는 남긴다 — 링크 규칙처럼 태그 속을 봐야 하는 규칙이 있다.
-    text = prose_text(src)
+    if path.suffix == ".js":
+        bodies = (js_strings(src),)
+    else:
+        # prose_text 는 <script>를 통째로 버린다. 인라인 스크립트의 글은 원문 패스가 본다.
+        bodies = (html_with_script_strings(src), prose_text(src))
     bad = set()
     for pat, 쓴, 쓸, _, _ in RULES:
-        for body in (src, text):
+        if sim and 쓴 in LECTURE_ONLY:
+            continue
+        for body in bodies:
             for m in pat.finditer(body):
                 n = _line_of(body, m.start())
                 if SKIP_LINE in lines[n - 1]:
@@ -234,7 +374,25 @@ def lecture_notes() -> list[Path]:
     return [p for s in SUBJECTS for p in sorted((ROOT / s["dir"]).rglob("*.html"))]
 
 
+def simulators() -> list[Path]:
+    """시뮬레이터 페이지 HTML과 그 진입점에서 import 로 닿는 JS.
+
+    범위는 check_sim_terms 가 정한 것을 그대로 쓴다 — 두 검사가 다른 범위를 보면
+    용어는 막히고 문장은 새는 자리가 생긴다. 새 시뮬레이터는 저절로 딸려 온다.
+    """
+    return scope()
+
+
+def is_sim(path: Path) -> bool:
+    rel = path.resolve().relative_to(ROOT).as_posix()
+    return rel.startswith(("simulator/", "src/"))
+
+
 def is_done(path: Path) -> bool:
+    # 시뮬레이터는 전부 정제를 마쳤다(2026-09-24). 범위가 import 그래프라 글롭으로
+    # 적을 수 없으므로 DONE 에 올리지 않고 통째로 막는다.
+    if is_sim(path):
+        return True
     rel = path.resolve().relative_to(ROOT).as_posix()
     return any(Path(rel).match(g) for g in DONE)
 
@@ -252,10 +410,10 @@ def main() -> int:
         return 2
 
     # 짚은 파일은 정제 중인 것이므로 DONE 이 아니어도 막는다.
-    files = [Path(a).resolve() for a in args] if args else lecture_notes()
+    files = [Path(a).resolve() for a in args] if args else lecture_notes() + simulators()
     total, pending = 0, Counter()
     for f in files:
-        bad = check(f)
+        bad = check(f, is_sim(f))
         shown = f.relative_to(ROOT).as_posix()
         if args or is_done(f):
             for n, msg in bad:

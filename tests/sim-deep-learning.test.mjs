@@ -79,7 +79,13 @@ class El {
 
     get classList() {
         const c = this._classes;
-        return {add: (x) => c.add(x), remove: (x) => c.delete(x), contains: (x) => c.has(x)};
+        // 진짜 DOM 처럼 여러 이름을 한 번에 받고 `toggle(이름, 켤지)` 도 받는다.
+        return {
+            add: (...xs) => xs.forEach((x) => c.add(x)),
+            remove: (...xs) => xs.forEach((x) => c.delete(x)),
+            contains: (x) => c.has(x),
+            toggle: (x, on = !c.has(x)) => { if (on) c.add(x); else c.delete(x); return on; },
+        };
     }
 
     get className() { return [...this._classes].join(' '); }
@@ -729,13 +735,13 @@ function checkNetTabs() {
     // 순전파 탭 — 2단계의 z 둘, 3단계의 a 둘, 6단계의 예측
     fp.phase = 2; fp.renderAll();
     const f2 = linesOf('fpFormulaBody').join('\n');
-    for (const z of my.z1) if (!f2.includes('text-white">' + fmt(z) + '<')) bad(`순전파 2단계 식에 z ${fmt(z)} 가 없다`);
+    for (const z of my.z1) if (!f2.includes('sim-f-val">' + fmt(z) + '<')) bad(`순전파 2단계 식에 z ${fmt(z)} 가 없다`);
     fp.phase = 3; fp.renderAll();
     const f3 = linesOf('fpFormulaBody').join('\n');
-    for (const a of my.a1) if (!f3.includes('text-white">' + fmt(a, 3) + '<')) bad(`순전파 3단계 식에 a ${fmt(a, 3)} 가 없다`);
+    for (const a of my.a1) if (!f3.includes('sim-f-val">' + fmt(a, 3) + '<')) bad(`순전파 3단계 식에 a ${fmt(a, 3)} 가 없다`);
     fp.phase = 6; fp.renderAll();
     const f6 = linesOf('fpFormulaBody').join('\n');
-    if (!f6.includes('text-white">' + fmt(my.a2, 3) + '<')) bad(`순전파 6단계에 예측 ${fmt(my.a2, 3)} 가 없다`);
+    if (!f6.includes('sim-f-val">' + fmt(my.a2, 3) + '<')) bad(`순전파 6단계에 예측 ${fmt(my.a2, 3)} 가 없다`);
     if (!el('fpStepDesc').textContent.includes('예측 ' + fmt(my.a2, 3) + ' / 정답 ' + y)) bad('순전파 6단계 설명 띠의 예측 · 정답이 다르다');
     fp.phase = 0; fp.renderAll();
 
@@ -746,7 +752,7 @@ function checkNetTabs() {
     if (!linesOf('bpFormulaBody').join('\n').includes(fmt((my.a2 - y) ** 2, 4))) bad('갱신 0단계 손실이 (예측−정답)² 이 아니다');
     click('bpBtnNext');
     const b1 = linesOf('bpFormulaBody').join('\n');
-    if (!b1.includes('text-white">' + fmt(dz2, 4) + '<')) bad(`갱신 1단계 출력 몫이 ${fmt(dz2, 4)} 가 아니다`);
+    if (!b1.includes('sim-f-val">' + fmt(dz2, 4) + '<')) bad(`갱신 1단계 출력 몫이 ${fmt(dz2, 4)} 가 아니다`);
     if (!b1.includes(fmt(want[6], 4))) bad(`갱신 1단계 u₁ 기울기가 중앙 차분 ${fmt(want[6], 4)} 와 다르다`);
     click('bpBtnNext'); click('bpBtnNext');
     const b3 = linesOf('bpFormulaBody').join('\n');

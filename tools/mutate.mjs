@@ -223,7 +223,7 @@ const MUTANTS = [
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'if (this.phase === this.MAX_PHASE) netSim.nextSample();', 'if (false) netSim.nextSample();', '고친 데이터를 에포크에서 연달아 다시 고침'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'const e = Math.floor(netSim.steps / netSim.rows().length);', 'const e = Math.ceil(netSim.steps / netSim.rows().length);', '에포크를 올림으로 셈'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', '].sort((p, q) => Math.abs(q[2] - q[1]) - Math.abs(p[2] - p[1]));', '].sort((p, q) => Math.abs(p[2] - p[1]) - Math.abs(q[2] - q[1]));', '가장 적게 바뀐 둘을 보임'],
-    ['sim-deep-learning', 'simulator/ai/deep-learning.html', "' + ' + par(n.b1[j]) + ' = <span class=\"text-white\">' + nf(fw.z1[j])", "' + ' + par(n.b1[j]) + ' = <span class=\"text-white\">' + nf(fw.a1[j])", '순전파 식의 z 자리에 a'],
+    ['sim-deep-learning', 'simulator/ai/deep-learning.html', "' + ' + par(n.b1[j]) + ' = <span class=\"sim-f-val\">' + nf(fw.z1[j])", "' + ' + par(n.b1[j]) + ' = <span class=\"sim-f-val\">' + nf(fw.a1[j])", '순전파 식의 z 자리에 a'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'dz1[j] = dz2 * this.w2[j] * this.dtanh(a1[j]);', 'dz1[j] = dz2 * this.w2[j] * this.dtanh(z1[j]);', 'tanh 기울기를 z 로 셈'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'let dz2 = a2 - y;', 'let dz2 = (a2 - y) * a2 * (1 - a2);', '교차 엔트로피 기울기에 시그모이드 기울기를 또 곱함'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'sum += -(y * Math.log(p + 1e-7) + (1 - y) * Math.log(1 - p + 1e-7));', 'sum += (p - y) * (p - y);', '학습 전 손실을 제곱 오차로'],

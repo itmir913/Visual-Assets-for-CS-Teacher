@@ -329,7 +329,7 @@
                         <div id="gdFormulaBody" class="space-y-1 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
                     </div>
                     <div id="gdStepDesc"
-                         class="bg-blue-50 border border-blue-300 rounded-xl p-3 text-base text-blue-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto">
+                         class="sim-dl-say min-w-0">
                         다음 단계를 누르면 오차를 측정하고, 기울기를 구하고, w를 옮기는 과정을 하나씩 봅니다.
                     </div>
                 </div>
@@ -403,7 +403,7 @@
                             한 걸음
                         </button>
                         <button id="gdBtnAuto"
-                                class="py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg transition-colors text-base">
+                                class="sim-dl-auto py-3 text-white font-bold rounded-lg transition-colors text-base">
                             <i class="fa-solid fa-play mr-1"></i>자동
                         </button>
                         <button id="gdBtnReset"
@@ -590,7 +590,7 @@
                         <div id="fpFormulaBody" class="space-y-1 text-lg font-mono flex-1 min-h-0 overflow-auto"></div>
                     </div>
                     <div id="fpStepDesc"
-                         class="bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto">
+                         class="sim-dl-say fwd flex-1">
                         「다음 단계」를 누르면 값이 한 층씩 앞으로 흘러갑니다.
                     </div>
                 </div>
@@ -646,11 +646,11 @@
 
                     <div class="flex gap-2 shrink-0 pt-1">
                         <button id="fpBtnPrev"
-                                class="py-3 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors text-base">
+                                class="sim-dl-prev">
                             <i class="fa-solid fa-chevron-left"></i>
                         </button>
                         <button id="fpBtnNext"
-                                class="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-lg transition-colors text-base shadow-md">
+                                class="sim-dl-next flex-1">
                             다음 단계
                         </button>
                         <button id="fpBtnReset"
@@ -698,7 +698,7 @@
                         </div>
                     </div>
                     <div id="bpStepDesc"
-                         class="bg-rose-50 border border-rose-300 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto">
+                         class="sim-dl-say back flex-1">
                         순전파로 나온 예측을 정답과 비교하는 것부터 시작합니다.
                     </div>
                 </div>
@@ -758,7 +758,7 @@
                         </button>
                         <div class="flex gap-2">
                             <button id="bpBtnAuto"
-                                    class="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg transition-colors text-base">
+                                    class="sim-dl-auto flex-1 py-3 text-white font-bold rounded-lg transition-colors text-base">
                                 <i class="fa-solid fa-play mr-1"></i>자동
                             </button>
                             <button id="bpBtnReset"
@@ -1207,17 +1207,13 @@
             this.paintModeButtons();
         },
 
-        // 선택 상태에 따라 클래스를 통째로 갈아 끼운다. 이름을 조각내 조립하지 않는다.
+        // 고른 것에만 `on` 을 켠다. 모양은 _sim-ui.css 의 sim-dl-mode 가 준다.
         paintModeButtons() {
             document.querySelectorAll('#gdModeBtns button[data-mode]').forEach(b => {
-                b.className = (b.dataset.mode === this.mode)
-                    ? 'py-2 px-3 rounded-lg font-bold text-base border-2 bg-blue-600 text-white border-blue-600 shadow-sm transition-colors text-left'
-                    : 'py-2 px-3 rounded-lg font-bold text-base border-2 bg-white text-slate-600 border-slate-300 hover:border-blue-400 transition-colors text-left';
+                b.className = 'sim-dl-mode';
+                b.classList.toggle('on', b.dataset.mode === this.mode);
             });
-            const pick = document.getElementById('gdCurvePick');
-            pick.className = this.mode === 'curve'
-                ? 'bg-slate-50 p-3 rounded-xl border border-slate-300'
-                : 'bg-slate-50 p-3 rounded-xl border border-slate-300 hidden';
+            document.getElementById('gdCurvePick').classList.toggle('hidden', this.mode !== 'curve');
             document.getElementById('gdModeDesc').textContent =
                 this.MODES.find(m => m.key === this.mode).desc;
         },
@@ -1286,12 +1282,11 @@
         paintAutoButton() {
             const b = document.getElementById('gdBtnAuto');
             if (this.isAuto) {
-                b.innerHTML = '<i class="fa-solid fa-pause mr-1"></i>정지';
-                b.className = 'py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg transition-colors text-base';
+                b.innerHTML = '<i class="fa-solid fa-pause sim-ico-tight"></i>정지';
             } else {
-                b.innerHTML = '<i class="fa-solid fa-play mr-1"></i>자동';
-                b.className = 'py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg transition-colors text-base';
+                b.innerHTML = '<i class="fa-solid fa-play sim-ico-tight"></i>자동';
             }
+            b.classList.toggle('running', this.isAuto);
         },
 
         AUTO_MAX: 200,
@@ -1632,69 +1627,69 @@
             if (this.mode === 'curve') {
                 const c = this.CURVES[this.curveKey];
                 if (p === 0) {
-                    out.push('<span class="text-slate-400 text-base">' + c.label + '  ·  ' + c.dfText + '</span>');
-                    out.push('<span class="text-amber-300">기울기</span> = ' + nf(g, 3) +
-                        ' <span class="text-slate-500 text-base ml-2">지금 값 ' + nf(l, 3) + '</span>');
+                    out.push('<span class="sim-f-note">' + c.label + '  ·  ' + c.dfText + '</span>');
+                    out.push('<span class="sim-f-grad">기울기</span> = ' + nf(g, 3) +
+                        ' <span class="sim-f-aside after">지금 값 ' + nf(l, 3) + '</span>');
                     return out;
                 }
                 if (p === 1) {
-                    out.push('<span class="text-slate-400 text-base">새 w = 옛 w − 학습률 × 기울기</span>');
+                    out.push('<span class="sim-f-note">새 w = 옛 w − 학습률 × 기울기</span>');
                     out.push('= ' + nf(w - this.moved, 3) + ' − ' + nf(this.lr(), 3) + '×' + par(this.grad(w - this.moved), 3) +
-                        ' = <span class="text-white">' + nf(w, 3) + '</span>');
-                    out.push('<span class="text-emerald-300">이동량</span> = ' + nf(this.moved, 3));
+                        ' = <span class="sim-f-val">' + nf(w, 3) + '</span>');
+                    out.push('<span class="sim-f-new">이동량</span> = ' + nf(this.moved, 3));
                     return out;
                 }
-                out.push('<span class="text-slate-400 text-base">옮기기 전 → 뒤</span>');
-                out.push(nf(this.prevLoss === null ? l : this.prevLoss, 3) + ' → <span class="text-white">' + nf(l, 3) + '</span>');
+                out.push('<span class="sim-f-note">옮기기 전 → 뒤</span>');
+                out.push(nf(this.prevLoss === null ? l : this.prevLoss, 3) + ' → <span class="sim-f-val">' + nf(l, 3) + '</span>');
                 return out;
             }
 
             const es = this.errors(w);
             if (p === 0) {
-                out.push('<span class="text-slate-400 text-base">모델  예측값 = w × x   (바꿀 수 있는 것은 w 하나)</span>');
-                out.push('<span class="text-blue-300">지금 w</span> = <span class="text-white">' + nf(w, 3) + '</span>');
+                out.push('<span class="sim-f-note">모델  예측값 = w × x   (바꿀 수 있는 것은 w 하나)</span>');
+                out.push('<span class="sim-f-w">지금 w</span> = <span class="sim-f-val">' + nf(w, 3) + '</span>');
                 return out;
             }
             if (p === 1) {
-                out.push('<span class="text-slate-400 text-base">오차 = 실젯값 − 예측값,  예측값 = w × x</span>');
+                out.push('<span class="sim-f-note">오차 = 실젯값 − 예측값,  예측값 = w × x</span>');
                 for (const e of es) {
                     out.push('x=' + nf(e.x, 1) + '  실젯값 ' + nf(e.y, 1) +
-                        '  예측값 ' + nf(e.pred, 2) + '  <span class="text-rose-300">오차 ' +
+                        '  예측값 ' + nf(e.pred, 2) + '  <span class="sim-f-err">오차 ' +
                         (e.err >= 0 ? '+' : '') + nf(e.err, 2) + '</span>');
                 }
                 return out;
             }
             if (p === 2) {
-                out.push('<span class="text-slate-400 text-base">오차 함수 L(w) = 오차를 제곱해 평균한 값</span>');
+                out.push('<span class="sim-f-note">오차 함수 L(w) = 오차를 제곱해 평균한 값</span>');
                 out.push('L(' + nf(w, 2) + ') = (' + es.map(e => par(e.err, 2) + '²').join(' + ') +
                     ') ÷ ' + es.length);
-                out.push('= <span class="text-white">' + nf(l, 4) + '</span>');
+                out.push('= <span class="sim-f-val">' + nf(l, 4) + '</span>');
                 return out;
             }
             if (p === 3) {
-                out.push('<span class="text-slate-400 text-base">기울기 dL/dw = −2 × 평균(오차 × x)</span>');
+                out.push('<span class="sim-f-note">기울기 dL/dw = −2 × 평균(오차 × x)</span>');
                 out.push('= −2 × (' + es.map(e => par(e.err, 2) + '×' + nf(e.x, 1)).join(' + ') + ') ÷ ' + es.length);
-                out.push('= <span class="text-amber-300">' + nf(g, 4) + '</span>' +
-                    ' <span class="text-slate-500 text-base ml-2">' +
+                out.push('= <span class="sim-f-grad">' + nf(g, 4) + '</span>' +
+                    ' <span class="sim-f-aside after">' +
                     (g > 0 ? 'w를 키우면 손실이 커진다 → 줄인다' : 'w를 키우면 손실이 줄어든다 → 키운다') + '</span>');
                 return out;
             }
             const wPrev = w - this.moved;
             if (p === 4) {
-                out.push('<span class="text-slate-400 text-base">새 w = 옛 w − 학습률 × 기울기</span>');
+                out.push('<span class="sim-f-note">새 w = 옛 w − 학습률 × 기울기</span>');
                 out.push('= ' + nf(wPrev, 3) + ' − ' + nf(this.lr(), 3) + '×' + par(this.grad(wPrev), 3) +
-                    ' = <span class="text-white">' + nf(w, 3) + '</span>');
-                out.push('<span class="text-emerald-300">이동량</span> = ' + nf(this.moved, 3));
+                    ' = <span class="sim-f-val">' + nf(w, 3) + '</span>');
+                out.push('<span class="sim-f-new">이동량</span> = ' + nf(this.moved, 3));
                 return out;
             }
-            out.push('<span class="text-slate-400 text-base">옮기기 전 손실 → 옮긴 뒤 손실</span>');
+            out.push('<span class="sim-f-note">옮기기 전 손실 → 옮긴 뒤 손실</span>');
             // 수렴하면 두 값이 같아진다. 그때 「줄었다」고 하면 거짓말이 된다.
             const before = this.prevLoss === null ? l : this.prevLoss;
             const grew = l > before + 1e-9, same = Math.abs(l - before) <= 1e-9;
-            out.push(nf(before, 4) + ' → <span class="text-white">' + nf(l, 4) + '</span>' +
+            out.push(nf(before, 4) + ' → <span class="sim-f-val">' + nf(l, 4) + '</span>' +
                 ' <span class="' + (grew ? 'text-rose-300' : (same ? 'text-slate-400' : 'text-emerald-300')) +
                 ' ml-2">' + (grew ? '늘었다' : (same ? '그대로다' : '줄었다')) + '</span>');
-            out.push('<span class="text-slate-500 text-base">가장 낮아지는 w = ' + nf(this.bestW(), 3) +
+            out.push('<span class="sim-f-aside">가장 낮아지는 w = ' + nf(this.bestW(), 3) +
                 ', 그때 손실 ' + nf(this.loss(this.bestW()), 4) + '</span>');
             return out;
         },
@@ -1723,7 +1718,8 @@
 
             const box = document.getElementById('gdStepDesc');
             let msg = this.phases()[this.phase].desc;
-            let cls = 'bg-blue-50 border border-blue-300 rounded-xl p-3 text-base text-blue-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto';
+            // 설명 상자의 색 — 튕겨 나감(`bad`) · 갇힘이나 주의(`warn`) · 멈춤(`done`), 없으면 기본 파랑
+            let tone = '';
 
             if (this.blown) {
                 const lim2 = this.lrLimit();
@@ -1732,25 +1728,26 @@
                         : (this.mode === 'data' ? '지금 데이터가' : '이 곡선이') +
                           ' 견디는 경계는 ' + lim2.toFixed(3) + '인데 학습률이 그보다 큽니다. ') +
                     '학습률을 낮추고 초기화 버튼을 누르면 다시 시작합니다.\n\n' + msg;
-                cls = 'bg-rose-50 border border-rose-400 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto';
+                tone = 'bad';
             } else if (Math.abs(g) < 0.01) {
                 if (this.mode === 'curve' && this.loss(this.w) > this.CURVES[this.curveKey].min + 0.5) {
                     msg = '기울기가 0에 가까워 멈췄습니다. 하지만 이 지점의 값은 이 곡선에서 가장 낮은 값보다 큽니다 — 얕은 골짜기에 갇힌 것입니다. 초기화해 다른 자리에서 시작해 보세요.\n\n' + msg;
-                    cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto';
+                    tone = 'warn';
                 } else {
                     msg = '기울기가 0에 가까워졌습니다. 더 내려갈 데가 없어 멈춥니다.\n\n' + msg;
-                    cls = 'bg-emerald-50 border border-emerald-400 rounded-xl p-3 text-base text-emerald-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto';
+                    tone = 'done';
                 }
             } else if (this.steps >= this.AUTO_MAX) {
                 msg = this.steps + '걸음을 걸었는데 아직 기울기가 0에 이르지 않았습니다. 자동 실행은 여기서 멈춥니다 — ' +
                     '끝난 것이 아닙니다. 학습률을 키우면 더 큰 보폭으로 내려갑니다.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto';
+                tone = 'warn';
             } else if (this.mode === 'data' && this.phase === 5 && this.prevLoss !== null && this.loss(this.w) > this.prevLoss) {
                 msg = '손실이 오히려 늘었습니다. 학습률이 커서 골짜기를 건너뛴 것입니다.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line min-w-0 min-h-0 overflow-y-auto';
+                tone = 'warn';
             }
             box.textContent = msg;
-            box.className = cls;
+            box.classList.remove('bad', 'warn', 'done');
+            if (tone) box.classList.add(tone);
 
             document.getElementById('gdBtnNext').textContent =
                 this.phase >= this.maxPhase() ? '다음 걸음' : '다음 단계';
@@ -2051,10 +2048,10 @@
             document.getElementById('btnDbTrain').addEventListener('click', () => {
                 if (this.isTraining) {
                     this.isTraining = false;
-                    document.getElementById('btnDbTrain').innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 실행';
+                    document.getElementById('btnDbTrain').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>학습 실행';
                 } else {
                     this.isTraining = true;
-                    document.getElementById('btnDbTrain').innerHTML = '<i class="fa-solid fa-pause mr-2"></i>일시 정지';
+                    document.getElementById('btnDbTrain').innerHTML = '<i class="fa-solid fa-pause sim-ico"></i>일시 정지';
                     this.loop();
                 }
             });
@@ -2080,7 +2077,7 @@
                 this.generateData();
             }
 
-            document.getElementById('btnDbTrain').innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 실행';
+            document.getElementById('btnDbTrain').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>학습 실행';
             let hn = parseInt(document.getElementById('dbNeuronSlider').value);
             this.mlp = new TinyMLP(hn);
             this.epoch = 0;
@@ -2654,12 +2651,11 @@
             this.paintActButtons();
         },
 
-        // 선택 상태에 따라 클래스를 통째로 갈아 끼운다. 이름을 조각내 조립하지 않는다.
+        // 고른 것에만 `on` 을 켠다. 모양은 _sim-ui.css 의 sim-dl-act 가 준다.
         paintActButtons() {
             document.querySelectorAll('#fpActBtns button[data-act]').forEach(b => {
-                b.className = (b.dataset.act === netSim.act)
-                    ? 'py-2 px-2 rounded-lg font-bold text-base border-2 bg-teal-600 text-white border-teal-600 shadow-sm transition-colors'
-                    : 'py-2 px-2 rounded-lg font-bold text-base border-2 bg-white text-slate-600 border-slate-300 hover:border-teal-400 transition-colors';
+                b.className = 'sim-dl-act';
+                b.classList.toggle('on', b.dataset.act === netSim.act);
             });
         },
 
@@ -2697,14 +2693,13 @@
             ds.rows.forEach(([x, y], i) => {
                 const tr = document.createElement('tr');
                 tr.dataset.idx = String(i);
-                tr.className = (i === netSim.sampleIdx)
-                    ? 'cursor-pointer bg-teal-100 text-teal-900 font-bold'
-                    : 'cursor-pointer text-slate-600 hover:bg-slate-100';
+                tr.className = 'sim-dl-row';
+                tr.classList.toggle('on', i === netSim.sampleIdx);
                 const cells = [nf(x[0]), nf(x[1]), String(y),
                     i === netSim.sampleIdx ? '◀' : ''];
                 cells.forEach(t => {
                     const td = document.createElement('td');
-                    td.className = 'py-1 px-1';
+                    td.className = 'sim-dl-td';
                     td.textContent = t;
                     tr.appendChild(td);
                 });
@@ -2729,18 +2724,12 @@
                 msg += '\n\n지금 활성화 함수가 「없음」이라 z가 그대로 a가 됩니다. 꺾이는 데가 없습니다.';
             }
             box.textContent = msg;
-            box.className = 'bg-teal-50 border border-teal-300 rounded-xl p-3 text-base text-teal-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
 
             const prev = document.getElementById('fpBtnPrev');
             const next = document.getElementById('fpBtnNext');
             prev.disabled = this.phase === 0;
             next.disabled = this.phase === this.MAX_PHASE;
-            prev.className = this.phase === 0
-                ? 'py-3 px-4 bg-slate-100 text-slate-300 font-bold rounded-lg text-base cursor-not-allowed'
-                : 'py-3 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors text-base';
-            next.className = this.phase === this.MAX_PHASE
-                ? 'flex-1 py-3 bg-slate-300 text-white font-black rounded-lg text-base cursor-not-allowed'
-                : 'flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-lg transition-colors text-base shadow-md';
+            // 막혔을 때의 모양은 `:disabled` 가 준다 → _sim-ui.css 의 sim-dl-prev · sim-dl-next
             next.textContent = this.phase === this.MAX_PHASE ? '끝' : '다음 단계';
         },
 
@@ -2770,52 +2759,52 @@
             const p = this.phase;
 
             if (p === 0) {
-                out.push('<span class="text-slate-400">x₁ =</span> ' + nf(x[0]) +
-                    ' <span class="text-slate-400 ml-4">x₂ =</span> ' + nf(x[1]));
-                out.push('<span class="text-slate-500 text-base">아직 계산 전입니다.</span>');
+                out.push('<span class="sim-f-label">x₁ =</span> ' + nf(x[0]) +
+                    ' <span class="sim-f-label second">x₂ =</span> ' + nf(x[1]));
+                out.push('<span class="sim-f-aside">아직 계산 전입니다.</span>');
                 return out;
             }
 
             if (p >= 1 && p <= 3) {
                 // 이름 줄을 한 번 놓아, 숫자가 어느 가중치 자리인지 표에서 찾을 수 있게 한다.
-                out.push('<span class="text-slate-400 text-base">z₁ = x₁×w₁₁ + x₂×w₂₁ + b₁' +
+                out.push('<span class="sim-f-note">z₁ = x₁×w₁₁ + x₂×w₂₁ + b₁' +
                     ' &nbsp;/&nbsp; z₂ = x₁×w₁₂ + x₂×w₂₂ + b₂</span>');
                 for (let j = 0; j < 2; j++) {
                     const sub = j === 0 ? '₁' : '₂';
                     if (p === 1) {
-                        out.push('<span class="text-teal-300">z' + sub + ' 의 재료</span> = ' +
+                        out.push('<span class="sim-f-z">z' + sub + ' 의 재료</span> = ' +
                             nf(x[0]) + '×' + par(n.w1[0][j]) + ' , ' + nf(x[1]) + '×' + par(n.w1[1][j]));
                     } else {
-                        out.push('<span class="text-teal-300">z' + sub + '</span> = ' +
+                        out.push('<span class="sim-f-z">z' + sub + '</span> = ' +
                             nf(x[0]) + '×' + par(n.w1[0][j]) + ' + ' + nf(x[1]) + '×' + par(n.w1[1][j]) +
-                            ' + ' + par(n.b1[j]) + ' = <span class="text-white">' + nf(fw.z1[j]) + '</span>');
+                            ' + ' + par(n.b1[j]) + ' = <span class="sim-f-val">' + nf(fw.z1[j]) + '</span>');
                     }
                 }
                 if (p === 3) {
                     for (let j = 0; j < 2; j++) {
                         const sub = j === 0 ? '₁' : '₂';
-                        out.push('<span class="text-emerald-300">a' + sub + '</span> = ' +
-                            A.call + '(' + nf(fw.z1[j]) + ') = <span class="text-white">' + nf(fw.a1[j], 3) + '</span>');
+                        out.push('<span class="sim-f-new">a' + sub + '</span> = ' +
+                            A.call + '(' + nf(fw.z1[j]) + ') = <span class="sim-f-val">' + nf(fw.a1[j], 3) + '</span>');
                     }
                 }
                 return out;
             }
 
-            out.push('<span class="text-slate-400 text-base">z₃ = a₁×u₁ + a₂×u₂ + b₃</span>');
+            out.push('<span class="sim-f-note">z₃ = a₁×u₁ + a₂×u₂ + b₃</span>');
             if (p === 4) {
-                out.push('<span class="text-teal-300">z₃ 의 재료</span> = ' +
+                out.push('<span class="sim-f-z">z₃ 의 재료</span> = ' +
                     nf(fw.a1[0], 3) + '×' + par(n.w2[0]) + ' , ' + nf(fw.a1[1], 3) + '×' + par(n.w2[1]));
                 return out;
             }
 
-            out.push('<span class="text-teal-300">z₃</span> = ' +
+            out.push('<span class="sim-f-z">z₃</span> = ' +
                 nf(fw.a1[0], 3) + '×' + par(n.w2[0]) + ' + ' + nf(fw.a1[1], 3) + '×' + par(n.w2[1]) +
-                ' + ' + par(n.b2) + ' = <span class="text-white">' + nf(fw.z2) + '</span>');
+                ' + ' + par(n.b2) + ' = <span class="sim-f-val">' + nf(fw.z2) + '</span>');
             if (p >= 6) {
-                out.push('<span class="text-emerald-300">예측</span> = 시그모이드(' + nf(fw.z2) +
-                    ') = <span class="text-white">' + nf(fw.a2, 3) + '</span>');
-                out.push('<span class="text-slate-400">정답</span> = ' + y +
-                    ' <span class="text-slate-500 text-base ml-2">(0.5보다 크면 1이라고 답한 것)</span>');
+                out.push('<span class="sim-f-new">예측</span> = 시그모이드(' + nf(fw.z2) +
+                    ') = <span class="sim-f-val">' + nf(fw.a2, 3) + '</span>');
+                out.push('<span class="sim-f-label">정답</span> = ' + y +
+                    ' <span class="sim-f-aside after">(0.5보다 크면 1이라고 답한 것)</span>');
             }
             return out;
         },
@@ -3111,12 +3100,11 @@
         paintAutoButton() {
             const b = document.getElementById('bpBtnAuto');
             if (this.isAuto) {
-                b.innerHTML = '<i class="fa-solid fa-pause mr-1"></i>정지';
-                b.className = 'flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg transition-colors text-base';
+                b.innerHTML = '<i class="fa-solid fa-pause sim-ico-tight"></i>정지';
             } else {
-                b.innerHTML = '<i class="fa-solid fa-play mr-1"></i>자동';
-                b.className = 'flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg transition-colors text-base';
+                b.innerHTML = '<i class="fa-solid fa-play sim-ico-tight"></i>자동';
             }
+            b.classList.toggle('running', this.isAuto);
         },
 
         AUTO_MAX_EPOCH: 2000,
@@ -3187,34 +3175,36 @@
 
             const box = document.getElementById('bpStepDesc');
             let msg = this.PHASES[this.phase].desc;
-            let cls = 'bg-rose-50 border border-rose-300 rounded-xl p-3 text-base text-rose-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
+            // 설명 상자의 색 — 주의(`warn`) · 다 배움(`done`), 없으면 기본 장미색
+            let tone = '';
 
             if (netSim.act === 'step') {
                 msg = '계단 함수는 어디서나 기울기가 0입니다. 그래서 은닉 뉴런으로 들어가는 여섯 개(w₁₁ w₂₁ b₁ w₁₂ w₂₂ b₂)는 ' +
                     '기울기도 0이 되어 한 번도 바뀌지 않습니다. 파라미터 표에서 w₁₁ w₂₁ b₁ · w₁₂ w₂₂ b₂ 줄이 계속 그대로인 것을 확인해 보세요. ' +
                     '출력 뉴런의 세 개(u₁ u₂ b₃)만 배웁니다.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
+                tone = 'warn';
             } else if (netSim.act === 'none' && netSim.dsKey === 'xor') {
                 msg = '활성화 함수가 「없음」이면 층을 쌓아도 직선 하나와 같아집니다. XOR는 직선 하나로 나눌 수 없으므로, ' +
                     '아무리 오래 실행해도 손실이 0.25 근처에서 더 내려가지 않습니다. 직접 자동으로 실행해 확인해 보세요.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
+                tone = 'warn';
             } else if (netSim.solved()) {
                 msg = '🎉 데이터 넷을 모두 맞혔고 손실도 충분히 내려갔습니다. 학습이 끝난 것으로 봅니다.\n\n' + msg;
-                cls = 'bg-emerald-50 border border-emerald-400 rounded-xl p-3 text-base text-emerald-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
+                tone = 'done';
             } else if (netSim.epoch >= this.AUTO_MAX_EPOCH) {
                 msg = netSim.epoch + '에포크를 돌렸는데도 아직 다 맞히지 못했습니다. 처음에 뽑은 가중치가 나쁘면 골짜기에 갇혀 ' +
                     '나오지 못하는 판이 생깁니다. 초기화 버튼으로 가중치를 새로 뽑아 다시 해 보세요. ' +
                     '학습률을 바꿔 보는 것도 방법입니다.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
+                tone = 'warn';
             } else if (netSim.act === 'relu' && netSim.deadHidden().some(d => d)) {
                 msg = 'ReLU 뉴런 하나가 데이터 넷 어디에서도 0만 내보내고 있습니다(죽은 뉴런). 0을 내보내는 동안에는 기울기도 0이라 ' +
                     '되살아나지 못합니다. 은닉 뉴런이 2개뿐인 이 작은 신경망에서 특히 잘 생기는 일이고, ' +
                     '뉴런이 훨씬 많은 신경망에서는 몇 개가 죽어도 나머지가 일을 이어받습니다. 초기화 버튼으로 다시 해 보세요.\n\n' + msg;
-                cls = 'bg-amber-50 border border-amber-400 rounded-xl p-3 text-base text-amber-900 font-medium leading-relaxed whitespace-pre-line flex-1 min-h-0 overflow-y-auto';
+                tone = 'warn';
             }
 
             box.textContent = msg;
-            box.className = cls;
+            box.classList.remove('warn', 'done');
+            if (tone) box.classList.add(tone);
 
             document.getElementById('bpBtnNext').textContent =
                 this.phase === this.MAX_PHASE ? '다음 데이터로' : '다음 단계';
@@ -3239,36 +3229,36 @@
             const L = (html) => out.push(html);
 
             if (p === 0) {
-                L('<span class="text-rose-300">예측</span> = ' + nf(fw.a2, 3) +
-                    ' <span class="text-slate-400 ml-3">정답</span> = ' + y);
-                L('<span class="text-rose-300">손실</span> = (' + nf(fw.a2, 3) + ' − ' + y +
-                    ')² = <span class="text-white">' + nf(netSim.loss(fw.a2, y), 4) + '</span>');
+                L('<span class="sim-f-err">예측</span> = ' + nf(fw.a2, 3) +
+                    ' <span class="sim-f-label answer">정답</span> = ' + y);
+                L('<span class="sim-f-err">손실</span> = (' + nf(fw.a2, 3) + ' − ' + y +
+                    ')² = <span class="sim-f-val">' + nf(netSim.loss(fw.a2, y), 4) + '</span>');
                 return out;
             }
             if (p === 1) {
-                L('<span class="text-slate-400 text-base">출력 뉴런의 몫 = 2×(예측−정답)×시그모이드의 기울기</span>');
-                L('<span class="text-rose-300">출력 뉴런 몫</span> = 2×(' + nf(fw.a2, 3) + '−' + y + ')×' +
-                    nf(fw.a2, 3) + '×(1−' + nf(fw.a2, 3) + ') = <span class="text-white">' + nf(g.dz2, 4) + '</span>');
-                L('<span class="text-amber-300">u₁ 기울기</span> = ' + nf(g.dz2, 4) + '×a₁(' + nf(fw.a1[0], 3) + ') = ' + nf(g.dw2[0], 4) +
-                    ' <span class="text-slate-500 ml-2">u₂ ' + nf(g.dw2[1], 4) + ' · b₃ ' + nf(g.db2, 4) + '</span>');
+                L('<span class="sim-f-note">출력 뉴런의 몫 = 2×(예측−정답)×시그모이드의 기울기</span>');
+                L('<span class="sim-f-err">출력 뉴런 몫</span> = 2×(' + nf(fw.a2, 3) + '−' + y + ')×' +
+                    nf(fw.a2, 3) + '×(1−' + nf(fw.a2, 3) + ') = <span class="sim-f-val">' + nf(g.dz2, 4) + '</span>');
+                L('<span class="sim-f-grad">u₁ 기울기</span> = ' + nf(g.dz2, 4) + '×a₁(' + nf(fw.a1[0], 3) + ') = ' + nf(g.dw2[0], 4) +
+                    ' <span class="sim-f-rest">u₂ ' + nf(g.dw2[1], 4) + ' · b₃ ' + nf(g.db2, 4) + '</span>');
                 return out;
             }
             if (p === 2) {
                 for (let j = 0; j < 2; j++) {
                     const sub = j === 0 ? '₁' : '₂';
                     const uName = j === 0 ? 'u₁' : 'u₂';
-                    L('<span class="text-rose-300">뉴런' + sub + ' 몫</span> = ' + nf(g.dz2, 4) + '×' + uName + '(' + nf(n.w2[j]) + ')' +
-                        '×' + A.call + '′(' + nf(fw.z1[j]) + ') = <span class="text-white">' + nf(g.dz1[j], 4) + '</span>');
+                    L('<span class="sim-f-err">뉴런' + sub + ' 몫</span> = ' + nf(g.dz2, 4) + '×' + uName + '(' + nf(n.w2[j]) + ')' +
+                        '×' + A.call + '′(' + nf(fw.z1[j]) + ') = <span class="sim-f-val">' + nf(g.dz1[j], 4) + '</span>');
                 }
-                L('<span class="text-slate-500 text-base">활성화 함수의 기울기가 0이면 여기서 신호가 끊깁니다.</span>');
+                L('<span class="sim-f-aside">활성화 함수의 기울기가 0이면 여기서 신호가 끊깁니다.</span>');
                 return out;
             }
             if (p === 3) {
                 for (let j = 0; j < 2; j++) {
                     const sub = j === 0 ? '₁' : '₂';
-                    L('<span class="text-amber-300">w₁' + sub + ' 기울기</span> = ' + nf(g.dz1[j], 4) + '×x₁(' + nf(x[0]) + ') = ' +
+                    L('<span class="sim-f-grad">w₁' + sub + ' 기울기</span> = ' + nf(g.dz1[j], 4) + '×x₁(' + nf(x[0]) + ') = ' +
                         nf(g.dw1[0][j], 4) +
-                        ' <span class="text-slate-500 ml-2">w₂' + sub + ' ' + nf(g.dw1[1][j], 4) +
+                        ' <span class="sim-f-rest">w₂' + sub + ' ' + nf(g.dw1[1][j], 4) +
                         ' · b' + sub + ' ' + nf(g.db1[j], 4) + '</span>');
                 }
                 return out;
@@ -3276,7 +3266,7 @@
 
             const b = netSim.before;
             if (!b) {
-                L('<span class="text-slate-400">아직 고치지 않았습니다.</span>');
+                L('<span class="sim-f-label">아직 고치지 않았습니다.</span>');
                 return out;
             }
             /* 늘 같은 자리를 보여 주면, 그 자리의 기울기가 0인 데이터에서는
@@ -3294,12 +3284,12 @@
                 ['b₃', b.b2, n.b2, g.db2]
             ].sort((p, q) => Math.abs(q[2] - q[1]) - Math.abs(p[2] - p[1]));
 
-            L('<span class="text-slate-400 text-base">새 가중치 = 옛 가중치 − 학습률 × 기울기' +
+            L('<span class="sim-f-note">새 가중치 = 옛 가중치 − 학습률 × 기울기' +
                 ' &nbsp;(이번에 가장 많이 바뀐 둘)</span>');
             for (let k = 0; k < 2; k++) {
                 const [name, was, now, grad] = moved[k];
-                L('<span class="text-emerald-300">' + name + '</span> = ' + nf(was, 3) + ' − ' + nf(netSim.beforeLr) +
-                    '×' + par(grad, 4) + ' = <span class="text-white">' + nf(now, 3) + '</span>');
+                L('<span class="sim-f-new">' + name + '</span> = ' + nf(was, 3) + ' − ' + nf(netSim.beforeLr) +
+                    '×' + par(grad, 4) + ' = <span class="sim-f-val">' + nf(now, 3) + '</span>');
             }
             return out;
         },
@@ -3324,17 +3314,14 @@
             for (const [name, now, was] of items) {
                 const cell = document.createElement('div');
                 const changed = (was !== null && was !== undefined && Math.abs(now - was) > 5e-5);
-                cell.className = changed
-                    ? 'rounded-md px-1.5 py-1 bg-emerald-50 border border-emerald-300'
-                    : 'rounded-md px-1.5 py-1 bg-white border border-slate-200';
+                cell.className = 'sim-dl-param';
+                cell.classList.toggle('changed', changed);
                 const head = document.createElement('div');
-                head.className = 'text-slate-500';
+                head.className = 'sim-dl-param-name';
                 head.textContent = name;
                 // 늘 두 줄이다. 값이 바뀔 때만 줄을 하나 더 얹으면 표 높이가 들썩인다.
                 const val = document.createElement('div');
-                val.className = changed
-                    ? 'text-emerald-700 font-bold whitespace-nowrap'
-                    : 'text-slate-700 font-bold whitespace-nowrap';
+                val.className = 'sim-dl-param-val';
                 val.textContent = changed ? nf(was, 3) + '→' + nf(now, 3) : nf(now, 3);
                 cell.appendChild(head);
                 cell.appendChild(val);
@@ -3517,7 +3504,7 @@
             let step = 0;
             const btn = document.getElementById('btnOfRun');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>시뮬레이션 중...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin sim-ico"></i>시뮬레이션 중...';
 
             if (this.animInterval) clearInterval(this.animInterval);
 
@@ -3527,7 +3514,7 @@
                         clearInterval(this.animInterval);
                         this.animInterval = null;
                         btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-chart-line mr-2"></i>시뮬레이션 재실행';
+                        btn.innerHTML = '<i class="fa-solid fa-chart-line sim-ico"></i>시뮬레이션 재실행';
                         return;
                     }
                     this.chart.data.labels.push(labels[step]);

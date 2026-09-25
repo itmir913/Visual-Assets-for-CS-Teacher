@@ -115,7 +115,10 @@ async function deckShake(stage, win, doc) {
     const grow = stage.querySelector('.fs-main .fs-grow');
     const play = stage.querySelector('#btn-play');
     const next = stage.querySelector('#btn-next');
-    if (!side || !grow || !play || !next) return [['deck', `무대 #${stage.id} 에 fs-side · fs-grow · 재생 버튼이 다 있지 않다`]];
+    if (!side || !grow) return [['deck', `무대 #${stage.id} 에 fs-side · fs-grow 가 다 있지 않다`]];
+    // 단계 재생이 없는 무대(simulator/ai 의 회귀처럼 학습을 한 번에 돌리는 것)는 짜임과 칸 안 스크롤만 본다.
+    const stepped = !!(play && next);
+    if (!!play !== !!next) out.push(['deck', `무대 #${stage.id} 에 재생 버튼(#btn-play · #btn-next)이 한쪽만 있다`]);
     const s = side.getBoundingClientRect(), g = grow.getBoundingClientRect();
     if (!(s.bottom <= g.top + 1 || s.right <= g.left + 1)) {
         out.push(['deck', '조작 칸(fs-side)이 그림 앞(위 또는 왼쪽)에 있지 않다']);
@@ -134,9 +137,14 @@ async function deckShake(stage, win, doc) {
         }
     }
 
-    const spot = () => [grow, play].map((el) => Math.round(el.getBoundingClientRect().top)).join(',');
     const scrolled = () => [grow, ...grow.querySelectorAll('*')].find((el) =>
         /(auto|scroll)/.test(win.getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2);
+    if (!stepped) {
+        const sc = scrolled();
+        if (sc) out.push([`deck 칸 안 스크롤 ${at}`, `그림이 칸 안에서 스크롤된다(${label(sc)} ${sc.clientHeight}/${sc.scrollHeight}px)`]);
+        return out;
+    }
+    const spot = () => [grow, play].map((el) => Math.round(el.getBoundingClientRect().top)).join(',');
     const TABS = '#group-tabs button, #method-tabs button';
     const SUBS = '#struct-tabs button, #algo-tabs button';
     const nTabs = Math.max(1, doc.querySelectorAll(TABS).length);

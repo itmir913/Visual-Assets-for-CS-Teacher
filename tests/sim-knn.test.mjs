@@ -13,7 +13,11 @@
 //   4. **k를 바꾸면 결과가 곧바로 다시 나오는가.**
 //   5. **화면에 그린 굵은 선이 고른 이웃과 하나씩 맞물리는가.** 여기가 어긋나면 셈은 맞는데
 //      **학생이 보는 그림만 틀린다.**
-//   6. **무작위 자료가 판 안에 들어오는가.**
+//   6. **판 크기가 바뀌어도 점이 판의 같은 비율 자리에 다시 그려지고, 이웃·표·결과가 그대로인가.**
+//      점을 픽셀로 담으면 전체 화면을 켜고 끌 때 점이 옛 자리에 남는다. 크기가 바뀌었다고
+//      거리를 다시 재거나 걸음을 되돌려서도 안 된다 — 교사가 누르지 않은 것이 돌면 안 된다.
+//      정사각이 아닌 판도 넣어, x·y 를 같은 척도로 그려 화면의 가까움이 셈과 갈라지지 않는지 본다.
+//   7. **무작위 자료가 판 안에 들어오는가.**
 //
 // **못 보는 것.** 실제 픽셀과 색은 볼 수 없다. 점의 모양(●■▲)도 그린 명령의 자취로만 본다.
 
@@ -39,7 +43,16 @@ const P = (expr) => sim.evalInPage(expr);
 let 씨 = 987654321;
 const 흔들기 = () => (씨 = (씨 * 1103515245 + 12345) % 2147483648) / 2147483648;
 
-const 거리 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+/* 점은 판 비율 좌표(`rx`·`ry`, 0~1)로 담긴다. 여기서는 400 칸 판에 놓듯 정수로 고른 뒤
+   400 으로 나눠 넣는다 — 눈으로 좇기 쉽게. */
+const 칸 = 400;
+const 거리 = (a, b) => Math.hypot(a.rx - b.rx, a.ry - b.ry);
+/** 판 크기 w×h 에서 비율 좌표가 그려질 픽셀 — 짧은 변을 척도로, 남는 쪽은 가운데. */
+const 픽셀 = (p, w, h) => {
+    const 변 = Math.min(w, h);
+    return {x: (w - 변) / 2 + p.rx * 변, y: (h - 변) / 2 + p.ry * 변};
+};
+const 같다 = (a, b) => Math.abs(a - b) < 1e-6;
 
 /* ================================================================
    자료를 손으로 놓고 본다 — 화면에서 뽑으면 판마다 달라져 결함을 좇을 수 없다
@@ -47,28 +60,32 @@ const 거리 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const 점들 = [];
 for (let i = 0; i < 60; i++) {
     점들.push({
-        x: Math.round(흔들기() * 380 + 10),
-        y: Math.round(흔들기() * 380 + 10),
+        rx: Math.round(흔들기() * 380 + 10) / 칸,
+        ry: Math.round(흔들기() * 380 + 10) / 칸,
         cls: ['A', 'B', 'C'][Math.floor(흔들기() * 3)],
     });
 }
 // 거리가 같은 이웃이 반드시 생기도록 물음점 둘레에 대칭으로 몇 개를 더 놓는다
-const 물음 = {x: 200, y: 200};
-점들.push({x: 170, y: 200, cls: 'A'}, {x: 230, y: 200, cls: 'B'},
-    {x: 200, y: 170, cls: 'C'}, {x: 200, y: 230, cls: 'A'});
+const 물음 = {rx: 200 / 칸, ry: 200 / 칸};
+점들.push({rx: 170 / 칸, ry: 200 / 칸, cls: 'A'}, {rx: 230 / 칸, ry: 200 / 칸, cls: 'B'},
+    {rx: 200 / 칸, ry: 170 / 칸, cls: 'C'}, {rx: 200 / 칸, ry: 230 / 칸, cls: 'A'});
+
+// 그림을 볼 5 절에서 픽셀이 딱 떨어지도록 판을 400×400 으로 둔다
+sim.setBox(칸, 칸);
+sim.fireResize();
 
 P(`dataManager.points = ${JSON.stringify(점들)}`);
-P(`dataManager.setQueryPoint(${물음.x}, ${물음.y})`);
+P(`dataManager.setQueryPoint(${물음.rx}, ${물음.ry})`);
 
 /* ================================================================
    1. 거리
    ================================================================ */
 P('knn.calcAllDistances()');
-const 잰거리 = P('knn.distances').map((d) => ({x: d.point.x, y: d.point.y, cls: d.point.cls, dist: d.dist}));
+const 잰거리 = P('knn.distances').map((d) => ({rx: d.point.rx, ry: d.point.ry, cls: d.point.cls, dist: d.dist}));
 if (잰거리.length !== 점들.length) bad(`거리: ${잰거리.length}개만 쟀다 — 점은 ${점들.length}개다`);
 for (const d of 잰거리) {
     const 기대 = 거리(d, 물음);
-    if (Math.abs(d.dist - 기대) > 1e-9) bad(`거리: (${d.x},${d.y}) 까지 ${d.dist} 로 쟀다 — 유클리드 거리는 ${기대} 다`);
+    if (Math.abs(d.dist - 기대) > 1e-9) bad(`거리: (${d.rx * 칸},${d.ry * 칸}) 까지 ${d.dist} 로 쟀다 — 유클리드 거리는 ${기대} 다`);
 }
 for (let i = 1; i < 잰거리.length; i++) {
     if (잰거리[i - 1].dist > 잰거리[i].dist + 1e-12) { bad('거리: 가까운 것부터 늘어서지 않았다'); break; }
@@ -157,31 +174,88 @@ for (let i = 0; i < 3; i++) doc.getElementById('btnStep').dispatchEvent(new sim.
 for (const c of sim.canvases()) c._ctx.ops.length = 0;
 P('renderer.draw()');
 {
-    const 이웃 = P('knn.kNeighbors').map((n) => `${n.point.x},${n.point.y}`).sort();
+    const 이웃 = P('knn.kNeighbors').map((n) => `${Math.round(n.point.rx * 칸)},${Math.round(n.point.ry * 칸)}`).sort();
     const 자취 = sim.canvases().flatMap((c) => c._ctx.ops);
+    const 물음픽셀 = 픽셀(물음, 칸, 칸);
     const 굵은선 = 자취.filter((o) => o.op === 'path' && o.pts.length === 2
-        && o.pts[0][0] === 물음.x && o.pts[0][1] === 물음.y
+        && 같다(o.pts[0][0], 물음픽셀.x) && 같다(o.pts[0][1], 물음픽셀.y)
         && ['#f43f5e', '#3b82f6', '#10b981', '#ef4444', '#22c55e'].includes(o.style));
-    const 그린이웃 = 굵은선.map((o) => `${o.pts[1][0]},${o.pts[1][1]}`).sort();
+    const 그린이웃 = 굵은선.map((o) => `${Math.round(o.pts[1][0])},${Math.round(o.pts[1][1])}`).sort();
     if (그린이웃.join(' ') !== 이웃.join(' ')) {
         bad(`그림: 굵게 이은 이웃 ${그린이웃.length}개가 고른 이웃 ${이웃.length}개와 다르다`);
     }
     // 물음점은 늘 그린다
-    if (!자취.some((o) => o.op === 'arc' && o.x === 물음.x && o.y === 물음.y && o.r === 12)) {
+    if (!자취.some((o) => o.op === 'arc' && 같다(o.x, 물음픽셀.x) && 같다(o.y, 물음픽셀.y) && o.r === 12)) {
         bad('그림: 물음점을 그리지 않았다');
     }
 }
 
 /* ================================================================
-   6. 무작위 자료가 판 안에 들어오는가
+   6. 판 크기가 바뀌어도 같은 비율 자리에, 같은 결과로
+   ================================================================ */
+{
+    const 앞점 = JSON.stringify(P('dataManager.points'));
+    const 앞물음 = JSON.stringify(P('dataManager.queryPoint'));
+    const 앞이웃 = JSON.stringify(P('knn.kNeighbors'));
+    const 앞표 = JSON.stringify(P('knn.voteCounts'));
+    P('globalThis.__거리목록 = knn.distances');
+    // 평소 → 전체 화면(크게) → 해제(작게) → 정사각이 아닌 잠깐의 판 둘
+    for (const [w, h] of [[900, 900], [1400, 1400], [360, 360], [800, 600], [500, 700]]) {
+        sim.setBox(w, h);
+        sim.fireResize();
+        const 뜻 = `${w}×${h}`;
+        if (P('renderer.actualWidth') !== w || P('renderer.actualHeight') !== h) bad(`크기(${뜻}): 판 크기를 다시 재지 않았다`);
+        if (JSON.stringify(P('dataManager.points')) !== 앞점) bad(`크기(${뜻}): 판 크기가 바뀌었다고 담아 둔 점이 달라졌다`);
+        if (JSON.stringify(P('dataManager.queryPoint')) !== 앞물음) bad(`크기(${뜻}): 물음점이 달라졌다`);
+        if (!P('knn.distances === globalThis.__거리목록')) bad(`크기(${뜻}): 판 크기만 바뀌었는데 거리를 다시 쟀다`);
+        if (JSON.stringify(P('knn.kNeighbors')) !== 앞이웃) bad(`크기(${뜻}): 고른 이웃이 달라졌다`);
+        if (JSON.stringify(P('knn.voteCounts')) !== 앞표) bad(`크기(${뜻}): 표가 달라졌다`);
+        if (P('phase') !== 'DONE') bad(`크기(${뜻}): 끝난 판이 「${P('phase')}」 로 돌아갔다`);
+
+        for (const c of sim.canvases()) c._ctx.ops.length = 0;
+        P('renderer.draw()');
+        const 자취 = sim.canvases().flatMap((c) => c._ctx.ops);
+        const 물음픽셀 = 픽셀(물음, w, h);
+        if (!자취.some((o) => o.op === 'arc' && o.r === 12 && 같다(o.x, 물음픽셀.x) && 같다(o.y, 물음픽셀.y))) {
+            bad(`크기(${뜻}): 물음점을 판의 같은 비율 자리(${물음픽셀.x.toFixed(1)},${물음픽셀.y.toFixed(1)})에 그리지 않았다`);
+        }
+        // ● 반(A)의 점은 반지름 6 의 원이다 — 하나하나 제 비율 자리에 있어야 한다
+        const 원 = 자취.filter((o) => o.op === 'arc' && o.r === 6);
+        const A점 = 점들.filter((p) => p.cls === 'A');
+        const 어긋난 = A점.filter((p) => { const q = 픽셀(p, w, h); return !원.some((o) => 같다(o.x, q.x) && 같다(o.y, q.y)); });
+        if (어긋난.length) bad(`크기(${뜻}): A 반 점 ${어긋난.length}개가 판의 같은 비율 자리에 그려지지 않았다`);
+        if (원.some((o) => o.x < 0 || o.x > w || o.y < 0 || o.y > h)) bad(`크기(${뜻}): 판 밖에 그린 점이 있다`);
+        // 화면 거리 = 비율 거리 × 짧은 변 — x·y 를 같은 척도로 그렸는가
+        const 변 = Math.min(w, h);
+        for (const n of P('knn.kNeighbors')) {
+            const q = 픽셀(n.point, w, h);
+            const 화면거리 = Math.hypot(q.x - 물음픽셀.x, q.y - 물음픽셀.y);
+            if (!같다(화면거리, n.dist * 변)) { bad(`크기(${뜻}): 화면의 거리가 잰 거리의 상수배가 아니다 — x·y 척도가 다르다`); break; }
+        }
+    }
+    // 판을 누른 자리가 비율로 담기는가 — 정사각이 아닌 판에서도 짧은 변 기준으로
+    sim.setBox(800, 600);
+    sim.fireResize();
+    const 개수 = P('dataManager.points.length');
+    P("activeTool = 'B'");
+    doc.getElementById('knnCanvas').dispatchEvent(new sim.window.MouseEvent('click', {bubbles: true, clientX: 100 + 0.25 * 600, clientY: 0.75 * 600}));
+    const 새점 = P('dataManager.points')[개수];
+    if (!새점 || !같다(새점.rx, 0.25) || !같다(새점.ry, 0.75)) {
+        bad(`누르기: 800×600 판의 (250,450) 을 눌렀는데 (${새점?.rx},${새점?.ry}) 로 담았다 — 비율로는 (0.25,0.75) 다`);
+    }
+}
+
+/* ================================================================
+   7. 무작위 자료가 판 안에 들어오는가
    ================================================================ */
 for (const 흩음 of [60, 200, 400]) {
+    // 400×300 판 — 짧은 변 300 의 정사각 안, 가장자리 10px 안쪽에 들어와야 한다
     P(`dataManager.generateRandom(400, 300, ${흩음})`);
     const 뽑힌점 = P('dataManager.points');
     if (뽑힌점.length !== 90) bad(`무작위 자료: 점을 ${뽑힌점.length}개 뽑았다 — 세 반에 서른씩이면 90개다`);
     for (const p of 뽑힌점) {
-        if (p.x < 10 || p.x > 390 || p.y < 10 || p.y > 290) {
-            bad(`무작위 자료(흩음 ${흩음}): (${Math.round(p.x)},${Math.round(p.y)}) 가 판 밖으로 나갔다`);
+        if (!(p.rx >= 10 / 300 - 1e-9 && p.rx <= 290 / 300 + 1e-9 && p.ry >= 10 / 300 - 1e-9 && p.ry <= 290 / 300 + 1e-9)) {
+            bad(`무작위 자료(흩음 ${흩음}): 비율 (${p.rx},${p.ry}) 가 판 밖으로 나갔다`);
             break;
         }
     }

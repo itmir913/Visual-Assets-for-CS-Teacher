@@ -499,18 +499,23 @@
         'QUERY': '#1e293b' // Slate (Black)
     };
 
+    /* **점은 판 비율 좌표(`rx`·`ry`, 0~1)로 둔다. 픽셀은 그릴 때만 만든다.**
+       픽셀로 두면 캔버스 크기가 바뀔 때(전체 화면 진입·해제, 창 높이 변경) 점이 옛 자리에
+       남아 판을 못 채우거나 밖으로 나간다. 판은 정사각이고, 정사각이 아닐 때에도 x·y 를
+       **같은 척도**(짧은 변)로 그리므로(`CanvasRenderer.view`) 비율 좌표의 거리는 화면 거리의
+       상수배다 — 이웃의 순서가 화면 크기와 무관하다. */
     class DataManager {
         constructor() {
             this.points = [];
             this.queryPoint = null;
         }
 
-        addPoint(x, y, cls) {
-            this.points.push({x, y, cls});
+        addPoint(rx, ry, cls) {
+            this.points.push({rx, ry, cls});
         }
 
-        setQueryPoint(x, y) {
-            this.queryPoint = {x, y, resultCls: null};
+        setQueryPoint(rx, ry) {
+            this.queryPoint = {rx, ry, resultCls: null};
         }
 
         clear() {
@@ -518,19 +523,22 @@
             this.queryPoint = null;
         }
 
+        // 흩음(`spreadRadius`)은 슬라이더의 픽셀 값이다. 지금 판 크기에서 픽셀로 뽑은 뒤
+        // 비율로 바꿔 담는다 — 판이 정사각이 아니면 짧은 변의 정사각 안에서 뽑는다.
         generateRandom(width, height, spreadRadius = 60) {
             this.points = [];
             this.queryPoint = null;
+            const size = Math.min(width, height);
             const classes = ['A', 'B', 'C'];
             classes.forEach(cls => {
-                let cx = Math.random() * (width - 150) + 75;
-                let cy = Math.random() * (height - 150) + 75;
+                let cx = Math.random() * (size - 150) + 75;
+                let cy = Math.random() * (size - 150) + 75;
                 for (let i = 0; i < 30; i++) {
                     let angle = Math.random() * Math.PI * 2;
                     let r = Math.random() * spreadRadius;
-                    let px = Math.max(10, Math.min(width - 10, cx + Math.cos(angle) * r));
-                    let py = Math.max(10, Math.min(height - 10, cy + Math.sin(angle) * r));
-                    this.addPoint(px, py, cls);
+                    let px = Math.max(10, Math.min(size - 10, cx + Math.cos(angle) * r));
+                    let py = Math.max(10, Math.min(size - 10, cy + Math.sin(angle) * r));
+                    this.addPoint(px / size, py / size, cls);
                 }
             });
         }
@@ -548,7 +556,7 @@
             if (!this.data.queryPoint) return;
             let q = this.data.queryPoint;
             this.distances = this.data.points.map(p => {
-                let d = Math.sqrt(Math.pow(p.x - q.x, 2) + Math.pow(p.y - q.y, 2));
+                let d = Math.sqrt(Math.pow(p.rx - q.rx, 2) + Math.pow(p.ry - q.ry, 2));
                 return {point: p, dist: d};
             });
             this.distances.sort((a, b) => a.dist - b.dist);
@@ -623,6 +631,25 @@
             this.needsRedraw = true;
         }
 
+        /* 비율 좌표를 그릴 판. **x·y 에 같은 척도(짧은 변)를 쓰고** 남는 쪽은 가운데 둔다.
+           판은 정사각이라 대개 여백이 0 이지만, 잠깐이라도 어긋나면 점을 늘려 그려
+           화면의 가까움과 계산한 거리가 갈라지게 된다. */
+        view() {
+            const size = Math.min(this.actualWidth, this.actualHeight);
+            return {size, ox: (this.actualWidth - size) / 2, oy: (this.actualHeight - size) / 2};
+        }
+
+        toPx(p) {
+            const {size, ox, oy} = this.view();
+            return {x: ox + p.rx * size, y: oy + p.ry * size};
+        }
+
+        toRatio(x, y) {
+            const {size, ox, oy} = this.view();
+            const clamp = (v) => Math.max(0, Math.min(1, v));
+            return {rx: clamp((x - ox) / size), ry: clamp((y - oy) / size)};
+        }
+
         animate() {
             if (this.needsRedraw) {
                 this.draw();
@@ -653,6 +680,8 @@
             this.ctx.clearRect(0, 0, this.actualWidth, this.actualHeight);
 
             // 거리 계산 단계
+            const q = this.data.queryPoint ? this.toPx(this.data.queryPoint) : null;
+
             if (this.data.queryPoint && (phase === 'CALC' || phase === 'SELECT' || phase === 'DONE')) {
 
                 this.ctx.globalAlpha = phase === 'CALC' ? 0.3 : 0.05;
@@ -661,9 +690,10 @@
 
                 this.knn.distances.forEach(d => {
 
+                    const p = this.toPx(d.point);
                     this.ctx.beginPath();
-                    this.ctx.moveTo(this.data.queryPoint.x, this.data.queryPoint.y);
-                    this.ctx.lineTo(d.point.x, d.point.y);
+                    this.ctx.moveTo(q.x, q.y);
+                    this.ctx.lineTo(p.x, p.y);
                     this.ctx.stroke();
 
                 });
@@ -678,9 +708,10 @@
 
                 this.knn.kNeighbors.forEach(n => {
 
+                    const p = this.toPx(n.point);
                     this.ctx.beginPath();
-                    this.ctx.moveTo(this.data.queryPoint.x, this.data.queryPoint.y);
-                    this.ctx.lineTo(n.point.x, n.point.y);
+                    this.ctx.moveTo(q.x, q.y);
+                    this.ctx.lineTo(p.x, p.y);
 
                     this.ctx.strokeStyle = CLASS_COLORS[n.point.cls];
                     this.ctx.globalAlpha = 0.6;
@@ -688,7 +719,7 @@
                     this.ctx.globalAlpha = 1.0;
 
                     // 이웃 강조 표시
-                    this.drawPointShape(n.point.x, n.point.y, n.point.cls, 10);
+                    this.drawPointShape(p.x, p.y, n.point.cls, 10);
 
                     this.ctx.strokeStyle = '#334155';
                     this.ctx.lineWidth = 2;
@@ -699,7 +730,8 @@
             // 데이터 포인트
             this.data.points.forEach(p => {
 
-                this.drawPointShape(p.x, p.y, p.cls, 6);
+                const {x, y} = this.toPx(p);
+                this.drawPointShape(x, y, p.cls, 6);
 
                 this.ctx.fillStyle = CLASS_COLORS[p.cls];
                 this.ctx.fill();
@@ -712,14 +744,14 @@
             // Query Point
             if (this.data.queryPoint) {
 
-                let q = this.data.queryPoint;
+                const resultCls = this.data.queryPoint.resultCls;
 
                 this.ctx.beginPath();
                 this.ctx.arc(q.x, q.y, 12, 0, Math.PI * 2);
 
                 this.ctx.fillStyle =
-                    (phase === 'DONE' && q.resultCls)
-                        ? CLASS_COLORS[q.resultCls]
+                    (phase === 'DONE' && resultCls)
+                        ? CLASS_COLORS[resultCls]
                         : CLASS_COLORS['QUERY'];
 
                 this.ctx.fill();
@@ -880,15 +912,15 @@
 
     canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        let y = e.clientY - rect.top;
+        // 누른 자리를 곧바로 비율로 바꿔 담는다 — 픽셀은 판 크기가 바뀌면 뜻을 잃는다.
+        const {rx, ry} = renderer.toRatio(e.clientX - rect.left, e.clientY - rect.top);
 
         if (activeTool === 'QUERY') {
             if (dataManager.points.length === 0) {
                 alert("먼저 기존 데이터를 생성해주세요!");
                 return;
             }
-            dataManager.setQueryPoint(x, y);
+            dataManager.setQueryPoint(rx, ry);
             phase = 'IDLE';
             knn.voteCounts = {A: 0, B: 0, C: 0};
             updateVotingUI();
@@ -896,7 +928,7 @@
             stopAutoRun(); // 타이머 안전 정지
             updateFlowUI('IDLE', 'Query Point가 등록되었습니다! Step 버튼을 눌러 진행하세요.', 'fa-play-circle');
         } else {
-            dataManager.addPoint(x, y, activeTool);
+            dataManager.addPoint(rx, ry, activeTool);
 
             // [상태 불일치 오류 수정] 진행 중에 점이 추가되면 상태를 초기화하거나 즉시 재반영
             if (phase === 'CALC' || phase === 'SELECT') {

@@ -96,7 +96,12 @@ const MUTANTS = [
     ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', 'generateMoves(n - 1, aux, src, dst, moves);', 'generateMoves(n - 1, src, aux, dst, moves);', '재귀 해법의 기둥 순서 틀림'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', 'if (sh === ca && f !== sh) return false;', '', '양과 양배추를 두어도 안전'],
     ['sim-decision-tree', 'simulator/ai/supervised-decision-tree.html', 'gini -= p * p;', 'gini -= p;', '지니 불순도 식 틀림'],
-    ['sim-knn', 'simulator/ai/supervised-k-nn.html', 'let d = Math.sqrt(Math.pow(p.x - q.x, 2) + Math.pow(p.y - q.y, 2));', 'let d = Math.abs(p.x - q.x) + Math.abs(p.y - q.y);', '유클리드 대신 맨해튼'],
+    ['sim-knn', 'simulator/ai/supervised-k-nn.html', 'let d = Math.sqrt(Math.pow(p.rx - q.rx, 2) + Math.pow(p.ry - q.ry, 2));', 'let d = Math.abs(p.rx - q.rx) + Math.abs(p.ry - q.ry);', '유클리드 대신 맨해튼'],
+    // 비율 좌표를 그릴 때 판 크기를 안 보면 옛 결함(픽셀로 담아 크기가 바뀌어도 제자리)과 같다
+    ['sim-knn', 'simulator/ai/supervised-k-nn.html', 'return {x: ox + p.rx * size, y: oy + p.ry * size};', 'return {x: p.rx * 400, y: p.ry * 400};', '판 크기가 바뀌어도 옛 픽셀 자리에 그림'],
+    ['sim-knn', 'simulator/ai/supervised-k-nn.html', 'return {x: ox + p.rx * size, y: oy + p.ry * size};', 'return {x: p.rx * this.actualWidth, y: p.ry * this.actualHeight};', 'x·y 를 다른 척도로 그림'],
+    ['sim-kmeans', 'simulator/ai/unsupervised-k-means.html', 'return {x: ox + p.rx * size, y: oy + p.ry * size};', 'return {x: p.rx * 400, y: p.ry * 400};', '판 크기가 바뀌어도 옛 픽셀 자리에 그림'],
+    ['sim-kmeans', 'simulator/ai/unsupervised-k-means.html', 'dataManager.addPoint(rx, ry);', 'dataManager.addPoint(e.clientX - rect.left, e.clientY - rect.top);', '누른 자리를 픽셀로 담음'],
     ['sim-logistic', 'simulator/ai/supervised-logistic-regression.html', 'return 1 / (1 + Math.exp(-z));', 'return 1 / (1 + Math.exp(-2 * z));', '시그모이드 기울기 두 배'],
     ['sim-svm', 'simulator/ai/supervised-svm.html', 'if (margin < 1) {', 'if (margin < 0) {', '힌지 손실 여백 0'],
     ['sim-multiple-regression', 'simulator/ai/supervised-multiple-linear-regression.html', 'this.w2 -= this.learningRate * dw2;', 'this.w2 -= this.learningRate * dw1;', 'w2 를 dw1 로 갱신'],

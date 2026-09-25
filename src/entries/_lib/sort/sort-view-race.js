@@ -73,7 +73,11 @@ export function createSortRaceView(host) {
     let chartSvg = null;
     let chartTexts = null;   // 글자를 한 그룹에 모아 두고 배율의 역수를 건다
     const CHART_W = 720;
-    const CHART_FONT_PX = 12;
+    /* 화면에서 16px로 앉을 글자 크기. 그리는 폭이 좁을수록 viewBox 단위로는 커지므로
+       바닥(`CHART_MIN_W`)을 두고, 여백은 그 바닥에서의 글자 크기(`CHART_FONT_MAX`)에 맞춘다. */
+    const CHART_FONT_PX = 16;
+    const CHART_MIN_W = 420;
+    const CHART_FONT_MAX = (CHART_FONT_PX * CHART_W) / CHART_MIN_W;
 
     function buildLanes(raceFrame) {
         lanesBox.textContent = '';
@@ -136,16 +140,20 @@ export function createSortRaceView(host) {
         const {sizes, series} = work;
 
         const W = CHART_W;
-        const H = 300;
-        const padL = 54;
+        const H = 340;
+        const F = CHART_FONT_MAX;
+        // 세로 눈금(10^6)이 들어갈 폭 — 숫자 네 글자와 틈
+        const padL = Math.ceil(F * 2.2 + 8);
         // 오른쪽을 넉넉히 둔다 — 마지막 눈금(1000)이 가운데 맞춤이라 상자 밖으로 잘렸다.
-        const padR = 24;
-        const padT = 16;
-        const padB = 46;
+        const padR = Math.ceil(F * 1.2 + 4);
+        const padT = Math.ceil(F * 0.7);
+        // 가로 눈금 한 줄과 축 이름 한 줄
+        const padB = Math.ceil(F * 2.6);
 
         const maxWork = Math.max(1, ...series.flatMap((s) => s.work));
         // 세로는 로그 눈금. 2n과 n²을 한 그림에 담으려면 이것밖에 없다.
-        const logMax = Math.log10(maxWork);
+        // 맨 위를 10의 거듭제곱에 맞춘다. 맞추지 않으면 맨 위 눈금이 그림 위로 삐져나가 잘린다.
+        const logMax = Math.max(1, Math.ceil(Math.log10(maxWork)));
         const x = (i) => padL + ((W - padL - padR) * i) / Math.max(1, sizes.length - 1);
         const y = (v) => {
             const t = Math.log10(Math.max(1, v)) / logMax;
@@ -154,7 +162,7 @@ export function createSortRaceView(host) {
 
         const svg = raceSvg('svg', {
             viewBox: `0 0 ${W} ${H}`,
-            style: `width:100%;height:auto;display:block;margin:0 auto;max-width:${W}px;min-width:360px`,
+            style: `width:100%;height:auto;display:block;margin:0 auto;max-width:${W}px;min-width:${CHART_MIN_W}px`,
         });
         /* **SVG 글자는 그리는 폭에 비례해 줄어든다.** 720짜리를 520에 그리면
            `font-size="11"`이 화면에서 7.9px로 앉는다. 글자를 한 그룹에 모아 두고
@@ -169,7 +177,7 @@ export function createSortRaceView(host) {
                 stroke: '#e2e8f0', 'stroke-width': 1,
             }));
             const t = raceSvg('text', {
-                x: padL - 6, y: yy + 4, 'text-anchor': 'end', fill: '#94a3b8',
+                x: padL - 6, y: yy, 'text-anchor': 'end', 'dominant-baseline': 'middle', fill: '#94a3b8',
             });
             t.textContent = e === 0 ? '1' : `10^${e}`;
             chartTexts.appendChild(t);
@@ -177,7 +185,7 @@ export function createSortRaceView(host) {
 
         sizes.forEach((s, i) => {
             const t = raceSvg('text', {
-                x: x(i), y: H - padB + 16, 'text-anchor': 'middle', fill: '#64748b',
+                x: x(i), y: H - padB + 6, 'text-anchor': 'middle', 'dominant-baseline': 'hanging', fill: '#64748b',
             });
             t.textContent = String(s);
             chartTexts.appendChild(t);

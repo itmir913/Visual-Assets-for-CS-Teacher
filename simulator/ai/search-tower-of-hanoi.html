@@ -405,10 +405,10 @@
                 <div class="flex flex-wrap items-center gap-3 mb-4">
                     <span class="font-bold text-slate-600 text-base">원판 수:</span>
                     <div class="flex gap-2">
-                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-amber-400 bg-amber-100 text-amber-800 transition hover:bg-amber-200" onclick="setDiskCount(3)">3</button>
-                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setDiskCount(4)">4</button>
-                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setDiskCount(5)">5</button>
-                        <button class="disk-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setDiskCount(6)">6</button>
+                        <button class="disk-count-btn sim-hanoi-count on w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setDiskCount(3)">3</button>
+                        <button class="disk-count-btn sim-hanoi-count w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setDiskCount(4)">4</button>
+                        <button class="disk-count-btn sim-hanoi-count w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setDiskCount(5)">5</button>
+                        <button class="disk-count-btn sim-hanoi-count w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setDiskCount(6)">6</button>
                     </div>
                     <div class="text-slate-500 text-base font-medium ml-2">
                         이동: <span class="text-amber-600 font-black text-xl" id="manualMoves">0</span>
@@ -469,10 +469,10 @@
                 <div class="flex flex-wrap items-center gap-3 mb-4">
                     <span class="font-bold text-slate-600 text-base">원판 수:</span>
                     <div class="flex gap-2">
-                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-amber-400 bg-amber-100 text-amber-800 transition hover:bg-amber-200" onclick="setAiDiskCount(3)">3</button>
-                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setAiDiskCount(4)">4</button>
-                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setAiDiskCount(5)">5</button>
-                        <button class="ai-count-btn w-10 h-10 rounded-lg font-black text-base border-2 border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" onclick="setAiDiskCount(6)">6</button>
+                        <button class="ai-count-btn sim-hanoi-count on w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setAiDiskCount(3)">3</button>
+                        <button class="ai-count-btn sim-hanoi-count w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setAiDiskCount(4)">4</button>
+                        <button class="ai-count-btn sim-hanoi-count w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setAiDiskCount(5)">5</button>
+                        <button class="ai-count-btn sim-hanoi-count w-10 h-10 rounded-lg font-black text-base border-2 transition" onclick="setAiDiskCount(6)">6</button>
                     </div>
                     <div class="text-slate-500 text-base font-medium ml-2">
                         단계: <span class="text-amber-600 font-black text-xl" id="aiStepNum">0</span>
@@ -787,14 +787,16 @@ function showToast(msg, type) {
     if (_toast) _toast.remove();
     clearTimeout(_t1); clearTimeout(_t2);
     const t = document.createElement('div');
-    const bg = type === 'success' ? 'bg-amber-600' : type === 'error' ? 'bg-rose-500' : 'bg-slate-800';
     const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info';
-    t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 translate-y-20 opacity-0 z-[1000] flex items-center gap-3 ${bg} max-w-xs sm:max-w-md w-full`;
-    t.innerHTML = `<i class="fa-solid ${icon} text-xl shrink-0"></i><span class="text-base leading-snug">${msg}</span>`;
+    // 색은 종류(`ok` · `error`, 없으면 안내)가 정한다 → _sim-ui.css 의 sim-toast-card
+    t.className = 'sim-toast-card hanoi';
+    if (type === 'success') t.classList.add('ok');
+    if (type === 'error') t.classList.add('error');
+    t.innerHTML = `<i class="fa-solid ${icon} sim-toast-card-ico"></i><span class="sim-toast-card-msg">${msg}</span>`;
     window.fsOverlayHost().appendChild(t);
     _toast = t;
-    _t1 = setTimeout(() => t.classList.remove('translate-y-20', 'opacity-0'), 10);
-    _t2 = setTimeout(() => { t.classList.add('translate-y-20', 'opacity-0'); setTimeout(() => t.remove(), 300); }, 3200);
+    _t1 = setTimeout(() => t.classList.add('shown'), 10);
+    _t2 = setTimeout(() => { t.classList.remove('shown'); setTimeout(() => t.remove(), 300); }, 3200);
 }
 
 /* ============================================================
@@ -806,21 +808,21 @@ function checkAnswer(btn, isCorrect, msg) {
     btns.forEach(b => {
         if (!b.dataset.orig) b.dataset.orig = b.innerHTML;
         b.style.pointerEvents = 'none';
-        b.classList.add('opacity-50', 'disabled');
+        b.classList.add('sim-quiz-dim', 'disabled');
     });
-    btn.classList.remove('opacity-50');
+    btn.classList.remove('sim-quiz-dim');
     if (isCorrect) {
-        btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
-        btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i>${btn.dataset.orig}`;
+        btn.classList.add('sim-quiz-right');
+        btn.innerHTML = `<i class="fa-solid fa-circle-check sim-quiz-mark right"></i>${btn.dataset.orig}`;
     } else {
-        btn.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-700');
-        btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-rose-600"></i>${btn.dataset.orig}`;
+        btn.classList.add('sim-quiz-wrong');
+        btn.innerHTML = `<i class="fa-solid fa-circle-xmark sim-quiz-mark wrong"></i>${btn.dataset.orig}`;
     }
     showToast(msg, isCorrect ? 'success' : 'error');
     setTimeout(() => {
         btns.forEach(b => {
             b.style.pointerEvents = 'auto';
-            b.classList.remove('opacity-50', 'disabled', 'border-green-500', 'bg-green-50', 'text-green-700', 'border-rose-500', 'bg-rose-50', 'text-rose-700');
+            b.classList.remove('sim-quiz-dim', 'disabled', 'sim-quiz-right', 'sim-quiz-wrong');
             b.innerHTML = b.dataset.orig;
         });
     }, 3000);
@@ -956,12 +958,7 @@ function setDiskCount(n) {
     manualN = n;
     document.querySelectorAll('.disk-count-btn').forEach((b, i) => {
         const val = [3, 4, 5, 6][i];
-        b.classList.toggle('border-amber-400', val === n);
-        b.classList.toggle('bg-amber-100', val === n);
-        b.classList.toggle('text-amber-800', val === n);
-        b.classList.toggle('border-slate-200', val !== n);
-        b.classList.toggle('bg-white', val !== n);
-        b.classList.toggle('text-slate-600', val !== n);
+        b.classList.toggle('on', val === n);
     });
     resetManual();
 }
@@ -1051,12 +1048,7 @@ function setAiDiskCount(n) {
     aiN = n;
     document.querySelectorAll('.ai-count-btn').forEach((b, i) => {
         const val = [3, 4, 5, 6][i];
-        b.classList.toggle('border-amber-400', val === n);
-        b.classList.toggle('bg-amber-100', val === n);
-        b.classList.toggle('text-amber-800', val === n);
-        b.classList.toggle('border-slate-200', val !== n);
-        b.classList.toggle('bg-white', val !== n);
-        b.classList.toggle('text-slate-600', val !== n);
+        b.classList.toggle('on', val === n);
     });
     resetAI();
 }
@@ -1069,8 +1061,8 @@ function resetAI() {
     aiStep = 0;
     document.getElementById('aiStepNum').textContent = 0;
     document.getElementById('aiMaxSteps').textContent = aiSolution.length;
-    document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
-    document.getElementById('aiMoveLog').innerHTML = '<p class="text-slate-400 text-base text-center">버튼을 눌러 AI 풀이를 시작하세요</p>';
+    document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>자동 재생';
+    document.getElementById('aiMoveLog').innerHTML = '<p class="sim-rc-empty">버튼을 눌러 AI 풀이를 시작하세요</p>';
     renderTower('aiScene', aiPegs, aiN, -1);
 }
 
@@ -1091,12 +1083,12 @@ function updateAiLog(from, to, step) {
     const log = document.getElementById('aiMoveLog');
     if (step === 1) log.innerHTML = '';
     const badge = document.createElement('span');
-    badge.className = 'inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full font-bold text-base mr-2';
-    badge.innerHTML = `<span class="bg-amber-500 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-base font-black">${step}</span> ${pegName(from)}→${pegName(to)}`;
+    badge.className = 'sim-hanoi-move';
+    badge.innerHTML = `<span class="sim-hanoi-move-no">${step}</span> ${pegName(from)}→${pegName(to)}`;
     log.appendChild(badge);
     if (step === aiSolution.length) {
         const fin = document.createElement('span');
-        fin.className = 'inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-full font-bold text-base mr-2';
+        fin.className = 'sim-hanoi-move done';
         fin.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> 완성!';
         log.appendChild(fin);
     }
@@ -1106,18 +1098,18 @@ function toggleAiPlay() {
     if (aiPlaying) {
         clearInterval(aiTimer);
         aiPlaying = false;
-        document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+        document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>자동 재생';
         return;
     }
     if (aiStep >= aiSolution.length) { showToast('이미 완료되었습니다.', 'info'); return; }
     aiPlaying = true;
-    document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-pause mr-2"></i>일시 정지';
+    document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-pause sim-ico"></i>일시 정지';
     const speed = parseInt(document.getElementById('speedSelect').value);
     aiTimer = setInterval(() => {
         if (aiStep >= aiSolution.length) {
             clearInterval(aiTimer);
             aiPlaying = false;
-            document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+            document.getElementById('aiPlayBtn').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>자동 재생';
             return;
         }
         doAiStep();
@@ -1135,10 +1127,10 @@ function buildGraphPanel() {
 
     if (n > 3) {
         panel.innerHTML = `
-            <div class="text-center py-12">
-                <div class="text-6xl mb-4">📊</div>
-                <p class="text-slate-700 font-bold text-lg mb-2">원판이 ${n}개일 때 상태 수: <span class="text-orange-600">3^${n} = ${Math.pow(3,n).toLocaleString()}개</span></p>
-                <p class="text-slate-500 text-base">상태가 너무 많아 그래프로 그리지 않습니다. n=3(27개)일 때 그래프를 확인하려면 「직접 풀기」 탭에서 원판 수를 3으로 설정하세요.</p>
+            <div class="sim-hanoi-big">
+                <div class="sim-hanoi-big-ico">📊</div>
+                <p class="sim-hanoi-big-count">원판이 ${n}개일 때 상태 수: <span class="sim-hanoi-big-num">3^${n} = ${Math.pow(3,n).toLocaleString()}개</span></p>
+                <p class="sim-hanoi-big-why">상태가 너무 많아 그래프로 그리지 않습니다. n=3(27개)일 때 그래프를 확인하려면 「직접 풀기」 탭에서 원판 수를 3으로 설정하세요.</p>
             </div>`;
         return;
     }
@@ -1305,7 +1297,7 @@ function buildGraphPanel() {
     svg.appendChild(info);
 
     const wrapper = document.createElement('div');
-    wrapper.className = 'overflow-x-auto';
+    wrapper.className = 'sim-scroll-x';
     wrapper.appendChild(svg);
     panel.appendChild(wrapper);
 }

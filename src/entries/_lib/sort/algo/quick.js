@@ -34,7 +34,7 @@ export const quickSortAlgo = {
 
             rec.setRanges([{lo, hi, depth, state: 'active'}]);
             rec.pivotAt(hi);
-            rec.say(`${lo}~${hi} 구간 — 맨 끝 값을 피벗으로 삼고, 이보다 작은 것을 왼쪽으로 몰아냅니다.`);
+            rec.say(`${lo}~${hi}번 칸 — 맨 끝 값을 피벗으로 삼고, 이보다 작은 것을 왼쪽으로 몰아냅니다.`);
             rec.mark('pivot');
 
             /* `wall`은 «여기까지는 피벗보다 작다»는 경계다. 작은 값을 만날 때마다
@@ -56,7 +56,7 @@ export const quickSortAlgo = {
             rec.pivotAt(null);
             rec.cursor('경계', null);
             rec.fix(wall);
-            rec.say(`피벗이 ${wall}번 자리에 확정되었습니다. 왼쪽은 모두 작고 오른쪽은 모두 크거나 같습니다.`);
+            rec.say(`피벗이 ${wall}번 칸에 확정되었습니다. 왼쪽은 모두 작고 오른쪽은 모두 크거나 같습니다.`);
             rec.mark('fix');
 
             qsort(lo, wall - 1, depth + 1);

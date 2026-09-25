@@ -54,6 +54,11 @@ const DEFAULTS = {
     maxScale: 4,
     fitPadding: 40,
     maxFitScale: 1.2,
+    // 칸을 채운다 — 층 간격을 늘려 남는 세로를 쓰고, 위가 아니라 가운데 앉힌다.
+    // 폭에 묶인 넓은 트리는 배율을 더 올릴 수 없어 칸 위쪽에 납작하게 붙었다.
+    // `fillMaxExtra` 는 층 하나에 더할 수 있는 틈의 천장(트리 좌표 px).
+    fill: false,
+    fillMaxExtra: 120,
     focusScale: 1.2,
     viewMode: 'fit',              // 'fit' | 'track' | 'free'
     duration: 250,
@@ -192,7 +197,9 @@ export class TreeView {
         );
 
         const tx = box.width / 2 - ((minX + maxX) / 2) * scale;
-        const ty = pad - minY * scale;
+        const ty = this.opt.fill
+            ? box.height / 2 - ((minY + maxY) / 2) * scale
+            : pad - minY * scale;
 
         this._applyTransform(tx, ty, scale, duration);
         return this;
@@ -242,6 +249,8 @@ export class TreeView {
 
     /** 컨테이너 크기가 바뀐 뒤 화면을 다시 맞춘다. 탭을 켜거나 전체 화면에 들어갈 때 부른다. */
     resize(duration = 0) {
+        // `fill` 이면 층 간격이 칸 높이를 따르므로 노드 자리부터 다시 매긴다.
+        if (this.opt.fill && this.root) return this.update(duration);
         if (this.viewMode === 'fit') this.fit(duration);
         else if (this.viewMode === 'track' && this.activeId != null) this.focus(this.activeId, duration);
         return this;
@@ -280,6 +289,41 @@ export class TreeView {
      * 원처럼 크기가 일정한 노드만 쓰는 뷰는 `levelSeparation` 그대로 두면 되므로 건드리지 않는다.
      */
     _layout(root) {
+        this._layoutBase(root);
+        if (this.opt.fill) this._stretchLevels(root);
+        return root;
+    }
+
+    /**
+     * `fill` — 폭에 묶인 트리는 배율을 더 올릴 수 없으니, **층 간격을 늘려** 남는 세로를 쓴다.
+     * 글자와 상자 크기는 그대로이고 간선만 길어진다. 배율은 `fit` 과 같은 식으로 먼저 구해
+     * 두고, 그 배율로 칸 높이를 트리 좌표로 바꿔 모자란 만큼을 층마다 나눠 더한다.
+     * 칸 높이만 보고 정하므로 단계가 넘어가도 트리가 들썩이지 않는다.
+     */
+    _stretchLevels(root) {
+        const box = this._viewport();
+        if (!box) return;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, depth = 0;
+        root.each(d => {
+            const {w, h} = this._size(d);
+            minX = Math.min(minX, d.x - w / 2);
+            maxX = Math.max(maxX, d.x + w / 2);
+            minY = Math.min(minY, d.y - h / 2);
+            maxY = Math.max(maxY, d.y + h / 2);
+            depth = Math.max(depth, d.depth);
+        });
+        if (!depth || !Number.isFinite(minX)) return;
+        const pad = box.width < 640 ? this.opt.fitPadding / 2 : this.opt.fitPadding;
+        const treeH = Math.max(maxY - minY, 1);
+        const scale = Math.min((box.width - pad * 2) / Math.max(maxX - minX, 1),
+            (box.height - pad * 2) / treeH, this.opt.maxFitScale);
+        const room = (box.height - pad * 2) / scale - treeH;
+        if (!(room > 0)) return;
+        const extra = Math.min(room / depth, this.opt.fillMaxExtra);
+        root.each(d => { d.y += d.depth * extra; });
+    }
+
+    _layoutBase(root) {
         this.layout(root);
         if (!(this.opt.levelGap > 0)) return root;
 

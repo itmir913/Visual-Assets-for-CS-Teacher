@@ -281,6 +281,86 @@ for (const [name, id] of [['손으로 맞추기', 'hfRandom'], ['오차 곡선',
     }
 }
 
+// ── 학습 탭의 화면 — 되돌린 계수 · 평균제곱오차 · 회차 · 학습률 안내 ─────────────────
+// 모형은 0~1 로 줄인 값에서 배우고 화면에는 원래 단위의 기울기·절편을 적는다. 정답은
+// **원래 단위의 자료에서 닫힌 해로 따로 구한다** — 줄이지도 되돌리지도 않는 길이다.
+// 넷째 예제(거리 → 속도)는 기울기가 음수라 식의 부호 표기까지 함께 본다.
+{
+    const ui = page.window.uiController;
+    const 닫힌해 = (pts) => {
+        const n = pts.length, mx = pts.reduce((t, p) => t + p.x, 0) / n, my = pts.reduce((t, p) => t + p.y, 0) / n;
+        const a = pts.reduce((t, p) => t + (p.x - mx) * (p.y - my), 0) / pts.reduce((t, p) => t + (p.x - mx) ** 2, 0);
+        return {a, b: my - a * mx, mse: pts.reduce((t, p) => t + (a * p.x + my - a * mx - p.y) ** 2, 0) / n};
+    };
+    const 줄이기 = () => {
+        const bd = ui.dataManager.getBounds();
+        return ui.dataManager.points.map((p) => ({x: (p.x - bd.minX) / (bd.maxX - bd.minX), y: (p.y - bd.minY) / (bd.maxY - bd.minY)}));
+    };
+    const 가장큰고윳값 = (pts) => {
+        // 헤세 행렬 (2/N)[[Σx², Σx], [Σx, N]] 의 큰 고윳값 — 2×2 라 근의 공식으로 푼다
+        const n = pts.length, sxx = pts.reduce((t, p) => t + p.x * p.x, 0), sx = pts.reduce((t, p) => t + p.x, 0);
+        const A = 2 * sxx / n, B = 2 * sx / n, D = 2;
+        return (A + D + Math.sqrt((A - D) ** 2 + 4 * B * B)) / 2;
+    };
+    const 돌리기 = (pts, lr, 한도) => {
+        ui.model.w = 0; ui.model.b = 0; ui.model.epoch = 0; ui.model.diverged = false; ui.model.learningRate = lr;
+        for (let k = 0; k < 한도 && !ui.model.trainStep(pts); k++);
+        return ui.model.diverged;
+    };
+    const 고르개 = doc.getElementById('lrSlider');
+    const 고르개에 = (v) => { 고르개.value = String(v); 고르개.dispatchEvent(new page.window.Event('input')); return ui.model.learningRate; };
+    const 천장 = 고르개에(고르개.max);
+
+    for (const id of [1, 2, 3, 4]) {
+        ui.loadExample(id);
+        const 자료 = ui.dataManager.points.map((p) => ({...p}));
+        const 답 = 닫힌해(자료);
+        const 줄 = 줄이기();
+        ui.model.hasStarted = true;
+        돌리기(줄, 0.3, 50000);
+        ui.updateUI();
+        const 폭 = Math.max(1, Math.abs(답.a)), 높이 = Math.max(1, Math.abs(답.b));
+        if (!near(num('valSlope'), 답.a, 0.002 * 폭 + 0.0015)) bad(`학습 탭 예제 ${id}: 기울기를 ${txt('valSlope')} 로 적었다 — 닫힌 해는 ${답.a.toFixed(3)}`);
+        if (!near(num('valIntercept'), 답.b, 0.002 * 높이 + 0.0015)) bad(`학습 탭 예제 ${id}: 절편을 ${txt('valIntercept')} 로 적었다 — 닫힌 해는 ${답.b.toFixed(3)}`);
+        if (!near(num('valMSE'), 답.mse, 0.001 * 답.mse + 0.0015)) bad(`학습 탭 예제 ${id}: 평균제곱오차를 ${txt('valMSE')} 로 적었다 — 최솟값은 ${답.mse.toFixed(3)}`);
+        if (txt('valEpoch') !== String(ui.model.epoch)) bad(`학습 탭 예제 ${id}: 회차 칸 ${txt('valEpoch')} — 모형은 ${ui.model.epoch}회차`);
+        const m = txt('equationDisplay').match(/^y = (-?[\d.]+)x ([+-]) ([\d.]+)$/);
+        if (!m) bad(`학습 탭 예제 ${id}: 식 「${txt('equationDisplay')}」 을 읽을 수 없다`);
+        else {
+            const a = Number(m[1]), c = (m[2] === '-' ? -1 : 1) * Number(m[3]);
+            if (!near(a, 답.a, 0.002 * 폭 + 0.006) || !near(c, 답.b, 0.002 * 높이 + 0.006)) bad(`학습 탭 예제 ${id}: 식 「${txt('equationDisplay')}」 — 닫힌 해는 y = ${답.a.toFixed(2)}x + (${답.b.toFixed(2)})`);
+        }
+        if ((id === 4) !== (답.a < 0)) bad(`학습 탭 예제 ${id}: 자료의 기울기 ${답.a.toFixed(3)} — 설명 「${txt('exampleDesc')}」 의 방향과 다르다`);
+
+        // 평균제곱오차 경사 하강은 학습률이 2/λ 를 넘으면 발산한다 — 안내의 칸과 맞대어 본다
+        const 경계 = 2 / 가장큰고윳값(줄);
+        if (!(경계 > 0.5)) bad(`학습률 안내: 예제 ${id} 는 ${경계.toFixed(3)} 부터 발산하는데 0.5 까지를 「적당」이라 한다`);
+        if (!(경계 < 1.2)) bad(`학습률 안내: 예제 ${id} 는 ${경계.toFixed(3)} 까지 발산하지 않는데 1.2 를 넘으면 「거의 항상 발산」이라 한다`);
+        if (돌리기(줄, 경계 * 0.9, 50000)) bad(`학습률: 예제 ${id} 에서 ${(경계 * 0.9).toFixed(3)}(경계 아래)인데 발산했다고 한다`);
+        if (!돌리기(줄, 경계 * 1.1, 50000)) bad(`학습률: 예제 ${id} 에서 ${(경계 * 1.1).toFixed(3)}(경계 위)인데 발산을 알아채지 못한다`);
+        if (!돌리기(줄, 천장, 5000)) bad(`학습률: 예제 ${id} 에서 고르개 천장 ${천장.toFixed(2)} 인데 발산을 알아채지 못한다`);
+    }
+    for (const v of [0, 20, 50, 70, 85, 95, 100]) {
+        const lr = 고르개에(v);
+        const 기대 = lr < 0.01 ? '너무 작습니다' : lr <= 0.5 ? '적당한' : lr <= 1.2 ? '큽니다. 직선이' : '거의 항상 발산';
+        if (!txt('lrHint').includes(기대)) bad(`학습률 안내: 학습률 ${lr.toFixed(3)} 에서 「${txt('lrHint')}」 — 「${기대}」 칸이다`);
+    }
+
+    // 화면으로 돌려 발산하면 버튼이 그렇게 말하고, 다시 해 볼 수 있게 열어 두는가
+    ui.loadExample(1);
+    고르개에(고르개.max);
+    doc.getElementById('btnTrain').click();
+    for (let k = 0; k < 2000 && ui.model.isTraining; k++) ui.loop();
+    const 버튼 = doc.getElementById('btnTrain');
+    if (!ui.model.diverged) bad('학습 탭: 고르개 천장으로 돌렸는데 발산하지 않았다');
+    else if (!버튼.textContent.includes('학습률') || 버튼.disabled) bad(`학습 탭: 발산했는데 버튼이 「${버튼.textContent.trim()}」 (잠김 ${버튼.disabled})`);
+    고르개에(50);
+    doc.getElementById('btnTrain').click();
+    for (let k = 0; k < 20000 && ui.model.isTraining; k++) ui.loop();
+    if (ui.model.diverged) bad('학습 탭: 발산한 뒤 학습률을 낮춰 다시 눌렀는데 또 발산했다 — 튄 값을 그대로 이어 받았다');
+    else if (!버튼.textContent.includes('수렴')) bad(`학습 탭: 학습률을 낮춰 다시 돌렸는데 버튼이 「${버튼.textContent.trim()}」`);
+}
+
 for (const e of page.errors) bad(`콘솔 오류: ${e.slice(0, 140)}`);
 
 console.log(`최소제곱 두 절 — 정사각형 ${rects.length}개의 한 변이 오차와 같은지, `

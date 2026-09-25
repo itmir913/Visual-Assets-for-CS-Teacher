@@ -63,7 +63,7 @@ function longestRun(text) {
  * 시뮬레이터가 잎을 걸어 내려가 세는 것과 **셈이 완전히 다른 길**이다.
  */
 function optimalBits(text) {
-    const freq = frequencies(text).map((f) => f.n);
+    const freq = 따로세기(text).map((f) => f.n);
     if (freq.length === 0) return 0;
     if (freq.length === 1) return text.length;      // 한 가지뿐이면 한 비트씩
     const q = [...freq].sort((a, b) => a - b);
@@ -116,9 +116,102 @@ function mulberry(seed) {
 
 const rng = mulberry(20260826);
 const 글감 = [...손으로_고른_글];
-for (let k = 0; k < 300; k++) {
+for (let k = 0; k < 2500; k++) {
     글감.push(무작위글(rng, 1 + Math.floor(rng() * 8), 1 + Math.floor(rng() * 24)));
 }
+/* **글자 두 가지짜리 글을 따로 더 넣는다.** 키워드가 두 조각의 이득을 똑같이 매기는
+   글이 여기서 가장 잘 나온다 — 동점 규칙은 그런 글이 있어야 밟힌다. */
+for (let k = 0; k < 1000; k++) {
+    글감.push(무작위글(rng, 2, 6 + Math.floor(rng() * 19)));
+}
+
+/** 글자별 횟수를 **나온 순서대로** 다시 센다. `frequencies`를 부르지 않는다. */
+function 따로세기(text) {
+    const 순서 = [];
+    const 수 = {};
+    for (let i = 0; i < text.length; i++) {
+        const c = text.charAt(i);
+        if (!(c in 수)) { 수[c] = 0; 순서.push(c); }
+        수[c] += 1;
+    }
+    return 순서.map((ch) => ({ch, n: 수[ch]}));
+}
+
+/** 가짓수 k를 구별하는 데 드는 비트. `symbolBits`와 달리 **2를 거듭 곱해** 구한다. */
+function 폭(k) {
+    let b = 1;
+    while (2 ** b < k) b++;
+    return b;
+}
+
+/**
+ * 허프만 코드표를 **따로 짠 우선순위 큐로** 만든다.
+ *
+ * 화면에 적어 둔 규칙 둘을 그대로 옮긴다 — 가장 작은 둘을 꺼내되 **동점이면 먼저
+ * 만들어진 것부터**, 묶을 때는 **자주 나오는 쪽이 왼쪽(0)**, 같으면 먼저 만든 쪽이 왼쪽.
+ * 시뮬레이터는 숲을 통째로 정렬하고, 여기서는 매번 가장 작은 하나를 훑어 꺼낸다.
+ */
+function 따로허프만(text) {
+    let made = 0;
+    const pool = 따로세기(text).map(({ch, n}) => ({ch, n, t: made++, kids: null}));
+    const take = () => {
+        let k = 0;
+        for (let i = 1; i < pool.length; i++) {
+            if (pool[i].n < pool[k].n || (pool[i].n === pool[k].n && pool[i].t < pool[k].t)) k = i;
+        }
+        return pool.splice(k, 1)[0];
+    };
+    while (pool.length > 1) {
+        const a = take();
+        const b = take();
+        const [l, r] = (a.n > b.n || (a.n === b.n && a.t < b.t)) ? [a, b] : [b, a];
+        pool.push({ch: null, n: a.n + b.n, t: made++, kids: [l, r]});
+    }
+    const codes = {};
+    const walk = (nd, p) => {
+        if (!nd.kids) { codes[nd.ch] = p || '0'; return; }
+        walk(nd.kids[0], p + '0');
+        walk(nd.kids[1], p + '1');
+    };
+    if (pool.length) walk(pool[0], '');
+    return codes;
+}
+
+/** 겹치지 않게 왼쪽부터 센 횟수. `countPieces`를 부르지 않는다. */
+function 겹침없이(text, piece) {
+    let n = 0;
+    let i = 0;
+    while (i + piece.length <= text.length) {
+        if (text.substr(i, piece.length) === piece) { n++; i += piece.length; } else i++;
+    }
+    return n;
+}
+
+/**
+ * 키워드가 **지금 글에서 골라야 할 조각**을 따로 구한다.
+ * 이득 = 줄어드는 글자 × 지금 폭 − (기호 하나 + 낱말 글자 × 원래 폭).
+ * 같으면 긴 것, 그다음은 처음 나온 자리가 앞인 것. 동점이 있었는지도 함께 돌려준다.
+ */
+function 따로고르기(now, 원래폭) {
+    const w = 폭(new Set(now).size);
+    const 후보 = [];
+    for (let L = 2; L <= now.length; L++) {
+        for (let i = 0; i + L <= now.length; i++) {
+            const piece = now.substr(i, L);
+            if (후보.some((c) => c.piece === piece)) continue;
+            if (KEYWORD_SYMBOLS.some((s) => piece.includes(s))) continue;
+            const t = 겹침없이(now, piece);
+            if (t < 2) continue;
+            후보.push({piece, L, first: i, gain: t * (L - 1) * w - (w + L * 원래폭)});
+        }
+    }
+    후보.sort((a, b) => (b.gain - a.gain) || (b.L - a.L) || (a.first - b.first));
+    const best = 후보[0];
+    if (!best || best.gain <= 0) return {best: null, 동점: false};
+    return {best, 동점: 후보.length > 1 && 후보[1].gain === best.gain};
+}
+
+let 키워드동점 = 0;
 
 /* ================================================================
    대 보기
@@ -214,6 +307,56 @@ for (const text of 글감) {
     if (고른가 && 이의거듭 && h.bodyBits !== text.length * w) {
         bad(`${where허}: 횟수가 고르고 ${ns.length}가지인데 ${h.bodyBits}비트다 — ${text.length * w}이어야 한다`);
     }
+    /* 반대쪽도 화면이 적어 두었다 — 「가짓수가 3·5·6처럼 어정쩡하면 횟수가 고르더라도 조금 줄어듭니다」. */
+    if (고른가 && !이의거듭 && h.bodyBits >= text.length * w) {
+        bad(`${where허}: 횟수가 고르고 ${ns.length}가지인데 ${h.bodyBits}비트다 — ${text.length * w}보다 작아야 한다`);
+    }
+
+    /* **센 횟수가 맞는가.** 트리가 옳아도 횟수를 잘못 세면 엉뚱한 글자가 짧아진다. */
+    const 참횟수 = 따로세기(text);
+    if (JSON.stringify(frequencies(text)) !== JSON.stringify(참횟수)) {
+        bad(`${where허}: 센 횟수가 ${JSON.stringify(frequencies(text))}인데 따로 세면 ${JSON.stringify(참횟수)}`);
+    }
+
+    /* **코드 자체를 따로 짠 큐와 댄다.** 길이 합(최적성)만 보면 동점 규칙과 좌우 규칙이
+       틀려도 통과한다 — 총 비트는 어떤 허프만 트리든 같기 때문이다. 그런데 화면은
+       「같은 글은 늘 같은 트리」「자주 나오는 쪽이 왼쪽」이라고 적어 두었다. */
+    const 참코드 = 따로허프만(text);
+    for (const {ch} of 참횟수) {
+        if (codes.get(ch) !== 참코드[ch]) {
+            bad(`${where허}: ${ch}의 코드가 ${codes.get(ch)}인데 규칙대로면 ${참코드[ch]}다`);
+            break;
+        }
+    }
+    if (codes.size !== 참횟수.length) bad(`${where허}: 코드가 ${codes.size}개인데 글자는 ${참횟수.length}가지다`);
+
+    /* 본문 비트 = Σ 코드 길이 × 횟수. 조각을 더하지 않고 **코드표와 따로 센 횟수로** 낸다. */
+    const 길이합 = 참횟수.reduce((a, {ch, n}) => a + (참코드[ch] || '').length * n, 0);
+    if (text.length && h.bodyBits !== 길이합) bad(`${where허}: ${h.bodyBits}비트인데 Σ 길이×횟수는 ${길이합}`);
+
+    /* 「자주 나온 글자일수록 코드가 짧습니다」 — 더 자주 나온 글자가 더 긴 코드를 받으면 거짓이 된다. */
+    for (const a of 참횟수) {
+        for (const b of 참횟수) {
+            if (a.n > b.n && codes.get(a.ch).length > codes.get(b.ch).length) {
+                bad(`${where허}: ${a.ch}(${a.n}번)가 ${b.ch}(${b.n}번)보다 코드가 길다`);
+            }
+        }
+    }
+
+    /* **장마다 고른 둘이 정말 가장 작은 둘인가.** 끝의 트리만 보면 도중의 장이 엉뚱한 둘을
+       «골랐다고 말하는» 것을 못 잡는다. 동점이면 먼저 만들어진 것부터다. */
+    const 고른장 = h.frames.filter((f) => f.act.kind === 'pick');
+    if (text.length && 고른장.length !== 참횟수.length - 1) {
+        bad(`${where허}: 묶기가 ${고른장.length}번인데 ${참횟수.length - 1}번이어야 한다`);
+    }
+    for (const f of 고른장) {
+        const 순 = [...f.extra.forest].sort((x, y) => (x.n !== y.n ? x.n - y.n : x.seq - y.seq));
+        const [p, q] = f.extra.picked;
+        if (p !== 순[0].seq || q !== 순[1].seq) {
+            bad(`${where허}: 숲 ${순.map((t) => `${t.seq}:${t.n}`).join(' ')}에서 ${p}·${q}를 골랐다`);
+            break;
+        }
+    }
 
     /* ---- 키워드 ---- */
     const kw = keywordEncode(text);
@@ -260,6 +403,62 @@ for (const text of 글감) {
     const 예상사전 = kw.dict.reduce((a, d) => a + 예상폭 + d.piece.length * 원래폭, 0);
     if (kw.tableBits !== 예상사전) {
         bad(`${where키}: 사전 ${kw.tableBits}비트인데 따로 세면 ${예상사전}비트`);
+    }
+
+    /* **장마다 고른 조각이 정말 이득이 가장 큰가.** 조각을 모두 늘어놓고 따로 셈해
+       댄다. 멈춘 장에서는 이득이 남은 조각이 없어야 한다 — 「이득이 없어지면 멈춘다」. */
+    for (const f of kw.frames) {
+        if (f.act.kind !== 'pick' && f.act.kind !== 'stop') continue;
+        const {best, 동점} = 따로고르기(f.extra.now, 원래폭);
+        if (f.act.kind === 'stop') {
+            if (best) bad(`${where키}: 「${f.extra.now}」에서 멈췄는데 ${best.piece}의 이득이 ${best.gain}비트 남았다`);
+            continue;
+        }
+        if (!best || f.extra.picked !== best.piece) {
+            bad(`${where키}: 「${f.extra.now}」에서 ${f.extra.picked}를 골랐는데 따로 고르면 ${best && best.piece}다`);
+            break;
+        }
+        if (동점) 키워드동점++;
+    }
+    /* 기호를 다 쓰지 않았는데 멈춘 장이 없으면 「왜 멈췄는지」를 말하지 않은 것이다. */
+    if (text.length && kw.dict.length < KEYWORD_SYMBOLS.length && !kw.frames.some((f) => f.act.kind === 'stop')) {
+        bad(`${where키}: 기호가 남았는데 멈춘 까닭을 말하는 장이 없다`);
+    }
+}
+
+/* **동점 규칙이 실제로 밟혔는가.** 동점인 글이 하나도 없었다면 위 대조는 동점 규칙을
+   보지 못한 채 초록이다 — 예전에 「값으로 확인하지 못했다」고 적어 두었던 자리다. */
+if (키워드동점 === 0) bad('키워드: 이득이 같은 조각이 겨룬 글이 하나도 없었다 — 동점 규칙이 검사되지 않는다');
+console.log(`  키워드 동점을 가린 장 ${키워드동점}번`);
+
+/* 압축률을 따로 셈한다 — 줄어든 비율을 백분율로, 소수 첫째 자리까지. */
+for (const [전, 후] of [[20, 15], [40, 50], [10, 10], [3, 1], [24, 7]]) {
+    const 참 = Math.round(((전 - 후) / 전) * 1000) / 10;
+    if (compressRate(전, 후) !== 참) bad(`압축률: ${전}→${후}가 ${compressRate(전, 후)}%인데 ${참}%다`);
+}
+/* 「화면 읽는 법」이 드는 예 — 「글자가 여덟 가지면 하나에 3비트」. */
+for (const [k, b] of [[1, 1], [2, 1], [3, 2], [4, 2], [5, 3], [8, 3], [9, 4], [16, 4], [17, 5]]) {
+    if (symbolBits(k) !== b) bad(`글자 폭: ${k}가지가 ${symbolBits(k)}비트인데 ${b}비트다`);
+}
+
+/* ---- 프리셋 안내가 말한 것이 참인가 ----
+   안내는 「런 렝스에서 음수」「허프만은 줄입니다」처럼 **값을 두고 단정한다.**
+   프리셋 글이나 셈이 바뀌면 그 말이 조용히 거짓이 된다. */
+{
+    const 률 = (id, 글) => {
+        const out = COMPRESS_METHODS.find((m) => m.id === id).run(글);
+        return compressRate(out.beforeBits, out.bodyBits);
+    };
+    const 글 = (id) => COMPRESS_PRESETS.find((p) => p.id === id).text;
+    if (!(률('rle', 글('runs')) > 0)) bad('프리셋 runs: 런 렝스가 노리는 모양인데 줄지 않는다');
+    if (!(률('rle', 글('flat')) < 0)) bad('프리셋 flat: 런 렝스가 늘어난다고 했는데 아니다');
+    if (률('huffman', 글('flat')) !== 0) bad('프리셋 flat: 허프만이 그대로라 했는데 아니다');
+    if (!(률('rle', 글('none')) < 0)) bad('프리셋 none: 런 렝스가 음수라 했는데 아니다');
+    if (!(률('huffman', 글('none')) > 0)) bad('프리셋 none: 허프만이 줄인다고 했는데 아니다');
+    if (률('huffman', 글('same')) !== 0) bad('프리셋 same: 허프만이 하나도 못 줄인다고 했는데 아니다');
+    const 낱말 = 글('word');
+    if (!(률('keyword', 낱말) >= Math.max(률('rle', 낱말), 률('huffman', 낱말)))) {
+        bad('프리셋 word: 키워드가 노리는 모양인데 다른 방법이 더 줄인다');
     }
 }
 
@@ -309,8 +508,8 @@ for (const text of 글감) {
 
    **이것은 「동점일 때 긴 쪽」을 대 보는 것이 아니다.** 여기 둘은 이득이 달라 동점이
    아니다. 순회 순서를 뒤집어도 이 검사는 통과한다 — 최댓값을 고르는 데 살피는 순서가
-   상관없기 때문이다. **동점 규칙은 값으로 확인하지 못했다.**
-   이득이 꼭 같아지는 글을 지어내야 하는데, 그 글이 무엇인지 찾지 못했다. */
+   상관없기 때문이다. **동점 규칙은 위의 `따로고르기` 대조가 본다** — 글자 두 가지짜리
+   글에서 이득이 같은 조각이 겨루는 장을 세어, 하나도 없으면 빨간불을 켠다. */
 {
     const kw = keywordEncode('ABCABCABCABC');
     if (!kw.dict.length) {
@@ -503,9 +702,69 @@ for (const p of COMPRESS_PRESETS) {
             }
             // 프리셋 안내가 실제로 갈리는가
             if (!속('preset-hint').length) bad(`${어디}: 프리셋 안내가 비어 있다`);
+
+            /* **「가장 많이 줄임」 표시가 가장 많이 줄인 줄에만 붙는가.** 늘어난 판에서는 붙지 않는다. */
+            const 줄들 = [...sim.doc.querySelectorAll('#race-table tbody tr')];
+            const 률들 = COMPRESS_METHODS.map((mm) => {
+                const o = mm.run(p.text);
+                return compressRate(o.beforeBits, o.bodyBits);
+            });
+            const 최고률 = Math.max(...률들);
+            줄들.forEach((tr, k) => {
+                const 붙음 = tr.textContent.includes('가장 많이 줄임');
+                const 붙어야 = 률들[k] === 최고률 && 최고률 > 0;
+                if (붙음 !== 붙어야) {
+                    bad(`${어디}: ${COMPRESS_METHODS[k].id} 줄(${률들[k]}%)에 「가장 많이 줄임」이 ${붙음 ? '붙었다' : '없다'}`);
+                }
+            });
+
+            /* **그린 트리의 0·1을 따라가면 코드표와 같은 코드가 나와야 한다.**
+               트리 뷰는 진짜 d3 로 그려지므로, 간선 글자에 매인 데이터를 거슬러 올라가 읽는다. */
+            if (m.id === 'huffman') {
+                const 간선 = new Map();
+                for (const el of sim.doc.querySelectorAll('#tree-host .tv-edge-label')) {
+                    const d = el.__data__;
+                    if (d && d.target) 간선.set(d.target, el.textContent);
+                }
+                const 참코드 = 따로허프만(p.text);
+                const 읽은 = {};
+                for (const 대상 of 간선.keys()) {
+                    if (대상.children && 대상.children.length) continue;
+                    let 코드 = '';
+                    for (let nd = 대상; nd && 간선.has(nd); nd = nd.parent) 코드 = 간선.get(nd) + 코드;
+                    읽은[대상.data.ch] = 코드;
+                }
+                // 글자가 한 가지뿐이면 간선이 없다 — 그림에서 읽을 코드가 없는 것이 맞다
+                if (Object.keys(참코드).length > 1) {
+                    for (const [ch, want] of Object.entries(참코드)) {
+                        if (읽은[ch] !== want) {
+                            bad(`${어디}: 그린 트리에서 ${ch}를 따라가면 ${읽은[ch]}인데 ${want}여야 한다`);
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     if (sim.errors.length) bad(`화면: 탭·프리셋을 누르는 동안 오류가 났다 — ${sim.errors[0]}`);
+
+    /* **직접 적어 넣는 길.** 프리셋은 모두 어느 방법이든 하나는 줄이므로, 「아무도 못 줄이는
+       글」에서 표시가 빠지는지는 적어 넣어야 밟힌다. 틀린 입력은 막고 앞 글을 그대로 둔다. */
+    const 넣기 = (v) => { sim.el('text-input').value = v; sim.el('btn-apply').click(); };
+    넣기('ab');
+    if (sim.el('text-input').value !== 'AB') bad(`입력: 소문자를 대문자로 바꾸지 않았다 — 「${sim.el('text-input').value}」`);
+    if (속('race-table').includes('가장 많이 줄임')) bad('입력 AB: 아무 방법도 못 줄였는데 「가장 많이 줄임」이 붙었다');
+    for (const [틀린, 까닭] of [['', '빈 글'], ['A1B', '숫자'], ['가나', '한글'], ['A'.repeat(COMPRESS_MAX_LEN + 1), '천장 넘김']]) {
+        넣기(틀린);
+        if (!글자('input-error').trim()) bad(`입력 ${까닭}: 막았다는 말이 없다`);
+        if (sim.el('text-input').value !== 틀린 && 틀린 !== '') {
+            // 틀린 글은 입력 칸에 그대로 남아 고칠 수 있어야 한다
+            bad(`입력 ${까닭}: 입력 칸이 「${sim.el('text-input').value}」로 바뀌었다`);
+        }
+    }
+    넣기('A'.repeat(COMPRESS_MAX_LEN));
+    if (글자('input-error').trim()) bad(`입력 ${COMPRESS_MAX_LEN}자: 천장과 같은데 막았다 — ${글자('input-error')}`);
+    if (sim.errors.length) bad(`화면: 적어 넣는 동안 오류가 났다 — ${sim.errors[0]}`);
 
     console.log(`  화면 — 방법 ${COMPRESS_METHODS.length} × 프리셋 ${COMPRESS_PRESETS.length}`
         + ` = ${밟은판}판을 눌러 봤다. 가짜로 때운 것: ${때운것}`

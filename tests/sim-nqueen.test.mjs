@@ -55,15 +55,15 @@ function 규칙대로의걸음(N) {
         }
         for (let col = 0; col < N; col++) {
             const 다음길 = 길 + '-' + col;
-            걸음.push({type: 'try', row, col, path: 다음길});
+            걸음.push({type: 'try', row, col, path: 다음길, state: [...판]});
             if (안전한가(판, row, col)) {
                 판[row] = col;
-                걸음.push({type: 'place', row, col, path: 다음길});
+                걸음.push({type: 'place', row, col, path: 다음길, state: [...판]});
                 if (파고들기(row + 1, 다음길)) return true;
                 판[row] = -1;
-                걸음.push({type: 'backtrack', row, col, path: 다음길});
+                걸음.push({type: 'backtrack', row, col, path: 다음길, state: [...판]});
             } else {
-                걸음.push({type: 'prune', row, col, path: 다음길});
+                걸음.push({type: 'prune', row, col, path: 다음길, state: [...판]});
             }
         }
         return false;
@@ -105,7 +105,9 @@ for (const N of [4, 5, 6, 8]) {
     let 어긋난자리 = -1;
     for (let i = 0; i < Math.min(페이지걸음.length, 기대걸음.length); i++) {
         const a = 페이지걸음[i], b = 기대걸음[i];
-        if (a.type !== b.type || (b.type !== 'solution' && (a.row !== b.row || a.col !== b.col || a.path !== b.path))) {
+        // 걸음마다 **그 순간의 판**까지 맞댄다 — 되짚을 때 퀸을 거두지 않으면 판에 옛 퀸이 남아 보인다
+        if (a.type !== b.type || (b.type !== 'solution' && (a.row !== b.row || a.col !== b.col || a.path !== b.path
+            || a.state.join(',') !== b.state.join(',')))) {
             어긋난자리 = i;
             break;
         }
@@ -237,6 +239,148 @@ for (let r = 0; r < 5; r++) {
         }
     }
 }
+
+/* ================================================================
+   7. 비트마스크로 따로 구한 정답 — 해의 개수 · 처음 만나는 답 · 시도 횟수
+   ================================================================ */
+// 위의 「규칙대로의걸음」은 페이지와 같은 모양(대각선을 절댓값으로 비교)이라 같은 버그를 나눠 가질 수 있다.
+// 여기서는 **열 · 두 대각선을 비트로 들고 가는 다른 방법**으로 정답을 다시 구한다.
+/** 모든 해를 사전순으로 — 열을 작은 번호부터 보므로 나오는 차례가 곧 사전순이다. */
+function 비트로모든해(N) {
+    const 해들 = [], 판 = [];
+    const 파고들기 = (row, cols, d1, d2) => {
+        if (row === N) { 해들.push([...판]); return; }
+        for (let c = 0; c < N; c++) {
+            const bc = 1 << c, b1 = 1 << (row + c), b2 = 1 << (row - c + N - 1);
+            if ((cols & bc) || (d1 & b1) || (d2 & b2)) continue;
+            판[row] = c;
+            파고들기(row + 1, cols | bc, d1 | b1, d2 | b2);
+        }
+    };
+    파고들기(0, 0, 0, 0);
+    return 해들;
+}
+/** 첫 해를 찾을 때까지 「놓아 볼 칸」을 몇 번 검사했는가 — 화면의 [방문] 이 세는 것. */
+function 비트로센시도(N) {
+    let 시도 = 0;
+    const 파고들기 = (row, cols, d1, d2) => {
+        if (row === N) return true;
+        for (let c = 0; c < N; c++) {
+            시도++;
+            const bc = 1 << c, b1 = 1 << (row + c), b2 = 1 << (row - c + N - 1);
+            if ((cols & bc) || (d1 & b1) || (d2 & b2)) continue;
+            if (파고들기(row + 1, cols | bc, d1 | b1, d2 | b2)) return true;
+        }
+        return false;
+    };
+    파고들기(0, 0, 0, 0);
+    return 시도;
+}
+// 이 검사 자신의 정답이 맞는지부터 — 알려진 해의 개수(n=1..8)
+const 알려진개수 = [1, 0, 0, 2, 10, 4, 40, 92];
+for (let n = 1; n <= 8; n++) {
+    const k = 비트로모든해(n).length;
+    if (k !== 알려진개수[n - 1]) bad(`검사 자체: ${n}-퀸 해를 ${k}개로 셌다 — 알려진 값은 ${알려진개수[n - 1]}개`);
+}
+for (const N of [4, 5, 6, 8]) {
+    const 모든해 = 비트로모든해(N);
+    const 해이름 = new Set(모든해.map((s) => s.join(',')));
+    doc.getElementById('boardSize').value = String(N);
+    P('initGame()');
+    const 페이지걸음 = P(`[...dfsGenerator(0, 'root', Array(${N}).fill(-1))]`);
+    const 답걸음 = 페이지걸음.at(-1);
+    if (!답걸음 || 답걸음.type !== 'solution' || 답걸음.state.join(',') !== 모든해[0].join(',')) {
+        bad(`${N}-퀸: 페이지가 내놓은 답이 사전순 첫 해 [${모든해[0]}] 가 아니다`);
+    }
+    const 페이지시도 = 페이지걸음.filter((s) => s.type === 'try').length;
+    if (페이지시도 !== 비트로센시도(N)) bad(`${N}-퀸: 시도 ${페이지시도}번 — 비트로 따로 세면 ${비트로센시도(N)}번`);
+    // 걸음마다 판에 놓인 퀸끼리는 부딪히지 않는다(가지치기가 제자리에서 일어났다는 뜻)
+    for (const s of 페이지걸음) {
+        const 놓인행 = s.state.map((c, r) => [r, c]).filter(([, c]) => c >= 0);
+        for (const [r, c] of 놓인행) {
+            if (!안전한가(s.state.map((x) => (x < 0 ? -99 : x)), r, c)) { bad(`${N}-퀸: 판에 서로 부딪히는 퀸이 올라간 걸음이 있다`); break; }
+        }
+    }
+    // 힌트는 실제 해 가운데 하나다
+    sim.window.iqChangeSize(N);
+    sim.window.iqShowHint();
+    const 힌트열 = [...doc.getElementById('iq-hint-text').textContent.matchAll(/(\d+)행→(\d+)열/g)].map((m) => Number(m[2]) - 1);
+    sim.window.iqShowHint();
+    if (!해이름.has(힌트열.join(','))) bad(`직접 해 보기 ${N}: 힌트 [${힌트열}] 가 ${N}-퀸의 해 ${모든해.length}개 가운데 없다`);
+}
+
+/* ================================================================
+   8. 설명문의 수 — 화면이 한 말이 실제로 센 것과 같은가
+   ================================================================ */
+{
+    const 본문 = doc.body.textContent.replace(/\s+/g, ' ');
+    const 방문 = 본문.match(/\[방문\]\s*([\d,]+)칸/);
+    if (!방문) bad('설명문: 「[방문] ○칸」 문장을 찾지 못했다');
+    else if (Number(방문[1].replace(/,/g, '')) !== 비트로센시도(8)) {
+        bad(`설명문: 8×8 첫 답까지 [방문] ${방문[1]}칸이라고 적었는데 실제로는 ${비트로센시도(8)}칸이다`);
+    }
+    const 완전탐색 = 본문.match(/(\d{1,3}(?:,\d{3})+)가지/);
+    if (!완전탐색 || Number(완전탐색[1].replace(/,/g, '')) !== 8 ** 8) {
+        bad(`설명문: 완전탐색 가짓수를 ${완전탐색?.[1]} 로 적었다 — 8을 여덟 번 곱하면 ${8 ** 8}`);
+    }
+}
+
+/* ================================================================
+   9. 단계별 풀이의 그림 — 첫 판의 공격 범위와 마지막 판의 답
+   ================================================================ */
+{
+    const 판들 = [...doc.querySelectorAll('.walkthrough-board')];
+    const 칸들 = (b) => [...b.querySelectorAll('.chess-cell')];
+    if (판들.length < 2) bad(`단계별 풀이: 그림 판이 ${판들.length}개다`);
+    else {
+        const 첫판 = 칸들(판들[0]);
+        첫판.forEach((e, i) => {
+            const r = Math.floor(i / 4), c = i % 4;
+            const 퀸 = e.textContent.includes('👑');
+            const 빨강 = !!e.querySelector('[class*="bg-red"]');
+            const 공격 = !(r === 0 && c === 0) && (r === 0 || c === 0 || r === c);
+            if (퀸 !== (r === 0 && c === 0)) bad(`단계별 풀이 1단계: (${r + 1},${c + 1}) 퀸 표시가 어긋난다`);
+            if (빨강 !== 공격) bad(`단계별 풀이 1단계: (${r + 1},${c + 1}) 공격 범위 표시가 어긋난다`);
+        });
+        const 끝판 = 칸들(판들.at(-1));
+        const 배치 = Array(4).fill(-1);
+        끝판.forEach((e, i) => { if (e.textContent.includes('👑')) 배치[Math.floor(i / 4)] = i % 4; });
+        if (!비트로모든해(4).some((s) => s.join(',') === 배치.join(','))) {
+            bad(`단계별 풀이: 목표 상태로 그린 판 [${배치}] 가 4-퀸의 해가 아니다`);
+        }
+    }
+}
+
+/* ================================================================
+   10. 직접 해 보기 — 같은 행 · 같은 열 충돌, 거두기, 상태 문장
+   ================================================================ */
+{
+    const 찍힌 = () => [...doc.querySelectorAll('.iq-cell-conflict')].map((e) => e.id.replace('iq-cell-', '').replace('-', ',')).sort().join(' ');
+    sim.window.iqChangeSize(5);
+    누르기(0, 0); 누르기(0, 3);                       // 같은 행
+    if (찍힌() !== '0,0 0,3') bad(`직접 해 보기: 같은 행 충돌을 [${찍힌()}] 로 찍었다`);
+    sim.window.iqChangeSize(5);
+    누르기(1, 4); 누르기(4, 4);                       // 같은 열
+    if (찍힌() !== '1,4 4,4') bad(`직접 해 보기: 같은 열 충돌을 [${찍힌()}] 로 찍었다`);
+    누르기(3, 0);                                    // 무사한 퀸 하나 더 — (3,0)은 (1,4)·(4,4)와 행·열·대각선이 모두 다르다
+    const 상태 = doc.getElementById('iq-status').textContent;
+    const 빨간수 = doc.querySelectorAll('.iq-cell-conflict').length;
+    if (!상태.includes(`빨간 퀸 ${빨간수}개`)) bad(`직접 해 보기: 상태 문장 「${상태.trim()}」 이 충돌한 퀸 ${빨간수}개와 맞지 않는다`);
+    누르기(4, 4);                                    // 다시 누르면 거둔다
+    if (doc.getElementById('iq-queen-count').textContent !== '2') bad('직접 해 보기: 퀸을 다시 눌러도 거두지 않는다');
+    if (찍힌() !== '') bad('직접 해 보기: 부딪히던 퀸을 거뒀는데 충돌 표시가 남았다');
+}
+
+/* ================================================================
+   11. 멈춘 채로 한 걸음 — 대기 상태에서 「다음 단계」
+   ================================================================ */
+doc.getElementById('boardSize').value = '4';
+P('initGame()');
+P('stepNextAI()');
+if (doc.getElementById('nodeCount').innerText !== '1') bad(`한 걸음: 첫 걸음 뒤 방문을 ${doc.getElementById('nodeCount').innerText} 로 적었다`);
+if (!P('isPaused') || !P('isAnimating')) bad('한 걸음: 대기 상태에서 누르면 멈춘 채로 탐색을 시작해야 한다');
+P('stepNextAI()');
+if (P('currentStepIndex') !== 2) bad(`한 걸음: 두 번 눌렀는데 ${P('currentStepIndex')}단계다`);
 
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');
 test('nqueen', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

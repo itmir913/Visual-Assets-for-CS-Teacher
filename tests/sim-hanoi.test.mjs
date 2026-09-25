@@ -126,8 +126,52 @@ if (doc.getElementById('manualSuccess').classList.contains('hidden')) {
 if (doc.getElementById('manualMoves').textContent !== '7') {
     bad(`손으로 옮기기: 7수로 끝냈는데 ${doc.getElementById('manualMoves').textContent} 회로 적혔다`);
 }
-if (!doc.getElementById('manualSuccessDetail').textContent.includes('최적')) {
+// 「최적」만 찾으면 헛돈다 — 돌아간 풀이의 「최적은 7번」에도 그 낱말이 든다
+if (!doc.getElementById('manualSuccessDetail').textContent.includes('최적 해 달성')) {
     bad('손으로 옮기기: 최소 횟수로 끝냈는데 그렇게 알려 주지 않는다');
+}
+
+// 돌아간 풀이 — 1을 A→B→A 로 헛걸음한 뒤 해법대로. 성공이지만 최적이라 하면 안 된다
+P('resetManual()');
+for (const [from, to] of [[0, 1], [1, 0], ...규칙대로의이동(3)]) {
+    기둥누르기(from);
+    기둥누르기(to);
+}
+{
+    const 글 = doc.getElementById('manualSuccessDetail').textContent;
+    if (doc.getElementById('manualMoves').textContent !== '9') bad(`손으로 옮기기: 9수로 끝냈는데 ${doc.getElementById('manualMoves').textContent} 회로 적혔다`);
+    if (doc.getElementById('manualSuccess').classList.contains('hidden')) bad('손으로 옮기기: 돌아가서 끝냈는데 성공이 뜨지 않는다');
+    if (글.includes('최적 해 달성') || !글.includes('최적은 7번')) bad(`손으로 옮기기: 9수로 끝냈는데 「${글}」 라고 알린다`);
+}
+
+// 끝나기 전에는 성공이 뜨지 않고, 가운데 기둥(B)에 다 모아도 성공이 아니다
+P('resetManual()');
+기둥누르기(0);
+기둥누르기(2);
+if (!doc.getElementById('manualSuccess').classList.contains('hidden')) bad('손으로 옮기기: 한 수 만에 성공이 떴다');
+P('resetManual()');
+for (const [from, to] of 규칙대로의이동(3, 0, 2, 1)) {
+    기둥누르기(from);
+    기둥누르기(to);
+}
+if (P('manualPegs')[1].length !== 3) bad('손으로 옮기기: B 로 옮기는 해법을 따라갔는데 B 에 다 모이지 않았다');
+if (!doc.getElementById('manualSuccess').classList.contains('hidden')) bad('손으로 옮기기: 목표가 아닌 B 에 모았는데 성공이 떴다');
+
+// 같은 기둥을 두 번 누르면 고른 것을 해제한다
+P('resetManual()');
+기둥누르기(0);
+기둥누르기(0);
+if (P('manualSelected') !== -1) bad('손으로 옮기기: 같은 기둥을 다시 눌렀는데 선택이 풀리지 않는다');
+if (doc.getElementById('manualMoves').textContent !== '0') bad('손으로 옮기기: 선택만 해제했는데 횟수를 셌다');
+
+// 원판 수마다 최소 횟수 — 2ⁿ-1 을 따로 센다
+for (const n of [3, 4, 5, 6]) {
+    P(`setDiskCount(${n})`);
+    const 적힌 = doc.getElementById('manualMinMoves').textContent;
+    if (적힌 !== String(규칙대로의이동(n).length)) bad(`손으로 옮기기: ${n}장일 때 최소 횟수를 ${적힌} 로 적었다`);
+    if (P('manualPegs')[0].join(',') !== Array.from({length: n}, (_, i) => n - i).join(',')) {
+        bad(`손으로 옮기기: ${n}장일 때 처음 판이 A 에 큰 것부터 쌓여 있지 않다`);
+    }
 }
 
 /* ================================================================
@@ -281,6 +325,73 @@ if (!svg) {
         }
     }
     console.log(`  · 상태 27개 · 간선 ${그린간선.size}개 · 가장 가까운 두 상태 ${가장가까운.toFixed(1)}`);
+}
+
+/* ================================================================
+   6. 경계와 설명문의 수
+   ================================================================ */
+// 작은 경계 — 0장은 이동이 없고 1장은 한 수다
+for (const n of [0, 1, 2]) {
+    const 해법 = P(`getHanoiSolution(${n})`);
+    if (JSON.stringify(해법) !== JSON.stringify(규칙대로의이동(n))) bad(`${n}장: 해법이 재귀 규칙과 다르다 (${JSON.stringify(해법)})`);
+}
+
+// 상태 공간 그래프의 안내 문장 — 간선 수를 따로 센다. 상태마다 가장 작은 원판은 늘 두 곳으로 갈 수 있고,
+// 세 원판이 한 기둥에 모인 세 상태를 뺀 나머지에서는 또 하나를 옮길 수 있다 → (27·2 + 24) / 2 = 39
+P('setDiskCount(3)');
+P('buildGraphPanel()');
+{
+    const 글 = doc.getElementById('graphPanel').textContent;
+    const 간선수 = (27 * 2 + (27 - 3)) / 2;
+    if (!글.includes(`상태 27개`) || !글.includes(`간선(Edge) ${간선수}개`) || !글.includes(`최적 경로 ${2 ** 3 - 1}수`)) {
+        bad(`상태 공간: 안내 문장이 상태 27 · 간선 ${간선수} · 최적 7수와 맞지 않는다`);
+    }
+}
+// 그래프를 그리지 않는 크기에서는 3ⁿ 을 글로 알린다
+for (const n of [4, 5, 6]) {
+    P(`setDiskCount(${n})`);
+    P('buildGraphPanel()');
+    const 글 = doc.getElementById('graphPanel').textContent;
+    if (!글.includes(`3^${n} = ${(3 ** n).toLocaleString()}개`)) bad(`상태 공간: ${n}장일 때 상태 수 문장이 3^${n} = ${3 ** n} 과 맞지 않는다`);
+    if (doc.querySelector('#graphPanel svg')) bad(`상태 공간: ${n}장인데 그래프를 그렸다`);
+}
+P('setDiskCount(3)');
+
+// 원판 수 표 — 상태 수 3ⁿ · 최소 이동 2ⁿ-1 · 1초에 한 번일 때 걸리는 시간
+{
+    const 표 = [...doc.querySelectorAll('table')].find((t) => t.textContent.includes('상태 수 (3ⁿ)'));
+    if (!표) bad('설명문: 원판 수 표를 찾지 못했다');
+    else {
+        const 수 = (s) => Number(s.replace(/[^\d]/g, ''));
+        for (const tr of 표.querySelectorAll('tbody tr')) {
+            const 칸 = [...tr.querySelectorAll('td')].map((td) => td.textContent.trim());
+            const n = 수(칸[0]);
+            if (수(칸[1]) !== 3 ** n) bad(`설명문 표: n=${n} 상태 수를 ${칸[1]} 로 적었다 — ${3 ** n}`);
+            if (수(칸[2]) !== 2 ** n - 1) bad(`설명문 표: n=${n} 최소 이동을 ${칸[2]} 로 적었다 — ${2 ** n - 1}`);
+            const 초 = 2 ** n - 1;
+            const 시간 = 칸[3];
+            const 맞음 = 시간.endsWith('초') ? 수(시간) === 초
+                : 시간.includes('분') ? Math.round(초 / 60) === 수(시간)
+                    : 시간.includes('일') ? Math.round(초 / 86400) === 수(시간)
+                        : false;
+            if (!맞음) bad(`설명문 표: n=${n} 걸리는 시간을 ${시간} 로 적었다 — ${초}초`);
+        }
+    }
+    // n=64 에서 1초에 10억 번 옮기면 걸리는 햇수
+    const 본문 = doc.body.textContent.replace(/\s+/g, ' ');
+    const 햇수 = 본문.match(/약 (\d+)년/);
+    const 기대햇수 = Math.round((2 ** 64 - 1) / 1e9 / (365.25 * 86400));
+    if (!햇수 || Number(햇수[1]) !== 기대햇수) bad(`설명문: n=64 에 걸리는 햇수를 ${햇수?.[1]} 로 적었다 — 약 ${기대햇수}년`);
+    const 스무장 = 본문.match(/n=20이 되면[^.]*약 (\d+)일/);
+    if (!스무장 || Number(스무장[1]) !== Math.round((2 ** 20 - 1) / 86400)) bad(`설명문: n=20 에 걸리는 날수를 ${스무장?.[1]} 로 적었다`);
+}
+
+// 퀴즈 정답이 실제 값과 같은가 — 정답 단추의 글에 든 수를 따로 구한 값과 맞댄다
+{
+    const 정답들 = [...doc.querySelectorAll('button[onclick*="checkAnswer(this, true"]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim());
+    const 다섯장 = 정답들.find((t) => /\d+번$/.test(t));
+    if (!다섯장 || Number(다섯장.match(/(\d+)번$/)[1]) !== 규칙대로의이동(5).length) bad(`퀴즈: 5장 최소 횟수의 정답을 「${다섯장}」 로 두었다`);
+    if (!정답들.some((t) => t.includes('3ⁿ'))) bad('퀴즈: 상태 수 문항의 정답이 3ⁿ 이 아니다');
 }
 
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');

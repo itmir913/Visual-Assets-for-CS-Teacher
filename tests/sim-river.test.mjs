@@ -150,10 +150,35 @@ for (const 걸음 of 기대경로) {
 }
 if (이름(P('manualState')) !== '1111') bad('손으로 풀기: 최단 경로대로 갔는데 목표에 닿지 않았다');
 if (doc.getElementById('successMsg').classList.contains('hidden')) bad('손으로 풀기: 다 건넜는데 성공이 뜨지 않는다');
-if (!doc.getElementById('successDetail').textContent.includes('최적')) {
+// 「최적」만 찾으면 헛돈다 — 돌아간 풀이의 「최적은 7번」에도 그 낱말이 든다
+if (!doc.getElementById('successDetail').textContent.includes('최적 해 달성')) {
     bad('손으로 풀기: 최단 수로 끝냈는데 그렇게 알려 주지 않는다');
 }
 if (!doc.getElementById('crossBtn').disabled) bad('손으로 풀기: 다 건넌 뒤에도 「건너기」가 눌린다');
+
+// 돌아간 풀이 — 양을 건네 놓고 농부 혼자 두 번 더 오간 뒤 최단 경로의 나머지로. 성공이지만 최적이 아니다
+P('resetManual()');
+for (const 짐 of [기대경로[0].cargo, -1, -1, ...기대경로.slice(1).map((s) => s.cargo)]) {
+    if (짐 >= 0) 짐고르기(짐);
+    건너기();
+}
+{
+    const 글 = doc.getElementById('successDetail').textContent;
+    const 수 = 기대경로.length + 2;
+    if (doc.getElementById('manualMoveCount').textContent !== String(수)) bad(`손으로 풀기: ${수}수로 끝냈는데 ${doc.getElementById('manualMoveCount').textContent} 로 적었다`);
+    if (doc.getElementById('successMsg').classList.contains('hidden')) bad('손으로 풀기: 돌아가서 끝냈는데 성공이 뜨지 않는다');
+    if (글.includes('최적 해 달성') || !글.includes(`최적은 ${기대경로.length}번`)) bad(`손으로 풀기: ${수}수로 끝냈는데 「${글}」 라고 알린다`);
+}
+
+// 끝나기 전에는 성공이 없다
+P('resetManual()');
+짐고르기(1);
+건너기();
+if (!doc.getElementById('successMsg').classList.contains('hidden')) bad('손으로 풀기: 한 수 만에 성공이 떴다');
+// 고른 짐을 다시 누르면 해제한다
+짐고르기(1);                                         // 농부는 오른쪽, 양도 오른쪽 — 고를 수 있다
+짐고르기(1);
+if (P('selectedCargo') !== -1) bad('손으로 풀기: 고른 짐을 다시 눌렀는데 해제되지 않는다');
 
 /* ================================================================
    5. 상태 공간 트리 — 층마다의 마디와 그 종류
@@ -208,6 +233,52 @@ P('buildTree()');
     const 위험마디 = 그린층.flat().filter((n) => n.type === 'invalid').length;
     if (!위험마디) bad('상태 공간 트리: 가지치기된 마디가 하나도 남지 않았다 — 왜 그 길로 안 갔는지 볼 수 없다');
     console.log(`  · 트리 ${그린층.length}층 · 마디 ${그린층.flat().length}개(위험 ${위험마디}개) · 최단 ${경로.length}수`);
+
+    // 정답 경로 마디의 덧글 — 몇 번째 수인지 · 누구와 · 어느 쪽으로
+    const 번호 = '①②③④⑤⑥⑦⑧⑨';
+    const 짐이름 = ['늑대와', '양과', '양배추와'];
+    const 경로마디 = [...doc.querySelectorAll('#treeContainer .tree-node.path, #treeContainer .tree-node.goal')].slice(1);
+    if (경로마디.length !== 기대경로.length) bad(`상태 공간 트리: 정답 경로 마디가 ${경로마디.length}개 — 최단은 ${기대경로.length}수다`);
+    경로마디.forEach((n, i) => {
+        const 덧글 = n.querySelectorAll('div')[1]?.textContent ?? '';
+        const 걸음 = 기대경로[i];
+        if (!걸음) return;
+        const 기대 = `${번호[i]} ${걸음.cargo < 0 ? '혼자' : 짐이름[걸음.cargo]} ${걸음.to[0] === 1 ? '→' : '←'}`;
+        if (!덧글.startsWith(기대)) bad(`상태 공간 트리: ${i + 1}수 마디의 덧글 「${덧글}」 이 「${기대}」 로 시작하지 않는다`);
+    });
+}
+
+/* ================================================================
+   6. 설명문의 수 — 상태 수 · 유효 상태 · 최단 수 · 퀴즈의 전제
+   ================================================================ */
+{
+    const 안전수 = 모든상태.filter(안전한가).length;
+    // 처음 상태에서 닿는 안전한 상태 — 너비 우선으로 따로 센다
+    const 닿음 = new Set(['0000']);
+    const 줄 = [[0, 0, 0, 0]];
+    while (줄.length) {
+        for (const {state} of 이웃들(줄.shift())) if (!닿음.has(이름(state))) { 닿음.add(이름(state)); 줄.push(state); }
+    }
+    if (닿음.size !== 안전수) bad(`상태 공간: 안전한 상태 ${안전수}개 가운데 ${닿음.size}개만 처음 상태에서 닿는다`);
+
+    const 본문 = doc.body.textContent.replace(/\s+/g, ' ');
+    const 표 = 본문.match(/2⁴ = (\d+)개, 그중 유효 상태 (\d+)개/);
+    if (!표) bad('설명문: 「2⁴ = ○개, 그중 유효 상태 ○개」 문장을 찾지 못했다');
+    else {
+        if (Number(표[1]) !== 모든상태.length) bad(`설명문: 상태를 ${표[1]}개로 적었다 — ${모든상태.length}개`);
+        if (Number(표[2]) !== 안전수) bad(`설명문: 유효 상태를 ${표[2]}개로 적었다 — 안전한 상태는 ${안전수}개`);
+    }
+    const 유효 = 본문.match(/총 유효 상태 (\d+)개/);
+    if (!유효 || Number(유효[1]) !== 안전수) bad(`설명문: 「총 유효 상태 ${유효?.[1]}개」 — 안전한 상태는 ${안전수}개`);
+    // 「최소 N번」 · 「N번 건너기」 · 「N수 해」 · 「N번 이내」 가 모두 최단 수와 같다
+    for (const m of 본문.matchAll(/최소 (\d+)번|(\d+)번 건너기|(\d+)수 해|목표: (\d+)번 이내|최단 해\((\d+)번\)/g)) {
+        const k = Number(m.slice(1).find((x) => x !== undefined));
+        if (k !== 기대경로.length) bad(`설명문: 「${m[0]}」 — 최단은 ${기대경로.length}수다`);
+    }
+    // 퀴즈 3의 전제 — 최적 해의 4번째 수는 양을 왼쪽으로 데려오는 것이고, 그 앞 수에서 늑대를 건넸다
+    const q3 = 본문.includes('4번째 수에서 양을 왼쪽으로 다시 데려오는');
+    if (q3 && !(경로[3]?.cargo === 1 && 경로[3].to[0] === 0)) bad('퀴즈 3: 페이지 경로의 4번째 수가 양을 데려오는 수가 아니다');
+    if (q3 && 경로[2]?.cargo !== 0) bad('퀴즈 3: 정답 해설은 늑대를 먼저 건넨 경로를 전제하는데 페이지 경로의 3번째 수가 늑대가 아니다');
 }
 
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');

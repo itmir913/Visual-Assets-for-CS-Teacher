@@ -142,11 +142,11 @@
      화면이 바뀌지 않는다. 탭은 켜기 전에 고른다 → src/entries/_lib/fullscreen.js 의 `fs-tabs` -->
 <div class="fs-tabs sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
     <div class="w-full px-4 md:max-w-6xl mx-auto flex justify-center">
-        <button class="tab-btn tab-active px-10 py-5 text-lg md:text-xl text-emerald-600 border-emerald-600" id="tab-cat"
+        <button class="tab-btn tab-active sim-dt-tab-cat px-10 py-5 text-lg md:text-xl" id="tab-cat"
                 onclick="switchTab('cat')">
             <i class="fa-solid fa-apple-whole mr-2"></i>스무고개 분류 (표 데이터)
         </button>
-        <button class="tab-btn tab-inactive px-10 py-5 text-lg md:text-xl" id="tab-2d" onclick="switchTab('2d')">
+        <button class="tab-btn tab-inactive sim-dt-tab-2d px-10 py-5 text-lg md:text-xl" id="tab-2d" onclick="switchTab('2d')">
             <i class="fa-solid fa-map-location-dot mr-2"></i>2차원 평면 분류 (X, Y)
         </button>
     </div>
@@ -290,7 +290,7 @@
                                 예측 시작 <i class="fa-solid fa-arrow-right ml-1"></i></button>
                         </div>
                         <div id="predResult"
-                             class="mt-4 p-4 text-center font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700 text-xl rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 min-h-[60px]">
+                             class="sim-dt-result mt-4 p-4 text-center font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700 text-xl rounded-xl transition-opacity duration-300 min-h-[60px]">
                         </div>
                     </div>
                 </div>
@@ -318,15 +318,15 @@
                     <div>
                         <p class="font-bold text-slate-700 text-lg mb-3">1. 데이터 클래스 선택</p>
                         <div class="flex gap-3">
-                            <button class="flex-1 py-3 text-lg bg-red-500 text-white rounded-xl font-bold shadow-md transition"
+                            <button class="sim-dt-class c1 on"
                                     id="btnClass1"
                                     onclick="set2DClass(1)">빨강
                             </button>
-                            <button class="flex-1 py-3 text-lg bg-white text-blue-500 border-2 border-blue-500 rounded-xl font-bold transition"
+                            <button class="sim-dt-class c2"
                                     id="btnClass2"
                                     onclick="set2DClass(2)">파랑
                             </button>
-                            <button class="flex-1 py-3 text-lg bg-white text-green-500 border-2 border-green-500 rounded-xl font-bold transition"
+                            <button class="sim-dt-class c3"
                                     id="btnClass3"
                                     onclick="set2DClass(3)">초록
                             </button>
@@ -441,19 +441,18 @@
     function switchTab(tab) {
         document.getElementById('sec-cat').classList.toggle('hidden', tab !== 'cat');
         document.getElementById('sec-2d').classList.toggle('hidden', tab !== '2d');
-        document.getElementById('sec-cat').classList.toggle('block', tab === 'cat');
-        document.getElementById('sec-2d').classList.toggle('block', tab === '2d');
 
         const btnCat = document.getElementById('tab-cat');
         const btn2d = document.getElementById('tab-2d');
 
+        // 켜진 탭의 색은 _sim-ui.css 의 sim-dt-tab-* 가 준다. 여기서는 켜고 끄기만 한다.
+        btnCat.classList.toggle('tab-active', tab === 'cat');
+        btnCat.classList.toggle('tab-inactive', tab !== 'cat');
+        btn2d.classList.toggle('tab-active', tab === '2d');
+        btn2d.classList.toggle('tab-inactive', tab !== '2d');
         if (tab === 'cat') {
-            btnCat.className = 'tab-btn tab-active px-10 py-5 text-lg md:text-xl text-emerald-600 border-emerald-600';
-            btn2d.className = 'tab-btn tab-inactive px-10 py-5 text-lg md:text-xl';
             if (catView) catView.resize(300);
         } else {
-            btn2d.className = 'tab-btn tab-active px-10 py-5 text-lg md:text-xl text-indigo-600 border-indigo-600';
-            btnCat.className = 'tab-btn tab-inactive px-10 py-5 text-lg md:text-xl';
             if (view2D) view2D.resize(300);
         }
     }
@@ -495,8 +494,7 @@
         renderCatTable();
         renderCatTree();
         const resEl = document.getElementById('predResult');
-        resEl.classList.remove('opacity-100', 'pointer-events-auto');
-        resEl.classList.add('opacity-0', 'pointer-events-none');
+        resEl.classList.remove('shown');
     }
 
     function addCatData() {
@@ -517,8 +515,7 @@
         renderCatTree();
 
         const resEl = document.getElementById('predResult');
-        resEl.classList.remove('opacity-100', 'pointer-events-auto');
-        resEl.classList.add('opacity-0', 'pointer-events-none');
+        resEl.classList.remove('shown');
     }
 
     function removeCatData(id) {
@@ -529,8 +526,7 @@
         renderCatTree();
 
         const resEl = document.getElementById('predResult');
-        resEl.classList.remove('opacity-100', 'pointer-events-auto');
-        resEl.classList.add('opacity-0', 'pointer-events-none');
+        resEl.classList.remove('shown');
     }
 
     function renderCatTable() {
@@ -538,7 +534,7 @@
         tbody.innerHTML = '';
         datasetCat.forEach(d => {
             // 탈출된 문자열 사용
-            tbody.innerHTML += `<tr><td class="font-bold">${d.name}</td><td>${d.color}</td><td>${d.size}</td><td>${d.shape}</td> <td><button onclick="removeCatData(${d.id})" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            tbody.innerHTML += `<tr><td class="sim-dt-name">${d.name}</td><td>${d.color}</td><td>${d.size}</td><td>${d.shape}</td> <td><button onclick="removeCatData(${d.id})" class="sim-dt-remove"><i class="fa-solid fa-trash"></i></button></td></tr>`;
         });
     }
 
@@ -624,8 +620,7 @@
         setCatStatus('✅ 트리를 만들었습니다. 아래에서 새 데이터를 골라 <b>예측 시작</b>을 눌러 보세요.');
 
         const resEl = document.getElementById('predResult');
-        resEl.classList.remove('opacity-100', 'pointer-events-auto');
-        resEl.classList.add('opacity-0', 'pointer-events-none');
+        resEl.classList.remove('shown');
     }
 
     // 트리 노드의 상태마다 색을 정해 둔다. 렌더러는 이 표만 보고 그린다.
@@ -677,7 +672,7 @@
         }
 
         if (!treeCat) {
-            container.innerHTML = '<div class="flex h-full items-center justify-center text-slate-500 text-lg font-bold"><i class="fa-solid fa-tree text-2xl mr-3 text-emerald-500"></i>데이터가 변경되었습니다. [트리 생성] 버튼을 다시 눌러주세요.</div>';
+            container.innerHTML = '<div class="sim-dt-empty"><i class="fa-solid fa-tree sim-dt-empty-ico"></i>데이터가 변경되었습니다. [트리 생성] 버튼을 다시 눌러주세요.</div>';
             return;
         }
         container.innerHTML = '';
@@ -743,15 +738,13 @@
 
         // [상태 오류 방지] UI 버튼들 잠금 처리
         const controls = [document.getElementById('btnCatAdd'), document.getElementById('btnCatTrain'), document.getElementById('btnCatReset')];
-        controls.forEach(c => c.classList.add('opacity-50', 'pointer-events-none'));
+        controls.forEach(c => c.classList.add('sim-dim'));
 
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>탐색 중...`;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin sim-ico"></i>탐색 중...`;
 
         const resEl = document.getElementById('predResult');
-        resEl.classList.remove('opacity-0', 'pointer-events-none');
-        resEl.classList.add('opacity-100', 'pointer-events-auto');
-        resEl.className = "mt-4 p-4 text-center font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700 text-xl rounded-xl";
+        resEl.classList.add('shown');
         resEl.innerHTML = '트리를 탐색하는 중입니다...';
 
         resetCatTreeColors();
@@ -796,8 +789,8 @@
 
         // 상태 해제
         btn.disabled = false;
-        btn.innerHTML = `예측 시작 <i class="fa-solid fa-arrow-right ml-1"></i>`;
-        controls.forEach(c => c.classList.remove('opacity-50', 'pointer-events-none'));
+        btn.innerHTML = `예측 시작 <i class="fa-solid fa-arrow-right sim-ico-trail"></i>`;
+        controls.forEach(c => c.classList.remove('sim-dim'));
         isPredictingCat = false;
     }
 
@@ -830,9 +823,7 @@
 
     function set2DClass(cls) {
         currentClass2D = cls;
-        document.getElementById('btnClass1').className = cls === 1 ? 'flex-1 py-3 text-lg bg-red-500 text-white rounded-xl font-bold shadow-md transition' : 'flex-1 py-3 text-lg bg-white text-red-500 border-2 border-red-500 rounded-xl font-bold transition';
-        document.getElementById('btnClass2').className = cls === 2 ? 'flex-1 py-3 text-lg bg-blue-500 text-white rounded-xl font-bold shadow-md transition' : 'flex-1 py-3 text-lg bg-white text-blue-500 border-2 border-blue-500 rounded-xl font-bold transition';
-        document.getElementById('btnClass3').className = cls === 3 ? 'flex-1 py-3 text-lg bg-green-500 text-white rounded-xl font-bold shadow-md transition' : 'flex-1 py-3 text-lg bg-white text-green-500 border-2 border-green-500 rounded-xl font-bold transition';
+        for (const k of [1, 2, 3]) document.getElementById('btnClass' + k).classList.toggle('on', cls === k);
     }
 
     function draw2DCanvas() {

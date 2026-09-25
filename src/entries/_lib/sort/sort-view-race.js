@@ -12,13 +12,14 @@
  * 이 탭에서 가르칠 것이기 때문이다.
  */
 
-const LANE_H = 40;          // 한 줄
-const LANE_GAP = 6;
-const BAR_H = 26;           // 줄 안에서 막대가 쓰는 높이
-/* 이름·숫자 칸을 좁게 잡는다. 375px에서 이 둘이 180px을 먹으면
-   정작 봐야 할 막대가 131px밖에 안 남는다. */
-const NAME_W = 70;          // 알고리즘 이름 칸
-const TALLY_W = 84;         // 세는 횟수 칸
+/* **이름과 숫자는 막대 위 한 줄에, 막대는 그 아래 전체 폭에 놓는다.** 셋을 옆으로
+   세우면 이름·숫자 글자가 text-base(16px)일 때 둘이 180px 넘게 먹어 375px에서
+   정작 봐야 할 막대가 130px 안팎만 남는다. 11px로 줄여 옆에 세우던 것을 이렇게 바꿨다. */
+const HEAD_H = 20;          // 이름·숫자 줄
+const BAR_H = 22;           // 막대가 쓰는 높이
+const LANE_H = HEAD_H + BAR_H + 2;   // 한 줄
+const LANE_GAP = 4;
+const RACE_FONT = '16px';   // text-base — 이 글자는 SVG 가 아니라 HTML 이라 규칙 대상이다
 
 /* **이름을 겹치지 않게 짓는다.** 검사 받침대는 모듈을 한 문맥에 풀어 놓으므로
    다른 파일과 같은 top-level 이름을 쓰면 「already been declared」로 죽는다.
@@ -59,7 +60,7 @@ export function createSortRaceView(host) {
     const chartBox = raceBox('div', {width: '100%', overflowX: 'auto'});
     const legendBox = raceBox('div', {
         display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: '6px',
-        fontSize: '11px', fontWeight: '700', color: '#475569',
+        fontSize: RACE_FONT, fontWeight: '700', color: '#475569',
     });
     chartCol.appendChild(chartBox);
     chartCol.appendChild(legendBox);
@@ -86,15 +87,15 @@ export function createSortRaceView(host) {
                 marginBottom: `${LANE_GAP}px`,
             });
             row.appendChild(raceBox('div', {
-                position: 'absolute', left: '0', top: '0', width: `${NAME_W}px`,
-                fontSize: '11px', fontWeight: '800', color: '#334155',
-                lineHeight: `${LANE_H}px`, whiteSpace: 'nowrap', overflow: 'hidden',
+                position: 'absolute', left: '0', top: '0',
+                fontSize: RACE_FONT, fontWeight: '800', color: '#334155',
+                lineHeight: `${HEAD_H}px`, whiteSpace: 'nowrap',
             }, lane.algo.name));
 
             const track = raceBox('div', {
                 position: 'absolute',
-                left: `${NAME_W}px`, right: `${TALLY_W}px`,
-                bottom: '4px', height: `${BAR_H}px`,
+                left: '0', right: '0',
+                bottom: '0', height: `${BAR_H}px`,
             });
             const bars = [];
             for (let i = 0; i < n; i++) {
@@ -116,9 +117,9 @@ export function createSortRaceView(host) {
             row.appendChild(track);
 
             const tally = raceBox('div', {
-                position: 'absolute', right: '0', top: '0', width: `${TALLY_W}px`,
-                fontSize: '11px', fontWeight: '700', color: '#64748b',
-                lineHeight: `${LANE_H}px`, textAlign: 'right',
+                position: 'absolute', right: '0', top: '0',
+                fontSize: RACE_FONT, fontWeight: '700', color: '#64748b',
+                lineHeight: `${HEAD_H}px`, textAlign: 'right',
                 fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
             }, '');
             row.appendChild(tally);

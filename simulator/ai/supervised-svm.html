@@ -105,12 +105,19 @@
             background: #94a3b8;
         }
 
-        .tool-btn.active {
-            border-color: #334155 !important;
-            transform: scale(1.05);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            z-index: 10;
+        /* 커지게(scale) 두면 조작 칸이 넘치는 부분을 잘라 효과가 깎인다. 크기는 그대로 두고
+           고르지 않은 버튼은 흐리게, 고른 버튼은 그 색으로 채운다(테두리도 같은 색).
+           안의 표식(원 · 네모)은 글자색을 따라 흰색이 된다. 누를 때 흔들리지 않는다. */
+        .tool-btn {
+            opacity: 0.5;
         }
+
+        .tool-btn.active {
+            opacity: 1;
+        }
+
+        .tool-btn.active[data-tool="1"] { background-color: #f43f5e; border-color: #f43f5e; color: #fff; }
+        .tool-btn.active[data-tool="-1"] { background-color: #3b82f6; border-color: #3b82f6; color: #fff; }
 
         .math-font {
             font-family: 'Courier New', Courier, monospace;
@@ -135,19 +142,6 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
-        }
-
-        /* 전체 화면에서는 가로가 남는다. 양옆 조작 칸을 조금씩 넓혀 슬라이더 라벨과
-           버튼 글자가 덜 접히게 한다. 평소 배치(`lg:grid-cols-[200px_1fr_240px]`)는
-           그대로 두고 전체 화면일 때만 바꾼다.
-           **가운데 그림은 좁아지지 않는다** — `.fs-fit` 이 전체 화면에서는 폭이 아니라
-           남는 높이로 크기를 정하기 때문이다.
-           격자가 세 열이 되는 것은 `lg` 부터이므로 같은 폭에서만 건다. 안 그러면
-           좁은 화면에서 전체 화면으로 갔을 때 한 열짜리 배치를 세 열로 되돌린다. */
-        @media (min-width: 1024px) {
-            #activity:is(:fullscreen, .fs-on) > .fs-fill {
-                grid-template-columns: 224px 1fr 264px;
-            }
         }
     </style>
 </head>
@@ -223,7 +217,7 @@
     </section>
 
     <section id="activity"
-             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage sim-deck fs-tall">
         <!-- 교실 화면용 전체 화면 버튼. 나올 때는 Esc 또는 같은 버튼. -->
         <button type="button" class="fs-btn" data-fullscreen="activity"
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
@@ -235,141 +229,113 @@
             <p class="text-slate-600 text-lg fs-hide">데이터를 배치하고 「Train(학습)」 버튼을 눌러보세요. SVM이 선을 움직이며 마진을 찾아가는 과정을 볼 수 있습니다.</p>
         </div>
 
-        <div class="fs-fill grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
-
-            <!-- Col 1: 데이터 입력 도구 -->
-            <div class="flex flex-col gap-4">
-                <div class="bg-white p-3 rounded-2xl border-2 border-slate-200 flex flex-col gap-3 shadow-sm">
-                    <p class="text-base font-bold text-slate-500 text-center uppercase tracking-wide">클래스 선택</p>
-                    <button class="tool-btn active px-4 py-3 text-lg bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-all border-2 border-rose-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            data-tool="1">
-                        <i class="fa-solid fa-circle mr-2"></i>Class A
-                    </button>
-                    <button class="tool-btn px-4 py-3 text-lg bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border-2 border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            data-tool="-1">
-                        <i class="fa-solid fa-square mr-2"></i>Class B
-                    </button>
+        <!-- sim-deck 세로형(k-NN · 회귀와 같은 짜임): 넓은 화면에서는 조작(fs-side)이 왼쪽 칸,
+             그림(fs-main)이 남는 폭과 높이를 갖는다. 그림 아래에는 상태 줄과 단계 줄이 제 높이만.
+             좁은 화면에서는 그림이 먼저다. -->
+        <div class="fs-fill fs-cols flex flex-col gap-6">
+            <div class="fs-main flex flex-col gap-3">
+                <div class="fs-grow">
+                    <div class="sim-plot-pair grid grid-cols-1">
+                        <div class="sim-plot sim-plot-square relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas id="svmCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                        </div>
+                    </div>
                 </div>
+                <div id="statusMessageBar" class="sim-status">
+                    <i id="statusMessageIcon" class="fa-solid fa-pen-nib sim-status-icon"></i>
+                    <span id="statusMessageText" class="text-base">배치할 데이터의 클래스를 선택하고 캔버스를 클릭하세요.</span>
+                </div>
+                <!-- 단계 줄 — 켜진 단계와 지난 단계는 색만 바뀐다(크기는 그대로라 흔들리지 않는다). -->
+                <div class="sim-steps" aria-label="학습 진행 단계">
+                    <span id="flow-IDLE" class="sim-step on"><span class="sim-step-no">Step 0</span>데이터 입력</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-TRAIN" class="sim-step"><span class="sim-step-no">Step 1 &amp; 2</span>마진 최대화 훈련</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-DONE" class="sim-step"><span class="sim-step-no">Step 3</span>서포트 벡터 추출</span>
+                </div>
+            </div>
 
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col gap-3">
-                    <div class="flex flex-col gap-1.5">
-                        <label class="font-bold text-slate-600 text-base flex items-center">
-                            <i class="fa-solid fa-up-right-and-down-left-from-center mr-2 text-slate-400"></i>데이터 퍼짐 정도
-                        </label>
-                        <span class="text-base font-bold text-slate-400"><span id="spreadLabel"
-                                                                             class="text-rose-600">적당함</span> (응집 ↔ 분산)</span>
+            <div class="fs-side sim-side-roomy">
+                <!-- 자료 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="tool-btn active px-3 py-2.5 text-base bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-all border-2 border-rose-200 flex items-center justify-center whitespace-nowrap disabled:cursor-not-allowed"
+                                data-tool="1">
+                            <i class="fa-solid fa-circle mr-2"></i>Class A
+                        </button>
+                        <button class="tool-btn px-3 py-2.5 text-base bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border-2 border-blue-200 flex items-center justify-center whitespace-nowrap disabled:cursor-not-allowed"
+                                data-tool="-1">
+                            <i class="fa-solid fa-square mr-2"></i>Class B
+                        </button>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="spreadSlider" class="text-base font-bold text-slate-600">데이터 퍼짐 정도</label>
+                            <span id="spreadLabel" class="text-base font-bold text-rose-600">적당함</span>
+                        </div>
                         <input type="range" id="spreadSlider" min="50" max="450" value="250"
                                class="w-full accent-rose-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                     </div>
-                    <button id="btnRandomData"
-                            class="w-full px-4 py-2.5 text-base bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl transition-all border-2 border-rose-200 shadow-sm flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
-                    </button>
-                    <button id="btnClearData"
-                            class="w-full px-4 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-eraser mr-2"></i>삭제
-                    </button>
-                </div>
-
-                <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white">
-                    <p class="font-black text-slate-300 text-base flex items-center uppercase tracking-widest mb-3">
-                        <i class="fa-solid fa-calculator mr-2"></i>Decision Boundary
-                    </p>
-                    <div class="bg-slate-900 rounded-xl py-5 px-3 flex items-center justify-center border border-slate-600 shadow-inner">
-                        <span id="equationDisplay"
-                              class="math-font text-lg font-black text-emerald-400 text-center break-all">w₁x₁ + w₂x₂ + b = 0</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnRandomData"
+                                class="px-3 py-2.5 text-base bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition-all border border-rose-200 flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
+                        </button>
+                        <button id="btnClearData"
+                                class="px-3 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg transition-all border border-slate-200 flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-eraser mr-2"></i>삭제
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Col 2: 캔버스 + 상태 메시지 -->
-            <div class="flex flex-col gap-4">
-                <!-- 넓은 평소 화면에서는 정사각 그림이 칸 폭(690px 언저리)대로 커져 낮은 화면(768)을 넘었다.
-                     화면 높이에서 붙박이 nav · 아래 범례와 상태 줄 몫(14rem)을 뺀 값을 천장으로 둔다. 전체 화면은
-                     `fs-fit` 이 남는 높이로 크기를 정하고(그 규칙이 이 천장보다 특정도가 높다), 좁은 화면은 폭대로. -->
-                <div class="fs-fit relative w-full lg:max-w-[max(20rem,calc(100dvh-14rem))] mx-auto bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner aspect-square">
-                    <canvas id="svmCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
-                </div>
-                <!-- 캔버스에 그려지는 표시의 뜻. 없으면 노란 테두리와 점선이 무엇인지 알 길이 없다. -->
-                <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-base font-bold text-slate-600 px-1">
-                    <span class="flex items-center gap-1.5"><span class="inline-block w-6 h-0.5 bg-slate-800"></span>결정 경계</span>
-                    <span class="flex items-center gap-1.5"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span>마진 (w&middot;x + b = &plusmn;1)</span>
-                    <span class="flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 rounded-full border-2 border-amber-400"></span>서포트 벡터</span>
-                    <span class="flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-red-500"></span>마진 안으로 들어온 데이터</span>
-                </div>
-                <div class="bg-slate-100 border-2 border-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 min-h-[72px]"
-                     id="statusMessageBar">
-                    <i id="statusMessageIcon" class="fa-solid fa-pen-nib mr-3 text-xl"></i>
-                    <span id="statusMessageText" class="text-base">배치할 데이터의 클래스를 선택하고 캔버스를 클릭하세요.</span>
-                </div>
-            </div>
-
-            <!-- Col 3: 학습 조절 + 결과 -->
-            <div class="flex flex-col gap-4">
-                <div class="bg-rose-50/80 p-4 rounded-2xl border-2 border-rose-100 shadow-sm flex flex-col gap-3">
-                    <div class="bg-white p-3 rounded-xl border border-rose-100 shadow-sm">
-                        <div class="flex justify-between items-center mb-0.5">
-                            <label class="font-bold text-slate-700 text-base break-keep">C (규제 파라미터)</label>
-                            <span id="cValueDisplay" class="font-black text-rose-600 text-xl leading-none">1.0</span>
+                <!-- 학습 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-arrows-left-right-to-line mr-2"></i>학습</p>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="cSlider" class="text-base font-bold text-slate-600">C (규제 파라미터)</label>
+                            <span id="cValueDisplay" class="font-black text-rose-600 text-2xl leading-none">1.0</span>
                         </div>
-                        <div class="text-right mb-1.5">
-                            <span id="cMarginLabel" class="text-base font-bold text-rose-400 break-keep">표준 마진</span>
-                        </div>
+                        <p id="cMarginLabel" class="sim-margin-kind">표준 마진</p>
                         <!-- 학습부에서 C < 0.01 을 0.01 로 잘라내므로, 슬라이더 하한도 C=0.01 에 맞춘다.
                              (min=0 이면 0~10 구간이 전부 같은 C 로 동작하는 '먹통 구간'이 되고,
                               표시값은 0.00 인데 실제로는 0.01 이 쓰여 값이 어긋난다.) -->
                         <input type="range" id="cSlider" min="10" max="100" step="1" value="50"
-                               class="w-full accent-rose-600 mb-1.5 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                        <p class="text-base font-bold text-rose-500 text-center bg-rose-50 py-1.5 rounded break-keep">
-                            작은 C = 너그러운 벌점 😌<br>큰 C = 엄격한 벌점 😡
-                        </p>
+                               class="w-full accent-rose-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div class="flex flex-wrap justify-between gap-x-3 text-base font-medium text-slate-500 leading-snug break-keep">
+                            <span>작은 C = 너그러운 벌점 😌</span>
+                            <span>큰 C = 엄격한 벌점 😡</span>
+                        </div>
                     </div>
-                    <button id="btnTrain" disabled
-                            class="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white font-black text-xl rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex flex-col items-center justify-center gap-1">
-                        <i class="fa-solid fa-play text-2xl"></i>
-                        <span>SVM 학습 (Train)</span>
-                    </button>
-                    <button id="btnResetAlg" disabled
-                            class="w-full py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-base rounded-xl transition-all border-2 border-slate-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-rotate-left text-xl"></i>
-                        <span>학습 결과 초기화</span>
-                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnTrain" disabled
+                                class="py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-play mr-2"></i>Train
+                        </button>
+                        <button id="btnResetAlg" disabled
+                                class="py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-lg rounded-xl transition-all border-2 border-slate-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-rotate-left mr-2"></i>초기화
+                        </button>
+                    </div>
                 </div>
 
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col">
-                    <h3 class="font-black text-slate-800 mb-3 flex items-center text-base shrink-0">
-                        <i class="fa-solid fa-list-check text-rose-600 mr-2"></i>학습 진행 과정
-                    </h3>
-                    <div class="flex flex-col gap-3 relative">
-                        <div class="absolute left-5 top-6 bottom-6 w-0.5 bg-slate-200 z-0 rounded"></div>
-
-                        <div id="flow-IDLE"
-                             class="flow-box relative z-10 bg-white border-2 border-slate-300 rounded-xl p-3 shadow-sm transition-all duration-300 transform scale-[1.02]">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-black mb-1 bg-slate-100 text-slate-600">Step 0</span>
-                            <div class="step-title font-bold text-slate-800 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-pen-nib w-5 shrink-0"></i>데이터 입력 대기 중
-                            </div>
-                        </div>
-
-                        <div id="flow-TRAIN"
-                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 1 & 2</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-arrows-left-right-to-line w-6"></i> 마진 최대화 훈련
-                            </div>
-                        </div>
-
-                        <div id="flow-DONE"
-                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 3</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-bullseye w-5 shrink-0"></i>서포트 벡터 추출 완료
-                            </div>
-                        </div>
+                <!-- 결과 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-calculator mr-2"></i>결정 경계</p>
+                    <div class="bg-slate-900 rounded-xl py-3 px-3 flex items-center justify-center border border-slate-600 shadow-inner">
+                        <span id="equationDisplay"
+                              class="math-font text-lg font-black text-emerald-400 text-center break-all">w₁x₁ + w₂x₂ + b = 0</span>
+                    </div>
+                    <!-- 캔버스에 그려지는 표시의 뜻. 없으면 노란 테두리와 점선이 무엇인지 알 길이 없다. -->
+                    <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-base font-bold text-slate-600">
+                        <span class="flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-slate-800 shrink-0"></span>결정 경계</span>
+                        <span class="flex items-center gap-2"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500 shrink-0"></span>마진 (w&middot;x + b = &plusmn;1)</span>
+                        <span class="flex items-center gap-2"><span class="inline-block w-3.5 h-3.5 mx-[5px] rounded-full border-2 border-amber-400 shrink-0"></span>서포트 벡터</span>
+                        <span class="flex items-center gap-2"><span class="inline-block w-3.5 h-3.5 mx-[5px] rounded-full bg-rose-500 border-2 border-red-500 shrink-0"></span>마진 안으로 들어온 데이터</span>
                     </div>
                 </div>
             </div>
-
         </div>
     </section>
 
@@ -893,35 +859,24 @@
     let activeTool = CLASS_A;
     window.phase = 'IDLE'; // 전역 관리
 
-    const THEMES = {
-        IDLE: {boxBg: 'bg-white', boxBorder: 'border-slate-400', text: 'text-slate-800', badgeBg: 'bg-slate-200'},
-        TRAIN: {boxBg: 'bg-rose-50', boxBorder: 'border-rose-500', text: 'text-rose-800', badgeBg: 'bg-rose-200'},
-        DONE: {
-            boxBg: 'bg-emerald-50',
-            boxBorder: 'border-emerald-500',
-            text: 'text-emerald-800',
-            badgeBg: 'bg-emerald-200'
-        }
-    };
+    // 단계 줄의 순서. 상태 줄의 바탕색(tone-*)도 이 순서를 따른다 → _sim-ui.css 의 `sim-status`.
+    const PHASES = ['IDLE', 'TRAIN', 'DONE'];
 
-    function updateFlowUI(activePhase, message, icon, barBg = 'bg-slate-100', barText = 'text-slate-700') {
+    // 상태 줄과 단계 줄을 함께 바꾼다. **색 이름만 켜고 끈다** — 크기는 그대로라 누를 때 흔들리지 않는다.
+    // `tone` 은 상태 줄 바탕색의 뜻 이름이다('tone-2' · 'tone-3' · 'tone-warn'). 넘기지 않으면 회색이다.
+    function updateFlowUI(activePhase, message, icon, tone = '') {
         window.phase = activePhase;
         const msgBar = document.getElementById('statusMessageBar');
         document.getElementById('statusMessageText').innerText = message;
-        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} mr-3 text-2xl`;
-        msgBar.className = `w-full px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 border-2 min-h-[72px] ${barBg} border-slate-200 ${barText}`;
+        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} sim-status-icon`;
+        msgBar.classList.remove('tone-1', 'tone-2', 'tone-3', 'tone-warn');
+        if (tone) msgBar.classList.add(tone);
 
-        ['IDLE', 'TRAIN', 'DONE'].forEach(p => {
+        const at = PHASES.indexOf(activePhase);
+        PHASES.forEach((p, i) => {
             const box = document.getElementById(`flow-${p}`);
-            if (p === activePhase) {
-                box.className = `flow-box relative z-10 opacity-100 shadow-md scale-[1.03] border-2 rounded-xl p-4 transition-all duration-300 ${THEMES[p].boxBg} ${THEMES[p].boxBorder}`;
-                box.querySelector('.step-badge').className = `step-badge inline-block px-2.5 py-1 rounded-md text-base font-black mb-1 text-slate-800 ${THEMES[p].badgeBg}`;
-                box.querySelector('.step-title').className = `step-title font-bold text-base flex items-center break-keep ${THEMES[p].text}`;
-            } else {
-                box.className = `flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-4 transition-all duration-300 transform scale-100`;
-                box.querySelector('.step-badge').className = `step-badge inline-block px-2.5 py-1 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500`;
-                box.querySelector('.step-title').className = `step-title font-bold text-slate-500 text-base flex items-center break-keep`;
-            }
+            box.classList.toggle('on', i === at);
+            box.classList.toggle('done', i < at);
         });
 
         const hasA = dataManager.points.some(p => p.cls === CLASS_A);
@@ -994,13 +949,15 @@
 
         if (sliderVal < 40) {
             labelCMargin.innerText = "소프트 마진 (벌점 낮음 😌)";
-            labelCMargin.className = "text-base font-bold text-blue-500";
+            labelCMargin.classList.remove('hard');
+            labelCMargin.classList.add('soft');
         } else if (sliderVal > 65) {
             labelCMargin.innerText = "하드 마진 (벌점 높음 😡)";
-            labelCMargin.className = "text-base font-bold text-rose-500";
+            labelCMargin.classList.remove('soft');
+            labelCMargin.classList.add('hard');
         } else {
             labelCMargin.innerText = "표준 마진";
-            labelCMargin.className = "text-base font-bold text-rose-400";
+            labelCMargin.classList.remove('soft', 'hard');
         }
 
         if (window.phase === 'DONE') {
@@ -1008,7 +965,7 @@
             cDebounceTimer = setTimeout(() => {
                 svm.trainInstant(dataManager.points, actualC);
                 updateEquationText();
-                updateFlowUI('DONE', 'C값이 변경되어 마진이 실시간 갱신되었습니다.', 'fa-bolt', 'bg-emerald-50', 'text-emerald-800');
+                updateFlowUI('DONE', 'C값이 변경되어 마진이 실시간 갱신되었습니다.', 'fa-bolt', 'tone-3');
             }, 60);
         }
     });
@@ -1046,7 +1003,7 @@
     btnResetAlg.addEventListener('click', resetSimulation);
 
     btnTrain.addEventListener('click', async () => {
-        updateFlowUI('TRAIN', '최적의 마진을 찾는 중... 선이 이동하는 과정을 지켜보세요.', 'fa-spinner fa-spin', 'bg-rose-50', 'text-rose-800');
+        updateFlowUI('TRAIN', '최적의 마진을 찾는 중... 선이 이동하는 과정을 지켜보세요.', 'fa-spinner fa-spin', 'tone-2');
 
         let sliderVal = parseInt(sliderC.value);
         let actualC = calculateActualC(sliderVal);
@@ -1064,11 +1021,11 @@
         // 두 클래스가 같은 자리에 완전히 겹쳐 있으면 w 가 0 이 되어 선이 아예 그려지지 않는다.
         // 그때 '학습 완료'라고만 하면 화면이 왜 비었는지 알 길이 없다.
         if (svm.w[0] === 0 && svm.w[1] === 0) {
-            updateFlowUI('DONE', '두 클래스가 같은 자리에 겹쳐 있어 나눌 선을 찾지 못했습니다. 데이터를 떨어뜨려 다시 찍어 보세요.', 'fa-triangle-exclamation', 'bg-amber-50', 'text-amber-800');
+            updateFlowUI('DONE', '두 클래스가 같은 자리에 겹쳐 있어 나눌 선을 찾지 못했습니다. 데이터를 떨어뜨려 다시 찍어 보세요.', 'fa-triangle-exclamation', 'tone-warn');
             return;
         }
 
-        updateFlowUI('DONE', '학습 완료! 점선 사이의 마진 폭과, 그 마진을 떠받치는 노란 테두리(서포트 벡터)를 확인하세요.', 'fa-check-double', 'bg-emerald-50', 'text-emerald-800');
+        updateFlowUI('DONE', '학습 완료! 점선 사이의 마진 폭과, 그 마진을 떠받치는 노란 테두리(서포트 벡터)를 확인하세요.', 'fa-check-double', 'tone-3');
     });
 
     function checkAnswer(btn, isCorrect, message) {

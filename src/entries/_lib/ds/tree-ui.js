@@ -232,9 +232,12 @@ export function mountTreeSimulator() {
         paintArgRow();
     }
 
+    /** 값 칸은 **이 트리의 연산 중 하나라도 값을 받으면** 내 둔다.
+     *  예전에는 방금 누른 연산만 보아서, 「중위 순회」를 누르면 칸이 사라졌다가 「삽입」을
+     *  누르면 돌아왔다 — 누를 때마다 줄이 생겼다 사라져 화면이 흔들리고, 다음에 넣을 값을
+     *  미리 적어 둘 수도 없었다. 선형 자료구조(ds-ui.js 의 같은 이름)와 같은 규칙이다. */
     function paintArgRow() {
-        const need = lastOp ? lastOp.arg : 'value';
-        $('arg-row').classList.toggle('hidden', need !== 'value');
+        $('arg-row').classList.toggle('hidden', !struct.ops.some((op) => op.arg === 'value'));
     }
 
     /** 적어 넣은 값을 읽는다. **말없이 다른 값으로 바꿔치지 않는다.**

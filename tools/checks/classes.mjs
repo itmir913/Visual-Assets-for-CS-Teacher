@@ -76,7 +76,6 @@ const INLINE_SCOPE = (p) => {
  *  옮긴 페이지는 여기서 지운다. 새 페이지는 여기 넣지 않는다(처음부터 뜻 이름으로 쓴다). */
 const INLINE_PENDING = new Set([
     'simulator/ai/deep-learning.html',
-    'simulator/ai/wumpus-world.html',
 ]);
 
 async function tailwindMade(tokens) {

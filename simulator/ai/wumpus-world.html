@@ -388,7 +388,7 @@
                 <!-- **「초기화」와 「새 지도」를 갈라 둔다.** 예전에는 「초기화」 하나가
                      지도까지 새로 뽑고 있었다 — 직접 해 보기 탭의 「초기화」는 지도를
                      그대로 두므로, **같은 낱말이 두 탭에서 다른 일을 하고 있었다.** -->
-                <div class="hidden grid-cols-2 md:grid-cols-4 gap-3" id="ai-controls">
+                <div class="grid hidden grid-cols-2 md:grid-cols-4 gap-3" id="ai-controls">
                     <button id="btn-step"
                             class="h-14 bg-indigo-600 text-white rounded-2xl text-base font-bold whitespace-nowrap active:scale-95">
                         <i class="fa-solid fa-forward-step mr-1"></i> 다음
@@ -438,7 +438,7 @@
                 </div>
             </div>
 
-            <div class="hidden flex-col gap-6 h-[500px] md:h-[600px] lg:h-[550px]" id="ai-panel">
+            <div class="flex hidden flex-col gap-6 h-[500px] md:h-[600px] lg:h-[550px]" id="ai-panel">
 
                 <div class="bg-indigo-50 border-2 border-indigo-400 p-6 rounded-3xl flex-shrink-0">
                     <h3 class="font-bold text-indigo-800 mb-2 flex items-center text-xl"><i
@@ -658,9 +658,10 @@
         container.style.gridTemplateRows = `repeat(${SIZE}, minmax(0, 1fr))`;
         container.innerHTML = '';
 
-        const iconSizeClass = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
+        // 칸의 아이콘 크기(`mid` · `dense`)와 좌표 라벨 크기(`small`)는 판 크기가 정한다 → _sim-ui.css 의 sim-wp-*
         // 좌표 라벨이 0.5rem(8px)이면 사실상 읽을 수 없다. 판이 커질수록 작아지되 하한을 둔다.
-        const coordTextSize = SIZE <= 5 ? 'text-xs' : 'text-[0.625rem]';
+        const cellSize = SIZE <= 4 ? '' : SIZE <= 6 ? 'mid' : 'dense';
+        const coordSize = SIZE <= 5 ? '' : 'small';
 
         for (let y = SIZE - 1; y >= 0; y--) {
             for (let x = 0; x < SIZE; x++) {
@@ -672,42 +673,24 @@
                    한 걸음 나아간 것이 화면에 드러나지 않는다. */
                 const isKnown = (agent.knownPit.has(k) || agent.knownWumpus === k) && !isVisited;
 
-                let bg = 'bg-slate-200';
-                let border = 'border-slate-300';
-                let shadow = '';
-
+                // 칸의 상태 — 에이전트가 있는 칸(`here`, 죽었으면 `dead` · 금을 들었으면 `gold`), 가 본 칸,
+                // 안전하다고 추론한 칸, 확정한 칸, 의심하는 칸
+                let state = '';
                 if (agent.x === x && agent.y === y) {
-                    if (agent.isDead) {
-                        bg = 'bg-rose-300';
-                        border = 'border-rose-500';
-                        shadow = 'shadow-lg z-20 scale-105';
-                    } else if (agent.hasGold) {
-                        bg = 'bg-amber-300';
-                        border = 'border-amber-500';
-                        shadow = 'shadow-lg shadow-amber-200 z-20 scale-105';
-                    } else {
-                        bg = 'bg-white';
-                        border = 'border-indigo-500';
-                        shadow = 'shadow-md z-10 scale-105';
-                    }
+                    state = agent.isDead ? 'here dead' : agent.hasGold ? 'here gold' : 'here';
                 } else if (isVisited) {
-                    bg = 'bg-white';
-                    border = 'border-indigo-500';
-                    shadow = 'shadow-md z-10';
+                    state = 'visited';
                 } else if (isSafe) {
-                    bg = 'bg-green-50';
-                    border = 'border-green-400';
+                    state = 'safe';
                 } else if (isKnown) {
-                    bg = 'bg-rose-50';
-                    border = 'border-rose-400';
+                    state = 'known';
                 } else if (isRisk) {
-                    bg = 'bg-yellow-50';
-                    border = 'border-yellow-300';
+                    state = 'risk';
                 }
 
                 const cell = document.createElement('div');
-                cell.className = `cell-transition rounded-2xl flex items-center justify-center border-2 ${iconSizeClass} leading-none relative ${bg} ${border} ${shadow}`;
-                cell.innerHTML = `<span class="absolute top-1 left-2 font-bold text-slate-400 ${coordTextSize}">${x},${y}</span>`;
+                cell.className = `cell-transition sim-wp-cell ${cellSize} ${state}`;
+                cell.innerHTML = `<span class="sim-wp-coord ${coordSize}">${x},${y}</span>`;
 
                 let contentHTML = '';
 
@@ -724,24 +707,24 @@
                         let s = '';
                         if (p.breeze) s += '💨';
                         if (p.stench) s += '🤢';
-                        let multiClass = (p.breeze && p.stench) ? 'scale-90 tracking-tighter' : '';
-                        contentHTML = `<div class="${multiClass} flex items-center justify-center">${s}</div>`;
+                        const many = (p.breeze && p.stench) ? ' many' : '';
+                        contentHTML = `<div class="sim-wp-percepts${many}">${s}</div>`;
                     }
                 } else if (isKnown) {
                     /* **에이전트가 «추론해서» 알아낸 것이므로 그려도 답을 보여 주는 것이
                        아니다.** 「정답 미리보기」로 드러나는 것과 달리 이것은 지각만으로
                        좁혀 낸 결론이고, 그리지 않으면 학생은 확정과 의심을 구별할 길이 없다. */
                     contentHTML = agent.knownWumpus === k
-                        ? '<span class="opacity-60">👹</span>'
-                        : '<span class="opacity-60">🕳️</span>';
+                        ? '<span class="sim-wp-known">👹</span>'
+                        : '<span class="sim-wp-known">🕳️</span>';
                 } else if (showHidden) {
-                    if (env.pits.has(k)) contentHTML = '<span class="opacity-30">🕳️</span>';
-                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '<span class="opacity-30">👹</span>';
-                    else if (env.gold.x === x && env.gold.y === y) contentHTML = '<span class="opacity-30">💰</span>';
+                    if (env.pits.has(k)) contentHTML = '<span class="sim-wp-ghost">🕳️</span>';
+                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '<span class="sim-wp-ghost">👹</span>';
+                    else if (env.gold.x === x && env.gold.y === y) contentHTML = '<span class="sim-wp-ghost">💰</span>';
                 }
 
                 const contentSpan = document.createElement('span');
-                contentSpan.className = "flex items-center justify-center";
+                contentSpan.className = 'sim-wp-content';
                 contentSpan.innerHTML = contentHTML;
                 cell.appendChild(contentSpan);
                 container.appendChild(cell);
@@ -769,8 +752,8 @@
         container.style.gridTemplateRows = `repeat(${SIZE}, minmax(0, 1fr))`;
         container.innerHTML = '';
 
-        const iconSizeClass = SIZE <= 4 ? 'text-4xl' : SIZE <= 6 ? 'text-3xl' : 'text-2xl';
-        const coordTextSize = SIZE <= 5 ? 'text-xs' : 'text-[0.625rem]';
+        const cellSize = SIZE <= 4 ? '' : SIZE <= 6 ? 'mid' : 'dense';
+        const coordSize = SIZE <= 5 ? '' : 'small';
         const here = key(player.x, player.y);
 
         for (let y = SIZE - 1; y >= 0; y--) {
@@ -779,27 +762,12 @@
                 const isHere = k === here;
                 const isVisited = player.visited.has(k);
 
-                let bg = 'bg-slate-200';
-                let border = 'border-slate-300';
-                let shadow = '';
-
+                // 학생이 있는 칸(`here`, 죽었으면 `dead` · 금을 들었으면 `gold`)과 가 본 칸(`trail`)만 가른다
+                let state = '';
                 if (isHere) {
-                    if (player.isDead) {
-                        bg = 'bg-rose-300';
-                        border = 'border-rose-500';
-                        shadow = 'shadow-lg z-20 scale-105';
-                    } else if (player.hasGold) {
-                        bg = 'bg-amber-300';
-                        border = 'border-amber-500';
-                        shadow = 'shadow-lg shadow-amber-200 z-20 scale-105';
-                    } else {
-                        bg = 'bg-white';
-                        border = 'border-indigo-500';
-                        shadow = 'shadow-md z-10 scale-105';
-                    }
+                    state = player.isDead ? 'here dead' : player.hasGold ? 'here gold' : 'here';
                 } else if (isVisited) {
-                    bg = 'bg-white';
-                    border = 'border-indigo-400';
+                    state = 'trail';
                 }
 
                 /* **이웃 칸이면 눌러서 옮긴다.** 방향판을 없앤 자리를 이것이 메운다 —
@@ -812,10 +780,9 @@
                     cell.dataset.step = `${x - player.x},${y - player.y}`;
                     cell.title = '여기로 이동';
                 }
-                cell.className = `cell-transition rounded-2xl flex items-center justify-center border-2 `
-                    + `${iconSizeClass} leading-none relative ${bg} ${border} ${shadow} `
-                    + (이웃 ? 'cursor-pointer hover:brightness-95' : '');
-                cell.innerHTML = `<span class="absolute top-1 left-2 font-bold text-slate-400 ${coordTextSize}">${x},${y}</span>`;
+                cell.className = `cell-transition sim-wp-cell ${cellSize} ${state}`;
+                cell.classList.toggle('near', 이웃);
+                cell.innerHTML = `<span class="sim-wp-coord ${coordSize}">${x},${y}</span>`;
 
                 let contentHTML = '';
                 if (isHere) {
@@ -828,16 +795,16 @@
                     if (p && p.breeze) s += '💨';
                     if (p && p.stench) s += '🤢';
                     if (p && p.glitter && !player.hasGold) s += '💰';
-                    const multiClass = s.length > 2 ? 'scale-90 tracking-tighter' : '';
-                    contentHTML = `<div class="${multiClass} flex items-center justify-center">${s}</div>`;
+                    const many = s.length > 2 ? ' many' : '';
+                    contentHTML = `<div class="sim-wp-percepts${many}">${s}</div>`;
                 } else if (showHidden) {
-                    if (env.pits.has(k)) contentHTML = '<span class="opacity-30">🕳️</span>';
-                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '<span class="opacity-30">👹</span>';
-                    else if (env.gold.x === x && env.gold.y === y) contentHTML = '<span class="opacity-30">💰</span>';
+                    if (env.pits.has(k)) contentHTML = '<span class="sim-wp-ghost">🕳️</span>';
+                    else if (env.wumpus.x === x && env.wumpus.y === y) contentHTML = '<span class="sim-wp-ghost">👹</span>';
+                    else if (env.gold.x === x && env.gold.y === y) contentHTML = '<span class="sim-wp-ghost">💰</span>';
                 }
 
                 const contentSpan = document.createElement('span');
-                contentSpan.className = 'flex items-center justify-center';
+                contentSpan.className = 'sim-wp-content';
                 contentSpan.innerHTML = contentHTML;
                 cell.appendChild(contentSpan);
                 container.appendChild(cell);
@@ -882,7 +849,7 @@
             const p = player.percepts.get(k) || {};
             let 표 = (p.breeze ? '💨' : '') + (p.stench ? '🤢' : '') + (p.glitter ? '💰' : '');
             if (k === 끝난칸) 표 = (player.cause === 'wumpus' ? '👹' : '🕳️') + ' ' + 표;
-            줄.push(`<div>(${k}) ${표.trim() || '<span class="text-slate-400">아무것도 없음</span>'}</div>`);
+            줄.push(`<div>(${k}) ${표.trim() || '<span class="sim-wp-none">아무것도 없음</span>'}</div>`);
         }
         el.innerHTML = 줄.join('');
     }
@@ -953,13 +920,9 @@
         mode = next;
         const play = next === 'play';
         document.getElementById('play-controls').classList.toggle('hidden', !play);
-        document.getElementById('play-controls').classList.toggle('flex', play);
         document.getElementById('ai-controls').classList.toggle('hidden', play);
-        document.getElementById('ai-controls').classList.toggle('grid', !play);
         document.getElementById('play-panel').classList.toggle('hidden', !play);
-        document.getElementById('play-panel').classList.toggle('flex', play);
         document.getElementById('ai-panel').classList.toggle('hidden', play);
-        document.getElementById('ai-panel').classList.toggle('flex', !play);
 
         document.getElementById('stage-title').textContent =
             play ? '직접 해 보는 웜퍼스 월드' : '실시간 논리 추론 시뮬레이터';
@@ -982,31 +945,10 @@
         const panel = document.getElementById('log-panel');
         const entry = document.createElement('div');
 
-        let colorClass = 'text-slate-600';
-        let bgClass = '';
-        let borderClass = 'border-b border-slate-50';
-
-        if (type === 'sense') {
-            colorClass = 'text-blue-700 font-medium';
-            bgClass = 'bg-blue-50/50 rounded-lg px-2';
-        } else if (type === 'infer') {
-            colorClass = 'text-emerald-700 font-medium';
-            bgClass = 'bg-emerald-50/50 rounded-lg px-2';
-        } else if (type === 'move') {
-            colorClass = 'text-purple-700 font-bold';
-            bgClass = 'bg-purple-50/50 rounded-lg px-2';
-            borderClass = 'border-b-2 border-dashed border-slate-300 mb-2 pb-3';
-        } else if (type === 'death' || type === 'error') {
-            colorClass = 'text-rose-600 font-bold';
-            bgClass = 'bg-rose-50/50 rounded-lg px-2';
-            borderClass = 'border-b-2 border-solid border-rose-300 mb-2 pb-3';
-        } else if (type === 'success') {
-            colorClass = 'text-amber-600 font-black';
-            bgClass = 'bg-amber-50/50 rounded-lg px-2';
-            borderClass = 'border-b-2 border-solid border-amber-300 mb-2 pb-3';
-        }
-
-        entry.className = `py-2 transition-colors ${colorClass} ${bgClass} ${borderClass}`;
+        // 줄의 색은 종류가 정한다 → _sim-ui.css 의 sim-wp-log
+        const tone = {sense: 'sense', infer: 'infer', move: 'move', death: 'bad', error: 'bad', success: 'win'}[type];
+        entry.className = 'sim-wp-log';
+        if (tone) entry.classList.add(tone);
         entry.innerHTML = formatLogic(msg);
         panel.appendChild(entry);
 
@@ -1350,8 +1292,8 @@
             stopAutoRun();
         } else {
             // UI 변경: 버튼 제어 (Race Condition 방지)
-            document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-pause mr-1"></i> 일시 정지';
-            document.getElementById('btn-step').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-pause sim-ico-tight"></i> 일시 정지';
+            document.getElementById('btn-step').classList.add('sim-dim');
             document.getElementById('grid-size').disabled = true;
 
             runInterval = setInterval(() => {
@@ -1376,8 +1318,8 @@
         runInterval = null;
 
         // UI 원복
-        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play mr-1"></i> 자동 실행';
-        document.getElementById('btn-step').classList.remove('opacity-50', 'pointer-events-none');
+        document.getElementById('btn-run').innerHTML = '<i class="fa-solid fa-play sim-ico-tight"></i> 자동 실행';
+        document.getElementById('btn-step').classList.remove('sim-dim');
         document.getElementById('grid-size').disabled = false;
     }
 

@@ -30,6 +30,7 @@ const MUTANTS = [
     ['verbs', 'simulator/cs/sort.html', '</body>', "<button>지우기</button></body>", '버튼 이름 「지우기」'],  // verbs: 예시
     ['prose', NOTE, ...afterH1('<p>짚어 보면 알 수 있습니다.</p>'), '물러난 말 「짚다」'],
     ['prose', NOTE, ...afterH1('<p>앞 시간에 배운 대로</p>'), '앞 차시 참조'],
+    ['prose', 'simulator/cs/sort.html', '</main>', '<p><b>가</b>와 <b>나</b>를 봅니다.</p></main>', '시뮬레이터 문단에 볼드 둘(문체 기준서)'],
     ['classes', NOTE, ...afterH1('<div class="bg-${x}-50"></div>'), '조립한 클래스'],
     ['code', '데이터과학/code/2-3-2.영을-결측치로.py', '\n', '\ndef (:\n', '.py 구문 오류'],
     ['code', NOTE, ...afterH1('<pre><code>print(1)</code></pre>'), 'HTML 에 코드를 직접'],
@@ -53,7 +54,7 @@ const MUTANTS = [
     ['fixtures', 'tools/checks/verbs.mjs', '[/지우[기고는며]|지웁|지웠|지울|지워/g', '[/(?!)/g', 'verbs: 「지우다」 뺌'],
     ['fixtures', 'tools/checks/verbs.mjs', 'if (QUIZ.test(m[2])) continue;', '', 'verbs: 퀴즈 선택지 예외 뺌'],
     ['fixtures', 'tools/checks/prose.mjs', 'for (const [pos, e] of straightQuotes(p, src))', 'for (const [pos, e] of [])', 'prose: 곧은따옴표 끔'],
-    ['fixtures', 'tools/checks/prose.mjs', 'const later = checkLater(f);', 'const later = [];', 'prose: 문체 기준서(사람 몫) 끔'],
+    ['fixtures', 'tools/checks/prose.mjs', "const later = path.extname(f) === '.html' ? checkLater(f) : [];", 'const later = [];', 'prose: 문체 기준서(사람 몫) 끔'],
     ['fixtures', 'tools/checks/classes.mjs', "'템플릿 리터럴로 조립'],", "'템플릿 리터럴로 조립'].slice(0, 0),", 'classes: 템플릿 규칙 끔'],
     ['fixtures', 'tools/checks/code.mjs', 'if (/\\s/.test(path.basename(p)))', 'if (false)', 'code: 공백 이름 규칙 끔'],
 

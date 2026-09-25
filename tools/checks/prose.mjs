@@ -301,6 +301,9 @@ const QUIZ_HEAD = new RegExp(`<section(?!${W})[^>]*(?<!${W})id="quiz"[\\s\\S]*?<
     `\\s*(?:<div(?!${W})[^>]*>\\s*</div>\\s*)?(?:<p(?!${W})[^>]*>([\\s\\S]*?)</p>)?`, 'du');
 
 function quizHead(src) {
+    // 퀴즈가 없으면 정규식을 돌리지 않는다. `<section[^>]*` 가 닫히지 않은 채 긴 글을 만나면
+    // 되짚기가 폭주해 한 파일에 1분이 걸렸다(search-n-queen, 2026-09-25).
+    if (!src.includes('id="quiz"')) return [];
     const m = src.match(QUIZ_HEAD);
     if (!m) return [];
     const bad = [];
@@ -409,7 +412,9 @@ const DASH = /—|&mdash;/g;
 const BOLD = /<(?:strong|b)\b/g;
 const VERDICT = /(?:[이가] (?:요점|핵심|열쇠|요령)입니다|그것이 [^.]{1,30} 점입니다)\.?\s*$/;
 const SEAT = /이 자리의|바로 이 자리|자리가 바로/g;
-const LIST_AND = /(?:[^,.<>]{1,15},\s+){2,}[^,.<>]{1,15}\s등의\s[^.]{0,40}?하여\s[^.]{0,80}?다\./g;
+// 쉼표 뒤 빈칸은 `\s{1,20}` 으로 묶는다. `\s+` 이던 때는 스크립트를 빈칸으로 지운 시뮬레이터
+// 페이지(search-n-queen)에서 되짚기가 폭주해 한 파일에 1분이 걸렸다(2026-09-25).
+const LIST_AND = /(?:[^,.<>]{1,15},\s{1,20}){2,}[^,.<>]{1,15}\s등의\s[^.]{0,40}?하여\s[^.]{0,80}?다\./g;
 const REREAD = /다시 읽어|가리고 [가-힣 ]{0,10}(?:적어|써)|위 (?:설명|내용)을 다시/g;
 const AI_BOX = /AI와 함께 정리/g;
 
@@ -679,9 +684,13 @@ function checkFile(p, sim) {
 function checkLater(p) {
     const src = read(p);
     const lines = src.split('\n');
-    const body = htmlWithScriptStrings(src);
+    const body = visibleText(p, src);
     const out = new Map();
-    for (const [pos, rule, msg] of styleLater(body)) {
+    // 시뮬레이터의 퀴즈 머리말(기준서 15)은 강의노트와 달리 여기서 톱니를 탄다 —
+    // 맞출 자리가 simulator/ai 에 남아 있어 한꺼번에 막을 수 없었다(2026-09-25).
+    const hits = [...styleLater(body)];
+    if (isSim(p) && path.extname(p) === '.html') for (const [pos, msg] of quizHead(body)) hits.push([pos, '15 퀴즈 머리말', msg]);
+    for (const [pos, rule, msg] of hits) {
         const n = lineOf(body, pos);
         if (!lines[n - 1].includes(SKIP_LINE)) out.set(`${n}\u0000${rule}\u0000${msg}`, [n, rule, msg]);
     }
@@ -697,6 +706,14 @@ function pathMatch(relPath, glob) {
 }
 
 const isStyleDone = (p) => STYLE_DONE.some((g) => pathMatch(rel(p), g));
+
+// 시뮬레이터의 문체 기준서 사람 몫(4~9 · 15)을 막는 톱니 — `STYLE_DONE` 과 같은 뜻이다.
+// **simulator/ai 는 아직 없다** — 정제를 마치면 올리고, 올린 뒤에는 되돌리지 않는다.
+// 남은 자리는 `npm run check -- prose --report` 가 센다.
+const SIM_STYLE_DONE = [
+    'simulator/cs/*.html',   // 2026-09-25
+];
+const isSimStyleDone = (p) => SIM_STYLE_DONE.some((g) => pathMatch(rel(p), g));
 
 // 시뮬레이터는 전부 정제를 마쳤다(2026-09-24). 범위가 import 그래프라 글롭으로
 // 적을 수 없으므로 DONE 에 올리지 않고 통째로 막는다.
@@ -728,12 +745,13 @@ export function check(args = []) {
             pending.set(subj, (pending.get(subj) || 0) + bad.length);
             if (report) for (const [n, m] of bad) r.warn(`${shown}:${n} ${m}`);
         }
-        if (isSim(f) || path.extname(f) !== '.html') continue;
-        const later = checkLater(f);
-        if (picked.length || isStyleDone(f)) {
+        // 문체 기준서의 사람 몫. **시뮬레이터도 강의노트와 같이 본다**(2026-09-25 사용자 지시) —
+        // 화면 글도 학생이 읽는 글이다. 이 규칙들은 문단(<p>) · 절(<section>) 구조로 가르므로 HTML 에만 건다.
+        const later = path.extname(f) === '.html' ? checkLater(f) : [];
+        if (picked.length || (isSim(f) ? isSimStyleDone(f) : isStyleDone(f))) {
             for (const [n, , m] of later) r.error(`${shown}:${n} 문체 — ${m}`);
             total += later.length;
-        } else {
+        } else if (path.extname(f) === '.html') {
             const subj = shown.split('/')[0];
             if (!stylePending.has(subj)) stylePending.set(subj, new Map());
             const c = stylePending.get(subj);

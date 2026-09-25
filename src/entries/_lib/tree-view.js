@@ -41,6 +41,10 @@ const DEFAULTS = {
     label: (d) => String(d.id),
     nodeStyle: () => ({}),        // {fill, stroke, strokeWidth, textColor, fontWeight}
     linkStyle: () => ({}),        // {stroke, strokeWidth}
+    // 상자 크기만 정하는 라벨 — 그리지 않는다. 단계마다 라벨이 길어지는 트리(두 줄 → 세 줄)는
+    // 상자가 커질 때마다 배치와 배율이 다시 매겨져 트리가 들썩인다. 가장 긴 라벨을 여기 주면
+    // 처음부터 그 크기로 자리를 잡아 두므로 누를 때마다 흔들리지 않는다. `null` 이면 쓰지 않는다.
+    reserveLabel: null,
     edgeLabel: () => null,        // 링크 가운데 적을 글자
     edgeLabelColor: '#64748b',
     edgeLabelSize: 12,
@@ -385,9 +389,11 @@ export class TreeView {
             const style = this.opt.nodeStyle(d.data) || {};
             const fs = style.fontSize || this.opt.fontSize;
             const bold = style.fontWeight === 'bold' || style.fontWeight === 700;
+            // `reserveLabel` 은 상자 크기만 정하고 그리지는 않는다 → DEFAULTS 의 설명.
+            const reserve = this.opt.reserveLabel ? this._lines(d.data, this.opt.reserveLabel) : [];
 
             let textW = 0;
-            for (const line of lines) {
+            for (const line of [...lines, ...reserve]) {
                 textW = Math.max(textW, this.measurer.width(line.text, fs, line.bold ?? bold));
             }
 
@@ -395,7 +401,7 @@ export class TreeView {
             const padY = shape === 'ellipse' ? this.opt.padY * 1.5 : this.opt.padY;
 
             const w = Math.max(textW + padX * 2, this.opt.minBoxWidth);
-            const h = lines.length * fs * this.opt.lineHeight + padY * 2;
+            const h = Math.max(lines.length, reserve.length) * fs * this.opt.lineHeight + padY * 2;
             size = {w, h, shape, lines, fontSize: fs};
         }
 
@@ -423,8 +429,8 @@ export class TreeView {
      * 배열의 원소는 문자열이거나 `{text, bold}` 다. **줄마다 굵기를 달리 줄 수 있어야**
      * 「이름은 굵게, 값은 보통」인 상자를 그릴 수 있다.
      */
-    _lines(data) {
-        const label = this.opt.label(data);
+    _lines(data, labelFn = this.opt.label) {
+        const label = labelFn(data);
         const raw = Array.isArray(label) ? label : String(label ?? '').split('\n');
         return raw.map(line => (
             line && typeof line === 'object'

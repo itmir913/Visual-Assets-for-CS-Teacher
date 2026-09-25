@@ -708,10 +708,11 @@ function pathMatch(relPath, glob) {
 const isStyleDone = (p) => STYLE_DONE.some((g) => pathMatch(rel(p), g));
 
 // 시뮬레이터의 문체 기준서 사람 몫(4~9 · 15)을 막는 톱니 — `STYLE_DONE` 과 같은 뜻이다.
-// **simulator/ai 는 아직 없다** — 정제를 마치면 올리고, 올린 뒤에는 되돌리지 않는다.
+// 2026-09-25에 두 폴더가 모두 올랐다. 새 폴더는 정제를 마치면 올리고, 올린 뒤에는 되돌리지 않는다.
 // 남은 자리는 `npm run check -- prose --report` 가 센다.
 const SIM_STYLE_DONE = [
     'simulator/cs/*.html',   // 2026-09-25
+    'simulator/ai/*.html',   // 2026-09-25
 ];
 const isSimStyleDone = (p) => SIM_STYLE_DONE.some((g) => pathMatch(rel(p), g));
 

@@ -34,6 +34,8 @@ const MUTANTS = [
     ['classes', NOTE, ...afterH1('<div class="bg-${x}-50"></div>'), '조립한 클래스'],
     ['code', '데이터과학/code/2-3-2.영을-결측치로.py', '\n', '\ndef (:\n', '.py 구문 오류'],
     ['code', NOTE, ...afterH1('<pre><code>print(1)</code></pre>'), 'HTML 에 코드를 직접'],
+    ['code', '소프트웨어와생활/3-1-4.표로-된-데이터-다루기.html', '<script type="module" src="/src/entries/software-life/3-1-4.js"></script>', '', 'Prism 진입점 빠짐'],
+    ['code', 'src/entries/data-science/3-1-2.js', "import '../_lib/prism-r.js';", '', '진입점에 R 문법 빠짐'],
     ['index-links', 'index.html', 'href="데이터과학/1-1-1.데이터-과학과-의사-결정.html"', 'href="데이터과학/없는-파일.html"', '첫 화면의 끊긴 링크'],
     ['privacy', 'src/entries/_lib/josa.js', '\n', '\nlocalStorage.setItem("a", "b");\n', '브라우저 저장소 사용'],
     ['sim-index', 'simulator/index.html', '</body>', '<!-- 손으로 고침 --></body>', '구운 입구를 손으로 고침'],

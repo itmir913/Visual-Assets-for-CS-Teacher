@@ -27,7 +27,7 @@ const CASES = [
     ['verbs', verbs, [`${F}/verbs-terms.js`]],
     ['prose', prose, [`${F}/prose.html`]],
     ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
-    ['code', code, codeFiles],
+    ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],
 ];
 
 describe('일부러 틀린 조각을 검사가 잡는가', () => {

@@ -171,12 +171,54 @@ function checkInline(r) {
     }
 }
 
+/** 진입점에서 상대 import 를 따라가며 실리는 모듈의 글과 바깥 꾸러미 이름을 모은다. */
+function importGraph(entry, seen = new Set()) {
+    if (seen.has(entry) || !fs.existsSync(entry)) return seen;
+    seen.add(entry);
+    for (const m of read(entry).matchAll(/import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g)) {
+        if (m[1].startsWith('.')) importGraph(path.resolve(path.dirname(entry), m[1]), seen);
+        else seen.add('pkg:' + m[1]);
+    }
+    return seen;
+}
+
+/**
+ * 코드 블록이 있는 강의노트가 Prism 하이라이팅을 실제로 싣는가(2026-09-25 사용자 지시).
+ *
+ * 코드 본문은 빌드가 넣어 주지만 **배경색과 색칠은 Prism 이 `<pre>` 에 `language-*` 를 옮겨
+ * 붙여야 생긴다.** 진입점이 없으면 코드는 보이는데 바탕 없이 흐린 글자로 나와, 화면만으로는
+ * 빠진 줄 알기 어렵다 — 소프트웨어와생활 여섯 편 · 데이터과학 두 편이 그렇게 나가 있었다.
+ * 페이지가 거는 진입점에서 import 를 따라가, `highlightAll` 을 부르는지와 쓰인 언어마다
+ * `prismjs/components/prism-<언어>` 가 실리는지 본다.
+ */
+function checkHighlight(r, htmls) {
+    for (const html of htmls) {
+        const src = read(html);
+        const langs = new Set([...src.matchAll(/<code\b[^>]*\bclass="[^"]*\blanguage-([\w-]+)[^>]*\bdata-src=/g)].map((m) => m[1]));
+        if (!langs.size) continue;
+        const graph = new Set();
+        for (const m of src.matchAll(/<script\b[^>]*\bsrc="\/(src\/entries\/[^"]+)"/g)) importGraph(path.join(ROOT, m[1]), graph);
+        const files = [...graph].filter((g) => !g.startsWith('pkg:'));
+        const where = `${rel(html)}:${lineOf(src, src.search(/data-src=/))}`;
+        if (!files.some((f) => /\bhighlightAll\s*\(/.test(read(f)))) {
+            r.error(`${where} 코드 블록이 있는데 Prism.highlightAll() 을 부르는 진입점이 없다 — 코드에 배경과 색이 붙지 않는다`);
+            continue;
+        }
+        for (const lang of langs) {
+            if (!graph.has(`pkg:prismjs/components/prism-${lang}.min.js`) && !graph.has(`pkg:prismjs/components/prism-${lang}.js`))
+                r.error(`${where} language-${lang} 코드가 있는데 진입점이 그 문법(prism-${lang})을 싣지 않는다`);
+        }
+    }
+}
+
 export function check(args = []) {
     const r = new Report('check_code');
     const picked = args.filter((a) => !a.startsWith('-'));
     const files = picked.length ? picked.map((a) => path.resolve(ROOT, a)).filter((p) => fs.existsSync(p)) : codeFiles();
-    const {checked, skipped} = checkSyntax(files, r);
-    checkNames(files, r);
+    const {checked, skipped} = checkSyntax(files.filter((f) => !f.endsWith('.html')), r);
+    checkNames(files.filter((f) => !f.endsWith('.html')), r);
     if (!picked.length) checkInline(r);
+    checkHighlight(r, picked.length ? files.filter((f) => f.endsWith('.html'))
+        : SUBJECTS.flatMap((s) => walk(path.join(ROOT, s.dir), {ext: ['.html']})));
     return r.done(`완료 — 구문 검사 ${checked}, 건너뜀 ${skipped}, 문제 ${r.errors.length}`);
 }

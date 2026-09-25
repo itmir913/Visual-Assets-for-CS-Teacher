@@ -16,6 +16,11 @@
 //   6. **그린 선과 여백 점선이 실제로 w·x + b = 0 과 ±1 인가.** 여기가 어긋나면
 //      **셈은 맞는데 학생이 보는 여백만 다르다.**
 //   7. **화면에 적는 식이 w 와 b 그대로인가.**
+//   8. **파랑 칠이 w·x + b < 0 쪽인가** — 판 위 격자에서 부호와 칠한 쪽을 맞댄다.
+//   9. **C 의 효과** — 겹친 자료에서 C 가 작을수록 마진 폭 2/‖w‖ 가 넓고 침범하는 점이 많은가,
+//      슬라이더와 「소프트·표준·하드」 글이 그 방향인가.
+//  10. **붉은 테두리가 y·f(x) < 1 인 점에만 붙는가.**
+//  11. **무작위 자료가 판 안에 들고 가장자리 선 위에 쌓이지 않는가.**
 //
 // **못 보는 것.** 색과 두께, 칠한 넓이는 볼 수 없다.
 
@@ -36,6 +41,7 @@ if (sim.stubbed.length) console.log(`  · 가짜로 때운 것: ${sim.stubbed.jo
 
 const doc = sim.doc;
 const P = (expr) => sim.evalInPage(expr);
+const 같은가 = (a, b) => Math.abs(a - b) < 1e-6;
 
 /** 씨앗을 주면 같은 순서로 섞이는 난수. 학습이 재현되어야 결함을 좇을 수 있다. */
 function mulberry32(a) {
@@ -270,6 +276,147 @@ for (const 벌 of 자료벌) {
                 bad(`식: ${['w₁', 'w₂', 'b'][i]} 를 ${v} 로 적었다 — 실제로는 ${실제값[i]} 다`);
             }
         }
+    }
+}
+
+/* ================================================================
+   8. 칠한 쪽 — 파랑 칠이 B 반(w·x + b < 0) 쪽인가
+   ================================================================ */
+{
+    const 벌 = 자료벌[2];
+    const 점들 = [
+        ...벌.A.map(([x, y]) => ({nx: x, ny: y, cls: 1})),
+        ...벌.B.map(([x, y]) => ({nx: x, ny: y, cls: -1})),
+    ];
+    for (const c of sim.canvases()) c._ctx.ops.length = 0;
+    P("renderer.draw('DONE')");
+    const cw = sim.state.box.w, ch = sim.state.box.h;
+    const 파랑칠 = sim.canvases().flatMap((c) => c._ctx.ops)
+        .find((o) => o.op === 'path' && o.pts.length === 4 && o.fill === 'rgba(59, 130, 246, 0.08)');
+    /** 다각형 안인가 — 반직선 교차 수로 센다 */
+    const 안인가 = (poly, [x, y]) => {
+        let 안 = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const [xi, yi] = poly[i], [xj, yj] = poly[j];
+            if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) 안 = !안;
+        }
+        return 안;
+    };
+    if (!파랑칠) bad('칠: B 반 쪽을 파랑으로 칠하지 않았다');
+    else {
+        const w = [P('svm.w[0]'), P('svm.w[1]')], b = P('svm.b');
+        // 점만이 아니라 판 위의 여러 자리에서 w·x + b 의 부호와 칠한 쪽을 맞댄다
+        let 어긋남 = 0;
+        for (let gx = 0.05; gx < 1; gx += 0.1) {
+            for (let gy = 0.05; gy < 1; gy += 0.1) {
+                const nx = gx * 2 - 1, ny = 1 - gy * 2;
+                const f = w[0] * nx + w[1] * ny + b;
+                if (Math.abs(f) < 0.05) continue;
+                if (안인가(파랑칠.pts, [gx * cw, gy * ch]) !== (f < 0)) 어긋남++;
+            }
+        }
+        if (어긋남) bad(`칠: 판 위 ${어긋남}곳에서 파랑 칠과 w·x + b 의 부호가 어긋난다`);
+        if (점들.some((p) => 안인가(파랑칠.pts, [(p.nx + 1) * cw / 2, (1 - p.ny) * ch / 2]) !== (p.cls === -1))) {
+            bad('칠: 파랑 칠이 B 반 점들을 덮지 않는다');
+        }
+    }
+}
+
+/* ================================================================
+   9. C 의 효과 — 겹친 자료에서 C 가 작을수록 마진이 넓고 침범을 더 허용한다
+   ================================================================ */
+{
+    const 점들 = [];
+    const 난수 = mulberry32(4242);
+    for (let i = 0; i < 20; i++) {
+        점들.push({nx: -0.25 + (난수() - 0.5) * 0.9, ny: 0.25 + (난수() - 0.5) * 0.9, cls: 1});
+        점들.push({nx: 0.25 + (난수() - 0.5) * 0.9, ny: -0.25 + (난수() - 0.5) * 0.9, cls: -1});
+    }
+    const 결과 = [];
+    for (const C of [0.01, 1, 316]) {
+        sim.window.Math.random = mulberry32(99);
+        P(`svm.trainInstant(${JSON.stringify(점들)}, ${C})`);
+        const w = [P('svm.w[0]'), P('svm.w[1]')], b = P('svm.b');
+        const 침범 = 점들.filter((p) => p.cls * (w[0] * p.nx + w[1] * p.ny + b) < 1).length;
+        결과.push({C, 폭: 2 / Math.hypot(w[0], w[1]), 침범, sv: P('svm.supportVectors').length});
+    }
+    // Train 버튼이 쓰는 것은 trainAnimated 다 — 같은 방향이어야 한다. 기다림(setTimeout)은 없앤다
+    {
+        const 원래 = sim.window.setTimeout;
+        sim.window.setTimeout = (f) => { f(); return 0; };
+        const 폭 = [];
+        for (const C of [0.01, 316]) {
+            sim.window.Math.random = mulberry32(99);
+            await P(`svm.trainAnimated(${JSON.stringify(점들)}, ${C}, () => {})`);
+            폭.push(2 / Math.hypot(P('svm.w[0]'), P('svm.w[1]')));
+        }
+        sim.window.setTimeout = 원래;
+        if (!(폭[0] > 폭[1])) bad(`C 의 효과(Train 버튼): C=0.01 의 폭 ${폭[0].toFixed(2)} 이 C=316 의 폭 ${폭[1].toFixed(2)} 보다 넓어야 한다`);
+    }
+    const 적기 = 결과.map((r) => `C=${r.C}: 폭 ${r.폭.toFixed(2)}·침범 ${r.침범}`).join(' / ');
+    if (!(결과[0].폭 > 결과[1].폭 && 결과[1].폭 > 결과[2].폭)) bad(`C 의 효과: C 가 작을수록 마진이 넓어야 한다 (${적기})`);
+    if (!(결과[0].침범 >= 결과[1].침범 && 결과[1].침범 >= 결과[2].침범 && 결과[0].침범 > 결과[2].침범)) {
+        bad(`C 의 효과: C 가 작을수록 마진을 침범하는 점이 많아야 한다 (${적기})`);
+    }
+    // 화면 설명의 방향 — 슬라이더 왼쪽이 작은 C·소프트 마진이다
+    const 실제C = [10, 50, 100].map((v) => P(`calculateActualC(${v})`));
+    if (!(Math.abs(실제C[0] - 0.01) < 1e-9 && Math.abs(실제C[1] - 1) < 1e-9 && 실제C[2] > 300)) {
+        bad(`C 슬라이더: 10·50·100 이 C ${실제C.join('·')} 이다 — 0.01·1·316 이어야 한다`);
+    }
+    const 슬라이더 = doc.getElementById('cSlider');
+    for (const [v, 글] of [[15, '소프트'], [58, '표준'], [95, '하드']]) {
+        슬라이더.value = String(v);
+        슬라이더.dispatchEvent(new sim.window.Event('input', {bubbles: true}));
+        const 적힌것 = doc.getElementById('cMarginLabel').innerText;
+        if (!적힌것.startsWith(글)) bad(`C 슬라이더 ${v}: 「${적힌것}」 — 「${글}」 로 시작해야 한다`);
+    }
+}
+
+/* ================================================================
+   10. 마진 침범 강조 — 붉은 테두리가 y·f(x) < 1 인 점에만 붙는가
+   ================================================================ */
+{
+    // w·x + b = 2·x₁ 로 못박아 둔다 — B 반(y=-1)의 y·f 는 -2·x₁ 이다.
+    // 마진 밖(1.6) · 마진 안이지만 맞는 쪽(0.6) · 선 위(0) · 반대편(-0.4)을 하나씩 둔다
+    const 점들 = [
+        {nx: -0.8, ny: 0.1, cls: -1}, {nx: -0.3, ny: 0.2, cls: -1}, {nx: 0, ny: -0.3, cls: -1},
+        {nx: 0.2, ny: 0.4, cls: -1}, {nx: 0.7, ny: 0, cls: 1},
+    ];
+    P(`dataManager.points = ${JSON.stringify(점들)}`);
+    P('svm.w = [2, 0]; svm.b = 0;');
+    for (const c of sim.canvases()) c._ctx.ops.length = 0;
+    P("renderer.draw('DONE')");
+    const w = [P('svm.w[0]'), P('svm.w[1]')], b = P('svm.b');
+    const cw = sim.state.box.w, ch = sim.state.box.h;
+    const 네모 = sim.canvases().flatMap((c) => c._ctx.ops).filter((o) => o.op === 'path' && o.rect && o.rect[2] === 12);
+    for (const p of 점들.filter((q) => q.cls === -1)) {
+        const x = (p.nx + 1) * cw / 2 - 6, y = (1 - p.ny) * ch / 2 - 6;
+        const 그린것 = 네모.find((o) => 같은가(o.rect[0], x) && 같은가(o.rect[1], y));
+        const 침범 = p.cls * (w[0] * p.nx + w[1] * p.ny + b) < 1;
+        if (!그린것) { bad(`침범 강조: (${p.nx},${p.ny}) 의 네모를 찾지 못했다`); continue; }
+        if ((그린것.style === '#ef4444') !== 침범) bad(`침범 강조: (${p.nx},${p.ny}) 는 침범 ${침범} 인데 테두리가 ${그린것.style} 다`);
+    }
+    // 학습 전(IDLE)에는 붉은 테두리가 없다
+    for (const c of sim.canvases()) c._ctx.ops.length = 0;
+    P("renderer.draw('IDLE')");
+    if (sim.canvases().flatMap((c) => c._ctx.ops).some((o) => o.style === '#ef4444')) bad('침범 강조: 학습 전에 붉은 테두리를 그렸다');
+}
+
+/* ================================================================
+   11. 무작위 자료 — 판 안에, 가장자리 선에 쌓이지 않게
+   ================================================================ */
+{
+    let 씨 = 7;
+    sim.window.Math.random = () => (씨 = (씨 * 1103515245 + 12345) % 2147483648) / 2147483648;
+    for (const [cw, ch] of [[600, 600], [400, 300]]) {
+        P(`dataManager.generateRandom(${cw}, ${ch}, 450)`);
+        const 점 = P('dataManager.points');
+        if (점.length !== 60 || 점.filter((p) => p.cls === 1).length !== 30) bad(`무작위 자료(${cw}×${ch}): 반마다 서른 개가 아니다`);
+        const 픽셀 = 점.map((p) => [(p.nx + 1) * cw / 2, (1 - p.ny) * ch / 2]);
+        const 밖 = 픽셀.filter(([x, y]) => x < 20 - 1e-6 || x > cw - 20 + 1e-6 || y < 20 - 1e-6 || y > ch - 20 + 1e-6);
+        if (밖.length) bad(`무작위 자료(${cw}×${ch}): 점 ${밖.length}개가 판 밖에 있다`);
+        const 선위 = 픽셀.filter(([x, y]) => [Math.abs(x - 20), Math.abs(x - (cw - 20)), Math.abs(y - 20), Math.abs(y - (ch - 20))].some((d) => d < 1e-6));
+        if (선위.length) bad(`무작위 자료(${cw}×${ch}): 점 ${선위.length}개가 가장자리 선 위에 쌓였다 — 밖으로 나간 점을 끌어왔다`);
     }
 }
 

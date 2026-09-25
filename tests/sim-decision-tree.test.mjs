@@ -15,8 +15,12 @@
 //   4. **경계선 그리기**: 그린 선이 트리의 나눔과 하나씩 맞물리고, 선이 제 칸 안에서만 그어지는가.
 //      여기가 어긋나면 **트리는 맞는데 그림만 틀린다** — 학생이 보는 것은 그림이다.
 //
-// **못 보는 것.** 색으로 칠한 넓이는 볼 수 없다(받침대의 가짜 캔버스는 `fillRect` 를 적어 두지
-// 않는다). 칠이 제자리인지는 그 칸을 가르는 «선»이 제자리인지로 갈음한다.
+//   5. **2차원 칠**: 받침대의 가짜 캔버스는 `fillRect` 를 적어 두지 않으므로 페이지의 ctx 에
+//      기록기를 끼워, 판 위 격자의 색이 트리를 따라 내려가 얻은 답의 색인지 본다.
+//   6. **경계값**: 점 하나, 같은 자리에 반이 다른 점들에서 죽지 않고 잎 하나가 된다.
+//   7. **범주형 예측**: 처음 자료의 과일은 특징 조합이 모두 달라, 제 특징을 넣으면 제 이름이 나와야 한다.
+//
+// **못 보는 것.** 실제 픽셀과 트리 그림(SVG)의 배치는 볼 수 없다.
 
 import {test, expect} from 'vitest';
 import {loadSim, SIM_ROOT} from '../tools/_sim-harness.mjs';
@@ -234,6 +238,79 @@ for (const [최대깊이, 최소잎] of [[3, 1], [5, 2], [2, 5], [6, 3]]) {
     const 그린점 = sim.canvases().flatMap((c) => c._ctx.ops).filter((o) => o.op === 'arc' && o.r === 6);
     if (그린점.length !== 점들.length) bad(`점 그리기(깊이${최대깊이}잎${최소잎}): 점 ${점들.length}개 가운데 ${그린점.length}개만 그렸다`);
     for (const c of sim.canvases()) c._ctx.ops.length = 0;
+}
+
+/* ================================================================
+   5. 2차원 칠 — 판의 어느 자리든 칠한 색이 트리가 내린 답의 색인가
+   ================================================================ */
+// 받침대는 fillRect 를 적지 않으므로 페이지의 ctx 에 기록기를 끼운다
+P(`globalThis.__칠 = []; ctx.fillRect = (x, y, w, h) => __칠.push({x, y, w, h, style: ctx.fillStyle});`);
+const 옅은색 = {1: 'rgba(239, 68, 68, 0.2)', 2: 'rgba(59, 130, 246, 0.2)', 3: 'rgba(16, 185, 129, 0.2)'};
+for (const [최대깊이, 최소잎] of [[4, 1], [2, 3], [15, 1]]) {
+    const 점들 = [];
+    for (let i = 0; i < 30; i++) {
+        점들.push({x: Math.round(흔들기() * 380 + 10), y: Math.round(흔들기() * 380 + 10), cls: Math.floor(흔들기() * 3) + 1});
+    }
+    P(`points2D = ${JSON.stringify(점들)}`);
+    doc.getElementById('paramDepth2D').value = String(최대깊이);
+    doc.getElementById('paramMinLeaf2D').value = String(최소잎);
+    P('__칠.length = 0');
+    P('run2DTraining()');
+    const 트리 = P('tree2D');
+    const 칠 = P('__칠').filter((r) => Object.values(옅은색).includes(r.style));
+    const 잎수 = (function 세기(n) { return n.isLeaf ? 1 : 세기(n.left) + 세기(n.right); })(트리);
+    if (칠.length !== 잎수) bad(`칠(깊이${최대깊이}잎${최소잎}): 칸을 ${칠.length}개 칠했다 — 잎은 ${잎수}개다`);
+    const 넓이 = 칠.reduce((a, r) => a + r.w * r.h, 0);
+    if (Math.abs(넓이 - 400 * 400) > 1e-6) bad(`칠(깊이${최대깊이}잎${최소잎}): 칠한 넓이 합이 ${넓이} — 판 전체 160000 이어야 한다`);
+    let 어긋남 = 0;
+    for (let gx = 3.7; gx < 400; gx += 13) {
+        for (let gy = 5.3; gy < 400; gy += 13) {
+            let n = 트리;
+            while (!n.isLeaf) n = (n.feature === 'x' ? gx : gy) <= n.value ? n.left : n.right;
+            const 칸 = 칠.find((r) => gx >= r.x && gx < r.x + r.w && gy >= r.y && gy < r.y + r.h);
+            if (!칸 || 칸.style !== 옅은색[n.cls]) 어긋남++;
+        }
+    }
+    if (어긋남) bad(`칠(깊이${최대깊이}잎${최소잎}): 판 위 ${어긋남}곳의 색이 트리가 내린 답과 다르다`);
+}
+
+/* ================================================================
+   6. 2차원 경계값 — 점 하나, 같은 자리에 반이 다른 점들
+   ================================================================ */
+{
+    doc.getElementById('paramDepth2D').value = '5';
+    doc.getElementById('paramMinLeaf2D').value = '1';
+    for (const [이름, 점들, 답] of [
+        ['점 하나', [{x: 100, y: 100, cls: 2}], 2],
+        ['같은 자리에 반 둘', [{x: 50, y: 50, cls: 1}, {x: 50, y: 50, cls: 3}, {x: 50, y: 50, cls: 3}], 3],
+    ]) {
+        P(`points2D = ${JSON.stringify(점들)}`);
+        const 앞오류 = sim.errors.length;
+        P('run2DTraining()');
+        const 트리 = P('tree2D');
+        if (sim.errors.length > 앞오류 || !트리) { bad(`2차원 ${이름}: 학습하다 죽었다`); continue; }
+        if (!트리.isLeaf || 트리.cls !== 답) bad(`2차원 ${이름}: 잎 하나(${답})여야 하는데 ${JSON.stringify(트리)} 다`);
+    }
+}
+
+/* ================================================================
+   7. 범주형 예측 — 처음 자료의 과일은 특징 조합이 모두 달라, 제 특징을 넣으면 제 이름이 나와야 한다
+   ================================================================ */
+{
+    P('initCatData()');
+    P('runCatTraining()');
+    // 기다리는 1초를 없앤다 — 트리를 따라 내려가는 순서는 그대로다
+    const 원래 = sim.window.setTimeout;
+    sim.window.setTimeout = (f) => { f(); return 0; };
+    for (const 과일 of P('datasetCat')) {
+        doc.getElementById('testColor').value = 과일.color;
+        doc.getElementById('testSize').value = 과일.size;
+        doc.getElementById('testShape').value = 과일.shape;
+        await P('runCatPrediction()');
+        const 적힌것 = doc.getElementById('predResult').innerHTML;
+        if (!적힌것.includes(`<b>${과일.name}</b>`)) bad(`범주형 예측: ${과일.color}·${과일.size}·${과일.shape} 를 「${적힌것}」 로 분류했다 — ${과일.name} 이어야 한다`);
+    }
+    sim.window.setTimeout = 원래;
 }
 
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');

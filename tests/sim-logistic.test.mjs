@@ -261,5 +261,140 @@ const 손실 = (w, b) => 줄인값.reduce((합, p) => {
     }
 }
 
+/* ================================================================
+   8. 다 돌린 값이 교차 엔트로피의 최솟값인가 — **뉴턴법으로 따로 구해** 맞댄다
+
+   두 반이 겹치는 자료라야 최솟값이 유한하다. 페이지는 기울기가 1e-4 아래로 내려가면
+   멈추므로, 그만큼의 차이는 남는다.
+   ================================================================ */
+const 뉴턴 = (pts) => {
+    // 헤세 행렬 [[Σs x², Σs x], [Σs x, Σs]] 과 기울기로 한 번에 내려간다 (s = q(1-q))
+    let w = 0, b = 0;
+    for (let 회 = 0; 회 < 100; 회++) {
+        let gw = 0, gb = 0, hww = 0, hwb = 0, hbb = 0;
+        for (const p of pts) {
+            const q = 1 / (1 + Math.exp(-(w * p.x + b)));
+            const s = q * (1 - q);
+            gw += (q - p.y) * p.x; gb += q - p.y;
+            hww += s * p.x * p.x; hwb += s * p.x; hbb += s;
+        }
+        const det = hww * hbb - hwb * hwb;
+        const dw = (hbb * gw - hwb * gb) / det, db = (hww * gb - hwb * gw) / det;
+        w -= dw; b -= db;
+        if (Math.abs(dw) + Math.abs(db) < 1e-13) break;
+    }
+    return {w, b};
+};
+const 끝까지 = (pts, lr = 1, 한도 = 60000) => {
+    P('uiController.model.init()');
+    P('uiController.model.hasStarted = true');
+    P('uiController.model.w = 0; uiController.model.b = 0');
+    P(`uiController.model.learningRate = ${lr}`);
+    P(`window.__pts = ${JSON.stringify(pts)}`);
+    return P(`(() => { let n = 0; while (n < ${한도} && !uiController.model.trainStep(window.__pts)) n++; return n; })()`);
+};
+{
+    // 수업에서 원리를 확인하려고 지어낸 겹치는 자료 — 오른쪽으로 갈수록 1이 많다 · 왼쪽으로 갈수록 1이 많다
+    for (const 방향 of [1, -1]) {
+        const 겹친점 = [];
+        for (let i = 0; i < 30; i++) {
+            const t = i / 29;
+            const y = (i % 5 === 0) ? (t < 0.5 ? 1 : 0) : (t >= 0.45 ? 1 : 0);
+            겹친점.push({x: 방향 > 0 ? t : 1 - t, y});
+        }
+        const 답 = 뉴턴(겹친점);
+        const 걸음 = 끝까지(겹친점);
+        const w = P('uiController.model.w'), b = P('uiController.model.b');
+        if (P('uiController.model.diverged')) bad(`최솟값(방향 ${방향}): 학습률 1에서 발산했다고 한다`);
+        if (Math.abs(w - 답.w) > 0.05 * Math.max(1, Math.abs(답.w)) || Math.abs(b - 답.b) > 0.05 * Math.max(1, Math.abs(답.b))) {
+            bad(`최솟값(방향 ${방향}): ${걸음}걸음 뒤 w=${w.toFixed(3)}, b=${b.toFixed(3)} — 뉴턴법으로는 w=${답.w.toFixed(3)}, b=${답.b.toFixed(3)} 다`);
+        }
+        if (Math.sign(답.w) !== 방향) bad(`최솟값: 지어낸 자료의 방향이 ${방향} 인데 뉴턴법 기울기가 ${답.w.toFixed(3)} 다 — 검사의 자료가 틀렸다`);
+    }
+}
+
+/* ================================================================
+   9. 예제 넷 — 설명의 방향과 배운 기울기의 부호, 결정 경계 글자, 추운 날과 더운 날
+
+   넷째 예제(기온 → 난방)는 **기울기가 음수**인 유일한 예제다. 결정 경계 x = −b/w 는
+   부호와 상관없이 성립해야 하고, 경계 왼쪽이 「클래스 1」이 되어야 한다.
+   ================================================================ */
+{
+    const 방향 = {1: 1, 2: 1, 3: 1, 4: -1};
+    for (const id of [1, 2, 3, 4]) {
+        P(`uiController.loadExample(${id})`);
+        const 설명 = doc.getElementById('exampleDesc').innerText;
+        if ((방향[id] > 0) !== /높을수록|길수록/.test(설명) || (방향[id] < 0) !== 설명.includes('낮을수록')) {
+            bad(`예제 ${id}: 설명 「${설명}」 이 자료의 방향과 어긋난다`);
+        }
+        const 원점 = P('uiController.dataManager.points');
+        const 칸 = P('uiController.dataManager.getBounds()');
+        const 줄 = 원점.map((p) => ({x: (p.x - 칸.minX) / (칸.maxX - 칸.minX), y: p.y}));
+        const 답 = 뉴턴(줄);
+        끝까지(줄);
+        const w = P('uiController.model.w'), b = P('uiController.model.b');
+        if (Math.sign(w) !== 방향[id]) bad(`예제 ${id}: 배운 기울기 ${w.toFixed(3)} — 설명대로면 부호가 ${방향[id]} 이다`);
+        if (Number.isFinite(답.w) && Math.sign(답.w) !== 방향[id]) bad(`예제 ${id}: 자료 자체의 기울기(뉴턴법) ${답.w.toFixed(3)} — 설명과 방향이 다르다`);
+
+        // 결정 경계 글자 = 원래 단위로 되돌린 −b/w
+        const 경계x = 칸.minX + (-b / w) * (칸.maxX - 칸.minX);
+        const 글자들 = [];
+        const ctx = sim.canvases()[0]._ctx;
+        ctx.fillText = (s, x, y) => 글자들.push({s: String(s), x, y, align: ctx.textAlign});
+        P('uiController.renderer.render(uiController.dataManager, uiController.model)');
+        const 경계글자 = 글자들.find((t) => t.s.startsWith('경계: x = '));
+        if (!경계글자) bad(`예제 ${id}: 결정 경계 글자를 적지 않았다`);
+        else if (Math.abs(Number(경계글자.s.replace('경계: x = ', '')) - 경계x) > 0.051) {
+            bad(`예제 ${id}: 「${경계글자.s}」 — −b/w 를 되돌리면 x = ${경계x.toFixed(2)} 다`);
+        }
+        // 화면의 z 식이 경계에서 0이 되는가
+        P('uiController.updateUI()');
+        const m = doc.getElementById('zEquationDisplay').innerText.match(/z = (-?[\d.]+)x ([+-]) ([\d.]+)/);
+        if (m) {
+            const a = Number(m[1]), c = (m[2] === '-' ? -1 : 1) * Number(m[3]);
+            if (Math.abs(a * 경계x + c) > 0.02 * Math.max(1, Math.abs(경계x))) bad(`예제 ${id}: 화면의 z 식이 경계 x=${경계x.toFixed(2)} 에서 0이 아니다`);
+        }
+        // 경계 양쪽 — 기울기가 음수면 왼쪽(작은 x)이 클래스 1
+        for (const [x, 기대] of [[칸.minX, 방향[id] > 0 ? 0 : 1], [칸.maxX, 방향[id] > 0 ? 1 : 0]]) {
+            doc.getElementById('predictInputX').value = String(x.toFixed(1));
+            P('uiController.executePredict()');
+            const 적힌 = doc.getElementById('predictResult').textContent.includes('클래스 1') ? 1 : 0;
+            if (적힌 !== 기대) bad(`예제 ${id}: x=${x.toFixed(1)} 을 클래스 ${적힌} 로 갈랐다 — 클래스 ${기대} 쪽 끝이다`);
+        }
+        // 넷째 예제의 경계는 두 반이 겹치는 8~14℃ 근처에 있어야 한다
+        if (id === 4 && !(경계x > 5 && 경계x < 17)) bad(`예제 4: 결정 경계 x=${경계x.toFixed(1)}℃ — 두 반이 겹치는 8~14℃ 근처가 아니다`);
+    }
+}
+
+/* ================================================================
+   10. 그리는 칸 밖을 예측하면 확률 글자를 칸 안에 붙여 적는가
+   ================================================================ */
+{
+    P('uiController.loadExample(1)');
+    const 원점 = P('uiController.dataManager.points');
+    const 칸 = P('uiController.dataManager.getBounds()');
+    끝까지(원점.map((p) => ({x: (p.x - 칸.minX) / (칸.maxX - 칸.minX), y: p.y})), 1, 3000);
+    const r = P('({w: uiController.renderer.logicalWidth, p: uiController.renderer.padding})');
+    const ctx = sim.canvases()[0]._ctx;
+    for (const x of [칸.minX - 50, 칸.maxX + 50, (칸.minX + 칸.maxX) / 2]) {
+        const 글자들 = [];
+        ctx.fillText = (s, tx, ty) => 글자들.push({s: String(s), x: tx, align: ctx.textAlign});
+        doc.getElementById('predictInputX').value = String(x);
+        P('uiController.executePredict()');
+        const 확률 = 글자들.find((t) => /\d%/.test(t.s));
+        if (!확률) { bad(`칸 밖 예측: x=${x} 의 확률 글자를 적지 않았다`); continue; }
+        // 왼쪽 맞춤이면 글자가 x 에서 오른쪽으로, 오른쪽 맞춤이면 왼쪽으로 뻗는다
+        const 시작 = 확률.align === 'right' ? 확률.x - 확률.s.length * 8 : 확률.x;
+        const 끝 = 확률.align === 'right' ? 확률.x : 확률.x + 확률.s.length * 8;
+        if (시작 < r.p.left - 1 || 끝 > r.w - r.p.right + 1) {
+            bad(`칸 밖 예측: x=${x} 의 「${확률.s}」 를 [${시작.toFixed(0)}, ${끝.toFixed(0)}] 에 적었다 — 그리는 칸 [${r.p.left}, ${r.w - r.p.right}] 밖이라 잘린다`);
+        }
+        const 밖 = x < 칸.minX ? '←' : x > 칸.maxX ? '→' : '';
+        if (밖 && !확률.s.includes(밖)) bad(`칸 밖 예측: x=${x} 는 그림 밖인데 「${확률.s}」 에 어느 쪽인지 알리지 않는다`);
+        if (!밖 && /[←→]/.test(확률.s)) bad(`칸 밖 예측: x=${x} 는 그림 안인데 「${확률.s}」 에 화살표를 붙였다`);
+    }
+    delete ctx.fillText;
+}
+
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');
 test('logistic', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

@@ -38,6 +38,8 @@ const CHECKS = {
     'prose': 'tests/prose.test.mjs',
     // 검사가 제 할 일을 하는가 — 일부러 틀리게 쓴 조각(`tests/fixtures/`)을 넣어 본다
     'fixtures': 'tests/fixtures.test.mjs',
+    // 진짜 브라우저(Chromium)에서 잰 화면 — 겹침 · 넘침 · 닿지 않는 조작
+    'layout': 'tests/browser/sim-layout.test.mjs',
     // 시뮬레이터 동작 — 아래 SIMS 표를 차례로 돈다. 뒤에 SIMS 의 이름을 주면 그것만.
     'sim': null,
     // 산출물. 빌드가 있어야 하므로 기본 목록에서 빠지고 이름으로만 부른다.

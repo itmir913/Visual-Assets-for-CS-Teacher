@@ -42,6 +42,7 @@ import copyCodeButton from './tools/vite/copy-code-button.js';
 import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
 import subsetIconFont from './tools/vite/subset-icon-font.js';
 import thirdPartyNotices from './tools/vite/third-party-notices.js';
+import { playwright } from '@vitest/browser-playwright';
 
 /**
  * 진입점 — 페이지 전부.
@@ -110,10 +111,35 @@ export default {
     // 검사(`npm run check`)는 Vitest 가 돈다. 무엇을 돌릴지는 `tools/run.mjs` 가 고른다.
     // 파일 하나가 검사 하나다. 시뮬레이터 검사는 페이지를 통째로 jsdom 에 올리므로 오래 걸린다.
     test: {
-        include: ['tests/**/*.test.mjs'],
         testTimeout: 600_000,
         hookTimeout: 600_000,
-        // 검사끼리 전역(jsdom · 캔버스 가짜)을 나눠 쓰지 않게 파일마다 따로 띄운다.
-        pool: 'forks',
+        projects: [
+            {
+                extends: true,
+                test: {
+                    name: 'node',
+                    include: ['tests/**/*.test.mjs'],
+                    exclude: ['tests/browser/**'],
+                    // 검사끼리 전역(jsdom · 캔버스 가짜)을 나눠 쓰지 않게 파일마다 따로 띄운다.
+                    pool: 'forks',
+                },
+            },
+            {
+                // **레이아웃은 진짜 브라우저에서만 잰다.** jsdom 에는 레이아웃이 없어 겹침 · 넘침을
+                // 볼 수 없다. 페이지를 iframe 에 폭을 정해 띄우고 실제 상자 크기를 잰다.
+                extends: true,
+                test: {
+                    name: 'browser',
+                    include: ['tests/browser/**/*.test.mjs'],
+                    browser: {
+                        enabled: true,
+                        provider: playwright(),
+                        headless: true,
+                        instances: [{browser: 'chromium'}],
+                        viewport: {width: 1600, height: 1000},
+                    },
+                },
+            },
+        ],
     },
 };

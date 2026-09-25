@@ -57,6 +57,15 @@ const MUTANTS = [
     ['fixtures', 'tools/checks/classes.mjs', "'템플릿 리터럴로 조립'],", "'템플릿 리터럴로 조립'].slice(0, 0),", 'classes: 템플릿 규칙 끔'],
     ['fixtures', 'tools/checks/code.mjs', 'if (/\\s/.test(path.basename(p)))', 'if (false)', 'code: 공백 이름 규칙 끔'],
 
+    // ── 진짜 브라우저 레이아웃 — 화면을 망가뜨린다 ───────────────────────────
+    ['browser/sim-layout', 'simulator/cs/sort.html', '</body>', '<div style="width:640px;height:8px"></div></body>', '375 에서 넓은 상자로 가로 넘침'],
+    ['browser/sim-layout', 'simulator/cs/linear.html', '</body>', '<style>body{overflow-x:hidden}</style><button style="position:absolute;left:420px;top:0">x</button></body>', '375 에서 버튼이 화면 오른쪽 밖(넘침은 가림)'],
+    ['browser/sim-layout', 'simulator/cs/tree.html', '</head>', '<style>#stage button{position:absolute!important;top:120px!important;left:40px!important}</style></head>', '버튼끼리 한 자리에 겹침'],
+    // 무대 자체의 overflow 는 심지 않는다 — 무대는 넘치지 않고(fs-fill 이 남는 높이를 나눈다) 넘침은
+    // 안쪽 칸이 받으므로 뜻이 같은(등가) 돌연변이다. 넘침을 받는 안쪽 칸의 스크롤을 끈다.
+    ['browser/sim-layout', 'src/styles/simulator.css', '    min-height: 0;\n    overflow-y: auto;\n    scrollbar-gutter: stable;', '    min-height: 0;\n    overflow-y: hidden;\n    scrollbar-gutter: stable;', '전체 화면 조작 칸이 스크롤되지 않아 아래 조작에 못 닿음'],
+    ['browser/sim-layout', 'simulator/ai/wumpus-world.html', '</head>', '<style>.fs-on .fs-fill{margin-left:1500px}</style></head>', '전체 화면에서 조작이 화면 가로 밖으로'],
+
     // ── 시뮬레이터 — 알고리즘에 그럴듯한 버그를 심는다 ────────────────────────
     ['sim-pages', 'src/entries/_lib/canvas-dpr.js', 'const dpr = window.devicePixelRatio || 1;', 'const dpr = 1;', '캔버스가 화면 배율을 무시'],
     ['sim-fullscreen', 'src/styles/simulator.css', '.fs-stage:is(:fullscreen, .fs-on) {', '.fs-stage:is(:fullscreen) {', '전체 화면 CSS 가 fs-on 을 안 봄'],

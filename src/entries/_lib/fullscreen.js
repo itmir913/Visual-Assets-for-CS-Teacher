@@ -165,5 +165,32 @@ function syncStageClass() {
     });
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
-else bind();
+/** `sim-deck` 무대에 넓은 화면이면 `fs-desk` 를 붙인다 → simulator.css 의 `sim-deck`.
+ *
+ * 무대를 한 화면 높이로 묶는 것은 **세로가 넉넉할 때만** 뜻이 있다. 좁거나 낮은 화면에서
+ * 묶으면 조작 칸이 그림을 눌러 버리므로 그때는 평소처럼 위아래로 쌓는다.
+ * 미디어 쿼리가 아니라 클래스로 두는 까닭은 `fs-on` 과 같다 — 검사가 켜 놓고 측정할 수 있다. */
+const DESK = '(min-width: 1024px) and (min-height: 600px)';
+
+function syncDesk() {
+    const on = window.matchMedia?.(DESK).matches ?? false;
+    let changed = false;
+    document.querySelectorAll('.fs-stage.sim-deck').forEach((el) => {
+        if (el.classList.contains('fs-desk') !== on) changed = true;
+        el.classList.toggle('fs-desk', on);
+    });
+    if (changed) window.dispatchEvent(new Event('resize'));
+}
+
+function bindDesk() {
+    syncDesk();
+    window.matchMedia?.(DESK).addEventListener?.('change', syncDesk);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+    document.addEventListener('DOMContentLoaded', bindDesk);
+} else {
+    bind();
+    bindDesk();
+}

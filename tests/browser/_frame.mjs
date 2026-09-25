@@ -37,6 +37,11 @@ export async function resizeFrame(frame, w, h) {
 export function visible(el, win) {
     const cs = win.getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+    /* **닫힌 <details> 속은 그려지지 않는데 상자는 남는다**(Chromium 이 content-visibility 로
+       감춘다). 그대로 두면 아래 형제와 「겹친다」고 헛경보가 난다 — 선형 자료구조의
+       「직접 입력」이 연산 칸 바로 위로 옮겨 온 뒤 처음 드러났다. */
+    const shut = el.closest('details:not([open])');
+    if (shut && !el.closest('summary')) return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && !el.closest('[hidden], .hidden');
 }

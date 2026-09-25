@@ -60,7 +60,13 @@ export function createDsCellsView(host, opts = {}) {
 
     host.textContent = '';
 
-    const stage = box('div', {position: 'relative', width: '100%'});
+    /* 그림 칸이 제 그림보다 높으면(한 화면 높이로 묶인 무대 · 전체 화면) **세로 가운데**
+       앉힌다. 위에 붙이면 1920 화면에서 칸 줄 아래로 빈 칸이 300px 남는다.
+       `safe` 가 있어야 칸보다 그림이 클 때 위가 잘려 나가지 않는다. */
+    const stage = box('div', {
+        position: 'relative', width: '100%',
+        display: 'flex', flexDirection: 'column', justifyContent: 'safe center',
+    });
     /* 넘침을 **그림 상자가 받아 낸다.** 페이지가 통째로 가로로 넘치는 것과 다르다 —
        칸이 열 개인데 375px이면 한 칸이 32px이라 두 자리 숫자가 겨우 들어간다. */
     const scroller = box('div', {width: '100%', overflowX: 'auto', overflowY: 'hidden'});
@@ -137,7 +143,12 @@ export function createDsCellsView(host, opts = {}) {
         const k = Math.min(availW / natW, availH / natH, ZOOM_MAX);
         /* **올림이 아니라 버림이다.** 반올림하면 배율이 남는 자리보다 커질 수 있어,
            원형 큐에서 714px 짜리 그림이 712px 상자에 앉아 2px 스크롤바가 생겼다. */
-        field.style.zoom = k > 1.02 ? String(Math.floor(k * 100) / 100) : '';
+        /* 원형 큐는 **줄이기도 한다.** 한 화면 높이로 묶인 무대(`sim-deck`)에서는 남는
+           높이가 지름(300px~)보다 낮을 수 있는데, 그대로 두면 동그라미 아래가 잘려
+           칸 안에서 스크롤해야 보인다. 바닥 0.75 는 두 자리 숫자가 읽히는 선이다. */
+        const kk = isRing ? Math.max(k, 0.75) : k;
+        field.style.zoom = Math.abs(kk - 1) > 0.02 && (isRing || kk > 1)
+            ? String(Math.floor(kk * 100) / 100) : '';
     }
 
     function makeItem(item) {

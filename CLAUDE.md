@@ -554,8 +554,12 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
   따로인 페이지에서 탭 줄을 안으로 들이면 **눌러도 화면이 바뀌지 않는다** — 눌린 탭의
   무대는 top layer 밖이다. 전체 화면 대상을 갈아 끼워 고쳐 보았으나 누를 때마다 굼떠서
   물렀다. 탭은 조작이 아니라 **어느 무대를 켤지 켜기 «전»에 고르는 것**으로 둔다.
-- 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-drawer` · `fs-tabs` · `fs-outside`)은
+- 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-drawer` · `fs-tabs` · `fs-outside` · `sim-deck`)은
   [`src/styles/simulator.css`](src/styles/simulator.css) 머리에 있다.
+- **누를 때마다 화면이 흔들리지 않아야 한다**(2026-09-25 사용자 확정). 단계마다 길이가 바뀌는
+  설명은 높이를 못박고, 연산을 눌러도 재생하지 않는다 — 교사가 설명하고 재생을 따로 누른다.
+  `sim-deck` 무대는 조작이 제 높이만 갖고 남는 세로를 설명과 그림이 갖는다.
+  `npm run check -- layout`이 흔들림을 본다.
 - `npm run check -- sim fullscreen`이 지킨다. **CSS가 `:fullscreen`이 아니라 `fs-on` 클래스를
   보게 해 두어야 검사가 켜 놓고 볼 수 있다** — `requestFullscreen`은 iframe에서 거부되고
   jsdom에는 아예 없다. 그래서 이 짜임은 오래도록 한 번도 검사되지 않았다.

@@ -4,8 +4,9 @@
  * 여기서는 **줄을 나누고 작업량을 옆에 적는 일**만 한다. 그림을 새로 그리면
  * 「같은 구조를 나란히 놓았을 뿐」이라는 것이 흐려지고, 두 벌이 되어 어긋나기 시작한다.
  *
- * **넓은 화면에서는 두 줄을 옆으로 편다** → simulator.css 의 `sim-lanes`.
- * 위아래로 쌓으면 둘째 줄을 보려고 스크롤해야 하는데, 그러면 나란히 놓은 뜻이 없다.
+ * **두 줄을 위아래로 쌓는다** → simulator.css 의 `sim-lanes`. 칸 줄과 노드 줄은 둘 다
+ * 가로로 긴 그림이라, 옆으로 펴면 반쪽 폭에서 칸이 잘려 가로로 스크롤해야 했다.
+ * 무대가 한 화면 높이로 묶이면(`sim-deck`) 쌓아도 두 줄이 한 화면에 함께 보인다.
  *
  * **표는 개수를 키워 가며 측정한 것이다.** 한 회차를 넘겨서는 «지금 이 개수»의 값만 보이는데,
  * 정작 가르칠 것은 「개수가 늘면 어떻게 벌어지는가」다. 그리고 **그림과 다른 이야기**라
@@ -36,7 +37,7 @@ export function createDsCompareView(host, measureHost) {
     host.textContent = '';
 
     const lanesBox = box('div', {});
-    lanesBox.className = 'sim-lanes sim-lanes-2';
+    lanesBox.className = 'sim-lanes sim-lanes-stack';
     host.appendChild(lanesBox);
 
     const lanes = [];

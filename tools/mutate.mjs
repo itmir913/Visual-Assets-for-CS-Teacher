@@ -65,6 +65,8 @@ const MUTANTS = [
     // 안쪽 칸이 받으므로 뜻이 같은(등가) 돌연변이다. 넘침을 받는 안쪽 칸의 스크롤을 끈다.
     ['browser/sim-layout', 'src/styles/simulator.css', '    min-height: 0;\n    overflow-y: auto;\n    scrollbar-gutter: stable;', '    min-height: 0;\n    overflow-y: hidden;\n    scrollbar-gutter: stable;', '전체 화면 조작 칸이 스크롤되지 않아 아래 조작에 못 닿음'],
     ['browser/sim-layout', 'simulator/ai/wumpus-world.html', '</head>', '<style>.fs-on .fs-fill{margin-left:1500px}</style></head>', '전체 화면에서 조작이 화면 가로 밖으로'],
+    ['browser/sim-layout', 'src/styles/simulator.css', '    height: calc(1.625em * 4 + 1.5rem);', '    height: auto;', 'sim-deck 설명 띠 높이를 풀어 단계마다 그림이 들썩임'],
+    ['browser/sim-layout', 'src/styles/simulator.css', '    order: -1;', '    order: 0;', 'sim-deck 조작 칸이 그림 뒤로'],
 
     // ── 시뮬레이터 — 알고리즘에 그럴듯한 버그를 심는다 ────────────────────────
     ['sim-pages', 'src/entries/_lib/canvas-dpr.js', 'const dpr = window.devicePixelRatio || 1;', 'const dpr = 1;', '캔버스가 화면 배율을 무시'],

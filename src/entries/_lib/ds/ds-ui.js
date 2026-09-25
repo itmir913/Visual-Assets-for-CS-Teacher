@@ -604,6 +604,12 @@ export function mountDsSimulator() {
         /* 창 크기가 바뀌면 동그라미 지름을 다시 잡아야 한다. 줄과 노드 그림은
            백분율·viewBox라 스스로 따라가지만, 부르는 것이 해로울 것은 없다. */
         window.addEventListener('resize', () => view?.resize?.());
+        /* **그림 칸은 창이 그대로여도 커졌다 작아졌다 한다** — 한 화면 높이로 묶인 무대
+           (`sim-deck`)에서 탭을 바꿔 조작 칸 높이가 달라지면 남는 높이도 달라진다.
+           창의 resize 만 들으면 그때 옛 크기로 굳는다. */
+        if (typeof ResizeObserver === 'function') {
+            new ResizeObserver(() => view?.resize?.()).observe($('view-host'));
+        }
     }
 
     /* ---- 시작 ---- */

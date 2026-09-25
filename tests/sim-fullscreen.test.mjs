@@ -201,7 +201,8 @@ for (const name of PAGES) {
         const css = f.endsWith('.css') ? src : [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
         for (const m of css.matchAll(/:fullscreen/g)) {
             const around = css.slice(Math.max(0, m.index - 4), m.index + 40);
-            if (/:is\(\s*:fullscreen\s*,\s*\.fs-on\s*\)/.test(around)) { paired++; continue; }
+            /* 뒤에 더 붙는 것(`sim-deck` 의 `.fs-desk`)은 받는다 — 짝이 있는지만 본다. */
+            if (/:is\(\s*:fullscreen\s*,\s*\.fs-on\s*(?:,[^)]*)?\)/.test(around)) { paired++; continue; }
             const line = css.slice(0, m.index).split('\n').length;
             bad(`${path.relative(ROOT, f)} — CSS 의 :fullscreen 에 .fs-on 짝이 없다(${line}행 근처). `
                 + '검사는 fs-on 으로 켜 보므로 이 규칙은 검사에서 한 번도 적용되지 않는다');

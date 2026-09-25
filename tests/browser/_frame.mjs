@@ -14,7 +14,10 @@ export async function openFrame(url, w, h) {
     frame.style.cssText = `width:${w}px;height:${h}px;border:0;display:block`;
     document.body.append(frame);
     await new Promise((ok, no) => {
-        const t = setTimeout(() => no(new Error(`${url}: 20초 안에 뜨지 않았다`)), 20000);
+        /* 컴퓨터 비전 페이지는 ml5(텐서플로 포함)를 개발 서버가 풀어 보내느라 load 까지 10~20초가
+           걸린다(2026-09-26 잰 값). 20초로 끊으면 붐빌 때 가끔 헛경보가 났다 — 넉넉히 기다린다.
+           제때 뜨는 페이지는 이 값과 상관없이 곧바로 넘어간다. */
+        const t = setTimeout(() => no(new Error(`${url}: 90초 안에 뜨지 않았다`)), 90000);
         frame.onload = () => { clearTimeout(t); ok(); };
         frame.src = url;
     });

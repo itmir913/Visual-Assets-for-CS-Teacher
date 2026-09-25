@@ -15,6 +15,9 @@
 //   5. **카메라를 못 쓸 때 까닭에 맞는 말을 하고 버튼을 되돌리는가.**
 //   6. **모델을 늦게 받았을 때 낡은 것을 버리는가.** 학생이 다른 모델로 넘어간 뒤
 //      먼저 시킨 것이 도착하면, 지금 고른 것을 덮어써서는 안 된다.
+//   7. **분류 결과를 확률이 높은 차례로 셋만 보이는가**(따로 정렬한 것과 대조), 다른 모드 · 꺼진 뒤에
+//      늦게 온 결과를 버리는가, 끄면 남은 상자를 지우는가, 모델 오류 안내가 한 번뿐인가.
+//   8. **픽셀 격자의 숫자 · 칸 밝기 · 배열 글이 서로 맞는가.**
 //
 // **못 보는 것.** 모델의 판정, 실제 카메라 화면, p5 가 그리는 그림.
 
@@ -219,6 +222,112 @@ for (const [vw, vh] of [[640, 480], [800, 600]]) {
     if (!안내.includes('모델')) bad(`모델 오류: 안내에 까닭이 없다 — 「${안내.slice(0, 40)}」`);
     if (!doc.getElementById('loadingOverlay').classList.contains('hidden')) {
         bad('모델 오류: 「로딩 중」 덮개를 걷지 않아 화면이 멎은 것처럼 보인다');
+    }
+}
+
+/* ================================================================
+   7. 분류 결과 — 확률이 높은 차례로 세 개, 확률은 백분율 소수 한 자리
+   ================================================================ */
+{
+    const 결과칸 = doc.getElementById('classificationResult');
+    const 읽기 = () => [...결과칸.querySelectorAll('.font-black')].map((e) => e.textContent.trim());
+    const 확률들 = () => [...결과칸.querySelectorAll('span.px-2')].map((e) => e.textContent.trim());
+    P('isRunning = true; currentMode = "classification"');
+    doc.getElementById('loadingOverlay').classList.remove('hidden');
+    // 차례를 섞어 준다 — 따로 정렬한 것과 같아야 한다
+    const 받은것 = [
+        {label: '고양이', confidence: 0.12}, {label: '컵', confidence: 0.61},
+        {label: '연필', confidence: 0.05}, {label: '의자', confidence: 0.2}, {label: '공', confidence: 0.02},
+    ];
+    P(`gotClassificationResults(${JSON.stringify(받은것)})`);
+    const 기대 = [...받은것].sort((a, b) => b.confidence - a.confidence).slice(0, 3);
+    if (읽기().join(',') !== 기대.map((r) => r.label).join(',')) {
+        bad(`분류: 「${읽기().join(', ')}」 차례로 보였다 — 확률이 높은 셋은 「${기대.map((r) => r.label).join(', ')}」`);
+    }
+    if (확률들().join(',') !== 기대.map((r) => (r.confidence * 100).toFixed(1) + '%').join(',')) {
+        bad(`분류: 확률을 「${확률들().join(', ')}」 로 적었다`);
+    }
+    // 막대 폭이 그 확률이다
+    const 폭 = [...결과칸.querySelectorAll('[style*="width"]')].map((e) => parseFloat(e.style.width).toFixed(1) + '%');
+    if (폭.join(',') !== 기대.map((r) => (r.confidence * 100).toFixed(1) + '%').join(',')) bad(`분류: 막대 폭이 「${폭.join(', ')}」`);
+    if (!doc.getElementById('loadingOverlay').classList.contains('hidden')) bad('분류: 첫 결과가 왔는데 「로딩 중」 덮개를 걷지 않았다');
+    // 셋보다 적게 와도 죽지 않고 온 만큼만 보인다
+    P(`gotClassificationResults(${JSON.stringify([{label: '공', confidence: 0.5}])})`);
+    if (읽기().length !== 1) bad(`분류: 결과가 하나인데 ${읽기().length}개를 보였다`);
+    // 다른 모드로 넘어간 뒤 늦게 온 결과는 버린다
+    P('currentMode = "detection"');
+    P(`gotClassificationResults(${JSON.stringify(받은것)})`);
+    if (읽기().length !== 1) bad('분류: 탐지 모드로 넘어갔는데 늦게 온 분류 결과를 덮어썼다');
+    P('faces = []; gotFaces([{keypoints: []}])');
+    if (P('faces.length') !== 0) bad('얼굴: 탐지 모드인데 얼굴 결과를 받아 두었다');
+    P('gotDetections([{x: 1, y: 1, width: 2, height: 2, label: "공", confidence: 0.5}])');
+    if (P('detections.length') !== 1) bad('탐지: 탐지 모드인데 결과를 받아 두지 않았다');
+    P('currentMode = "facemesh"; gotDetections([])');
+    if (P('detections.length') !== 1) bad('탐지: 얼굴 모드로 넘어갔는데 늦게 온 탐지 결과로 상자를 바꿨다');
+    P('currentMode = "detection"; isRunning = false');
+    P('gotDetections([])');
+    if (P('detections.length') !== 1) bad('탐지: 꺼진 뒤에 온 결과로 화면을 바꿨다');
+
+    // 끄면 남은 상자 · 얼굴 점 · 마스크를 지우고 버튼을 되돌린다
+    P('isRunning = true; video = null; faces = [{keypoints: []}]; segmentationResult = {}');
+    P('stopSystem()');
+    if (P('detections.length + faces.length') !== 0 || P('segmentationResult') !== null) bad('중지: 화면에 남은 상자 · 얼굴 점 · 마스크를 지우지 않았다');
+    if (P('isRunning')) bad('중지: 켜진 것으로 남았다');
+    if (doc.getElementById('startBtn').classList.contains('hidden') || !doc.getElementById('stopBtn').classList.contains('hidden')) {
+        bad('중지: 「시작」 · 「중지」 버튼을 되돌리지 않았다');
+    }
+    // 꺼진 채로는 모델을 받으러 가지 않는다
+    const 번호 = P('loadSeq');
+    P('loadCurrentModel()');
+    if (P('loadSeq') !== 번호) bad('모델: 꺼져 있는데 모델을 받기 시작했다');
+
+    // 모델 오류는 한 번만 알린다 — 넷이 잇따라 실패해도 안내는 하나다
+    P('modelFailed = false; window.__알림 = 0');
+    const 원래토스트 = P('showToast');
+    P('showToast = () => { window.__알림++; }');
+    P('handleModelError(new Error("하나")); handleModelError(new Error("둘"))');
+    if (P('window.__알림') !== 1) bad(`모델 오류: 두 번 실패하자 안내를 ${P('window.__알림')}번 띄웠다`);
+    if (P('classifier || detector || faceMesh || bodySegmentation')) bad('모델 오류: 반쯤 받은 모델을 남겨 두었다');
+    sim.window.showToast = 원래토스트;
+}
+
+/* ================================================================
+   8. 픽셀 격자 — 칸의 숫자 · 밝기 · 배열 글이 서로 맞는가
+   ================================================================ */
+{
+    const 칸 = [...doc.querySelectorAll('#pixelGrid .pixel-cell')];
+    if (칸.length !== 25) bad(`픽셀: 칸이 ${칸.length}개 — 5×5 는 25개다`);
+    const 값 = 칸.map((c) => Number(c.textContent));
+    const 허용 = new Set([0, 1, 2, 3, 4, 5, 6].map((k) => Math.round(k / 6 * 255)));
+    if (값.some((v) => !허용.has(v))) bad(`픽셀: 0~255 를 일곱 단계로 나눈 값이 아닌 것이 있다 — ${값.join(' ')}`);
+    // 밝기 — 칸 색의 밝기가 숫자와 같은 차례여야 한다(0 이 가장 어둡다)
+    const 밝기 = (css) => {
+        const m = css.match(/\d+/g).map(Number);
+        return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+    };
+    for (let i = 0; i < 25; i++) {
+        for (let j = 0; j < 25; j++) {
+            if (값[i] < 값[j] && !(밝기(칸[i].style.backgroundColor) < 밝기(칸[j].style.backgroundColor))) {
+                bad(`픽셀: 값 ${값[i]} 인 칸이 값 ${값[j]} 인 칸보다 어둡지 않다`); i = j = 25;
+            }
+        }
+    }
+    // 배열 글 — 줄마다 다섯, 칸 차례(왼쪽 위부터 가로로)와 같다
+    const 글 = doc.getElementById('pixelArrayDisplay').textContent;
+    const 줄 = 글.split('\n').slice(1, 6).map((l) => l.match(/\d+/g).map(Number));
+    if (줄.length !== 5 || 줄.some((r) => r.length !== 5) || 줄.flat().join(',') !== 값.join(',')) {
+        bad('픽셀: 배열 글이 칸의 숫자와 차례가 다르다');
+    }
+    // 누르면 숫자가 드러나 남고, 다시 누르면 감춘다 — 밝은 칸은 어두운 글자, 어두운 칸은 밝은 글자
+    for (const c of 칸) {
+        const v = Number(c.textContent);
+        c.dispatchEvent(new sim.window.Event('click'));
+        const 드러남 = c.style.color;
+        c.dispatchEvent(new sim.window.Event('mouseleave'));
+        if (!드러남 || c.style.color !== 드러남) { bad('픽셀: 누른 칸의 숫자가 손을 떼자 사라졌다'); break; }
+        if ((v >= 170 && 밝기(드러남) > 128) || (v <= 85 && 밝기(드러남) < 128)) { bad(`픽셀: 값 ${v} 인 칸에 바탕과 비슷한 밝기의 글자를 얹었다`); break; }
+        c.dispatchEvent(new sim.window.Event('click'));
+        if (c.style.color) { bad('픽셀: 다시 눌렀는데 숫자를 감추지 않았다'); break; }
     }
 }
 

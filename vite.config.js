@@ -107,4 +107,13 @@ export default {
             output: { assetFileNames: 'assets/[name]-[hash][extname]' },
         },
     },
+    // 검사(`npm run check`)는 Vitest 가 돈다. 무엇을 돌릴지는 `tools/run.mjs` 가 고른다.
+    // 파일 하나가 검사 하나다. 시뮬레이터 검사는 페이지를 통째로 jsdom 에 올리므로 오래 걸린다.
+    test: {
+        include: ['tests/**/*.test.mjs'],
+        testTimeout: 600_000,
+        hookTimeout: 600_000,
+        // 검사끼리 전역(jsdom · 캔버스 가짜)을 나눠 쓰지 않게 파일마다 따로 띄운다.
+        pool: 'forks',
+    },
 };

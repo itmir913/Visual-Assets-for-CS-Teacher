@@ -212,7 +212,7 @@ export function huffmanDecode(bits, root) {
 
 /** 코드가 **접두 부호**인가 — 어느 코드도 다른 코드의 앞머리가 아니어야 한다.
  *  아니면 띄어 적지 않고는 되살릴 수 없다. 트리에서 뽑은 코드는 늘 그렇지만,
- *  **그것이 참인지는 값으로 봐야 한다** → `tools/check_compress.mjs` */
+ *  **그것이 참인지는 값으로 봐야 한다** → `tests/sim-compress.test.mjs` */
 export function isPrefixFree(codes) {
     const list = [...codes.values()];
     for (const a of list) {

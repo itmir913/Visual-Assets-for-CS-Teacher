@@ -26,7 +26,7 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
 [`package.json`](./package.json) 하나뿐입니다** — 스크립트 경로를 직접 치지 않습니다.
 검사는 `npm run check` 하나로 부르고, 이름을 주면 그것만 돕니다 —
-인자는 `--` 뒤에 넘깁니다(`npm run check -- html <파일>`). 검사 목록은 `tools/run.py`에만 있습니다.
+인자는 `--` 뒤에 넘깁니다(`npm run check -- html <파일>`). 검사 목록은 `tools/run.mjs`에만 있습니다.
 
 ## 어디에 무엇이 있나
 
@@ -36,11 +36,12 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 | `**/code/` | 강의노트가 끌어다 쓰는 `.py` · `.c` 실파일 |
 | `**/docx/` | 배부 양식이 **빌드 때 생기는** 자리. 저장소에는 없습니다 |
 | [`subjects.json`](./subjects.json) | **어떤 과목이 있는지 정하는 유일한 곳** |
-| [`vite.config.js`](./vite.config.js) · `tools/` | 빌드 설정과 점검 스크립트 |
+| [`vite.config.js`](./vite.config.js) · `tools/` | 빌드 설정과 점검 스크립트(전부 Node) |
+| `tests/` | 검사. **Vitest 가 돕니다** — `npm run check`가 부릅니다 |
 
 **새 과목을 만들 때 [`subjects.json`](./subjects.json)에 등록하지 않으면
 빌드도 배포도 검사도 되지 않습니다.** 유일한 게이트입니다 — 빌드(Vite)와
-검사 도구(파이썬)가 이 한 파일을 함께 읽습니다.
+검사 도구(`tools/lib/repo.mjs`)가 이 한 파일을 함께 읽습니다.
 
 ## 고치기 전에 볼 문서
 

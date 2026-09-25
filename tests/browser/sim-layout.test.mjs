@@ -9,7 +9,7 @@
 //   3. 전체 화면(1366×768 · 1920×1080) — 무대가 가로로 넘치지 않는가 · 조작이 화면 가로 밖에 있지
 //      않는가 · 화면 아래로 내려간 조작이 있다면 **무대가 스크롤되어 닿을 수 있는가**
 //   4. `sim-deck` 무대 — 넓은 평소 화면(`DECK`)에서 조작이 그림 앞에 오는가 · 그림이 칸 안에서
-//      스크롤되지 않는가 · 단계를 넘겨도 그림과 재생 버튼이 제자리에 있는가(흔들림, 375 에서도)
+//      스크롤되지 않는가 · 단계를 넘겨도 그림과 재생 버튼이 제자리에 있는가(흔들림)
 //
 // **「보이는 상자」는 조상이 잘라 낸 뒤의 상자다.** 스크롤되는 표 안의 버튼은 상자가 표 밖까지
 // 뻗어 있어도 화면에는 잘려 보이지 않는다. 그대로 재면 아래 버튼과 «겹친다»는 헛경보가 난다
@@ -96,17 +96,18 @@ function leaveFull(frame, stage) {
  * 연산을 하나씩 누르고 끝까지 넘기며 **그림 칸과 재생 버튼의 자리가 한 번도 바뀌지 않는지**
  * 본다. 짜임도 함께 본다 — 조작 칸이 그림 앞(위 또는 왼쪽)인가.
  *
- * 375 에서는 첫 탭만 본다 — 연결 리스트 · 트리 그림은 좁은 화면에서 단계마다 높이가 바뀌어
- * 아직 흔들린다(2026-09-25 남은 일). 넓은 화면은 무대 높이가 고정이라 흔들리지 않는다.
- * 넓은 화면(`wide`)에서는 **탭을 전부 돌며** 하나를 더 본다 — 그림이 칸보다 크면 칸 안에서
+ * **설명 띠의 높이가 글 길이와 상관없는지**는 직접 넣어 본다. 1366 에서는 설명이 대개 한 줄이라
+ * 단계를 넘겨 보는 것만으로는 높이를 풀어도 드러나지 않았다.
+ *
+ * 넓은 화면(`DECK`)에서만 돈다. **탭을 전부 돌며** 하나를 더 본다 — 그림이 칸보다 크면 칸 안에서
  * 스크롤시키지 않고 무대가 그만큼 길어져야 한다(2026-09-25 사용자 확정, CSS 로만 —
  * simulator.css 의 `fs-desk:not(.fs-on)`). 넘침은 해시 테이블 · 허프만처럼 첫 탭이 아닌 곳에서
  * 나오므로 첫 탭만 보아서는 잡히지 않는다. */
-async function deckShake(stage, win, doc, wide) {
+async function deckShake(stage, win, doc) {
     const out = [];
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-    const at = wide ? DECK[0] : NARROW[0];
-    if (wide && !stage.classList.contains('fs-desk')) {
+    const at = DECK[0];
+    if (!stage.classList.contains('fs-desk')) {
         out.push(['deck', `무대 #${stage.id} 에 ${DECK[0]} 폭에서 fs-desk 가 붙지 않았다`]);
         return out;
     }
@@ -116,8 +117,21 @@ async function deckShake(stage, win, doc, wide) {
     const next = stage.querySelector('#btn-next');
     if (!side || !grow || !play || !next) return [['deck', `무대 #${stage.id} 에 fs-side · fs-grow · 재생 버튼이 다 있지 않다`]];
     const s = side.getBoundingClientRect(), g = grow.getBoundingClientRect();
-    if (wide && !(s.bottom <= g.top + 1 || s.right <= g.left + 1)) {
+    if (!(s.bottom <= g.top + 1 || s.right <= g.left + 1)) {
         out.push(['deck', '조작 칸(fs-side)이 그림 앞(위 또는 왼쪽)에 있지 않다']);
+    }
+
+    const say = stage.querySelector('.sim-say');
+    if (say) {
+        const keep = say.innerHTML;
+        say.textContent = '짧다';
+        const short = say.getBoundingClientRect().height;
+        say.textContent = '설명이 아주 긴 단계를 흉내 낸다. '.repeat(30);
+        const long = say.getBoundingClientRect().height;
+        say.innerHTML = keep;
+        if (Math.abs(short - long) > 1) {
+            out.push(['deck 흔들림', `설명 띠(.sim-say) 높이가 글 길이를 따라간다(${Math.round(short)} → ${Math.round(long)}px) — 단계마다 그림이 들썩인다`]);
+        }
     }
 
     const spot = () => [grow, play].map((el) => Math.round(el.getBoundingClientRect().top)).join(',');
@@ -125,13 +139,13 @@ async function deckShake(stage, win, doc, wide) {
         /(auto|scroll)/.test(win.getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2);
     const TABS = '#group-tabs button, #method-tabs button';
     const SUBS = '#struct-tabs button, #algo-tabs button';
-    const nTabs = wide ? Math.max(1, doc.querySelectorAll(TABS).length) : 1;
+    const nTabs = Math.max(1, doc.querySelectorAll(TABS).length);
     for (let t = 0; t < nTabs; t++) {
-        if (wide) doc.querySelectorAll(TABS)[t]?.click();
+        doc.querySelectorAll(TABS)[t]?.click();
         await wait(120);
-        const nSubs = wide ? Math.max(1, doc.querySelectorAll(SUBS).length) : 1;
+        const nSubs = Math.max(1, doc.querySelectorAll(SUBS).length);
         for (let u = 0; u < nSubs; u++) {
-            if (wide) doc.querySelectorAll(SUBS)[u]?.click();
+            doc.querySelectorAll(SUBS)[u]?.click();
             await wait(120);
             const ops = [...doc.querySelectorAll('#ops-host button')];
             for (const op of ops.length ? ops : [null]) {
@@ -147,7 +161,7 @@ async function deckShake(stage, win, doc, wide) {
                         break;
                     }
                 }
-                const sc = wide && scrolled();
+                const sc = scrolled();
                 if (sc) {
                     out.push([`deck 칸 안 스크롤 ${at}`, `${where} 에서 그림이 칸 안에서 스크롤된다`
                         + `(${label(sc)} ${sc.clientHeight}/${sc.scrollHeight}px) — 무대가 넘치는 만큼 길어져야 한다`]);
@@ -180,12 +194,12 @@ export async function measure(page) {
         }
         for (const [a, b, area] of overlaps(narrow, win)) found.push(['375 겹침', `${label(a)} 와 ${label(b)} 가 겹친다(${area}px²)`]);
 
-        // 4. `sim-deck` — 넓은 평소 화면에서 조작이 그림 앞에 오고, 누를 때마다 흔들리지 않는가
-        //    설명 글은 좁을수록 여러 줄로 접히므로 **375 에서도** 흔들림을 본다.
+        // 4. `sim-deck` — 넓은 평소 화면에서 조작이 그림 앞에 오고, 누를 때마다 흔들리지 않는가.
+        //    **375 흔들림은 보지 않는다**(2026-09-25 사용자 확정) — 모바일은 뒷순위로 두었고,
+        //    CI 글꼴에 따라 결과가 갈렸다. 375 의 넘침 · 겹침은 위에서 그대로 본다.
         for (const stage of doc.querySelectorAll('.fs-stage.sim-deck')) {
-            found.push(...await deckShake(stage, win, doc, false));
             await resizeFrame(frame, ...DECK);
-            found.push(...await deckShake(stage, win, doc, true));
+            found.push(...await deckShake(stage, win, doc));
             await resizeFrame(frame, ...NARROW);
         }
 

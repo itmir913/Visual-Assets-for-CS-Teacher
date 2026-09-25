@@ -190,140 +190,101 @@
     </section>
 
     <section
-            class="scroll-mt-24 mx-auto section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage"
+            class="scroll-mt-24 mx-auto section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage sim-deck fs-tall"
             id="activity">
         <!-- 교실 화면용 전체 화면 버튼. 나올 때는 Esc 또는 같은 버튼. -->
         <button type="button" class="fs-btn" data-fullscreen="activity"
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
             <i class="fa-solid fa-expand"></i>
         </button>
-        <div class="mb-8 space-y-2 text-center md:text-left">
+        <div class="mb-6 space-y-2 text-center md:text-left">
             <span class="text-blue-600 font-bold tracking-widest uppercase text-base fs-hide">Interactive Simulator</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-800">K-Means 시뮬레이터</h2>
             <p class="text-slate-600 text-lg fs-hide">데이터를 만들고 중심점을 생성한 후, 알고리즘 실행 버튼을 통해 군집화 진행 과정을 단계별로 관찰해 보세요.</p>
         </div>
 
-        <div class="fs-fill grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
-
-            <!-- Col 1: 데이터 설정 -->
-            <div class="flex flex-col gap-3">
-
-                <div class="bg-white p-3 rounded-2xl border-2 border-slate-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="font-bold text-slate-600 text-base flex items-center">
-                            <i class="fa-solid fa-up-right-and-down-left-from-center mr-1.5 text-slate-400"></i>데이터 퍼짐
-                        </label>
-                        <span class="text-base font-bold text-blue-600" id="spreadLabel">적당함</span>
+        <!-- sim-deck 세로형(k-NN · SVM 과 같은 짜임): 넓은 화면에서는 조작(fs-side)이 왼쪽 칸,
+             그림(fs-main)이 남는 폭과 높이를 갖는다. 그림 아래에는 상태 줄과 단계 줄이 제 높이만.
+             좁은 화면에서는 그림이 먼저다. -->
+        <div class="fs-fill fs-cols flex flex-col gap-6">
+            <div class="fs-main flex flex-col gap-3">
+                <div class="fs-grow">
+                    <div class="sim-plot-pair grid grid-cols-1">
+                        <div class="sim-plot sim-plot-square relative w-full bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas class="absolute top-0 left-0 w-full h-full cursor-crosshair" id="kmeansCanvas"></canvas>
+                        </div>
                     </div>
-                    <input class="w-full accent-blue-500 cursor-pointer" id="spreadSlider" max="150" min="10"
-                           type="range" value="60">
+                </div>
+                <div id="statusMessageBar" class="sim-status">
+                    <i id="statusMessageIcon" class="fa-solid fa-hand-pointer sim-status-icon"></i>
+                    <span id="statusMessageText" class="text-base">캔버스를 클릭하여 데이터를 생성하세요.</span>
+                </div>
+                <!-- 단계 줄 — 켜진 단계와 지난 단계는 색만 바뀐다(크기는 그대로라 흔들리지 않는다). -->
+                <div class="sim-steps" aria-label="알고리즘 진행 단계">
+                    <span id="flow-IDLE" class="sim-step on"><span class="sim-step-no">Step 0</span>중심점 준비</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-ASSIGN" class="sim-step"><span class="sim-step-no">Step 1</span>그룹 할당</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-UPDATE" class="sim-step"><span class="sim-step-no">Step 2</span>중심점 이동</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-DONE" class="sim-step"><span class="sim-step-no">Step 3</span>수렴</span>
+                </div>
+            </div>
+
+            <div class="fs-side sim-side-roomy">
+                <!-- 자료 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="spreadSlider" class="text-base font-bold text-slate-600">데이터 퍼짐 정도</label>
+                            <span id="spreadLabel" class="text-base font-bold text-blue-600">적당함</span>
+                        </div>
+                        <input class="w-full accent-blue-500 cursor-pointer" id="spreadSlider" max="150" min="10"
+                               type="range" value="60">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnRandomData"
+                                class="px-3 py-2.5 text-base bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-all border border-blue-200 flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
+                        </button>
+                        <button id="btnClearData"
+                                class="px-3 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg transition-all border border-slate-200 flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-eraser mr-2"></i>삭제
+                        </button>
+                    </div>
                 </div>
 
-                <button class="w-full px-4 py-3 text-base bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl transition-all border-2 border-blue-200 shadow-sm flex items-center justify-center"
-                        id="btnRandomData">
-                    <i class="fa-solid fa-braille mr-2"></i> 랜덤 생성
-                </button>
-
-                <button class="w-full px-4 py-3 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm flex items-center justify-center"
-                        id="btnClearData">
-                    <i class="fa-solid fa-eraser mr-2"></i> 삭제
-                </button>
-
-                <div class="bg-blue-50/80 p-3 rounded-2xl border-2 border-blue-100 shadow-sm">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="font-bold text-slate-700 text-base">k (클러스터 개수)</label>
-                        <span class="font-black text-blue-600 text-2xl leading-none" id="kValueDisplay">3</span>
+                <!-- 군집 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-circle-nodes mr-2"></i>군집</p>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="kSlider" class="text-base font-bold text-slate-600">k (클러스터 개수)</label>
+                            <span class="font-black text-blue-600 text-2xl leading-none" id="kValueDisplay">3</span>
+                        </div>
+                        <input class="w-full accent-blue-600 cursor-pointer" id="kSlider" max="7" min="2"
+                               type="range" value="3">
                     </div>
-                    <input class="w-full accent-blue-600 mb-2 cursor-pointer" id="kSlider" max="7" min="2"
-                           type="range" value="3">
-                    <button class="w-full py-2.5 text-base bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg transition-colors shadow-md flex justify-center items-center"
+                    <button class="w-full py-2.5 text-base bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg transition-colors shadow-md flex justify-center items-center whitespace-nowrap"
                             id="btnInitCentroids">
-                        <i class="fa-solid fa-location-crosshairs mr-2"></i> 중심점 생성
+                        <i class="fa-solid fa-location-crosshairs mr-2"></i>중심점 생성
                     </button>
-                </div>
-
-            </div>
-
-            <!-- Col 2: 캔버스 + 상태 바 -->
-            <div class="flex flex-col gap-3">
-
-                <!-- 넓은 평소 화면에서는 정사각 그림이 칸 폭(690px 언저리)대로 커져 낮은 화면(768)을 넘었다.
-                     화면 높이에서 붙박이 nav · 아래 상태 줄 몫(11rem)을 뺀 값을 천장으로 둔다. 전체 화면은
-                     `fs-fit` 이 남는 높이로 크기를 정하고(그 규칙이 이 천장보다 특정도가 높다), 좁은 화면은 폭대로. -->
-                <div class="fs-fit relative w-full lg:max-w-[max(20rem,calc(100dvh-11rem))] mx-auto aspect-square bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
-                    <canvas class="absolute top-0 left-0 w-full h-full cursor-crosshair" id="kmeansCanvas"></canvas>
-                </div>
-
-                <div class="w-full bg-slate-100 border-2 border-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 min-h-[72px]"
-                     id="statusMessageBar">
-                    <i class="fa-solid fa-hand-pointer mr-3 text-xl" id="statusMessageIcon"></i>
-                    <span class="text-base" id="statusMessageText">
-                        캔버스를 클릭하여 데이터를 생성하세요.
-                    </span>
-                </div>
-
-            </div>
-
-            <!-- Col 3: 실행 버튼 + 진행 상황 -->
-            <div class="flex flex-col gap-3">
-
-                <div class="flex gap-2">
-                    <button class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-base rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                            disabled id="btnStep">
-                        <i class="fa-solid fa-shoe-prints mr-2"></i> Step
-                    </button>
-                    <button class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                            disabled id="btnRun">
-                        <i class="fa-solid fa-play mr-2"></i> Run
-                    </button>
-                </div>
-                <button class="w-full py-2.5 bg-white text-slate-700 border-2 border-slate-300 hover:bg-slate-100 hover:border-slate-400 text-base font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                        disabled id="btnResetAlg">
-                    <i class="fa-solid fa-rotate-left mr-2"></i> 알고리즘 진행 초기화
-                </button>
-
-                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                    <h3 class="font-black text-slate-800 mb-2 flex items-center text-base">
-                        <i class="fa-solid fa-list-check text-blue-600 mr-2"></i>진행 상황
-                    </h3>
-
-                    <div class="flex flex-col gap-2 relative">
-                        <div class="absolute left-5 top-6 bottom-6 w-0.5 bg-slate-200 z-0 rounded"></div>
-
-                        <div class="flow-box relative z-10 bg-white border-2 border-slate-300 rounded-xl p-3 shadow-sm transition-all duration-300"
-                             id="flow-IDLE">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-black mb-1 bg-slate-100 text-slate-600">Step 0</span>
-                            <div class="step-title font-bold text-slate-800 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-seedling w-5 mr-1"></i>데이터 및 중심점 준비
-                            </div>
-                        </div>
-
-                        <div class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300"
-                             id="flow-ASSIGN">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 1</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-people-arrows w-5 mr-1"></i>가장 가까운 그룹에 할당
-                            </div>
-                        </div>
-
-                        <div class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300"
-                             id="flow-UPDATE">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 2</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-route w-5 mr-1"></i>그룹의 평균 위치로 이동
-                            </div>
-                        </div>
-
-                        <div class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300"
-                             id="flow-DONE">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 3</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-flag-checkered w-5 mr-1"></i>알고리즘 수렴 (완료)
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap"
+                                disabled id="btnStep">
+                            <i class="fa-solid fa-shoe-prints mr-2"></i>Step
+                        </button>
+                        <button class="py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap"
+                                disabled id="btnRun">
+                            <i class="fa-solid fa-play mr-2"></i>Run
+                        </button>
                     </div>
+                    <button class="w-full py-2.5 bg-white text-slate-700 border-2 border-slate-300 hover:bg-slate-100 hover:border-slate-400 text-base font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap"
+                            disabled id="btnResetAlg">
+                        <i class="fa-solid fa-rotate-left mr-2"></i>알고리즘 진행 초기화
+                    </button>
                 </div>
-
             </div>
         </div>
     </section>
@@ -673,24 +634,9 @@
     window.currentPhase = 'IDLE'; // Renderer가 접근 가능하도록 window 객체에 등록
     let autoRunTimer = null; // [비동기 오류 수정] setInterval 대신 재귀형 setTimeout 사용
 
-    const THEMES = {
-        IDLE: {
-            barBg: 'bg-slate-100', barBorder: 'border-slate-300', barText: 'text-slate-800',
-            boxBg: 'bg-white', boxBorder: 'border-slate-400', text: 'text-slate-800', badgeBg: 'bg-slate-200'
-        },
-        ASSIGN: {
-            barBg: 'bg-blue-50', barBorder: 'border-blue-300', barText: 'text-blue-800',
-            boxBg: 'bg-blue-50', boxBorder: 'border-blue-500', text: 'text-blue-800', badgeBg: 'bg-blue-200'
-        },
-        UPDATE: {
-            barBg: 'bg-indigo-50', barBorder: 'border-indigo-300', barText: 'text-indigo-800',
-            boxBg: 'bg-indigo-50', boxBorder: 'border-indigo-500', text: 'text-indigo-800', badgeBg: 'bg-indigo-200'
-        },
-        DONE: {
-            barBg: 'bg-emerald-50', barBorder: 'border-emerald-300', barText: 'text-emerald-800',
-            boxBg: 'bg-emerald-50', boxBorder: 'border-emerald-500', text: 'text-emerald-800', badgeBg: 'bg-emerald-200'
-        }
-    };
+    // 단계 줄의 순서와 단계마다 상태 줄 바탕색의 뜻 이름 → _sim-ui.css 의 `sim-status`.
+    const PHASES = ['IDLE', 'ASSIGN', 'UPDATE', 'DONE'];
+    const TONES = {IDLE: '', ASSIGN: 'tone-1', UPDATE: 'tone-2', DONE: 'tone-ok'};
 
     function updatePhase(newPhase) {
         window.currentPhase = newPhase;
@@ -699,23 +645,18 @@
 
     function updateFlowUI(activePhase, message, icon) {
         updatePhase(activePhase);
-        const theme = THEMES[activePhase];
         const msgBar = document.getElementById('statusMessageBar');
         document.getElementById('statusMessageText').innerText = message;
-        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} mr-3 text-xl`;
-        msgBar.className = `w-full px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 border-2 min-h-[72px] ${theme.barBg} ${theme.barBorder} ${theme.barText}`;
+        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} sim-status-icon`;
+        // 색 이름만 켜고 끈다 — 크기는 그대로라 누를 때 흔들리지 않는다.
+        msgBar.classList.remove('tone-1', 'tone-2', 'tone-3', 'tone-ok');
+        if (TONES[activePhase]) msgBar.classList.add(TONES[activePhase]);
 
-        ['IDLE', 'ASSIGN', 'UPDATE', 'DONE'].forEach(p => {
+        const at = PHASES.indexOf(activePhase);
+        PHASES.forEach((p, i) => {
             const box = document.getElementById(`flow-${p}`);
-            if (p === activePhase) {
-                box.className = `flow-box relative z-10 opacity-100 shadow-md scale-[1.03] border-2 rounded-xl p-3 transition-all duration-300 ${THEMES[p].boxBg} ${THEMES[p].boxBorder}`;
-                box.querySelector('.step-badge').className = `step-badge inline-block px-2 py-0.5 rounded-md text-sm font-black mb-1 text-slate-800 ${THEMES[p].badgeBg}`;
-                box.querySelector('.step-title').className = `step-title font-bold text-base flex items-center break-keep ${THEMES[p].text}`;
-            } else {
-                box.className = `flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300 transform scale-100`;
-                box.querySelector('.step-badge').className = `step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500`;
-                box.querySelector('.step-title').className = `step-title font-bold text-slate-500 text-base flex items-center break-keep`;
-            }
+            box.classList.toggle('on', i === at);
+            box.classList.toggle('done', i < at);
         });
     }
 
@@ -766,7 +707,7 @@
         if (autoRunTimer) {
             clearTimeout(autoRunTimer);
             autoRunTimer = null;
-            btnRun.innerHTML = '<i class="fa-solid fa-play mr-2"></i> Run';
+            btnRun.innerHTML = '<i class="fa-solid fa-play mr-2"></i>Run';
             btnStep.disabled = window.currentPhase === 'DONE' ? true : false;
         }
     }
@@ -776,7 +717,7 @@
             stopAutoRun();
         } else {
             if (window.currentPhase === 'DONE') return;
-            btnRun.innerHTML = '<i class="fa-solid fa-pause mr-2"></i> Pause';
+            btnRun.innerHTML = '<i class="fa-solid fa-pause mr-2"></i>Pause';
             btnStep.disabled = true;
             autoRunTimer = setTimeout(runLoop, 100);
         }

@@ -77,7 +77,6 @@ const INLINE_SCOPE = (p) => {
 const INLINE_PENDING = new Set([
     'simulator/ai/deep-learning.html',
     'simulator/ai/search-8-puzzle.html',
-    'simulator/ai/search-river-crossing.html',
     'simulator/ai/search-tower-of-hanoi.html',
     'simulator/ai/wumpus-world.html',
 ]);

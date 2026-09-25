@@ -903,14 +903,16 @@ function showToast(msg, type) {
     if (_toast) _toast.remove();
     clearTimeout(_t1); clearTimeout(_t2);
     const t = document.createElement('div');
-    const bg = type === 'success' ? 'bg-teal-600' : type === 'error' ? 'bg-rose-500' : 'bg-slate-800';
     const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info';
-    t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all duration-300 translate-y-20 opacity-0 z-[1000] flex items-center gap-3 ${bg} max-w-xs sm:max-w-md w-full`;
-    t.innerHTML = `<i class="fa-solid ${icon} text-xl shrink-0"></i><span class="text-base leading-snug">${msg}</span>`;
+    // 색은 종류(`ok` · `error`, 없으면 안내)가 정한다 → _sim-ui.css 의 sim-toast-card
+    t.className = 'sim-toast-card river';
+    if (type === 'success') t.classList.add('ok');
+    if (type === 'error') t.classList.add('error');
+    t.innerHTML = `<i class="fa-solid ${icon} sim-toast-card-ico"></i><span class="sim-toast-card-msg">${msg}</span>`;
     window.fsOverlayHost().appendChild(t);
     _toast = t;
-    _t1 = setTimeout(() => t.classList.remove('translate-y-20','opacity-0'), 10);
-    _t2 = setTimeout(() => { t.classList.add('translate-y-20','opacity-0'); setTimeout(() => t.remove(), 300); }, 3200);
+    _t1 = setTimeout(() => t.classList.add('shown'), 10);
+    _t2 = setTimeout(() => { t.classList.remove('shown'); setTimeout(() => t.remove(), 300); }, 3200);
 }
 
 /* ============================================================
@@ -922,21 +924,21 @@ function checkAnswer(btn, isCorrect, msg) {
     btns.forEach(b => {
         if (!b.dataset.orig) b.dataset.orig = b.innerHTML;
         b.style.pointerEvents = 'none';
-        b.classList.add('opacity-50','disabled');
+        b.classList.add('sim-quiz-dim', 'disabled');
     });
-    btn.classList.remove('opacity-50');
+    btn.classList.remove('sim-quiz-dim');
     if (isCorrect) {
-        btn.classList.add('border-green-500','bg-green-50','text-green-700');
-        btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i>${btn.dataset.orig}`;
+        btn.classList.add('sim-quiz-right');
+        btn.innerHTML = `<i class="fa-solid fa-circle-check sim-quiz-mark right"></i>${btn.dataset.orig}`;
     } else {
-        btn.classList.add('border-rose-500','bg-rose-50','text-rose-700');
-        btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-rose-600"></i>${btn.dataset.orig}`;
+        btn.classList.add('sim-quiz-wrong');
+        btn.innerHTML = `<i class="fa-solid fa-circle-xmark sim-quiz-mark wrong"></i>${btn.dataset.orig}`;
     }
     showToast(msg, isCorrect ? 'success' : 'error');
     setTimeout(() => {
         btns.forEach(b => {
             b.style.pointerEvents = 'auto';
-            b.classList.remove('opacity-50','disabled','border-green-500','bg-green-50','text-green-700','border-rose-500','bg-rose-50','text-rose-700');
+            b.classList.remove('sim-quiz-dim', 'disabled', 'sim-quiz-right', 'sim-quiz-wrong');
             b.innerHTML = b.dataset.orig;
         });
     }, 3000);
@@ -1148,14 +1150,14 @@ function buildAIPath() {
         const dir = step.to[0] === 1 ? '→' : '←';
         const label = cargo === -1 ? '혼자' : EMOJIS[cargo+1] + '와 함께';
         const badge = document.createElement('span');
-        badge.className = 'inline-flex items-center gap-1 px-3 py-1 bg-teal-100 text-teal-800 rounded-full font-bold text-base mr-2 mb-2';
-        badge.innerHTML = `<span class="bg-teal-500 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-base">${i+1}</span> ${dir} ${label}`;
+        badge.className = 'sim-rc-step';
+        badge.innerHTML = `<span class="sim-rc-step-no">${i+1}</span> ${dir} ${label}`;
         box.appendChild(badge);
     });
-    if (aiCurrentStep === 0) box.innerHTML = '<p class="text-slate-400 text-base text-center">버튼을 눌러 AI 풀이를 시작하세요</p>';
+    if (aiCurrentStep === 0) box.innerHTML = '<p class="sim-rc-empty">버튼을 눌러 AI 풀이를 시작하세요</p>';
     if (aiCurrentStep === BFS_SOLUTION.length) {
         const fin = document.createElement('span');
-        fin.className = 'inline-flex items-center gap-1 px-3 py-1 bg-green-500 text-white rounded-full font-bold text-base mr-2 mb-2';
+        fin.className = 'sim-rc-step done';
         fin.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> 완성!';
         box.appendChild(fin);
     }
@@ -1171,14 +1173,14 @@ function aiStep() {
 }
 
 function aiAutoPlay() {
-    if (aiPlaying) { clearInterval(aiTimer); aiPlaying = false; document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생'; return; }
+    if (aiPlaying) { clearInterval(aiTimer); aiPlaying = false; document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>자동 재생'; return; }
     if (aiCurrentStep >= BFS_SOLUTION.length) { showToast('이미 완료되었습니다.', 'info'); return; }
     aiPlaying = true;
-    document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-pause mr-2"></i>일시 정지';
+    document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-pause sim-ico"></i>일시 정지';
     aiTimer = setInterval(() => {
         if (aiCurrentStep >= BFS_SOLUTION.length) {
             clearInterval(aiTimer); aiPlaying = false;
-            document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+            document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>자동 재생';
             return;
         }
         aiStep();
@@ -1188,7 +1190,7 @@ function aiAutoPlay() {
 function resetAI() {
     clearInterval(aiTimer); aiPlaying = false;
     aiState = [...INIT]; aiCurrentStep = 0;
-    document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>자동 재생';
+    document.getElementById('autoPlayBtn').innerHTML = '<i class="fa-solid fa-play sim-ico"></i>자동 재생';
     renderAI(); buildAIPath();
 }
 

@@ -75,7 +75,6 @@ const INLINE_SCOPE = (p) => {
 /** 인라인 스크립트의 Tailwind 를 아직 옮기지 못한 시뮬레이터. **비어 있는 것이 목표다** —
  *  옮긴 페이지는 여기서 지운다. 새 페이지는 여기 넣지 않는다(처음부터 뜻 이름으로 쓴다). */
 const INLINE_PENDING = new Set([
-    'simulator/ai/computer-vision-ml5.html',
     'simulator/ai/deep-learning.html',
     'simulator/ai/search-8-puzzle.html',
     'simulator/ai/search-river-crossing.html',

@@ -230,8 +230,8 @@ for (const [vw, vh] of [[640, 480], [800, 600]]) {
    ================================================================ */
 {
     const 결과칸 = doc.getElementById('classificationResult');
-    const 읽기 = () => [...결과칸.querySelectorAll('.font-black')].map((e) => e.textContent.trim());
-    const 확률들 = () => [...결과칸.querySelectorAll('span.px-2')].map((e) => e.textContent.trim());
+    const 읽기 = () => [...결과칸.querySelectorAll('.sim-cv-pred-name')].map((e) => e.textContent.trim());
+    const 확률들 = () => [...결과칸.querySelectorAll('.sim-cv-pred-pct')].map((e) => e.textContent.trim());
     P('isRunning = true; currentMode = "classification"');
     doc.getElementById('loadingOverlay').classList.remove('hidden');
     // 차례를 섞어 준다 — 따로 정렬한 것과 같아야 한다

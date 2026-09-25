@@ -94,10 +94,16 @@ function leaveFull(frame, stage) {
  * **누를 때마다 화면이 흔들리는 것을 사용자가 가장 싫어한다**(2026-09-25). 설명 글은
  * 단계마다 길이가 달라, 높이를 못박지 않으면 그 아래 그림과 재생 버튼이 들썩인다.
  * 연산을 하나씩 누르고 끝까지 넘기며 **그림 칸과 재생 버튼의 자리가 한 번도 바뀌지 않는지**
- * 본다. 짜임도 함께 본다 — 한 화면 높이에 들어오는가 · 조작 칸이 그림 앞(위 또는 왼쪽)인가. */
+ * 본다. 짜임도 함께 본다 — 조작 칸이 그림 앞(위 또는 왼쪽)인가.
+ *
+ * 넓은 화면(`wide`)에서는 **탭을 전부 돌며** 하나를 더 본다 — 그림이 칸보다 크면 칸 안에서
+ * 스크롤시키지 않고 무대가 넘치는 만큼 길어져야 한다(2026-09-25 사용자 확정,
+ * `step-player.js` 의 `reserveHeight`). 넘침은 해시 테이블 · 허프만처럼 첫 탭이 아닌 곳에서
+ * 나오므로 첫 탭만 보아서는 잡히지 않는다. */
 async function deckShake(stage, win, doc, wide) {
     const out = [];
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const at = wide ? DECK[0] : NARROW[0];
     if (wide && !stage.classList.contains('fs-desk')) {
         out.push(['deck', `무대 #${stage.id} 에 1024 폭에서 fs-desk 가 붙지 않았다`]);
         return out;
@@ -107,25 +113,41 @@ async function deckShake(stage, win, doc, wide) {
     const play = stage.querySelector('#btn-play');
     const next = stage.querySelector('#btn-next');
     if (!side || !grow || !play || !next) return [['deck', `무대 #${stage.id} 에 fs-side · fs-grow · 재생 버튼이 다 있지 않다`]];
-    if (wide && stage.getBoundingClientRect().height > win.innerHeight + 1) {
-        out.push(['deck', `무대 #${stage.id} 가 화면 높이(${win.innerHeight})보다 높다`]);
-    }
     const s = side.getBoundingClientRect(), g = grow.getBoundingClientRect();
     if (wide && !(s.bottom <= g.top + 1 || s.right <= g.left + 1)) {
         out.push(['deck', '조작 칸(fs-side)이 그림 앞(위 또는 왼쪽)에 있지 않다']);
     }
+
     const spot = () => [grow, play].map((el) => Math.round(el.getBoundingClientRect().top)).join(',');
-    const ops = [...doc.querySelectorAll('#ops-host button')];
-    for (const op of ops.length ? ops : [null]) {
-        op?.click();
-        await wait(60);
-        const base = spot();
-        for (let i = 0; i < 40 && !next.disabled; i++) {
-            next.click();
-            await wait(30);
-            if (spot() !== base) {
-                out.push([`deck 흔들림 ${wide ? DECK[0] : NARROW[0]}`, `${op ? label(op) : '처음 자료'} ${i + 1}단계에서 그림·재생 버튼이 움직였다(${base} → ${spot()})`]);
-                break;
+    const scrolled = () => [grow, ...grow.querySelectorAll('*')].find((el) =>
+        /(auto|scroll)/.test(win.getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2);
+    const TABS = '#group-tabs button, #method-tabs button';
+    const SUBS = '#struct-tabs button, #algo-tabs button';
+    const nTabs = wide ? Math.max(1, doc.querySelectorAll(TABS).length) : 1;
+    for (let t = 0; t < nTabs; t++) {
+        if (wide) { doc.querySelectorAll(TABS)[t]?.click(); await wait(120); }
+        const nSubs = wide ? Math.max(1, doc.querySelectorAll(SUBS).length) : 1;
+        for (let u = 0; u < nSubs; u++) {
+            if (wide) { doc.querySelectorAll(SUBS)[u]?.click(); await wait(120); }
+            const ops = [...doc.querySelectorAll('#ops-host button')];
+            for (const op of ops.length ? ops : [null]) {
+                op?.click();
+                await wait(60);
+                const where = `${op ? label(op) : '처음 자료'}`;
+                const base = spot();
+                for (let i = 0; i < 40 && !next.disabled; i++) {
+                    next.click();
+                    await wait(30);
+                    if (spot() !== base) {
+                        out.push([`deck 흔들림 ${at}`, `${where} ${i + 1}단계에서 그림·재생 버튼이 움직였다(${base} → ${spot()})`]);
+                        break;
+                    }
+                }
+                const sc = wide && scrolled();
+                if (sc) {
+                    out.push([`deck 칸 안 스크롤 ${at}`, `${where} 에서 그림이 칸 안에서 스크롤된다`
+                        + `(${label(sc)} ${sc.clientHeight}/${sc.scrollHeight}px) — 무대가 넘치는 만큼 길어져야 한다`]);
+                }
             }
         }
     }

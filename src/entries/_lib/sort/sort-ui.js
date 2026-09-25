@@ -350,6 +350,8 @@ export function mountSortSimulator() {
                 setRich($('say'), frame.say || ' ');
             },
             onState: paintPlayerState,
+            // 경주 줄은 칸보다 높을 수 있다 — 넘치는 만큼 무대를 늘린다(step-player.js 의 reserveHeight).
+            reserve: $('bars-host'),
         });
         player.setSpeed(currentSpeedMs());
         player.start();
@@ -416,6 +418,9 @@ export function mountSortSimulator() {
                 $('count-access').textContent = String(frame.counts.access);
             },
             onState: paintPlayerState,
+            // 칸이 모자라면 무대를 넘치는 만큼 늘린다. 줄 높이는 회차 내내 같으므로 첫 장만 본다.
+            reserve: $('bars-host'),
+            reserveFirstOnly: true,
         });
         player.setSpeed(currentSpeedMs());
         player.start();

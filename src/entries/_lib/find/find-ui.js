@@ -319,6 +319,8 @@ export function mountFindSimulator() {
                 if (onFrame) onFrame(frame);
             },
             onState: paintPlayerState,
+            // 회차의 가장 높은 장만큼 자리를 잡아 둔다 — 단계를 넘겨도 재생 버튼이 제자리에 있다
+            reserve: $('view-host'),
         });
         player.setSpeed(currentSpeedMs());
         player.start();

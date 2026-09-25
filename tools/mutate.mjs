@@ -216,7 +216,7 @@ const MUTANTS = [
     ['sim-river', 'simulator/ai/search-river-crossing.html', 'if (cargo >= 0 && s[cargo + 1] !== f) continue; // 같은 쪽에 있어야', '// 같은 쪽 확인 빠짐', '건너편의 짐도 태움'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', 'const { state, path } = queue.shift();', 'const { state, path } = queue.pop();', '너비 우선 대신 깊이 우선'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', "document.getElementById('successDetail').textContent = manualMoves <= 7", "document.getElementById('successDetail').textContent = manualMoves <= 9", '돌아간 풀이도 최적이라 함'],
-    ['sim-river', 'simulator/ai/search-river-crossing.html', '} else if (visited.has(k)) {', '} else if (false) {', '트리에서 이미 방문한 상태를 또 펼침'],
+    ['sim-river', 'simulator/ai/search-river-crossing.html', '} else if (visited.has(k)) {', '} else if (false) {', '트리에서 이미 방문한 상태를 또 확장함'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', 'else if (i === d - 1)', 'else if (i === d)', '트리의 정답 경로 표시가 한 층 어긋남'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', "const CARGO_NAME = ['늑대와', '양과', '양배추와'];", "const CARGO_NAME = ['양과', '늑대와', '양배추와'];", '트리 덧글의 짐 이름이 뒤바뀜'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', '그중 유효 상태 <strong>10개', '그중 유효 상태 <strong>12개', '설명문의 유효 상태 수 틀림'],

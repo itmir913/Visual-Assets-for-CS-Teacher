@@ -13,6 +13,7 @@
 //     npm run prose -- "데이터과학/3-2-*.html"
 //     npm run prose -- "인공지능기초/*.html" -o out.md
 //     npm run prose -- "데이터과학/*.html" --stats   # 크기만 보고 싶을 때
+//     npm run prose -- "인공지능기초/**/*.html" --digest -o d.md   # 과목 전체 요약판 → digest()
 //
 // 주의 — 추출본에는 **표의 열 구조와 그림이 남지 않는다.**
 // "두 산점도를 나란히 놓아 비교시킨다" 같은 시각 장치는 감사 범위에서 빠진다.
@@ -59,15 +60,38 @@ export function extract(file) {
     return [out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), src.length];
 }
 
+// 요약판 — 과목 전체를 한 번에 읽혀 «파일 사이»의 어긋남(정의·조건·예시 값·퀴즈)을
+// 찾게 할 때 쓴다. 전문판은 과목 하나가 감사자 한 번에 읽기엔 크다.
+// 남기는 것: 파일 머리(제목·학습 목표), 모든 절 제목, 정의꼴 문장, 핵심 정리·퀴즈 절 전부.
+// 버린 본문은 전문판에서 찾아 확인하게 한다 — 요약판만 보고 지적하면 헛짚는다.
+const DEF = /(이란 |란 |을 말합니다|를 말합니다|라고 합니다|이라고 합니다|을 뜻합니다|를 뜻합니다|을 의미합니다|를 의미합니다|[가-힣]\s?\([A-Za-z][A-Za-z .,'-]+\))/;
+
+export function digest(text) {
+    const out = [];
+    let mode = 'head';
+    for (const line of text.split('\n')) {
+        const h = line.match(/^(#{3,}) .*?(`#([\w-]+)`)?$/);
+        if (h) {
+            if (/핵심 정리/.test(line)) mode = 'keep';
+            else if (h[1] === '###') mode = /summary|quiz/.test(h[3] || '') || /확인 퀴즈/.test(line) ? 'keep' : 'body';
+            out.push(line);
+            continue;
+        }
+        if (mode !== 'body' || DEF.test(line)) out.push(line);
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function main(argv) {
-    let outFile = null, stats = false;
+    let outFile = null, stats = false, brief = false;
     const pats = [];
     for (let i = 0; i < argv.length; i++) {
         if (argv[i] === '-o' || argv[i] === '--out') outFile = argv[++i];
         else if (argv[i] === '--stats') stats = true;
+        else if (argv[i] === '--digest') brief = true;
         else pats.push(argv[i]);
     }
-    if (!pats.length) { console.error('쓰는 법 — npm run prose -- <HTML 파일 또는 글롭>… [-o 파일] [--stats]'); process.exit(2); }
+    if (!pats.length) { console.error('쓰는 법 — npm run prose -- <HTML 파일 또는 글롭>… [-o 파일] [--stats] [--digest]'); process.exit(2); }
     const files = pats.flatMap((p) => { const hit = fs.globSync(p).sort(); return hit.length ? hit : (fs.existsSync(p) ? [p] : []); });
     if (!files.length) { console.error('대상 파일이 없다.'); process.exit(1); }
 
@@ -75,7 +99,8 @@ function main(argv) {
     let totRaw = 0, totTxt = 0;
     const fmt = (n) => n.toLocaleString('en-US');
     for (const f of files) {
-        const [text, raw] = extract(f);
+        const [full, raw] = extract(f);
+        const text = brief ? digest(full) : full;
         totRaw += raw;
         totTxt += text.length;
         const name = path.basename(f);

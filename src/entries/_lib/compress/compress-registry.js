@@ -88,6 +88,7 @@ export const COMPRESS_METHODS = [
         short: '자주 나오는 것을 짧게',
         icon: 'fa-code-branch',
         view: 'tree',
+        shape: 'tall',
         run: huffmanEncode,
         decode: (out) => {
             const tree = huffmanTree(out.text);
@@ -111,6 +112,7 @@ export const COMPRESS_METHODS = [
         short: '반복되는 조각을 기호로',
         icon: 'fa-tag',
         view: 'scan',
+        shape: 'tall',
         run: keywordEncode,
         decode: (out) => keywordDecode(out.encoded, out.dict),
         idea: '떨어져 있어도 <b>반복되는 조각</b>을 기호 하나로 바꿉니다. '

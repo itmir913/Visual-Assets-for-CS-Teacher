@@ -160,7 +160,7 @@
     <!-- 무대 — **탭 줄과 조작까지 이 안에 둔다.**
          전체 화면은 교사가 그것만 켜 놓고 수업을 끌고 갈 수 있어야 뜻이 있다
          → src/styles/simulator.css -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-5 fs-stage" id="stage">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-5 fs-stage sim-deck" id="stage">
 
         <div class="sim-tabbar flex items-center gap-2 px-2 rounded-t-2xl">
             <div class="min-w-0 grow">
@@ -168,22 +168,23 @@
                 <div class="flex flex-nowrap overflow-x-auto justify-start sm:justify-center gap-2 py-2 border-t border-slate-100"
                      id="struct-tabs"></div>
             </div>
-            <button class="ctrl-btn fs-drawer-btn shrink-0" data-fs-drawer="stage" type="button">
-                <i class="fa-solid fa-database"></i> 자료
-            </button>
             <button class="ctrl-btn shrink-0" data-fullscreen="stage" title="전체 화면" type="button">
                 <i class="fa-solid fa-expand"></i>
             </button>
         </div>
 
+        <!-- **시키는 곳(fs-side)과 보는 곳(fs-main)을 가른다** → simulator.css 의 `sim-deck`.
+             트리는 세로로 크므로 넓은 화면에서 조작이 왼쪽 칸이 되고, 남는 자리는 설명과
+             그림이 갖는다. 좁은 화면에서는 그림이 먼저 나온다. -->
         <div class="p-5 fs-fill fs-cols">
           <div class="fs-main">
+            <!-- 설명은 그림 «위»에 두고 **높이를 못박는다**(`sim-say`). 단계마다 글 길이가
+                 달라도 그 아래 그림과 재생 버튼이 움직이지 않는다. -->
+            <p class="font-bold text-slate-800 leading-relaxed sim-say" id="say">&nbsp;</p>
+
             <div class="fs-grow" id="view-host"></div>
 
-            <!-- **조작 줄을 설명글보다 «위»에 둔다.** 설명 문장은 단계마다 길이가 달라
-                 한 줄이 되었다 두 줄이 되었다 하는데, 그 위에 버튼이 있으면 누를 때마다
-                 버튼이 아래위로 움직여 **같은 자리를 계속 누를 수가 없다.** -->
-            <div class="mt-4">
+            <div class="mt-3">
                 <input class="w-full" id="scrub" max="0" min="0" step="1" type="range" value="0">
 
                 <div class="grid grid-cols-3 gap-2 mt-2 sm:flex sm:flex-wrap sm:items-center">
@@ -203,76 +204,76 @@
                         <i class="fa-solid fa-forward-fast"></i>
                     </button>
                     <select class="ctrl-btn w-full sm:w-28" id="speed"></select>
+
+                    <!-- 단계와 세는 횟수는 재생 버튼과 한 줄에 둔다. 단계 표시는 세는 횟수 줄
+                         «밖»에 둔다 — 비용 비교에서는 합계가 뜻이 없어 그 줄을 감추는데,
+                         단계는 그때도 필요하다. -->
+                    <div class="col-span-3 flex flex-wrap items-center gap-x-5 gap-y-1 font-semibold text-slate-600 sm:ml-auto">
+                        <span class="text-slate-400 tally" id="step-label">0 / 0 단계</span>
+                        <span class="flex flex-wrap items-center gap-x-5 gap-y-1" id="tally-row">
+                            <span>비교 <span class="font-black text-slate-900 tally" id="count-compare">0</span></span>
+                            <span>이동 <span class="font-black text-slate-900 tally" id="count-move">0</span></span>
+                            <span>링크 <span class="font-black text-slate-900 tally" id="count-link">0</span></span>
+                        </span>
+                    </div>
                 </div>
-
-                <div class="flex flex-wrap items-center gap-x-5 gap-y-1 mt-3 font-semibold text-slate-600"
-                     id="tally-row">
-                    <span>비교 <span class="font-black text-slate-900 tally" id="count-compare">0</span></span>
-                    <span>이동 <span class="font-black text-slate-900 tally" id="count-move">0</span></span>
-                    <span>링크 <span class="font-black text-slate-900 tally" id="count-link">0</span></span>
-                </div>
-
-                <p class="text-slate-400 tally font-semibold mt-1" id="step-label">0 / 0 단계</p>
-
-                <p class="font-bold text-slate-800 leading-relaxed mt-2 sim-say" id="say">&nbsp;</p>
             </div>
           </div><!-- /fs-main -->
 
-          <!-- 연산 — 트리는 세로로 크므로 전체 화면에서 그림 «옆»에 선다. -->
+          <!-- 시키는 곳 — ① 자료를 정하고 ② 연산을 고른다. 흐름 순서대로 놓는다.
+               **연산을 눌러도 재생하지 않는다** — 교사가 설명하고 재생을 따로 누른다. -->
           <div class="fs-side">
-        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-1">
-            <h3 class="font-black text-slate-900">어떤 연산을 실행해 볼까요</h3>
-            <p class="font-semibold text-slate-500">담긴 값 <span class="tally font-black text-slate-700"
-                                                              id="size-label">0개</span></p>
-            <p class="font-semibold text-slate-500">트리 높이 <span class="tally font-black text-rose-700"
-                                                               id="height-label">0</span></p>
-        </div>
-        <p class="text-slate-500 font-medium mb-3">
-            버튼을 누르면 그 연산이 <span class="font-bold text-slate-700">어떻게 이루어지는지</span>
-            한 단계씩 그려집니다. 되감아 가며 다시 볼 수 있습니다.
-        </p>
+            <div class="sim-panel">
+                <h3 class="font-black text-slate-900 mb-2">① 자료</h3>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button class="ctrl-btn" id="btn-reset" type="button">처음 자료로</button>
+                    <button class="ctrl-btn" id="btn-random" type="button">새 자료</button>
+                    <button class="ctrl-btn" id="btn-ascend" type="button">오름차순으로 만들기</button>
+                    <button class="ctrl-btn" id="btn-clear" type="button">전체 삭제</button>
+                </div>
+                <!-- **직접 입력은 늘 보이는 한 줄이다.** 여닫는 상자는 열 때마다 칸이 자라
+                     화면이 흔들린다. 잘못 넣은 값은 ② 칸의 알림 줄이 알린다. -->
+                <div class="flex items-center gap-2 mt-2">
+                    <label class="font-bold text-slate-700 shrink-0" for="input-text">직접 입력</label>
+                    <input class="w-0 min-w-0 flex-1 border border-slate-300 rounded-lg px-2 py-1.5 font-mono"
+                           id="input-text" type="text" value="50, 30, 70, 20, 40, 60, 80"
+                           title="0부터 99까지의 정수를 쉼표나 빈칸으로 구분해 적습니다. 적은 순서대로 넣고, 같은 값은 두 번 넣을 수 없습니다.">
+                    <button class="ctrl-btn shrink-0" id="btn-apply-input" type="button">교체</button>
+                </div>
+                <p class="text-slate-500 font-medium mt-1">적은 순서대로 넣습니다. 순서를 바꾸면 모양이 달라집니다.</p>
+            </div>
 
-        <div class="flex flex-wrap gap-2 mb-3" id="ops-host"></div>
+            <div class="sim-panel">
+                <!-- 값을 먼저 정하고 누르게 **입력을 버튼 위에**, 머리와 한 줄에 둔다. -->
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-2">
+                    <h3 class="font-black text-slate-900">② 연산</h3>
+                    <p class="font-semibold text-slate-500">담긴 값 <span class="tally font-black text-slate-700"
+                                                                      id="size-label">0개</span></p>
+                    <p class="font-semibold text-slate-500">트리 높이 <span class="tally font-black text-rose-700"
+                                                                       id="height-label">0</span></p>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2" id="arg-row">
+                        <label class="flex items-center gap-2 font-bold text-slate-700" for="value-input">
+                            넣거나 찾을 값
+                            <input class="num-input" id="value-input" max="99" min="0" step="1" type="number" value="45">
+                        </label>
+                    </div>
+                </div>
+                <p class="text-slate-500 font-medium mb-3 lg:hidden">
+                    버튼을 누르면 그 연산이 한 단계씩 준비됩니다. 재생이나 「앞으로」로 넘겨 보세요.
+                </p>
 
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3" id="arg-row">
-            <label class="flex items-center gap-2 font-bold text-slate-700" for="value-input">
-                넣거나 찾을 값
-                <input class="num-input" id="value-input" max="99" min="0" step="1" type="number" value="45">
-            </label>
-        </div>
+                <div class="flex flex-wrap gap-2" id="ops-host"></div>
 
-        <!-- 개수를 키워 가며 측정한 표가 들어오는 자리. 「나란히 비교」에서만 채워진다.
-             **그림 아래가 아니라 여기 둔다** — 그림 바로 아래에 두면 전체 화면에서
-             트리를 화면 밖으로 밀어낸다 → src/styles/simulator.css 의 `sim-measure` -->
-        <div class="sim-measure hidden border-t border-slate-100 pt-3" id="measure-host"></div>
+                <!-- 잘못 넣은 값을 알리는 줄. **한 줄 높이를 늘 잡아 둔다** — 비었다 찼다 할 때마다
+                     칸 높이가 바뀌면 화면이 흔들린다. -->
+                <p class="font-semibold text-rose-600 mt-1 min-h-6" id="input-error">&nbsp;</p>
 
+                <!-- 개수를 키워 가며 측정한 표가 들어오는 자리. 「나란히 비교」에서만 채워진다.
+                     그림 아래에 두면 전체 화면에서 트리를 밀어낸다 → simulator.css 의 `sim-measure` -->
+                <div class="sim-measure hidden border-t border-slate-100 pt-3 mt-3" id="measure-host"></div>
+            </div>
           </div><!-- /fs-side -->
         </div><!-- /fs-cols -->
-
-        <!-- 자료 — 평소에는 무대 아래에 이어 붙고, 전체 화면에서는 오른쪽 서랍이 된다. -->
-        <div class="fs-drawer border-t border-slate-100 p-5">
-            <h3 class="font-black text-slate-900 mb-3">자료 교체</h3>
-            <div class="flex flex-wrap items-center gap-2 mb-2">
-                <button class="ctrl-btn" id="btn-reset" type="button">처음 자료로</button>
-                <button class="ctrl-btn" id="btn-random" type="button">새 자료</button>
-                <button class="ctrl-btn" id="btn-ascend" type="button">오름차순으로 만들기</button>
-                <button class="ctrl-btn" id="btn-clear" type="button">전체 삭제</button>
-            </div>
-            <details>
-                <summary class="font-bold text-slate-700 cursor-pointer">직접 입력</summary>
-                <p class="text-slate-500 font-medium mt-2 mb-2">
-                    0부터 99까지의 정수를 쉼표나 빈칸으로 구분해 적으세요.
-                    <span class="font-bold text-slate-700">적은 순서대로 넣습니다</span> — 순서를 바꾸면 모양이 달라집니다.
-                    같은 값은 두 번 넣을 수 없습니다.
-                </p>
-                <textarea class="w-full border border-slate-300 rounded-lg p-2 font-mono" id="input-text"
-                          rows="2">50, 30, 70, 20, 40, 60, 80</textarea>
-                <div class="flex items-center gap-3 mt-2">
-                    <button class="ctrl-btn" id="btn-apply-input" type="button">이 순서로 다시 만들기</button>
-                </div>
-            </details>
-            <p class="font-semibold text-rose-600 mt-2" id="input-error">&nbsp;</p>
-        </div>
     </div><!-- /stage -->
 
     <!-- 화면 읽는 법 -->

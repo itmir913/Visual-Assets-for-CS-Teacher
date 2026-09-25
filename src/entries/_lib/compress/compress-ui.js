@@ -10,6 +10,7 @@
  */
 
 import {createStepPlayer, PLAY_SPEEDS} from '../step-player.js';
+import {setStageShape} from '../fullscreen.js';
 import {createTreeView} from '../tree-view.js';
 import {withJosa} from '../josa.js';
 import {COMPRESS_ALPHABET, COMPRESS_MAX_LEN, compressRate} from './compress-model.js';
@@ -21,10 +22,6 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
 
 export function mountCompressSimulator() {
-    /* **전체 화면에서 그림과 조작을 어느 쪽으로 나눌지 알려 준다.**
-       압축 그림은 세 방법 어디서나 글자 칸이 가로로 늘어서므로 늘 가로형이다. */
-    document.getElementById('stage')?.classList.add('fs-wide');
-
     let methodId = COMPRESS_METHODS[0].id;
     let text = COMPRESS_PRESETS[0].text;
     let player = null;
@@ -246,11 +243,25 @@ export function mountCompressSimulator() {
         $('btn-next').disabled = index >= total - 1;
     }
 
+    /** **한 회차에서 가장 긴 그림만큼 자리를 미리 잡는다.**
+     *  「압축 결과」 줄은 단계마다 조각이 쌓여, 좁은 화면에서는 줄이 접힐 때마다 그림이
+     *  자라고 그 아래 재생 버튼이 내려갔다 — 누를 자리가 매번 달라졌다. 마지막 장을
+     *  한 번 그려 높이를 측정해 두면 회차 안에서는 자라지 않는다(`sort-view-array.js` 와 같은 생각).
+     *  회차를 새로 만들 때(글 · 방법을 바꿀 때)마다 다시 측정한다. */
+    function reserveHeight(frames) {
+        const rows = $('view-host').querySelector('.cmp-rows');
+        if (!rows || !frames.length) return;
+        rows.style.minHeight = '';
+        render(frames[frames.length - 1], null, {ms: 0});
+        rows.style.minHeight = `${Math.ceil(rows.getBoundingClientRect().height)}px`;
+    }
+
     function run() {
         const m = methodOf(methodId);
         const out = m.run(text);
 
         if (player) player.destroy();
+        reserveHeight(out.frames);
         player = createStepPlayer({frames: out.frames, render, onState: onPlayerState});
         player.setSpeed(speedMs);
         player.start();
@@ -301,6 +312,10 @@ export function mountCompressSimulator() {
 
     function setMethod(id) {
         methodId = id;
+        /* **그림과 조작을 어느 쪽으로 나눌지는 방법이 정한다** → 등록부의 `shape`.
+           런 렝스는 글자 줄 둘뿐이라 가로로 길고, 허프만(트리 · 코드표)과 키워드(사전)는
+           아래로 자라서 위 띠를 두면 그림 칸 안에서 스크롤해야 했다. */
+        setStageShape(methodOf(id).shape);
         for (const b of $('method-tabs').querySelectorAll('[data-method]')) {
             b.classList.toggle('on', b.dataset.method === id);
         }

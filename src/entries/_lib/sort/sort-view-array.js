@@ -66,10 +66,19 @@ export function createSortArrayView(host) {
     let holes = [];            // 자리마다 하나씩. 원소가 빠진 칸에만 켠다
     let slotPx = 40;           // 한 칸의 실제 폭. **그릴 때마다 다시 측정한다**
 
-    const stage = sortMakeBox('div', {position: 'relative', width: '100%'});
+    /* **막대 줄만 남는 높이를 갖는다.** 한 화면 높이로 묶인 무대(`sim-deck`)에서는 그림 칸이
+       260px 보다 훨씬 높은데, 못박아 두면 막대가 칸 위쪽에 작게 붙는다. 나머지 줄은 한 회차
+       내내 높이가 고정이므로(`setup`) 막대 줄의 높이도 회차 안에서 흔들리지 않는다.
+       칸 높이가 정해지지 않은 평소 배치에서는 바탕값 260px 이 그대로 높이가 된다. */
+    const stage = sortMakeBox('div', {
+        position: 'relative', width: '100%',
+        display: 'flex', flexDirection: 'column',
+    });
     const rangeRow = sortMakeBox('div', {position: 'relative', height: '0px', marginBottom: '0px'});
     const heldRow = sortMakeBox('div', {position: 'relative', height: '0px'});
-    const barsRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '260px'});
+    const barsRow = sortMakeBox('div', {
+        position: 'relative', width: '100%', flex: '1 1 260px', minHeight: '160px',
+    });
     const indexRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '0px'});
     const auxRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '0px'});
     const stripRow = sortMakeBox('div', {position: 'relative', width: '100%', height: '0px'});
@@ -82,6 +91,8 @@ export function createSortArrayView(host) {
     stage.appendChild(auxRow);
     stage.appendChild(stripRow);
     host.appendChild(stage);
+    // 막대 줄 말고는 제 높이를 지킨다 — 칸이 모자랄 때 눌리는 것은 막대 줄뿐이다.
+    for (const row of [rangeRow, heldRow, indexRow, auxRow, stripRow]) row.style.flexShrink = '0';
 
     const slotLeft = (i) => `${(i * 100) / n}%`;
     const slotWidth = () => `${100 / n}%`;

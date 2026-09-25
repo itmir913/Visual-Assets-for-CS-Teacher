@@ -577,6 +577,11 @@ export function mountFindSimulator() {
         });
 
         window.addEventListener('resize', () => view?.resize?.());
+        /* 한 화면 높이로 묶인 무대(`sim-deck`)에서는 창이 그대로여도 그림 칸이 자란다
+           → ds-ui.js 의 같은 자리. */
+        if (typeof ResizeObserver === 'function') {
+            new ResizeObserver(() => view?.resize?.()).observe($('view-host'));
+        }
     }
 
     /* ---- 시작 ---- */

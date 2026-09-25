@@ -595,20 +595,14 @@
 }
 
 /* **평소 화면에서는 한 화면 높이가 바닥이지 천장이 아니다**(2026-09-25 사용자 확정).
-   그림이 남는 칸보다 크면(1366×768 의 해시 테이블 · 허프만 · 비용 비교) 칸 안에서
-   스크롤시키지 않고 무대가 **넘치는 만큼만** 길어진다 — 페이지는 어차피 세로로 스크롤된다.
-   얼마나 넘치는지는 재생기가 회차를 미리 그려 보고 `--fs-extra` 에 적는다
-   (`step-player.js` 의 `reserveHeight`). 칸을 통째로 그림 높이에 맡기지 않는 까닭은,
-   폭에 맞춰 커지는 그림(연결 리스트 · 트리)이 넘치지도 않았는데 무대를 늘리기 때문이다.
-   전체 화면(`fs-on`)은 화면 밖이 없으므로 그대로 칸 안에서 스크롤한다. */
+   낮은 화면(1366×768)에서 한 화면 높이에 묶으면 해시 테이블 · 허프만이 칸 안에서
+   스크롤되었다. 그래서 무대 높이에 **넉넉한 바닥**을 둔다 — 페이지는 어차피 세로로
+   스크롤된다. **CSS 로만 하고 높이는 고정값이다.** 그림 높이에 맡기면 한 회차 안에서
+   그림이 자랄 때마다 재생 버튼이 흔들리고, JS 로 재어 맞추면 누를 때마다 화면을 다시
+   그려야 해서 굼뜨다(둘 다 사용자 확정으로 물렸다).
+   전체 화면(`fs-on`)은 화면 밖이 없으므로 화면 높이 그대로 두고 칸 안에서 스크롤한다. */
 .fs-stage.fs-desk:not(.fs-on) {
-    height: calc(100dvh - 2rem + var(--fs-extra, 0px));
-}
-
-/* 재생기가 잡아 둔 바닥(좁은 화면에서 쓴다)은 전체 화면과 넓은 화면에서 풀어 둔다 —
-   거기서는 칸 높이를 무대가 정한다. 인라인 style 이라 `!important` 가 아니면 이기지 못한다. */
-.fs-stage:is(:fullscreen, .fs-on, .fs-desk) .fs-main > .fs-grow {
-    min-height: 0 !important;
+    height: max(62rem, calc(100dvh - 2rem));
 }
 
 /* 조작 칸을 그림 «앞»에 둔다. 좁은 화면(`fs-desk` 가 없을 때)에서는 그림이 먼저다. */
@@ -686,12 +680,24 @@
     min-width: 6ch;
 }
 
-/* 가로형 띠에서 **한 줄을 통째로 쓰는 무리**(정렬의 「비교할 알고리즘」). 두 칸 격자의
-   셋째 무리를 그냥 두면 왼쪽 칸 하나에 끼어 좁게 접힌다. */
-.fs-stage:is(:fullscreen, .fs-on, .fs-desk).sim-deck.fs-wide .sim-panel.sim-panel-row {
-    grid-column: 1 / -1;
-    margin-top: 0.75rem;
-    padding: 0.75rem 0 0;
-    border-left: 0;
-    border-top: 1px solid #e2e8f0;
+/* ── 압축의 쌓이는 줄 ───────────────────────────────────────── */
+/* 「압축 결과」 · 코드표 · 「현재 글」 줄은 단계마다 조각이 쌓인다. 좁은 화면에서 줄이 접히면
+   접힐 때마다 그림이 자라 그 아래 재생 버튼이 내려갔다. **좁을 때는 접지 않고 가로로
+   스크롤하며, 높이를 못박는다** — 가로 스크롤 막대가 생겨도 그 높이 안에서 생기므로
+   아무것도 움직이지 않는다. 넓은 화면은 무대 높이가 고정이라 접혀도 흔들리지 않는다.
+   **JS 틀 안의 Tailwind 클래스는 굽지 않는다**(content 가 HTML 뿐이다) — 그래서 여기 적는다. */
+@media (max-width: 1023px) {
+    #piece-row, #aside-row, #now-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    #piece-row > *, #aside-row > *, #now-row > * {
+        flex-shrink: 0;
+    }
+
+    #piece-row { height: 4.5rem; }
+    #aside-row { height: 3rem; }
+    #now-row { height: 3.25rem; }
 }

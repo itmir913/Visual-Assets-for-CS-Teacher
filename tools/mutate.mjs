@@ -68,8 +68,7 @@ const MUTANTS = [
     ['browser/sim-layout', 'simulator/ai/wumpus-world.html', '</head>', '<style>.fs-on .fs-fill{margin-left:1500px}</style></head>', '전체 화면에서 조작이 화면 가로 밖으로'],
     ['browser/sim-layout', 'src/styles/simulator.css', '    height: calc(1.625em * 4 + 1.5rem);', '    height: auto;', 'sim-deck 설명 띠 높이를 풀어 단계마다 그림이 들썩임'],
     ['browser/sim-layout', 'src/styles/simulator.css', '    order: -1;', '    order: 0;', 'sim-deck 조작 칸이 그림 뒤로'],
-    ['browser/sim-layout', 'src/entries/_lib/step-player.js', '            if (reserve) reserveHeight(reserve, reserveFirstOnly ? frames.slice(0, 1) : frames, render);', '', '재생기가 회차의 가장 높은 장만큼 자리를 잡지 않음'],
-    ['browser/sim-layout', 'src/styles/simulator.css', '    height: calc(100dvh - 2rem + var(--fs-extra, 0px));', '    height: calc(100dvh - 2rem);', '넘치는 만큼 무대를 늘리지 않음'],
+    ['browser/sim-layout', 'src/styles/simulator.css', '    height: max(62rem, calc(100dvh - 2rem));', '    height: calc(100dvh - 2rem);', '낮은 화면에서 무대 바닥이 없어 그림이 칸 안에서 스크롤됨'],
 
     // ── 시뮬레이터 — 알고리즘에 그럴듯한 버그를 심는다 ────────────────────────
     ['sim-pages', 'src/entries/_lib/canvas-dpr.js', 'const dpr = window.devicePixelRatio || 1;', 'const dpr = 1;', '캔버스가 화면 배율을 무시'],

@@ -10,6 +10,7 @@ import {buildSortRace, measureSortWork, RACE_MAX_N} from './sort-race.js';
 import {createSortRaceView} from './sort-view-race.js';
 import {runSortAlgorithm} from './sort-model.js';
 import {createStepPlayer, PLAY_SPEEDS} from '../step-player.js';
+import {setStageShape} from '../fullscreen.js';
 import {createSortArrayView, SORT_COLORS} from './sort-view-array.js';
 import {createSortHeapView} from './sort-view-heap.js';
 import {
@@ -350,8 +351,6 @@ export function mountSortSimulator() {
                 setRich($('say'), frame.say || ' ');
             },
             onState: paintPlayerState,
-            // 경주 줄은 칸보다 높을 수 있다 — 넘치는 만큼 무대를 늘린다(step-player.js 의 reserveHeight).
-            reserve: $('bars-host'),
         });
         player.setSpeed(currentSpeedMs());
         player.start();
@@ -371,6 +370,10 @@ export function mountSortSimulator() {
 
     function rebuild() {
         player?.destroy();
+        /* **그림과 조작을 어느 쪽으로 나눌지 알려 준다** → simulator.css 의 `fs-wide`·`fs-tall`.
+           막대 그림은 가로로 길어 조작이 위 띠가 된다. 알고리즘 비교는 「비교할 알고리즘」
+           체크 상자가 띠를 두껍게 만들어 경주 줄이 눌렸으므로 조작을 왼쪽 칸에 세운다. */
+        setStageShape(algo.view === 'race' ? 'tall' : 'wide');
         if (algo.view === 'race') { rebuildRace(); return; }
         $('race-picker').classList.add('hidden');
         $('tally-row').style.display = '';
@@ -418,9 +421,6 @@ export function mountSortSimulator() {
                 $('count-access').textContent = String(frame.counts.access);
             },
             onState: paintPlayerState,
-            // 칸이 모자라면 무대를 넘치는 만큼 늘린다. 줄 높이는 회차 내내 같으므로 첫 장만 본다.
-            reserve: $('bars-host'),
-            reserveFirstOnly: true,
         });
         player.setSpeed(currentSpeedMs());
         player.start();
@@ -500,10 +500,6 @@ export function mountSortSimulator() {
 
     /* ---- 시작 ---- */
 
-    /* **전체 화면에서 그림과 조작을 어느 쪽으로 나눌지 알려 준다.**
-       정렬 그림은 어느 탭에서나 가로로 길다(막대도 경주 줄도) — 좌우로 쪼개면
-       그림이 절반으로 눌린다. 그래서 늘 가로형이다 → simulator.css 의 `fs-wide` */
-    $('stage').classList.add('fs-wide');
 
     wireControls();
     paintRacePicker();

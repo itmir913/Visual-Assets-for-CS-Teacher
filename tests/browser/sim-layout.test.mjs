@@ -27,9 +27,9 @@ import {SIM_PAGES, label, openFrame, resizeFrame, visible} from './_frame.mjs';
 const CONTROLS = 'button, select, input:not([type=hidden]), textarea, a[href], [role=button], summary';
 const NARROW = [375, 812];
 const FULL = [[1366, 768], [1920, 1080]];
-/* `sim-deck` 을 재는 폭. **가장 좁은 넓은 화면**(fs-desk 가 붙는 바닥)이라야 설명 글이 두세 줄로
-   접혀 흔들림이 드러난다 — 1366 에서는 대부분 한 줄이라 높이를 풀어도 그대로였다. */
-const DECK = [1024, 700];
+/* `sim-deck` 을 넓은 화면에서 보는 크기. 교실에서 가장 흔한 낮은 화면이다 — 칸 안 스크롤이
+   없어야 하는 기준이 여기다. 설명 글이 여러 줄로 접히는 흔들림은 375 에서 본다. */
+const DECK = [1366, 768];
 
 /** 조상이 잘라 낸 뒤 실제로 보이는 상자. 전혀 안 보이면 null. */
 function clippedRect(el, win) {
@@ -96,16 +96,18 @@ function leaveFull(frame, stage) {
  * 연산을 하나씩 누르고 끝까지 넘기며 **그림 칸과 재생 버튼의 자리가 한 번도 바뀌지 않는지**
  * 본다. 짜임도 함께 본다 — 조작 칸이 그림 앞(위 또는 왼쪽)인가.
  *
+ * 375 에서는 첫 탭만 본다 — 연결 리스트 · 트리 그림은 좁은 화면에서 단계마다 높이가 바뀌어
+ * 아직 흔들린다(2026-09-25 남은 일). 넓은 화면은 무대 높이가 고정이라 흔들리지 않는다.
  * 넓은 화면(`wide`)에서는 **탭을 전부 돌며** 하나를 더 본다 — 그림이 칸보다 크면 칸 안에서
- * 스크롤시키지 않고 무대가 넘치는 만큼 길어져야 한다(2026-09-25 사용자 확정,
- * `step-player.js` 의 `reserveHeight`). 넘침은 해시 테이블 · 허프만처럼 첫 탭이 아닌 곳에서
+ * 스크롤시키지 않고 무대가 그만큼 길어져야 한다(2026-09-25 사용자 확정, CSS 로만 —
+ * simulator.css 의 `fs-desk:not(.fs-on)`). 넘침은 해시 테이블 · 허프만처럼 첫 탭이 아닌 곳에서
  * 나오므로 첫 탭만 보아서는 잡히지 않는다. */
 async function deckShake(stage, win, doc, wide) {
     const out = [];
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const at = wide ? DECK[0] : NARROW[0];
     if (wide && !stage.classList.contains('fs-desk')) {
-        out.push(['deck', `무대 #${stage.id} 에 1024 폭에서 fs-desk 가 붙지 않았다`]);
+        out.push(['deck', `무대 #${stage.id} 에 ${DECK[0]} 폭에서 fs-desk 가 붙지 않았다`]);
         return out;
     }
     const side = stage.querySelector('.fs-cols > .fs-side');
@@ -125,10 +127,12 @@ async function deckShake(stage, win, doc, wide) {
     const SUBS = '#struct-tabs button, #algo-tabs button';
     const nTabs = wide ? Math.max(1, doc.querySelectorAll(TABS).length) : 1;
     for (let t = 0; t < nTabs; t++) {
-        if (wide) { doc.querySelectorAll(TABS)[t]?.click(); await wait(120); }
+        if (wide) doc.querySelectorAll(TABS)[t]?.click();
+        await wait(120);
         const nSubs = wide ? Math.max(1, doc.querySelectorAll(SUBS).length) : 1;
         for (let u = 0; u < nSubs; u++) {
-            if (wide) { doc.querySelectorAll(SUBS)[u]?.click(); await wait(120); }
+            if (wide) doc.querySelectorAll(SUBS)[u]?.click();
+            await wait(120);
             const ops = [...doc.querySelectorAll('#ops-host button')];
             for (const op of ops.length ? ops : [null]) {
                 op?.click();

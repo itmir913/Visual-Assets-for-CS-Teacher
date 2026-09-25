@@ -135,10 +135,6 @@ export function createDsCellsView(host, opts = {}) {
     const ZOOM_MAX = 2.6;
 
     function refit() {
-        /* **키운 그림을 먼저 내려놓고 측정한다.** 평소 화면의 무대는 그림이 크면 그만큼 길어지므로
-           (simulator.css 의 `fs-desk:not(.fs-on)`), 키운 채로 측정하면 제가 늘려 놓은 칸을 남는
-           자리로 읽어 창을 줄여도 줄어들지 않는다. */
-        field.style.zoom = '';
         const availW = host.clientWidth || 0;
         const availH = host.clientHeight || 0;
         if (!availW || !availH) return;

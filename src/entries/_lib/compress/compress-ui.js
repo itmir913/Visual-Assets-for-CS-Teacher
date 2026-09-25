@@ -248,7 +248,7 @@ export function mountCompressSimulator() {
         const out = m.run(text);
 
         if (player) player.destroy();
-        player = createStepPlayer({frames: out.frames, render, onState: onPlayerState, reserve: $('view-host')});
+        player = createStepPlayer({frames: out.frames, render, onState: onPlayerState});
         player.setSpeed(speedMs);
         player.start();
 

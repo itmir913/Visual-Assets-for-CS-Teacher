@@ -61,6 +61,12 @@ const SIMS = [
 // 이름으로만 부르는 검사. `npm run ci` 가 빌드 뒤에 따로 부른다.
 const BY_NAME_ONLY = new Set(['dist']);
 
+// 이름으로만 부르는 시뮬레이터 검사 — `check -- sim` 을 이름 없이 부르면(= `npm run ci`) 빠진다.
+// `sort` 는 한 번에 7~8분이 걸린다(큰 배열 화면 · n=64 비교 장). 정렬 로직을 건드리는 일은 드물어
+// 매번 `ci` 에서 기다릴 까닭이 없다(2026-09-26 사용자 확정). 단계 불변식 · 세는 값 · 화면 문장은
+// 빠른 `ordering` 이 `ci` 에서 지킨다. **정렬을 고쳤으면 `npm run check -- sim sort` 를 손으로 돌린다.**
+const SIM_BY_NAME_ONLY = new Set(['sort']);
+
 // 감사 도구 — 판정이 아니라 사람이 읽을 목록을 내놓는다. `ci` 에 넣지 않는다.
 const AUDITS = {
     pre: 'tools/audits/pre.mjs',
@@ -100,7 +106,7 @@ function check(argv) {
     let args = [];
     for (const [name, extra] of picked) {
         if (name === 'sim') {
-            for (const n of extra.length ? extra : SIMS) {
+            for (const n of extra.length ? extra : SIMS.filter((s) => !SIM_BY_NAME_ONLY.has(s))) {
                 if (!SIMS.includes(n)) die(`모르는 시뮬레이터 검사 ${JSON.stringify(n)} — 있는 이름: ${SIMS.join(', ')}`);
                 files.push(`tests/sim-${n}.test.mjs`);
             }

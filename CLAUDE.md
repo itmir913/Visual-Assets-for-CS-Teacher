@@ -62,7 +62,7 @@
 |---|---|
 | `npm run check` | 검사 전부. 하나가 실패해도 끝까지 돌고 실패한 이름을 모아 보인다 |
 | `npm run check -- <이름>…` | 이름을 준 검사만. 이름 뒤의 낱말은 그 검사에 넘긴다(`npm run check -- html <파일>`) |
-| `npm run check -- sim [<이름>…]` | 시뮬레이터 동작 검사. 이름을 주면 그것만(`npm run check -- sim sort tree`) |
+| `npm run check -- sim [<이름>…]` | 시뮬레이터 동작 검사. 이름을 주면 그것만(`npm run check -- sim sort tree`). 이름 없이 부르면 오래 걸리는 것(`tools/run.mjs` 의 `SIM_BY_NAME_ONLY`)은 빠진다 — **그 시뮬레이터를 고쳤으면 이름으로 손수 돌린다** |
 | `npm run audit -- <이름>` | 판정 없이 목록만 내놓는 감사 도구. `ci` 밖이다 |
 | `gen:*` · `docx` · `prose` | 생성·추출 도구 |
 

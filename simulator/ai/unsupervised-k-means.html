@@ -386,12 +386,16 @@
             }
             for (let i = 0; i < count; i++) {
                 const blob = blobs[Math.floor(Math.random() * blobs.length)];
-                const angle = Math.random() * Math.PI * 2;
-                const r = Math.random() * blob.radius;
-
-                // 캔버스 밖으로 넘어가지 않도록 좌표 보정
-                let px = Math.max(10, Math.min(size - 10, blob.cx + Math.cos(angle) * r));
-                let py = Math.max(10, Math.min(size - 10, blob.cy + Math.sin(angle) * r));
+                // 판 밖으로 나간 점은 가장자리로 끌어오지 않고 다시 뽑는다. 끌어오면 흩음이 클 때
+                // 점들이 판 가장자리에 한 줄로 늘어서고, 그 줄이 따로 한 군집처럼 보인다.
+                let px, py, tries = 0;
+                do {
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = Math.random() * blob.radius;
+                    px = blob.cx + Math.cos(angle) * r;
+                    py = blob.cy + Math.sin(angle) * r;
+                } while ((px < 10 || px > size - 10 || py < 10 || py > size - 10) && ++tries < 1000);
+                if (tries >= 1000) { px = blob.cx; py = blob.cy; } // 판이 아주 작을 때만 온다
                 this.addPoint(px / size, py / size);
             }
         }

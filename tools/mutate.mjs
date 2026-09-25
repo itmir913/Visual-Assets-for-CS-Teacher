@@ -30,6 +30,8 @@ const MUTANTS = [
     ['verbs', 'simulator/cs/sort.html', '</body>', "<button>지우기</button></body>", '버튼 이름 「지우기」'],  // verbs: 예시
     ['prose', NOTE, ...afterH1('<p>짚어 보면 알 수 있습니다.</p>'), '물러난 말 「짚다」'],
     ['prose', NOTE, ...afterH1('<p>앞 시간에 배운 대로</p>'), '앞 차시 참조'],
+    ['prose', NOTE, ...afterH1('<p>결정계수는 0에 가깝습니다.</p>'), '과목 간 표기 「결정계수」'],
+    ['prose', 'simulator/ai/unsupervised-k-means.html', '</main>', '<p>리스트의 자리 번호로 꺼냅니다.</p></main>', '시뮬레이터에 「자리 번호」'],
     ['prose', 'simulator/cs/sort.html', '</main>', '<p><b>가</b>와 <b>나</b>를 봅니다.</p></main>', '시뮬레이터 문단에 볼드 둘(문체 기준서)'],
     ['classes', NOTE, ...afterH1('<div class="bg-${x}-50"></div>'), '조립한 클래스'],
     ['code', '데이터과학/code/2-3-2.영을-결측치로.py', '\n', '\ndef (:\n', '.py 구문 오류'],

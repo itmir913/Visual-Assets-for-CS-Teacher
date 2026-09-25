@@ -280,5 +280,112 @@ const 줄인값 = 점들.map((p) => ({
     if (P('uiController.model.diverged')) bad('상한: 상한에 걸린 것을 발산으로 적었다');
 }
 
+/* ================================================================
+   7. 예제 셋 — 설명이 말하는 방향이 자료의 최소제곱해와 같은가
+
+   설명은 「~할수록 높다 · 낮다」로 계수의 부호를 말한다. 자료를 만드는 식을 고치다
+   부호가 뒤집히면 설명만 거짓이 된다. 정규방정식으로 원래 단위에서 푼다.
+   ================================================================ */
+const 줄이기 = (pts, b) => pts.map((p) => ({
+    x1: (p.x1 - b.minX1) / (b.maxX1 - b.minX1 || 1),
+    x2: (p.x2 - b.minX2) / (b.maxX2 - b.minX2 || 1),
+    y: (p.y - b.minY) / (b.maxY - b.minY || 1),
+}));
+{
+    const 부호 = {1: [1, 1], 2: [1, 1], 3: [1, -1]};
+    for (const id of [1, 2, 3]) {
+        P(`uiController.loadExample(${id})`);
+        const 자료 = P('uiController.dataManager.points');
+        const 답 = 최소제곱해(자료);
+        if (!답) { bad(`예제 ${id}: 정규방정식을 풀 수 없다`); continue; }
+        if (Math.sign(답.w1) !== 부호[id][0] || Math.sign(답.w2) !== 부호[id][1]) {
+            bad(`예제 ${id}: 최소제곱해 w₁=${답.w1.toFixed(2)}, w₂=${답.w2.toFixed(2)} — 설명 「${doc.getElementById('exampleDesc').innerText}」 의 방향과 다르다`);
+        }
+    }
+}
+
+/* ================================================================
+   8. 학습률 안내가 실제로 발산하는 경계와 맞는가
+
+   평균제곱오차의 경사 하강은 학습률이 2/λ(λ 는 헤세 행렬 (2/N)XᵀX 의 가장 큰 고윳값)를
+   넘으면 발산하고, 아래면 수렴한다. λ 를 **거듭제곱법으로 따로 구해** 두 가지를 본다.
+     · 「적당한 학습률」 칸의 천장(0.3)에서는 어느 예제도 발산하지 않는다.
+     · 고르개의 천장(약 2.5)에서는 어느 예제든 발산을 알아챈다.
+   그리고 경계 바로 위·아래에서 페이지가 실제로 갈리는지 돌려 본다.
+   ================================================================ */
+const 가장큰고윳값 = (pts) => {
+    const H = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (const p of pts) {
+        const v = [p.x1, p.x2, 1];
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) H[i][j] += (2 / pts.length) * v[i] * v[j];
+    }
+    let v = [1, 1, 1], λ = 0;
+    for (let 회 = 0; 회 < 500; 회++) {
+        const u = H.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
+        λ = Math.hypot(...u);
+        v = u.map((c) => c / λ);
+    }
+    return λ;
+};
+const 돌리기 = (pts, lr, 한도) => {
+    P('uiController.model.init()');
+    P(`uiController.model.learningRate = ${lr}`);
+    P('uiController.model.w1 = 0.2; uiController.model.w2 = -0.1; uiController.model.b = 0.05');
+    P(`uiController.model.epochCap = ${한도}`);
+    P(`window.__pts = ${JSON.stringify(pts)}`);
+    P('(() => { while (!uiController.model.trainStep(window.__pts)); })()');
+    return P('uiController.model.diverged');
+};
+{
+    const 천장 = P(`(() => { const s = document.getElementById('lrSlider'); s.value = s.max; s.dispatchEvent(new Event('input')); return uiController.model.learningRate; })()`);
+    for (const id of [1, 2, 3]) {
+        P(`uiController.loadExample(${id})`);
+        const 줄 = 줄이기(P('uiController.dataManager.points'), P('uiController.dataManager.getBounds()'));
+        const 경계lr = 2 / 가장큰고윳값(줄);
+        if (!(경계lr > 0.3)) bad(`학습률 안내: 예제 ${id} 는 학습률 ${경계lr.toFixed(3)} 부터 발산하는데 0.3 까지를 「적당」이라 한다`);
+        if (!(경계lr < 천장)) bad(`학습률 안내: 예제 ${id} 는 ${경계lr.toFixed(3)} 부터 발산 — 고르개 천장 ${천장.toFixed(2)} 로도 발산을 볼 수 없다`);
+        if (돌리기(줄, 경계lr * 0.9, 20000)) bad(`학습률: 예제 ${id} 에서 ${(경계lr * 0.9).toFixed(3)} (경계 아래)인데 발산했다고 한다`);
+        if (!돌리기(줄, 경계lr * 1.1, 20000)) bad(`학습률: 예제 ${id} 에서 ${(경계lr * 1.1).toFixed(3)} (경계 위)인데 발산을 알아채지 못한다`);
+        if (!돌리기(줄, 천장, 3000)) bad(`학습률: 예제 ${id} 에서 고르개 천장 ${천장.toFixed(2)} 인데 발산을 알아채지 못한다`);
+    }
+
+    // 고르개 자리마다 안내 문구가 그 칸의 말인가
+    for (const [v, 말] of [[0, '너무 작습니다'], [50, '적당한'], [100, '너무 큽니다']]) {
+        const 글 = P(`(() => { const s = document.getElementById('lrSlider'); s.value = ${v}; s.dispatchEvent(new Event('input')); return document.getElementById('lrHint').innerText; })()`);
+        const lr = P('uiController.model.learningRate');
+        if (!글.includes(말)) bad(`학습률 안내: 고르개 ${v}(학습률 ${lr.toFixed(4)})에서 「${글}」 — 「${말}」 칸이다`);
+    }
+    for (const [lr, 말] of [[0.3, '적당한'], [0.31, '다소 큽니다'], [0.6, '다소 큽니다'], [0.61, '너무 큽니다']]) {
+        // 경계값이 어느 칸에 드는지 — 고르개 값을 거꾸로 찾아 넣는다
+        const v = 100 * (Math.log10(lr) + 3) / 3.398;
+        const 글 = P(`(() => { const s = document.getElementById('lrSlider'); s.value = ${Math.round(v)}; s.dispatchEvent(new Event('input')); return document.getElementById('lrHint').innerText; })()`);
+        const 실제lr = P('uiController.model.learningRate');
+        const 기대 = 실제lr < 0.01 ? '너무 작습니다' : 실제lr <= 0.3 ? '적당한' : 실제lr <= 0.6 ? '다소 큽니다' : '너무 큽니다';
+        if (!글.includes(기대)) bad(`학습률 안내: 학습률 ${실제lr.toFixed(3)} 에서 「${글}」 — 「${기대}」 칸이다`);
+    }
+}
+
+/* ================================================================
+   9. 회차 칸 · 경계의 자료(x₂ 가 모두 같음)에서 죽지 않는가
+   ================================================================ */
+{
+    P('uiController.loadExample(1)');
+    P('uiController.model.init(); uiController.model.hasStarted = true; uiController.model.epoch = 37');
+    P('uiController.updateUI()');
+    if (doc.getElementById('valEpoch').innerText !== '37') bad(`회차 칸: 「${doc.getElementById('valEpoch').innerText}」 — 모형은 37회차다`);
+
+    const 같은x2 = [{x1: 1, x2: 5, y: 3}, {x1: 2, x2: 5, y: 5}, {x1: 4, x2: 5, y: 9}];
+    const 앞오류 = sim.errors.length;
+    P(`uiController.dataManager.setPoints(${JSON.stringify(같은x2)})`);
+    P('uiController.enableTraining()');
+    P('document.getElementById("btnTrain").click()');
+    for (let 회 = 0; 회 < 2000 && P('uiController.model.isTraining'); 회++) P('uiController.loop()');
+    if (sim.errors.length > 앞오류) bad(`x₂ 가 모두 같은 자료: 오류 — ${sim.errors.slice(앞오류).join(' / ')}`);
+    const 적힌 = ['valW1', 'valW2', 'valIntercept', 'valMSE'].map((k) => doc.getElementById(k).innerText);
+    if (적힌.some((t) => !Number.isFinite(Number(t)))) bad(`x₂ 가 모두 같은 자료: 칸에 숫자가 아닌 값 — ${적힌.join(', ')}`);
+    // x₁ 만으로 y = 2x₁ + 1 이 정확히 맞으므로 평균제곱오차는 0 근처라야 한다
+    if (Number(적힌[3]) > 0.05) bad(`x₂ 가 모두 같은 자료: 평균제곱오차 ${적힌[3]} — y = 2x₁ + 1 로 딱 맞는 자료다`);
+}
+
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');
 test('multiple-regression', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

@@ -347,5 +347,292 @@ console.log(`  해시 ${hashChecks}판 — 담긴 것을 Set으로 따로 들고
     console.log('  페이지 — 띄우고 조작 줄을 붙이는 동안 죽지 않았다');
 }
 
+/* ================================================================
+   7. 순차·이진 — **걸음 하나하나를 교과서 정의와 맞춘다**
+   ================================================================
+   1절은 답과 비교 횟수의 상한만 보았다. 여기서는 «어느 칸을 어떤 차례로 보았는가»를
+   따로 짠 풀이와 맞춘다. 이진 탐색의 가운데는 교과서 정의 그대로 ⌊(lo + hi) / 2⌋다. */
+
+const plain = (s) => String(s || '').replace(/\*\*/g, '');
+const probesOf = (out) => out.frames.filter((f) => f.act.kind === 'probe').map((f) => f.act.i);
+
+/** 따로 짠 이진 탐색. 되부름으로 쓰고 본 칸의 차례를 돌려준다. */
+function refBinary(arr, t, lo = 0, hi = arr.length - 1, seen = []) {
+    if (lo > hi) return {at: -1, seen};
+    const mid = Math.floor((lo + hi) / 2);
+    seen.push(mid);
+    if (arr[mid] === t) return {at: mid, seen};
+    return arr[mid] < t ? refBinary(arr, t, mid + 1, hi, seen) : refBinary(arr, t, lo, mid - 1, seen);
+}
+
+{
+    let traceChecks = 0;
+    const cases = [[], [5], [5, 9], [1, 2, 3, 4, 5, 6, 7, 8], [3, 17, 24, 38, 41, 55, 64, 73]];
+    for (let r = 0; r < 40; r++) cases.push(pick(1 + Math.floor(rnd() * 12), 99).sort((a, b) => a - b));
+
+    for (const vals of cases) {
+        const n = vals.length;
+        const state = findArrayState(vals);
+        const targets = [...vals, 0, 100, ...(n ? [vals[0] - 1, vals[n - 1] + 1] : []), 50];
+        for (const t of targets) {
+            traceChecks++;
+            const truth = vals.indexOf(t);
+
+            /* 순차 — 0번부터 차례로, 찾으면 멈춘다. */
+            const seq = runFindOperation(FIND_SEQ_OPS[0], state, t);
+            const wantSeq = Array.from({length: truth >= 0 ? truth + 1 : n}, (_, i) => i);
+            if (probesOf(seq).join() !== wantSeq.join()) {
+                bad(`순차 ${t} in [${vals}] — 본 차례 ${probesOf(seq)}(정답 ${wantSeq})`);
+            }
+            if (seq.counts.access !== seq.counts.compare) bad(`순차 ${t} — 접근 ${seq.counts.access}과 비교 ${seq.counts.compare}이 갈렸다`);
+            const seqEnd = plain(seq.frames.at(-1).say);
+            if (n && truth >= 0 && !seqEnd.startsWith(`${truth}번에서 찾았습니다. ${truth + 1}번 비교했습니다.`)) {
+                bad(`순차 ${t} — 끝 장 「${seqEnd}」`);
+            }
+            if (n && truth < 0 && !seqEnd.includes(`끝까지 ${n}번 비교했습니다`)) bad(`순차 ${t} 없음 — 끝 장 「${seqEnd}」`);
+
+            /* 이진 — 본 칸의 차례가 따로 짠 풀이와 같아야 한다. */
+            const bin = runFindOperation(FIND_BIN_OPS[0], state, t);
+            const ref = refBinary(vals, t);
+            if (probesOf(bin).join() !== ref.seen.join()) {
+                bad(`이진 ${t} in [${vals}] — 본 차례 ${probesOf(bin)}(정답 ${ref.seen})`);
+            }
+            if (bin.counts.compare !== ref.seen.length) bad(`이진 ${t} — 비교 ${bin.counts.compare}번(정답 ${ref.seen.length}번)`);
+            /* 비교 횟수의 상한 ⌊log₂n⌋ + 1. 가장 큰 값보다 큰 것을 찾으면 늘 오른쪽으로 가므로 상한에 꼭 닿는다. */
+            const bound = n ? Math.floor(Math.log2(n)) + 1 : 0;
+            if (bin.counts.compare > bound) bad(`이진 ${t} — ${n}개에서 ${bin.counts.compare}번(상한 ${bound})`);
+            if (n && t > vals[n - 1] && bin.counts.compare !== bound) {
+                bad(`이진 — [${vals}]에서 가장 큰 값보다 큰 ${t}를 찾는데 ${bin.counts.compare}번(${bound}번이어야 한다)`);
+            }
+            const binEnd = plain(bin.frames.at(-1).say);
+            if (n && truth >= 0 && !binEnd.startsWith(`${truth}번에서 찾았습니다. ${ref.seen.length}번 비교했습니다.`)) {
+                bad(`이진 ${t} — 끝 장 「${binEnd}」`);
+            }
+            if (n && truth < 0 && !binEnd.includes(`${ref.seen.length}번 만에 볼 곳이 없어졌습니다`)) bad(`이진 ${t} 없음 — 끝 장 「${binEnd}」`);
+            if (truth < 0 && /정렬/.test(bin.frames.at(-1).marks.banner || '')) bad(`이진 ${t} — 정렬된 자료에서 없는 값인데 「놓쳤다」 경고가 떴다`);
+
+            /* 걸음마다의 불변식 — 답이 있으면 늘 [lo, hi] 안에 있고, 버린 칸에는 답이 없다.
+               버린 칸은 줄지 않고, lo·hi 사이는 걸음마다 좁아진다. */
+            let prevRuled = 0;
+            let prevWidth = Infinity;
+            for (const f of bin.frames) {
+                const {lo, hi} = f.state.cursors;
+                if (lo !== undefined && hi !== undefined) {
+                    if (truth >= 0 && (truth < lo || truth > hi)) bad(`이진 ${t} — 답 ${truth}번이 [${lo}, ${hi}] 밖으로 밀렸다`);
+                    if (hi - lo + 1 > prevWidth) bad(`이진 ${t} — 볼 곳이 ${prevWidth}칸에서 ${hi - lo + 1}칸으로 늘었다`);
+                    prevWidth = hi - lo + 1;
+                }
+                if (truth >= 0 && f.marks.ruled.includes(truth)) bad(`이진 ${t} — 답이 있는 ${truth}번을 버렸다`);
+                if (f.marks.ruled.length < prevRuled) bad(`이진 ${t} — 버린 칸이 줄었다`);
+                prevRuled = f.marks.ruled.length;
+            }
+            /* 이진 탐색이 버린 칸은 본 칸 말고는 세지 않는다 — 접근도 비교와 같다. */
+            if (bin.counts.access !== bin.counts.compare) bad(`이진 ${t} — 접근 ${bin.counts.access}과 비교 ${bin.counts.compare}이 갈렸다`);
+        }
+    }
+    console.log(`  순차·이진 걸음 ${traceChecks}판 — 본 칸의 차례를 따로 짠 풀이와, 끝 장의 수를 센 값과 맞췄다`);
+}
+
+/* ================================================================
+   8. 해시 — **칸 하나하나와 세는 값을 따로 짠 표와 맞춘다**
+   ================================================================
+   2절은 «있다 · 없다»만 맞췄다. 그러면 값이 엉뚱한 칸에 앉거나 묘비를 다시 쓰지 않아도
+   답은 맞을 수 있다. 여기서는 선형 조사와 체이닝을 평범한 배열로 따로 짜서 **칸마다** 맞춘다. */
+
+const T = 'T';
+
+/** 따로 짠 해시 표. 개방 주소법은 칸마다 값 · 묘비(T) · null, 체이닝은 칸마다 배열. */
+function refHash(mode, cap) {
+    const cells = Array.from({length: cap}, () => (mode === 'chain' ? [] : null));
+    const home = (v) => v % cap;
+    const run = (kind, v) => {
+        const c = {compare: 0, access: 0, hash: 1};
+        const h = home(v);
+        if (mode === 'chain') {
+            const chain = cells[h];
+            c.access++;
+            let pos = -1;
+            for (let k = 0; k < chain.length; k++) { c.compare++; if (chain[k] === v) { pos = k; break; } }
+            if (kind === 'put' && pos < 0) { chain.push(v); c.access++; }
+            if (kind === 'remove' && pos >= 0) { chain.splice(pos, 1); c.access++; }
+            return {c, pos, h};
+        }
+        let tomb = -1;
+        for (let k = 0; k < cap; k++) {
+            const at = (h + k) % cap;
+            c.access++;
+            const cell = cells[at];
+            if (cell === null) {
+                if (kind === 'put') {
+                    const spot = tomb >= 0 ? tomb : at;
+                    cells[spot] = v; c.access++;
+                    return {c, spot, h, looked: k + 1};
+                }
+                return {c, pos: -1, h};
+            }
+            if (cell === T) { if (tomb < 0) tomb = at; continue; }
+            c.compare++;
+            if (cell === v) {
+                if (kind === 'remove') { cells[at] = T; c.access++; }
+                return {c, pos: at, h, shift: k};
+            }
+        }
+        if (kind === 'put' && tomb >= 0) { cells[tomb] = v; c.access++; return {c, spot: tomb, h, looked: cap, wrapped: true}; }
+        return {c, pos: -1, h, full: kind === 'put'};
+    };
+    return {cells, run};
+}
+
+const cellsOf = (st) => st.buckets.map((b) => (Array.isArray(b) ? b.map((it) => it.v) : (b === TOMB ? T : (b ? b.v : null))));
+
+{
+    let exactChecks = 0;
+    for (const mode of ['chain', 'open']) {
+        const [put, find, remove] = mode === 'chain' ? FIND_CHAIN_OPS : FIND_OPEN_OPS;
+        const OP = {put, find, remove};
+        for (const cap of [FIND_HASH_CAP, 7]) {
+            for (let round = 0; round < 25; round++) {
+                let state = findHashState(cap, [], mode);
+                const ref = refHash(mode, cap);
+                for (let step = 0; step < 50; step++) {
+                    const v = Math.floor(rnd() * 40);
+                    const r = rnd();
+                    const kind = r < 0.5 ? 'put' : (r < 0.75 ? 'remove' : 'find');
+                    const out = runFindOperation(OP[kind], state, v);
+                    state = out.state;
+                    const want = ref.run(kind, v);
+                    exactChecks++;
+                    const where = `[${mode} · 칸 ${cap}] ${kind} ${v}`;
+
+                    const got = cellsOf(state);
+                    if (JSON.stringify(got) !== JSON.stringify(ref.cells)) {
+                        bad(`${where} — 칸이 ${JSON.stringify(got)}(정답 ${JSON.stringify(ref.cells)})`);
+                        break;
+                    }
+                    for (const key of ['compare', 'access', 'hash']) {
+                        if (out.counts[key] !== want.c[key]) bad(`${where} — ${key} ${out.counts[key]}번(정답 ${want.c[key]}번)`);
+                    }
+                    /* ▶(본래 자리)는 계산으로 나온 칸이어야 한다. */
+                    if (state.home !== want.h) bad(`${where} — 본래 자리를 ${state.home}번이라 했다(정답 ${want.h}번)`);
+
+                    /* 끝 장의 수가 센 값과 같은가. */
+                    const end = plain(out.frames.at(-1).say);
+                    if (kind === 'find' && want.pos >= 0) {
+                        const hitCell = hitAt(out);
+                        const wantCell = mode === 'chain' ? want.h : want.pos;
+                        if (hitCell !== wantCell) bad(`${where} — ${hitCell}번 칸을 찾았다고 표시했다(정답 ${wantCell}번)`);
+                        if (mode === 'chain' && !end.startsWith(`${want.h}번 칸 리스트의 ${want.pos + 1}번째에서 찾았습니다. 계산 한 번에 비교 ${want.pos + 1}번입니다.`)) {
+                            bad(`${where} — 끝 장 「${end}」`);
+                        }
+                        if (mode === 'open') {
+                            const tail = want.shift > 0 ? `계산한 자리에서 ${want.shift}칸 밀린 곳입니다.` : '계산한 자리에 바로 있었습니다.';
+                            if (end !== `${want.pos}번에서 찾았습니다. ${tail}`) bad(`${where} — 끝 장 「${end}」`);
+                        }
+                    }
+                    if (kind === 'find' && want.pos < 0 && hitAt(out) >= 0) bad(`${where} — 없는 값을 찾았다고 표시했다`);
+                    if (mode === 'open' && kind === 'put' && want.wrapped) {
+                        /* 한 바퀴를 다 돌도록 빈 칸이 없었다 — 지나온 첫 묘비에 앉는다. */
+                        if (!end.includes(`묘비 자리인 ${want.spot}번에 넣었습니다`)) bad(`${where} — 끝 장 「${end}」`);
+                    } else if (mode === 'open' && kind === 'put' && want.spot !== undefined) {
+                        const dist = (want.spot - want.h + cap) % cap;
+                        if (dist > 0 && !end.includes(`계산한 자리(${want.h}번)에서 ${dist}칸 밀렸습니다`)) bad(`${where} — 끝 장 「${end}」`);
+                        if (dist === 0 && !end.includes(`계산한 자리 그대로 ${want.spot}번에 넣었습니다`) && !end.includes(`묘비 자리인 ${want.spot}번`)) {
+                            bad(`${where} — 끝 장 「${end}」`);
+                        }
+                        if (want.looked > dist + 1 && want.looked < cap && !end.includes(`${want.looked}칸을 확인했습니다`)) bad(`${where} — 끝 장 「${end}」`);
+                    }
+                    if (want.full) {
+                        if (!/모두 찼습니다/.test(out.frames.at(-1).marks.banner || '')) bad(`${where} — 꽉 찼는데 까닭을 말하지 않는다`);
+                    }
+                    const fault = findStateFault(state);
+                    if (fault) bad(`${where} — ${fault}`);
+                }
+            }
+        }
+    }
+    console.log(`  해시 칸 대조 ${exactChecks}판 — 선형 조사·체이닝을 배열로 따로 짜서 칸 · 세는 값 · 끝 장의 수를 맞췄다`);
+}
+
+/* ================================================================
+   9. 페이지 — 조작의 경계에서 죽지 않고, 화면의 수가 담긴 것과 맞는가
+   ================================================================ */
+
+{
+    const page = loadSim('cs/search', {box: {w: 900, h: 700}});
+    page.lifecycle();
+    const $ = (id) => page.el(id);
+    const text = (id) => $(id).textContent;
+    const clickText = (hostId, re) => {
+        const b = [...$(hostId).querySelectorAll('button')].find((x) => re.test(x.textContent));
+        if (!b) { bad(`#${hostId}에 「${re}」 버튼이 없다`); return false; }
+        b.click();
+        return true;
+    };
+    const opLogRows = () => $('op-log').children.length;
+
+    /* 찾을 값의 경계 — 범위 밖과 정수가 아닌 것은 막고, 0과 99는 받는다. */
+    for (const raw of ['', '-1', '100', '3.5', 'abc', ' ']) {
+        $('value-input').value = raw;
+        const rows = opLogRows();
+        clickText('ops-host', /탐색/);
+        if (opLogRows() !== rows) bad(`찾을 값 「${raw}」를 받아 실행했다`);
+        if (!text('input-error').trim()) bad(`찾을 값 「${raw}」에 까닭을 말하지 않는다`);
+    }
+    for (const raw of ['0', '99']) {
+        $('value-input').value = raw;
+        const rows = opLogRows();
+        clickText('ops-host', /탐색/);
+        if (opLogRows() !== rows + 1) bad(`찾을 값 「${raw}」를 받지 않았다`);
+    }
+
+    /* 직접 입력의 경계 */
+    for (const raw of ['1, 2, 2', '1, 100', '1, x', Array.from({length: 13}, (_, i) => i).join(',')]) {
+        $('input-text').value = raw;
+        $('btn-apply-input').click();
+        if (!text('input-error').trim()) bad(`직접 입력 「${raw}」을 막지 않았다`);
+    }
+
+    /* 값 12개를 넣고 개방 주소법(칸 10개)으로 가도 **자료가 줄지 않아야 한다.**
+       다 담지 못한 값은 그 까닭을 띄우고, 찾기 한 번에 사라지지 않는다. */
+    const twelve = [3, 13, 23, 33, 5, 15, 25, 35, 7, 17, 27, 37];
+    $('input-text').value = twelve.join(', ');
+    $('btn-apply-input').click();
+    if (text('size-label') !== '12개') bad(`값 12개를 넣었는데 「${text('size-label')}」`);
+    clickText('group-tabs', /계산 기반/);
+    /* 적재율 = 담긴 값 ÷ 칸 수. 체이닝은 12개를 다 담는다. */
+    if (!text('view-host').includes(`적재율 ${(12 / FIND_HASH_CAP).toFixed(2)}`)) bad(`체이닝 적재율이 ${(12 / FIND_HASH_CAP).toFixed(2)}가 아니다 — ${text('view-host').slice(-40)}`);
+    clickText('impl-buttons', /개방 주소법/);
+    if (text('size-label') !== `${FIND_HASH_CAP}개 / 칸 ${FIND_HASH_CAP}개`) bad(`개방 주소법에서 「${text('size-label')}」`);
+    if (!text('view-host').includes('12개 중 10개만 담았습니다')) bad('개방 주소법이 값 둘을 말없이 뺐다');
+    if (!text('view-host').includes('적재율 1.00')) bad('개방 주소법(10/10) 적재율이 1.00이 아니다');
+    $('value-input').value = '3';
+    clickText('ops-host', /탐색/);
+    clickText('group-tabs', /비교 기반/);
+    if (text('size-label') !== '12개') bad(`개방 주소법에서 찾기 한 번 뒤 순차 탭 자료가 「${text('size-label')}」 — 담지 못한 값이 사라졌다`);
+
+    /* 빈 자료에서 모든 탭 · 모든 연산이 죽지 않는다. */
+    $('btn-clear').click();
+    for (const g of [...$('group-tabs').querySelectorAll('button')]) {
+        g.click();
+        for (const s of [...$('struct-tabs').querySelectorAll('button')]) {
+            s.click();
+            const impls = [...$('impl-buttons').querySelectorAll('button')];
+            for (const im of impls.length ? impls : [null]) {
+                if (im) im.click();
+                for (const op of [...$('ops-host').querySelectorAll('button')]) {
+                    $('value-input').value = '7';
+                    op.click();
+                    $('btn-last').click();
+                }
+            }
+        }
+    }
+    for (const e of page.errors) bad(`경계 조작 중 — ${e}`);
+    for (const el of page.texts()) {
+        if (/NaN|Infinity|undefined/.test(el.text)) bad(`경계 조작 뒤 #${el.id}에 ${el.text.slice(0, 40)}`);
+    }
+    console.log('  페이지 경계 — 잘못된 값은 막고, 칸보다 많은 값도 잃지 않으며, 적재율이 담긴 값 ÷ 칸 수다');
+}
+
 console.log(fail ? `찾기 검사 — ${fail}건 어긋남` : '전부 통과');
 test('find', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

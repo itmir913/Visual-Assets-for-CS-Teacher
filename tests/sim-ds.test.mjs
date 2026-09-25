@@ -496,7 +496,7 @@ console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽
                 /* k번째 읽기 — 값이 맞고, 배열은 접근 한 번, 리스트는 i+1개를 지난다. */
                 const rd = runDsOperation(opOf('read-at'), probe, {i});
                 exact++;
-                if (!plain(rd.frames.at(-1).say).startsWith(`${i}번은 ${start[i]}입니다`)) {
+                if (!plain(rd.frames.at(-1).say).startsWith(`${i}번${isArray ? '은' : ' 노드는'} ${start[i]}입니다`)) {
                     bad(`${struct.name} · ${i}번 읽기 — ${start[i]}이어야 하는데 「${plain(rd.frames.at(-1).say)}」`);
                 }
                 const wantAcc = isArray ? 1 : i + 1;
@@ -516,7 +516,7 @@ console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽
                 if (out.counts.access !== want) bad(`${struct.name} · ${v} 찾기 — 접근 ${out.counts.access}번(${want}번이어야 한다)`);
                 const said = numIn(say, isArray ? /(\d+)번 확인/ : /노드를? (\d+)개/);
                 if (said !== want) bad(`${struct.name} · ${v} 찾기 — 끝 장은 ${said}인데 ${want}여야 한다`);
-                if (at >= 0 && numIn(say, /^(\d+)번(?:째)?에서 찾았/) !== at) bad(`${struct.name} · ${v} 찾기 — ${at}번에 있는데 「${plain(say)}」`);
+                if (at >= 0 && numIn(say, /^(\d+)번(?: 노드)?에서 찾았/) !== at) bad(`${struct.name} · ${v} 찾기 — ${at}번에 있는데 「${plain(say)}」`);
             }
         }
     }

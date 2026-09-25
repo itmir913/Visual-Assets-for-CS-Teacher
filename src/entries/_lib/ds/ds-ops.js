@@ -205,7 +205,7 @@ function listInsertAt(rec, i, v) {
     rec.say('링크가 다 걸렸습니다. 새 노드가 리스트에 들어왔습니다.');
     rec.settle(nd.id);
     rec.setSize(rec.size + 1);
-    return `${withJosa(v, '을를')} ${i}번에 넣었습니다. **원소는 하나도 움직이지 않았습니다** — 고친 것은 링크뿐입니다.`;
+    return `${withJosa(v, '을를')} ${i}번 노드 자리에 넣었습니다. **원소는 하나도 움직이지 않았습니다** — 고친 것은 링크뿐입니다.`;
 }
 
 /** 자리 `i`의 노드를 뺀다. */
@@ -286,7 +286,7 @@ function listReadAt(rec, k) {
         + ' 바로 접근할 수가 없습니다. 처음부터 링크를 따라갑니다.');
     const nd = walkTo(rec, k);
     rec.cursor('p', null);
-    return `${k}번은 ${nd.v}입니다. **노드를 ${k + 1}개 지나왔습니다** —`
+    return `${k}번 노드는 ${nd.v}입니다. **노드를 ${k + 1}개 지나왔습니다** —`
         + ' 뒤로 갈수록 더 걸립니다.';
 }
 
@@ -300,10 +300,10 @@ function listFind(rec, v) {
         rec.walk(nd.id, 'p');
         seen++;
         if (nd.v === v) {
-            rec.say(`${seen - 1}번째 노드에서 ${withJosa(v, '을를')} 찾았습니다.`);
+            rec.say(`${seen - 1}번 노드에서 ${withJosa(v, '을를')} 찾았습니다.`);
             rec.mark('found');
             rec.cursor('p', null);
-            return `${seen - 1}번째에서 찾았습니다. **노드를 ${seen}개 지나왔습니다.**`;
+            return `${seen - 1}번 노드에서 찾았습니다. **노드를 ${seen}개 지나왔습니다.**`;
         }
         nd = rec.nodeById(nd.next);
     }
@@ -380,7 +380,7 @@ export const dsListOps = {
     },
     insertAt: {
         id: 'insert-at', name: 'k번째에 삽입', arg: 'valueIndex',
-        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번째**에 넣으려 합니다.`,
+        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번 노드 자리**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : listInsertAt(rec, i, v)),
@@ -397,14 +397,14 @@ export const dsListOps = {
     },
     removeAt: {
         id: 'remove-at', name: 'k번째 삭제', arg: 'index',
-        opening: (rec, {i}) => `**${i}번째**를 빼려 합니다.`,
+        opening: (rec, {i}) => `**${i}번 노드**를 빼려 합니다.`,
         run: (rec, {i}) => (outOfRange(rec, i, rec.size - 1, '뺄')
             ? '그 자리에는 뺄 것이 없습니다.'
             : listRemoveAt(rec, i)),
     },
     readAt: {
         id: 'read-at', name: 'k번째 읽기', arg: 'index',
-        opening: (rec, {i}) => `**${i}번째** 노드의 값을 보려 합니다.`,
+        opening: (rec, {i}) => `**${i}번 노드**의 값을 보려 합니다.`,
         run: (rec, {i}) => listReadAt(rec, i),
     },
     find: {

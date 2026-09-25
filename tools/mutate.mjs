@@ -117,6 +117,8 @@ const MUTANTS = [
     ['sim-ds', 'src/entries/_lib/ds/ds-ops.js', '**노드를 ${k + 1}개 지나왔습니다**', '**노드를 ${k}개 지나왔습니다**', '리스트 읽기 설명의 지나온 노드 수 하나 모자람'],
     ['sim-ds', 'src/entries/_lib/ds/ds-ops.js', 'if (i >= rec.size && rec.state.hasTail) {', 'if (i > rec.size && rec.state.hasTail) {', 'tail 포인터가 있어도 끝까지 따라감'],
     ['sim-ds', 'src/entries/_lib/ds/ds-ops.js', '**${i + 1}번 확인했습니다.**', '**${i}번 확인했습니다.**', '배열 찾기 설명의 확인 수 하나 모자람'],
+    ['sim-ds', 'src/entries/_lib/ds/ds-ops.js', 'return `${seen - 1}번 노드에서 찾았습니다.', 'return `${seen}번 노드에서 찾았습니다.', '리스트 찾기 끝 장의 노드 번호를 1부터 셈'],
+    ['sim-ds', 'src/entries/_lib/ds/ds-ops.js', 'return `${k}번 노드는 ${nd.v}입니다.', 'return `${k + 1}번 노드는 ${nd.v}입니다.', '리스트 읽기 끝 장의 노드 번호를 1부터 셈'],
     ['sim-tree.', 'src/entries/_lib/ds/tree-ops.js', "const side = d < 0 ? 'left' : 'right';", "const side = d < 0 ? 'right' : 'left';", 'BST 가 작은 값을 오른쪽에 넣음'],
     // 한 줄로 심는다 — 작업 사본의 줄 끝이 CRLF 라 여러 줄 글은 자리를 못 찾는다.
     ['sim-tree.', 'src/entries/_lib/ds/tree-ops.js', 'const succ = successorOf(rec, target);', 'const succ = ((n) => { let a = rec.node(n.left); while (a.right !== null) a = rec.node(a.right); return a; })(target);', 'BST 삭제가 후계자 대신 전임자를 올림'],

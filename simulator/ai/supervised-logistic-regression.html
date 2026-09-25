@@ -239,18 +239,26 @@
                 <!-- ① 자료 -->
                 <div class="sim-panel flex flex-col gap-2">
                     <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
-                            onclick="uiController.loadExample(1)">
-                        <i class="fa-solid fa-book mr-1 text-indigo-500"></i> 공부시간 → 합/불
-                    </button>
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
-                            onclick="uiController.loadExample(2)">
-                        <i class="fa-solid fa-temperature-full mr-1 text-indigo-500"></i> 온도 → 에어컨 작동
-                    </button>
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
-                            onclick="uiController.loadExample(3)">
-                        <i class="fa-solid fa-virus mr-1 text-indigo-500"></i> 바이러스 수치 → 양성
-                    </button>
+                    <!-- 예제 넷을 2열로 둔다. 넷째(기온 → 난방)는 x 가 작을수록 1 인 자료라
+                         기울기가 음수인 S자 곡선을 보인다 — 앞의 셋은 모두 x 가 클수록 1 이다. -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
+                                onclick="uiController.loadExample(1)">
+                            <i class="fa-solid fa-book mr-1 text-indigo-500"></i> 공부 시간 → 합격
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
+                                onclick="uiController.loadExample(2)">
+                            <i class="fa-solid fa-temperature-full mr-1 text-indigo-500"></i> 기온 → 에어컨
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
+                                onclick="uiController.loadExample(3)">
+                            <i class="fa-solid fa-virus mr-1 text-indigo-500"></i> 바이러스 → 양성
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-indigo-50 text-left whitespace-nowrap"
+                                onclick="uiController.loadExample(4)">
+                            <i class="fa-solid fa-temperature-empty mr-1 text-indigo-500"></i> 기온 → 난방
+                        </button>
+                    </div>
                     <!-- 예제마다 글 길이가 달라도 칸이 그대로이게 높이를 못박는다(넓은 화면의 30rem 칸은 한 줄, 좁으면 두 줄).
                          w-0 min-w-full: 글이 칸 폭을 정하지 못하게 한다. -->
                     <p id="exampleDesc" class="w-0 min-w-full h-[3.25rem] lg:h-[1.375rem] overflow-y-auto text-base text-indigo-600 font-medium leading-snug break-keep"></p>
@@ -284,7 +292,7 @@
                         </div>
                         <input type="range" id="lrSlider" min="0" max="100" step="1" value="50"
                                class="w-full accent-amber-500 cursor-pointer">
-                        <p id="lrHint" class="sim-lr-hint sim-lr-hint-2 ok">적당한 학습률입니다.</p>
+                        <p id="lrHint" class="sim-lr-hint ok">적당한 학습률입니다.</p>
                     </div>
                     <!-- 이 버튼은 상태에 따라 글자가 바뀐다. 두 줄로 접혀 아래 칸을 밀지 않게
                          줄바꿈을 막는다. 색은 상태 클래스(state-*)만 켜고 끈다. -->
@@ -315,9 +323,9 @@
                             분류
                         </button>
                     </form>
-                    <!-- 결과 글이 바뀌어도 칸이 그대로이게 두 줄 높이와 폭을 못박는다. -->
+                    <!-- 결과 글이 바뀌어도 칸이 그대로이게 높이와 폭을 못박는다(넓은 화면의 30rem 칸은 한 줄, 좁으면 두 줄). -->
                     <p id="predictResult"
-                       class="w-0 min-w-full h-[3.25rem] overflow-y-auto text-base font-medium text-slate-600 leading-snug break-keep"></p>
+                       class="w-0 min-w-full h-[3.25rem] lg:h-[1.375rem] overflow-y-auto text-base font-medium text-slate-600 leading-snug break-keep"></p>
                 </div>
             </div>
         </div>
@@ -654,9 +662,13 @@
                     } else if (type === 2) {
                         y = Math.random() > 0.5 ? 1 : 0;
                         x = y === 1 ? 25 + Math.random() * 15 : 10 + Math.random() * 16;
-                    } else {
+                    } else if (type === 3) {
                         y = Math.random() > 0.5 ? 1 : 0;
                         x = y === 1 ? 30 + Math.random() * 60 : Math.random() * 60;
+                    } else {
+                        // 기온(℃) → 난방: 추울수록 1 이다. 8~14℃ 에서 두 클래스가 겹친다.
+                        y = Math.random() > 0.5 ? 1 : 0;
+                        x = y === 1 ? -8 + Math.random() * 22 : 8 + Math.random() * 22;
                     }
                     data.push({x: Number(x.toFixed(1)), y});
                 }
@@ -664,9 +676,11 @@
             }
 
             this.examples = {
-                1: {desc: "공부 시간이 긴 학생일수록 「합격(1)」이 많게 나타난 자료입니다.", data: generateClassificationData(1)},
-                2: {desc: "온도가 일정 수준을 넘으면 「에어컨(1)」을 켭니다.", data: generateClassificationData(2)},
-                3: {desc: "바이러스 수치가 높을수록 「양성(1)」 판정을 받습니다.", data: generateClassificationData(3)}
+                // 설명은 한 틀로 쓴다 — 「x 가 ~할수록 「클래스 1」이 많습니다.」
+                1: {desc: "공부 시간이 길수록 「합격(1)」이 많습니다.", data: generateClassificationData(1)},
+                2: {desc: "기온이 높을수록 「에어컨 작동(1)」이 많습니다.", data: generateClassificationData(2)},
+                3: {desc: "바이러스 수치가 높을수록 「양성(1)」이 많습니다.", data: generateClassificationData(3)},
+                4: {desc: "기온이 낮을수록 「난방 작동(1)」이 많습니다.", data: generateClassificationData(4)}
             };
 
             this.bindEvents();
@@ -709,7 +723,7 @@
             const resultText = isClass1 ? '클래스 1' : '클래스 0';
             const resultClass = isClass1 ? 'sim-class-1' : 'sim-class-0';
 
-            resultDiv.innerHTML = `입력값 ${inputX} → 확률: ${(p * 100).toFixed(1)}% → 분류 결과: <span class="${resultClass}">${resultText}</span>`;
+            resultDiv.innerHTML = `x = ${inputX} → 확률: ${(p * 100).toFixed(1)}% → <span class="${resultClass}">${resultText}</span>`;
             this.updateUI();
         }
 
@@ -748,7 +762,7 @@
 
                 let msg, cls;
                 if (lr < 0.1) {
-                    msg = '너무 작습니다. 경계선이 아주 천천히 움직입니다.';
+                    msg = '너무 작습니다. 경계선이 천천히 움직입니다.';
                     cls = 'slow';
                 } else if (lr <= 5) {
                     msg = '적당한 학습률입니다.';
@@ -759,7 +773,7 @@
                 } else {
                     // 로지스틱은 시그모이드가 포화하면서 기울기를 눌러 주기 때문에
                     // 선형 회귀처럼 무한대로 튀지는 않는다. 대신 경계선이 크게 흔들려 정확도가 떨어진다.
-                    msg = '너무 큽니다. 경계선이 크게 흔들려 오히려 정확도가 떨어집니다.';
+                    msg = '너무 큽니다. 경계선이 흔들려 정확도가 떨어집니다.';
                     cls = 'bad';
                 }
                 lrHint.innerText = msg;

@@ -79,7 +79,6 @@ const INLINE_PENDING = new Set([
     'simulator/ai/deep-learning.html',
     'simulator/ai/reinforcement-multi-armed-bandit.html',
     'simulator/ai/search-8-puzzle.html',
-    'simulator/ai/search-heuristic.html',
     'simulator/ai/search-n-queen.html',
     'simulator/ai/search-river-crossing.html',
     'simulator/ai/search-tower-of-hanoi.html',
@@ -180,7 +179,9 @@ export async function check(args = []) {
         ? resolved.filter((p) => p.endsWith('.js'))
         : walk(path.join(ROOT, 'src', 'entries'), {ext: ['.js'], skip: SKIP});
     if (!files.length && !jsFiles.length) { r.error('검사할 파일이 없다'); return r; }
-    const inlineHtml = files.filter((p) => INLINE_SCOPE(p) && !INLINE_PENDING.has(rel(p)));
+    // `--pending` 이면 아직 옮기지 못한 페이지까지 본다 — 남은 일을 셀 때
+    const withPending = args.includes('--pending');
+    const inlineHtml = files.filter((p) => INLINE_SCOPE(p) && (withPending || !INLINE_PENDING.has(rel(p))));
     if (jsFiles.length || inlineHtml.length) await checkJs(r, jsFiles, inlineHtml);
     for (const p of files) {
         const text = read(p);

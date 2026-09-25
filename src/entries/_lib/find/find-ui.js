@@ -374,6 +374,11 @@ export function mountFindSimulator() {
 
         $('tally-row').style.display = '';
         const frames = [idleFrame(state)];
+        /* 다 담지 못한 값이 있으면 그 까닭을 띄운다. 말없이 빠지면 학생은 값이 사라졌다고 여긴다. */
+        if (state.size < values.length) {
+            frames[0].marks.banner = `칸이 ${state.cap}개뿐이라 값 ${values.length}개 중 `
+                + `${state.size}개만 담았습니다. 개방 주소법은 칸 안에서만 자리를 찾습니다.`;
+        }
         view.setup(frames);
         playFrames(frames, {onFrame: paintCounts});
     }
@@ -422,9 +427,10 @@ export function mountFindSimulator() {
             return;
         }
 
+        const before = state;
         const out = runFindOperation(op, state, v);
         state = out.state;
-        syncValues(out.state);
+        syncValues(before, out.state);
 
         ensureView(plan().view);
         paintReadNotes();
@@ -446,10 +452,15 @@ export function mountFindSimulator() {
      * 시작한다** — 「흐트러뜨리기」로 «일부러» 만들어야 가르칠 거리가 된다는 설계가 무너진다.
      *
      * 그래서 살아남은 값은 **있던 차례 그대로** 두고, 새로 들어온 값만 뒤에 붙인다.
+     *
+     * **연산 전에도 표에 없던 값은 지우지 않는다.** 개방 주소법은 칸이 10개라 자료가
+     * 11개 이상이면 다 담지 못한다. 그 값까지 «연산이 뺀 것»으로 치면 찾기 한 번에
+     * 자료가 줄어, 다른 탭으로 돌아가도 되살아나지 않았다.
      */
-    function syncValues(st) {
+    function syncValues(before, st) {
+        const had = new Set(findValues(before));
         const now = new Set(findValues(st));
-        const kept = values.filter((v) => now.has(v));
+        const kept = values.filter((v) => now.has(v) || !had.has(v));
         const added = [...now].filter((v) => !kept.includes(v));
         values = [...kept, ...added];
     }

@@ -156,7 +156,7 @@ export function huffmanEncode(text, opts = {}) {
     rec.carry({forest: [], root: cloneTree(root), codes: mapToObj(codes)})
         .say('트리가 완성되었습니다. 루트에서 단말 노드까지 걸어가며 <b>0과 1을 모으면</b> '
             + '그것이 그 글자의 코드입니다. '
-            + '<b>자주 나온 글자일수록 단말 노드가 위에 있어 코드가 짧습니다.</b>')
+            + '<b>자주 나온 글자일수록 단말 노드가 위에 있어 코드가 짧거나 같습니다.</b>')
         .step('tree');
 
     const 표 = tableBitsOf(codes, w);

@@ -334,7 +334,7 @@ for (const text of 글감) {
     const 길이합 = 참횟수.reduce((a, {ch, n}) => a + (참코드[ch] || '').length * n, 0);
     if (text.length && h.bodyBits !== 길이합) bad(`${where허}: ${h.bodyBits}비트인데 Σ 길이×횟수는 ${길이합}`);
 
-    /* 「자주 나온 글자일수록 코드가 짧습니다」 — 더 자주 나온 글자가 더 긴 코드를 받으면 거짓이 된다. */
+    /* 「자주 나온 글자일수록 코드가 짧거나 같습니다」 — 더 자주 나온 글자가 더 긴 코드를 받으면 거짓이 된다. */
     for (const a of 참횟수) {
         for (const b of 참횟수) {
             if (a.n > b.n && codes.get(a.ch).length > codes.get(b.ch).length) {

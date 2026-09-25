@@ -17,7 +17,7 @@ export const insertionSortAlgo = {
     complexity: {best: 'O(n)', avg: 'O(n²)', worst: 'O(n²)', space: 'O(1)'},
     stable: true,
     inPlace: true,
-    watch: '임시 저장한 값보다 작은 것을 만나면 거기서 멈춥니다. 거의 정렬된 자료에서는 '
+    watch: '임시 저장한 값보다 작거나 같은 것을 만나면 거기서 멈춥니다. 거의 정렬된 자료에서는 '
         + '거의 곧바로 멈추므로 이동시킬 것이 없어 아주 빠릅니다 — '
         + '「거의 정렬됨」 자료로 비교 횟수를 보세요.',
 
@@ -48,7 +48,7 @@ export const insertionSortAlgo = {
             rec.cursor('j', null);
             rec.say(j < 0
                 ? '앞쪽 전부가 더 컸습니다. 맨 앞 빈자리에 내려놓습니다.'
-                : '더 작은 값을 만났습니다. 그 바로 뒤 빈자리에 내려놓습니다.');
+                : '작거나 같은 값을 만났습니다. 그 바로 뒤 빈자리에 내려놓습니다.');
             rec.drop(j + 1);
             rec.setRanges([{lo: 0, hi: i, depth: 0, state: 'merged'}]);
             rec.mark('grow');

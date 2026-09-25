@@ -171,7 +171,9 @@ export function checkSortInput(algo, values) {
     if (need.nonNegative && values.some((v) => v < 0)) {
         /* **막는 까닭을 알고리즘에 맞게 적는다.** 계수 정렬은 값이 곧 칸의 자리라
            음수가 갈 자리가 없고, 기수 정렬은 자릿수를 분리해 쓰므로 부호를 다룰 수 없다. */
-        return `${withJosa(algo.name, '은는')} 값을 칸의 자리로 쓰기 때문에 `
+        // 계수 정렬은 값의 크기에 천장이 있고, 기수 정렬은 없다 — 그것으로 둘을 가른다.
+        const what = need.maxValue !== undefined ? '값을' : '자릿수를';
+        return `${withJosa(algo.name, '은는')} ${what} 칸의 자리로 쓰기 때문에 `
             + `음수를 그대로 담을 수 없습니다. 0 이상만 넣어 주세요.`;
     }
     if (need.maxValue !== undefined && values.some((v) => v > need.maxValue)) {

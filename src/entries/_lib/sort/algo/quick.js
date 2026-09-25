@@ -56,7 +56,7 @@ export const quickSortAlgo = {
             rec.pivotAt(null);
             rec.cursor('경계', null);
             rec.fix(wall);
-            rec.say(`피벗이 ${wall}번 자리에 확정되었습니다. 왼쪽은 모두 작고 오른쪽은 모두 큽니다.`);
+            rec.say(`피벗이 ${wall}번 자리에 확정되었습니다. 왼쪽은 모두 작고 오른쪽은 모두 크거나 같습니다.`);
             rec.mark('fix');
 
             qsort(lo, wall - 1, depth + 1);

@@ -13,7 +13,7 @@ export const heapSortAlgo = {
     group: 'improved',
     view: 'heap',
     motion: 'swap',
-    idea: '**선택 정렬을 개선한 것**입니다. 배열을 완전 이진 트리로 보고, 부모 노드(Parent)가 자식 노드(Child)보다 크도록 정리합니다(최대 힙). '
+    idea: '**선택 정렬을 개선한 것**입니다. 배열을 완전 이진 트리로 보고, 부모 노드(Parent)가 자식 노드(Child)보다 크거나 같도록 정리합니다(최대 힙). '
         + '그러면 맨 위가 가장 큰 값이므로 맨 뒤와 교환해 확정하고, '
         + '남은 부분을 다시 힙으로 고칩니다.',
     complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(1)'},
@@ -48,7 +48,13 @@ export const heapSortAlgo = {
                 }
 
                 if (big === r) {
-                    rec.say('부모가 두 자식보다 큽니다. 여기는 더 고칠 것이 없습니다.');
+                    /* **자식 수대로 말한다.** 잎에 닿았을 때도, 자식이 하나뿐일 때도
+                       「두 자식보다 큽니다」라고 적었더니 없는 자식과 비교한 것처럼 읽혔다.
+                       같은 값이면 교환하지 않으므로 「크다」가 아니라 「작지 않다」이다. */
+                    const kids = (left < size ? 1 : 0) + (right < size ? 1 : 0);
+                    rec.say(kids === 0
+                        ? '자식이 없습니다. 더 내려갈 곳이 없으므로 여기서 멈춥니다.'
+                        : `부모가 ${kids === 2 ? '두 자식' : '자식'}보다 작지 않습니다. 여기는 더 고칠 것이 없습니다.`);
                     rec.cursor('자식', null);
                     rec.mark('settled');
                     return;

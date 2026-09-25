@@ -212,6 +212,7 @@ const MUTANTS = [
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'this.loss(this.w) > this.CURVES[this.curveKey].min + 0.5', 'this.loss(this.w) < this.CURVES[this.curveKey].min + 0.5', '얕은 골짜기 판정 뒤집음'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'const dz2 = 2 * (fw.a2 - y) * fw.a2 * (1 - fw.a2);', 'const dz2 = (fw.a2 - y) * fw.a2 * (1 - fw.a2);', '출력 몫에서 2를 빠뜨림'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'dz1[j] = dz2 * n.w2[j] * A.df(fw.z1[j], fw.a1[j]);', 'dz1[j] = dz2 * n.w2[j];', '은닉 몫에 활성화 함수 기울기를 곱하지 않음'],
+    ['sim-deep-learning', 'simulator/ai/deep-learning.html', "' − ' + nf(netSim.beforeLr) +", "' − ' + nf(this.lr()) +", '갱신 식이 지금 조절기의 학습률을 보임'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'df: (z) => (z > 0 ? 1 : 0),', 'df: (z) => 1,', 'ReLU 기울기를 늘 1로'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'n.b1[j] -= lr * g.db1[j];', 'n.b1[j] += lr * g.db1[j];', '은닉 편향을 기울기 쪽으로 갱신'],
     ['sim-deep-learning', 'simulator/ai/deep-learning.html', 'z1[j] = x[0] * n.w1[0][j] + x[1] * n.w1[1][j] + n.b1[j];', 'z1[j] = x[0] * n.w1[0][j] + x[1] * n.w1[j][1] + n.b1[j];', '가중치 첨자 뒤바뀜'],

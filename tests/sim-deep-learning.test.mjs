@@ -760,11 +760,24 @@ function checkNetTabs() {
     const top2 = names.map((nm, k) => [nm, Math.abs(after[k] - before[k])]).sort((p, q) => q[1] - p[1]).slice(0, 2).map((e) => e[0]);
     const b4 = linesOf('bpFormulaBody');
     for (const nm of top2) if (!b4.some((l) => l.includes('>' + nm + '<'))) bad(`갱신 4단계가 가장 많이 바뀐 ${nm} 을 보이지 않는다`);
-    for (const l of b4.slice(1, 3)) {
-        const m = l.replace(/<[^>]+>/g, '').replace(/−/g, '-').match(/= (-?[\d.]+) - ([\d.]+)×\(?(-?[\d.]+)\)? = (-?[\d.]+)/);
-        if (!m) { bad('갱신 4단계 줄을 읽지 못했다: ' + l); continue; }
-        const [, was, lr, g, now] = m.map(Number);
-        if (Math.abs(was - lr * g - now) > 2e-3) bad(`갱신 4단계: ${was} − ${lr}×${g} 가 ${now} 가 아니다`);
+    const 단계4산수 = (lines, 뜻) => {
+        for (const l of lines.slice(1, 3)) {
+            const m = l.replace(/<[^>]+>/g, '').replace(/−/g, '-').match(/= (-?[\d.]+) - ([\d.]+)×\(?(-?[\d.]+)\)? = (-?[\d.]+)/);
+            if (!m) { bad(`갱신 4단계${뜻} 줄을 읽지 못했다: ` + l); continue; }
+            const [, was, lr, g, now] = m.map(Number);
+            if (Math.abs(was - lr * g - now) > 2e-3) bad(`갱신 4단계${뜻}: ${was} − ${lr}×${g} 가 ${now} 가 아니다`);
+        }
+    };
+    단계4산수(b4, '');
+    // 고친 뒤 학습률 조절기를 움직여도 식은 이번 갱신에 쓴 학습률을 보여야 산수가 맞는다
+    {
+        const lrEl = el('bpLr'), 쓴것 = lrEl.value;
+        lrEl.value = '2.5';
+        (lrEl._listeners.input || []).forEach((f) => f({target: lrEl}));
+        bp.renderAll();
+        단계4산수(linesOf('bpFormulaBody'), '(갱신 뒤 학습률을 바꿈)');
+        lrEl.value = 쓴것;
+        (lrEl._listeners.input || []).forEach((f) => f({target: lrEl}));
     }
 
     // 에포크 — 이미 고친 데이터를 한 에포크 안에서 연달아 다시 고치지 않는다

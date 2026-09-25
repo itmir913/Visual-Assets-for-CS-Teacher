@@ -208,6 +208,7 @@ const MUTANTS = [
     ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', 'pegs[to][pegs[to].length - 1] < top', 'pegs[to][pegs[to].length - 1] > top', '작은 원판 위에 큰 원판을 허용'],
     ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', 'const detail = manualMovesCount <= minM', 'const detail = manualMovesCount <= minM + 2', '돌아간 풀이도 최적이라 함'],
     ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', 'if (manualPegs[2].length === manualN) {', 'if (manualPegs[2].length === manualN || manualPegs[1].length === manualN) {', 'B 에 모아도 성공'],
+    ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', 'if (manualPegs[2].length === manualN) return;', '', '다 옮긴 판이 잠기지 않음'],
     ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', 'Math.pow(3,n).toLocaleString()', 'Math.pow(2,n).toLocaleString()', '큰 n 의 상태 수를 2ⁿ 으로'],
     ['sim-hanoi', 'simulator/ai/search-tower-of-hanoi.html', '<td class="border border-slate-200 px-4 py-3 text-center">243</td>', '<td class="border border-slate-200 px-4 py-3 text-center">81</td>', '표의 상태 수 틀림'],
     ['sim-river', 'simulator/ai/search-river-crossing.html', 'if (sh === ca && f !== sh) return false;', '', '양과 양배추를 두어도 안전'],

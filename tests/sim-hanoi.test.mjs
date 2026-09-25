@@ -131,6 +131,13 @@ if (!doc.getElementById('manualSuccessDetail').textContent.includes('최적 해 
     bad('손으로 옮기기: 최소 횟수로 끝냈는데 그렇게 알려 주지 않는다');
 }
 
+// 다 옮긴 뒤에는 판이 잠긴다 — 더 옮기면 성공 알림이 뜬 채로 판만 흐트러진다
+기둥누르기(2);
+기둥누르기(0);
+if (P('manualPegs')[2].length !== 3 || doc.getElementById('manualMoves').textContent !== '7') {
+    bad('손으로 옮기기: 다 옮긴 뒤에도 원판이 움직인다 — 성공 알림과 판이 어긋난다');
+}
+
 // 돌아간 풀이 — 1을 A→B→A 로 헛걸음한 뒤 해법대로. 성공이지만 최적이라 하면 안 된다
 P('resetManual()');
 for (const [from, to] of [[0, 1], [1, 0], ...규칙대로의이동(3)]) {

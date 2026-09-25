@@ -26,7 +26,7 @@ const CASES = [
     ['terms', terms, [`${F}/verbs-terms.js`]],
     ['verbs', verbs, [`${F}/verbs-terms.js`]],
     ['prose', prose, [`${F}/prose.html`]],
-    ['classes', classes, [`${F}/classes.html`]],
+    ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
     ['code', code, codeFiles],
 ];
 

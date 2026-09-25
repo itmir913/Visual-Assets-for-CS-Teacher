@@ -32,7 +32,7 @@ const $ = (id) => document.getElementById(id);
 /* 설명문의 `**굵게**`를 실제로 굵게 낸다. 예전에는 `textContent`로 넣어
    **별표가 그대로 화면에 찍혔다.** 넣는 글은 전부 우리가 쓴 것이지만,
    그래도 꺾쇠는 먼저 막아 둔다 — 나중에 누가 이 자리에 남의 글을 흘려 넣을 수 있다. */
-function setRich(el, text, strongClass = 'font-black text-slate-900') {
+function setRich(el, text, strongClass = 'sim-strong') {
     const safe = String(text)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     el.innerHTML = safe.replace(/\*\*([^*]+)\*\*/g,
@@ -108,7 +108,7 @@ export function mountSortSimulator() {
         $('algo-name').textContent = algo.name;
         $('algo-en').textContent = algo.en;
         setRich($('algo-idea'), algo.idea);
-        setRich($('algo-watch'), algo.watch, 'font-black text-amber-950');
+        setRich($('algo-watch'), algo.watch, 'sim-strong-watch');
 
         /* **분류가 무엇을 뜻하는지 적어 준다.** 탭 이름만으로는 「분할 정복」이
            무슨 기법인지 알 수 없고, 셸·힙이 왜 거기 없는지도 알 수 없다. */
@@ -117,7 +117,7 @@ export function mountSortSimulator() {
            그 안의 퀵 정렬(최악 O(n²))·버킷 정렬(최악 O(n²))과 어긋났다.
            복잡도는 알고리즘마다 다르므로 분류가 아니라 **카드**가 말할 일이다. */
         $('group-name').textContent = group ? group.name : ' ';
-        setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
+        setRich($('group-blurb'), group ? group.blurb : ' ', 'sim-strong-soft');
 
         const badges = $('algo-badges');
         badges.textContent = '';
@@ -131,9 +131,7 @@ export function mountSortSimulator() {
         ];
         for (const s of spec) {
             const el = document.createElement('span');
-            el.className = 'px-3 py-1 rounded-full font-bold border '
-                + (s.on ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-slate-100 border-slate-300 text-slate-600');
+            el.className = s.on ? 'sim-badge on' : 'sim-badge';
             el.textContent = s.text;
             el.title = s.hint;
             badges.appendChild(el);
@@ -152,12 +150,12 @@ export function mountSortSimulator() {
         table.parentElement.style.display = rows.every(([, v]) => v === '—') ? 'none' : '';
         for (const [label, value] of rows) {
             const tr = document.createElement('tr');
-            tr.className = 'border-b border-slate-100';
+            tr.className = 'sim-cost-row under';
             const th = document.createElement('th');
-            th.className = 'py-1.5 pr-4 text-left font-bold text-slate-500 w-32';
+            th.className = 'sim-cost-head label';
             th.textContent = label;
             const td = document.createElement('td');
-            td.className = 'py-1.5 font-black text-slate-900 font-mono';
+            td.className = 'sim-cost-big';
             td.textContent = value;
             tr.appendChild(th);
             tr.appendChild(td);
@@ -186,7 +184,7 @@ export function mountSortSimulator() {
         for (const item of SORT_LEGEND) {
             const tone = SORT_COLORS[item.key];
             const wrap = document.createElement('span');
-            wrap.className = 'inline-flex items-center gap-2';
+            wrap.className = 'sim-legend-item';
             const chip = document.createElement('span');
             Object.assign(chip.style, {
                 width: '14px', height: '14px', borderRadius: '3px',
@@ -248,8 +246,8 @@ export function mountSortSimulator() {
 
         for (const line of lines) {
             const li = document.createElement('li');
-            li.className = 'leading-relaxed';
-            setRich(li, line, 'font-black text-slate-800');
+            li.className = 'sim-note';
+            setRich(li, line, 'sim-strong-soft');
             host.appendChild(li);
         }
     }
@@ -276,7 +274,7 @@ export function mountSortSimulator() {
         raceBoxes.clear();
         for (const a of SORT_ALGOS) {
             const label = document.createElement('label');
-            label.className = 'inline-flex items-center gap-2 font-semibold text-slate-700 cursor-pointer';
+            label.className = 'sim-check';
             const box = document.createElement('input');
             box.type = 'checkbox';
             box.checked = racePick.has(a.id);

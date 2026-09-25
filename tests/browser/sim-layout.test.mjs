@@ -8,8 +8,8 @@
 //   2. 평소 화면과 전체 화면 — 눈에 보이는 조작끼리 서로 덮지 않는가
 //   3. 전체 화면(1366×768 · 1920×1080) — 무대가 가로로 넘치지 않는가 · 조작이 화면 가로 밖에 있지
 //      않는가 · 화면 아래로 내려간 조작이 있다면 **무대가 스크롤되어 닿을 수 있는가**
-//   4. `sim-deck` 무대 — 1024 평소 화면에서 조작이 그림 앞에 오는가 · 단계를 넘겨도 그림과
-//      재생 버튼이 제자리에 있는가(흔들림)
+//   4. `sim-deck` 무대 — 넓은 평소 화면(`DECK`)에서 조작이 그림 앞에 오는가 · 그림이 칸 안에서
+//      스크롤되지 않는가 · 단계를 넘겨도 그림과 재생 버튼이 제자리에 있는가(흔들림, 375 에서도)
 //
 // **「보이는 상자」는 조상이 잘라 낸 뒤의 상자다.** 스크롤되는 표 안의 버튼은 상자가 표 밖까지
 // 뻗어 있어도 화면에는 잘려 보이지 않는다. 그대로 재면 아래 버튼과 «겹친다»는 헛경보가 난다
@@ -84,7 +84,7 @@ async function enterFull(frame, stage, w, h) {
     await new Promise((r) => setTimeout(r, 400));
 }
 function leaveFull(frame, stage) {
-    stage.classList.remove('fs-on', 'fs-drawer-open');
+    stage.classList.remove('fs-on');
     stage.style.position = stage.style.inset = stage.style.zIndex = stage.style.margin = '';
     frame.contentWindow.dispatchEvent(new frame.contentWindow.Event('resize'));
 }

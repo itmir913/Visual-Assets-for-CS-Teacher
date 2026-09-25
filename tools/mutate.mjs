@@ -56,6 +56,8 @@ const MUTANTS = [
     ['fixtures', 'tools/checks/prose.mjs', 'for (const [pos, e] of straightQuotes(p, src))', 'for (const [pos, e] of [])', 'prose: 곧은따옴표 끔'],
     ['fixtures', 'tools/checks/prose.mjs', "const later = path.extname(f) === '.html' ? checkLater(f) : [];", 'const later = [];', 'prose: 문체 기준서(사람 몫) 끔'],
     ['fixtures', 'tools/checks/classes.mjs', "'템플릿 리터럴로 조립'],", "'템플릿 리터럴로 조립'].slice(0, 0),", 'classes: 템플릿 규칙 끔'],
+    ['fixtures', 'tools/checks/classes.mjs', 'if (made.has(t)) r.error(', 'if (false) r.error(', 'classes: JS 속 Tailwind 규칙 끔'],
+    ['fixtures', 'tools/checks/classes.mjs', "const JS_ALLOWED = new Set(['hidden']);", "const JS_ALLOWED = new Set(['hidden', 'px-3', 'min-h-[3rem]']);", 'classes: JS 예외 목록이 새어 Tailwind 클래스를 통과시킴'],
     ['fixtures', 'tools/checks/code.mjs', 'if (/\\s/.test(path.basename(p)))', 'if (false)', 'code: 공백 이름 규칙 끔'],
 
     // ── 진짜 브라우저 레이아웃 — 화면을 망가뜨린다 ───────────────────────────

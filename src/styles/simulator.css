@@ -7,6 +7,7 @@
    @config 없는 CSS를 따로 처리하며 경고를 내지 않는다. */
 @import "prismjs/themes/prism-tomorrow.css";
 @import "./_code-copy.css";   /* 코드 블록 복사 버튼 (마크업은 빌드가 넣는다) */
+@import "./_sim-ui.css";      /* 시뮬레이터 JS 가 만드는 요소의 모양 — JS 에 Tailwind 클래스를 적지 않는다 */
 
 @config "../tailwind/simulator.config.js";
 
@@ -47,23 +48,19 @@
         `fs-fill` 을 함께 단다. 안에 `fs-main`(그림 + 재생)과 `fs-side`(연산 + 값)를 둔다.
         어느 쪽으로 나눌지는 무대의 `fs-wide`·`fs-tall` 이 정하고, 그것은 등록부의
         `shape` 를 보고 `setStageShape()` 가 붙인다.
-     9. `fs-drawer` — 자주 쓰지 않는데 자리를 많이 먹는 것(자료 바꾸기). 평소에는
-        무대 아래에 그냥 놓이고, 전체 화면에서만 오른쪽 서랍이 된다.
-        여는 버튼에는 `fs-drawer-btn` 과 `data-fs-drawer="<무대 id>"` 를 준다.
-        **닫는 문은 적지 않는다** — `fullscreen.js` 가 서랍 머리에 `fs-drawer-close` 를
-        넣어 준다. 열린 서랍이 여는 버튼을 덮어서, 그것 없이는 한 번 열면 닫을 길이 없다.
-    10. `fs-tabs` — **무대가 탭마다 하나씩인 페이지**의 탭 줄. **전체 화면 밖에 남는다.**
+     9. `fs-tabs` — **무대가 탭마다 하나씩인 페이지**의 탭 줄. **전체 화면 밖에 남는다.**
         탭은 조작이 아니라 어느 무대를 켤지 고르는 것이라, 켜기 «전»에 정한다.
         까닭은 src/entries/_lib/fullscreen.js 의 같은 이름 자리에 적어 두었다.
-    11. `fs-outside` — **시뮬레이터의 조작이 아닌 것**(자가진단 퀴즈). 무대 밖에 있어도
+    10. `fs-outside` — **시뮬레이터의 조작이 아닌 것**(자가진단 퀴즈). 무대 밖에 있어도
         검사가 넘어간다. 머리글·푸터·nav 는 적지 않아도 넘어간다.
-    12. `sim-deck` — **조작은 제 높이만, 남는 세로는 전부 설명과 그림이** 갖는 짜임.
+    11. `sim-deck` — **조작은 제 높이만, 남는 세로는 전부 설명과 그림이** 갖는 짜임.
         무대에 붙인다. 넓은 화면(lg 이상)에서는 **평소에도** 무대가 한 화면 높이가 되고
         (`fullscreen.js` 가 `fs-desk` 를 붙인다), 전체 화면 규칙이 그대로 듣는다.
         조작 칸(`fs-side`)은 그림 **앞**에 온다 — 가로형은 위 띠, 세로형은 왼쪽 칸.
         `fs-main` 안은 설명(`sim-say`) → 그림(`fs-grow`) → 재생 줄 순서다.
         설명은 **높이를 못박는다.** 단계마다 글 길이가 달라도 그림이 들썩이지 않는다.
-        이 짜임에는 서랍(9)을 쓰지 않는다 — 자료도 조작 칸에 든다.
+        자료를 바꾸는 조작도 조작 칸에 든다. 예전에는 전체 화면에서만 미끄러져 나오는
+        「자료」 서랍(`fs-drawer`)을 두었는데, 열면 그림을 덮어 2026-09-25 에 없앴다.
 
    `fs-btn`은 **자리를 정해 주지 않았을 때 쓰는 기본 모양**이다(상자 오른쪽 위 모서리).
    deep-learning.html처럼 조작 패널 머리에 단추를 직접 앉히는 페이지는 붙이지 않는다.
@@ -249,8 +246,9 @@
 
      fs-stage  ─ sim-tabbar   탭 줄. 전체 화면에서도 맨 위에 남는다
                └ fs-fill fs-cols
-                   ├ fs-main  그림 + 재생 줄 + 계수기 + 설명
-                   └ fs-side  연산 버튼 + 값 입력 + 「자료」 서랍
+                   ├ fs-main  설명(sim-say) → 그림(fs-grow) → 재생 줄 · 단계 · 계수기
+                   └ fs-side  ① 자료 · ② 값 입력 + 연산 버튼
+                              (`sim-deck` 이면 그림 앞 — 가로형은 위 띠, 세로형은 왼쪽 칸)
 
    읽는 카드(화면 읽는 법 · 눈여겨볼 것 · 비용표)는 무대 «밖»에 둔다.
    전체 화면에서는 무대 바깥이 아예 그려지지 않으므로 `fs-hide`가 따로 필요 없다.
@@ -388,9 +386,9 @@
         row-gap: 1rem;
     }
 
-    /* `space-y-4` 의 위 여백을 끈다 — 격자에서는 줄 사이 간격이 그 일을 하고,
+    /* 줄 사이 위 여백(_sim-ui.css 의 `.cmp-rows > * + *`)을 끈다 — 격자에서는 줄 사이 간격이 그 일을 하고,
        남겨 두면 오른쪽 칸의 트리만 16px 내려앉아 왼쪽 줄과 어긋난다.
-       **Tailwind 와 같은 모양의 선택자를 쓴다** — `> * + *` 로는 특정도가 모자라 진다. */
+       그 규칙보다 특정도가 높은 선택자라야 이긴다. */
     .cmp-2col > :not([hidden]) ~ :not([hidden]) {
         margin-top: 0;
     }
@@ -499,81 +497,6 @@
     min-height: calc(1.625em * 2);   /* leading-relaxed 두 줄 */
 }
 
-/* ── 자료 서랍 ──────────────────────────────────────────────── */
-/* 자료를 갈아 끼우는 일(프리셋 · 개수 · 직접 넣기)은 **자주 하지 않는데 자리를 많이
-   먹는다.** 평소에는 무대 아래에 그냥 놓아 두고, 전체 화면에서만 오른쪽에서 나오는
-   서랍으로 접는다. 그래야 그림이 폭을 다 쓴다.
-
-   **닫혔을 때 `display: none` 으로 둔다.** `transform: translateX(100%)` 으로만
-   밀어 두면 그것이 오른쪽으로 넘쳐 무대에 가로 스크롤이 생긴다.
-
-   **미끄러져 나오는 애니메이션도 넣지 않는다.** 넣어 보았더니, 화면을 그리지 않는
-   환경(창이 가려졌을 때·자동화된 브라우저)에서 **애니메이션이 첫 프레임에 멈춰
-   서랍이 시작 자리에 붙박였다** — 그대로 54px이 오른쪽으로 넘쳤다.
-   교실에서 필요한 것은 미끄러짐이 아니라 «지금 열렸다»는 것이다. */
-.fs-stage:is(:fullscreen, .fs-on) .fs-drawer {
-    display: none;
-}
-
-.fs-stage:is(:fullscreen, .fs-on).fs-drawer-open .fs-drawer {
-    display: block;
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 40;
-    width: min(28rem, 92vw);
-    height: 100%;
-    overflow: auto;
-    background: #fff;
-    border-left: 1px solid #cbd5e1;
-    box-shadow: -12px 0 32px rgb(15 23 42 / 12%);
-}
-
-/* 서랍을 안에서 닫는 문. **열린 서랍이 여는 버튼을 덮는다** — 탭 줄 오른쪽
-   끝이 서랍 밑으로 들어가므로, 닫는 길은 서랍 안에 있어야 한다.
-   마크업이 아니라 `fullscreen.js` 가 넣어 준다.
-
-   `sticky` 를 준 까닭은 서랍이 **스스로 굴러가기 때문**이다(`overflow: auto`).
-   글이 길면 머리에 둔 문이 위로 올라가 버리는데, 그러면 닫으려고 올려야 한다. */
-.fs-drawer-close {
-    display: none;
-}
-
-.fs-stage:is(:fullscreen, .fs-on).fs-drawer-open .fs-drawer-close {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    position: sticky;
-    top: 0;
-    z-index: 41;
-    float: right;
-    margin: 0 0 0.5rem 0.75rem;
-    padding: 0.5rem 0.9rem;
-    border-radius: 0.5rem;
-    border: 1px solid #cbd5e1;
-    background: #fff;
-    color: #334155;
-    font-size: 1rem;
-    line-height: 1.5rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.fs-stage:is(:fullscreen, .fs-on).fs-drawer-open .fs-drawer-close:hover {
-    background: #f1f5f9;
-}
-
-/* 서랍 여는 버튼은 전체 화면에서만 쓸모가 있다. */
-.fs-drawer-btn {
-    display: none;
-}
-
-.fs-stage:is(:fullscreen, .fs-on) .fs-drawer-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
 /* 못박아 둔 높이를 쓰는 곁 상자(허프만 트리 자리)는 전체 화면에서 키운다.
    `.fs-fill > *` 의 `height: auto` 는 **직계 자식**에만 닿아 여기까지 오지 않는다. */
 .fs-stage:is(:fullscreen, .fs-on, .fs-desk) .fs-taller {
@@ -669,7 +592,7 @@
 
 /* 재생 줄 끝의 단계 · 세는 횟수는 **자릿수가 늘어도 폭이 그대로여야 한다.** 「9 / 45」가
    「10 / 45」가 되는 순간 한 글자 넓어져 버튼 줄이 두 줄로 접혔고, 그 한 단계에서 재생
-   버튼이 32px 들썩였다(1024 폭 정렬). 여섯 자리까지 자리를 잡아 둔다. */
+   버튼이 32px 들썩였다(2026-09-25, 폭 1024 의 정렬). 여섯 자리까지 자리를 잡아 둔다. */
 .fs-stage.sim-deck #step-label {
     display: inline-block;
     min-width: 13ch;

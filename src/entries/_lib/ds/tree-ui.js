@@ -32,13 +32,13 @@ const $ = (id) => document.getElementById(id);
 
 /* `**굵게**`와 백틱 코드를 실제로 그렇게 낸다. `textContent`로 넣으면
    별표와 백틱이 **그대로 화면에 찍힌다.** */
-function setRich(el, text, strongClass = 'font-black text-slate-900') {
+function setRich(el, text, strongClass = 'sim-strong') {
     const safe = String(text)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     el.innerHTML = safe
         .replace(/\*\*([^*]+)\*\*/g, (_, inner) => `<strong class="${strongClass}">${inner}</strong>`)
         .replace(/`([^`]+)`/g,
-            (_, inner) => `<code class="px-1 py-0.5 rounded bg-slate-100 text-slate-800">${inner}</code>`);
+            (_, inner) => `<code class="sim-code">${inner}</code>`);
 }
 
 function treeButton(cls, text, onClick) {
@@ -120,11 +120,11 @@ export function mountTreeSimulator() {
         $('struct-name').textContent = struct.name;
         $('struct-en').textContent = struct.en;
         setRich($('struct-idea'), struct.idea);
-        setRich($('struct-watch'), struct.watch, 'font-black text-amber-950');
+        setRich($('struct-watch'), struct.watch, 'sim-strong-watch');
 
         const group = treeGroupById(struct.group);
         $('group-name').textContent = group ? group.name : ' ';
-        setRich($('group-blurb'), group ? group.blurb : ' ', 'font-black text-slate-800');
+        setRich($('group-blurb'), group ? group.blurb : ' ', 'sim-strong-soft');
 
         /* **배지의 뜻을 화면에 낸다.** 예전에는 `title`(마우스 툴팁)에만 있어
            교실 화면과 터치 기기에서는 보이지 않았다 — 색만 보고 뜻을 짐작하게 된다. */
@@ -132,15 +132,12 @@ export function mountTreeSimulator() {
         badges.textContent = '';
         for (const f of struct.facts || []) {
             const wrap = document.createElement('div');
-            wrap.className = 'flex flex-col sm:flex-row items-stretch sm:items-baseline '
-                + 'gap-x-2 gap-y-0.5 min-w-0';
+            wrap.className = 'sim-fact';
             const el = document.createElement('span');
-            el.className = 'px-3 py-1 rounded-full font-bold border shrink-0 text-center '
-                + (f.on ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-slate-100 border-slate-300 text-slate-600');
+            el.className = f.on ? 'sim-badge on' : 'sim-badge';
             el.textContent = f.text;
             const why = document.createElement('span');
-            why.className = 'text-slate-500 font-medium min-w-0';
+            why.className = 'sim-fact-why';
             why.textContent = f.hint;
             wrap.appendChild(el);
             wrap.appendChild(why);
@@ -150,20 +147,20 @@ export function mountTreeSimulator() {
         const table = $('struct-cost');
         table.textContent = '';
         const head = document.createElement('tr');
-        for (const [label, w] of [['연산', ''], ['비용', 'w-28'], ['왜', '']]) {
+        for (const [label, w] of [['연산', ''], ['비용', 'narrow'], ['왜', '']]) {
             const th = document.createElement('th');
-            th.className = `py-1.5 pr-4 text-left font-bold text-slate-500 ${w}`;
+            th.className = `sim-cost-head ${w}`;
             th.textContent = label;
             head.appendChild(th);
         }
         table.appendChild(head);
         for (const [what, big, why] of struct.costRows) {
             const tr = document.createElement('tr');
-            tr.className = 'border-t border-slate-100';
+            tr.className = 'sim-cost-row';
             for (const [text, cls] of [
-                [what, 'py-1.5 pr-4 font-bold text-slate-700'],
+                [what, 'sim-cost-what'],
                 [big, 'py-1.5 pr-4 font-black text-slate-900 font-mono'],
-                [why, 'py-1.5 text-slate-600 font-medium'],
+                [why, 'sim-cost-why'],
             ]) {
                 const td = document.createElement('td');
                 td.className = cls;
@@ -180,7 +177,7 @@ export function mountTreeSimulator() {
         for (const item of TREE_LEGEND) {
             const tone = TREE_TONES[item.key];
             const wrap = document.createElement('span');
-            wrap.className = 'inline-flex items-center gap-2';
+            wrap.className = 'sim-legend-item';
             const chip = document.createElement('span');
             Object.assign(chip.style, {
                 width: '14px', height: '14px', borderRadius: '9999px',
@@ -216,8 +213,8 @@ export function mountTreeSimulator() {
         }
         for (const line of lines) {
             const li = document.createElement('li');
-            li.className = 'leading-relaxed';
-            setRich(li, line, 'font-black text-slate-800');
+            li.className = 'sim-note';
+            setRich(li, line, 'sim-strong-soft');
             host.appendChild(li);
         }
     }
@@ -269,15 +266,15 @@ export function mountTreeSimulator() {
         host.textContent = '';
         for (const row of log) {
             const li = document.createElement('li');
-            li.className = 'flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-slate-100 py-1';
+            li.className = 'sim-log-row';
             const name = document.createElement('span');
-            name.className = 'font-black text-slate-800';
+            name.className = 'sim-log-name';
             name.textContent = row.name;
             const nums = document.createElement('span');
-            nums.className = 'tally font-semibold text-slate-500';
+            nums.className = 'tally sim-log-nums';
             nums.textContent = `비교 ${row.counts.compare} · 이동 ${row.counts.move} · 링크 ${row.counts.link}`;
             const work = document.createElement('span');
-            work.className = 'tally font-black text-slate-900';
+            work.className = 'tally sim-log-work';
             work.textContent = `작업량 ${treeWorkOf(row.counts)}`;
             li.appendChild(name);
             li.appendChild(nums);

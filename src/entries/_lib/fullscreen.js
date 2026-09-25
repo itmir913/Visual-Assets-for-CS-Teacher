@@ -75,30 +75,6 @@ function moveFloats() {
    탭은 시뮬레이터를 조작하는 것이 아니라 **어느 시뮬레이터를 볼지 고르는 것**이라
    무대를 갈아 끼우는 일과 같고, 그 값은 켜기 «전»에 정해진다. */
 
-/** 서랍을 **안에서 닫는 문**을 달아 둔다.
- *
- * 여는 버튼은 탭 줄 오른쪽 끝에 있는데, 열린 서랍이 바로 그 자리를 덮는다 —
- * **열고 나면 닫을 방법이 없었다.** 전체 화면을 통째로 나가는 Esc 뿐이었는데,
- * 자료 한 번 바꾸자고 수업 화면을 내릴 수는 없다.
- *
- * **페이지마다 적지 않고 여기서 달아 둔다.** 복사 버튼을 모든 `<pre>` 에 빌드가
- * 붙이는 것과 같은 이치다 — 새 서랍을 만들면 문이 저절로 따라온다.
- * 모양은 simulator.css 의 `fs-drawer-close`. */
-function addDrawerClose() {
-    document.querySelectorAll('.fs-drawer').forEach((drawer) => {
-        if (drawer.querySelector('.fs-drawer-close')) return;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'fs-drawer-close';
-        btn.innerHTML = '<i class="fa-solid fa-xmark"></i> 닫기';
-        btn.addEventListener('click', () => {
-            const stage = drawer.closest('.fs-stage');
-            if (stage) stage.classList.remove('fs-drawer-open');
-        });
-        drawer.insertBefore(btn, drawer.firstChild);
-    });
-}
-
 function bind() {
     /* **iOS 사파리(아이폰)에는 요소 전체 화면이 없다.** `requestFullscreen` 자체가
        없어서, 그냥 두면 눌러도 아무 일이 없는 죽은 버튼이 남는다.
@@ -127,17 +103,6 @@ function bind() {
         });
     });
 
-    /* **「자료」 서랍.** 자료를 갈아 끼우는 일은 자주 하지 않는데 자리를 많이 먹는다.
-       전체 화면에서만 오른쪽에서 미끄러져 나오게 접어 둔다 → simulator.css 의 `fs-drawer`. */
-    document.querySelectorAll('button[data-fs-drawer]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const el = document.getElementById(btn.dataset.fsDrawer);
-            if (el) el.classList.toggle('fs-drawer-open');
-        });
-    });
-
-    addDrawerClose();
-
     document.addEventListener('fullscreenchange', () => {
         syncStageClass();
         moveFloats();
@@ -153,15 +118,12 @@ function bind() {
  *   - **검사가 볼 수 있게 된다.** jsdom 도 자동화된 브라우저도 진짜 전체 화면을
  *     켤 수 없어서, 예전에는 전체 화면 짜임을 **한 번도 검사하지 못했다.**
  *     클래스면 켜 놓고 측정할 수 있다.
- *
- * 나갈 때는 서랍도 함께 닫는다. 열어 둔 채 나가면 평소 화면에서 그 칸이
- * 엉뚱한 자리에 앉는다. */
+ */
 function syncStageClass() {
     const fs = document.fullscreenElement;
     document.querySelectorAll('.fs-stage').forEach((el) => {
         const on = el === fs;
         el.classList.toggle('fs-on', on);
-        if (!on) el.classList.remove('fs-drawer-open');
     });
 }
 

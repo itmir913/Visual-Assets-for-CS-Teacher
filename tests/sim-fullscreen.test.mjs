@@ -127,36 +127,6 @@ for (const name of PAGES) {
         if (stages.some((s) => s.contains(t))) bad(`${name} — 탭 줄(fs-tabs)이 무대 «안»에 있다. 전체 화면에서 눌러도 화면이 바뀌지 않는다`);
     }
 
-    /* ---- 5. 서랍 ------------------------------------------------------- */
-    const drawer = stage.querySelector('.fs-drawer');
-    const drawerBtn = doc.querySelector('button[data-fs-drawer]');
-    if (drawer && !drawerBtn) bad(`${name} — 서랍은 있는데 여는 버튼이 없다`);
-    if (drawerBtn) {
-        if (!drawer) bad(`${name} — 서랍 버튼은 있는데 fs-drawer 가 없다`);
-        else {
-            if (!stage.contains(drawerBtn)) bad(`${name} — 서랍 버튼이 무대 밖이다`);
-            drawerBtn.click();
-            if (!stage.classList.contains('fs-drawer-open')) bad(`${name} — 서랍 버튼을 눌렀는데 열리지 않는다`);
-            drawerBtn.click();
-            if (stage.classList.contains('fs-drawer-open')) bad(`${name} — 서랍 버튼을 다시 눌렀는데 닫히지 않는다`);
-
-            /* **서랍 안에도 닫는 문이 있는가.** 여는 버튼은 탭 줄 오른쪽 끝에 있고,
-               열린 서랍은 `top: 0; right: 0` 에 `z-index: 40` 으로 **바로 그 자리를 덮는다.**
-               그래서 한 번 열면 닫을 길이 전체 화면을 통째로 나가는 Esc 뿐이었다.
-               jsdom 에는 레이아웃이 없어 「덮였다」를 재지는 못하므로,
-               **서랍 안에 누르면 닫는 것이 있는지**를 대신 본다. */
-            drawerBtn.click();
-            const closer = drawer.querySelector('.fs-drawer-close');
-            if (!closer) bad(`${name} — 서랍 안에 닫는 문(.fs-drawer-close)이 없다. 열린 서랍이 여는 버튼을 덮어 닫을 길이 없다`);
-            else {
-                closer.click();
-                if (stage.classList.contains('fs-drawer-open')) {
-                    bad(`${name} — 서랍 안의 닫는 문을 눌렀는데 닫히지 않는다`);
-                    stage.classList.remove('fs-drawer-open');
-                }
-            }
-        }
-    }
 
     /* ---- 6. 탭마다 그림 모양을 알려 주는가 ------------------------------ */
     const tabHosts = ['group-tabs', 'method-tabs'].map((id) => doc.getElementById(id)).filter(Boolean);
@@ -179,7 +149,6 @@ for (const name of PAGES) {
     /* ---- 7. 나온 뒤에는 표시가 떨어지는가 ------------------------------- */
     page.fireFullscreenChange(null);
     if (stage.classList.contains('fs-on')) bad(`${name} — 전체 화면에서 나왔는데 fs-on 이 남아 있다`);
-    if (stage.classList.contains('fs-drawer-open')) bad(`${name} — 나왔는데 서랍이 열린 채로 남아 있다`);
 
     for (const e of page.errors) bad(`${name} — 콘솔 오류: ${e.slice(0, 120)}`);
 }
@@ -212,6 +181,6 @@ for (const name of PAGES) {
 }
 
 console.log(`전체 화면 짜임 — 시뮬레이터 ${pages}장에서 조작이 무대 안에 있는지, `
-    + `fs-on·서랍·그림 모양이 따라오는지 보았다`);
+    + `fs-on·그림 모양이 따라오는지 보았다`);
 console.log(fail === 0 ? '전부 통과' : `어긋난 것 ${fail}건`);
 test('fullscreen', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

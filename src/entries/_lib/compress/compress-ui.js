@@ -34,8 +34,8 @@ export function mountCompressSimulator() {
 
     $('method-tabs').innerHTML = COMPRESS_METHODS
         .map((m) => `<button class="group-tab" data-method="${m.id}" type="button">
-            <i class="fa-solid ${m.icon} mr-2"></i>${esc(m.name)}
-            <span class="hidden sm:inline font-semibold text-slate-400 ml-2">${esc(m.short)}</span>
+            <i class="fa-solid ${m.icon} cmp-tab-icon"></i>${esc(m.name)}
+            <span class="cmp-tab-short">${esc(m.short)}</span>
         </button>`)
         .join('');
 
@@ -53,28 +53,28 @@ export function mountCompressSimulator() {
        코드표가 화면 밖으로 밀렸다. 클래스는 `paintTree` 가 붙이고 뗀다
        → src/styles/simulator.css 의 `cmp-2col` */
     $('view-host').innerHTML = `
-        <div class="cmp-rows space-y-4">
+        <div class="cmp-rows">
             <div>
-                <p class="font-black text-slate-900 mb-1">압축 전</p>
-                <div class="flex flex-wrap gap-1" id="glyph-row"></div>
+                <p class="cmp-label">압축 전</p>
+                <div class="cmp-line" id="glyph-row"></div>
             </div>
             <div id="now-wrap" class="hidden">
-                <p class="font-black text-slate-900 mb-1">현재 글</p>
-                <div class="flex flex-wrap gap-1" id="now-row"></div>
+                <p class="cmp-label">현재 글</p>
+                <div class="cmp-line" id="now-row"></div>
             </div>
             <div id="tree-wrap" class="hidden">
-                <p class="font-black text-slate-900 mb-1">트리</p>
-                <div class="relative border border-slate-200 rounded-xl bg-slate-50 h-64 sm:h-80 fs-taller" id="tree-host"></div>
+                <p class="cmp-label">트리</p>
+                <div class="cmp-tree-host fs-taller" id="tree-host"></div>
             </div>
             <div>
-                <p class="font-black text-slate-900 mb-1">압축 결과</p>
-                <div class="flex flex-wrap gap-1 min-h-[3rem]" id="piece-row"></div>
+                <p class="cmp-label">압축 결과</p>
+                <div class="cmp-line" id="piece-row"></div>
             </div>
             <div id="aside-wrap">
-                <p class="font-black text-slate-900 mb-1">
+                <p class="cmp-label">
                     함께 보내야 하는 것 — <span id="aside-name">코드표</span>
                 </p>
-                <div class="flex flex-wrap gap-1 min-h-[2rem]" id="aside-row"></div>
+                <div class="cmp-line" id="aside-row"></div>
             </div>
         </div>`;
 
@@ -116,7 +116,7 @@ export function mountCompressSimulator() {
             ? frame.out.map((p) => `<span class="piece${p.kind === 'symbol' ? ' symbol' : ''}">
                     <span>${esc(p.text)}</span><span class="bits">${p.bits}비트</span>
                 </span>`).join('')
-            : '<span class="text-slate-400 font-semibold">아직 없습니다.</span>';
+            : '<span class="cmp-empty">아직 없습니다.</span>';
     }
 
     function paintAside(frame) {
@@ -133,9 +133,9 @@ export function mountCompressSimulator() {
         $('table-name').textContent = 이름;
         $('aside-row').innerHTML = frame.side.length
             ? frame.side.map((p) => `<span class="aside-row">
-                    <span>${esc(p.text)}</span><span class="text-slate-400">${p.bits}비트</span>
+                    <span>${esc(p.text)}</span><span class="cmp-dim">${p.bits}비트</span>
                 </span>`).join('')
-            : '<span class="text-slate-400 font-semibold">아직 없습니다.</span>';
+            : '<span class="cmp-empty">아직 없습니다.</span>';
     }
 
     /** 허프만의 숲과 트리. **d3 트리는 루트가 하나여야 하므로 숲은 보이지 않는 루트에 묶는다.** */
@@ -216,8 +216,7 @@ export function mountCompressSimulator() {
         const rate = compressRate(c.before, c.body);
         const el = $('count-rate');
         el.textContent = 아직 ? '—' : `${rate}%`;
-        el.className = `font-black tally ${아직 ? 'text-slate-400'
-            : (rate > 0 ? 'text-emerald-600' : (rate < 0 ? 'text-rose-600' : 'text-slate-500'))}`;
+        el.className = `tally cmp-rate ${아직 ? 'wait' : (rate > 0 ? 'up' : (rate < 0 ? 'down' : 'flat'))}`;
         $('count-table').textContent = String(c.table);
     }
 
@@ -269,26 +268,25 @@ export function mountCompressSimulator() {
 
         $('race-table').innerHTML = `
             <thead>
-            <tr class="bg-slate-100 text-slate-700">
-                <th class="w-44 text-left font-black px-3 py-2 border border-slate-200">방법</th>
-                <th class="text-left font-black px-3 py-2 border border-slate-200">압축 후</th>
-                <th class="text-left font-black px-3 py-2 border border-slate-200">압축률</th>
-                <th class="text-left font-black px-3 py-2 border border-slate-200">함께 보낼 것</th>
+            <tr class="cmp-race-head">
+                <th class="cmp-race-th name">방법</th>
+                <th class="cmp-race-th">압축 후</th>
+                <th class="cmp-race-th">압축률</th>
+                <th class="cmp-race-th">함께 보낼 것</th>
             </tr>
             </thead>
             <tbody>
             ${rows.map(({m, out, rate}) => `
-                <tr class="${m.id === methodId ? 'bg-rose-50' : ''}">
-                    <td class="px-3 py-2 border border-slate-200 font-bold text-slate-800">
-                        <i class="fa-solid ${m.icon} mr-2 text-slate-400"></i>${esc(m.name)}
+                <tr class="cmp-race-row${m.id === methodId ? ' on' : ''}">
+                    <td class="cmp-race-td cmp-race-name">
+                        <i class="fa-solid ${m.icon} cmp-race-icon"></i>${esc(m.name)}
                     </td>
-                    <td class="px-3 py-2 border border-slate-200 tally">${out.bodyBits}비트
-                        <span class="text-slate-400">/ ${out.beforeBits}</span></td>
-                    <td class="px-3 py-2 border border-slate-200 font-black tally
-                        ${rate > 0 ? 'text-emerald-600' : (rate < 0 ? 'text-rose-600' : 'text-slate-500')}">
-                        ${rate}%${rate === 최고 && rate > 0 ? ' <span class="text-slate-500 font-bold">가장 많이 줄임</span>' : ''}
+                    <td class="cmp-race-td tally">${out.bodyBits}비트
+                        <span class="cmp-dim">/ ${out.beforeBits}</span></td>
+                    <td class="cmp-race-td tally cmp-rate ${rate > 0 ? 'up' : (rate < 0 ? 'down' : 'flat')}">
+                        ${rate}%${rate === 최고 && rate > 0 ? ' <span class="cmp-race-best">가장 많이 줄임</span>' : ''}
                     </td>
-                    <td class="px-3 py-2 border border-slate-200 tally text-slate-600">
+                    <td class="cmp-race-td tally cmp-race-side">
                         ${sideNameOf(m.id) ? `${sideNameOf(m.id)} ${out.tableBits}비트` : '없음'}</td>
                 </tr>`).join('')}
             </tbody>`;

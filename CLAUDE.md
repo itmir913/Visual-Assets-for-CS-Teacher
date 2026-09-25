@@ -182,6 +182,11 @@
   - **산출물을 둘로 나누지 않는다.** 같은 `dist/`를 Pages와 릴리즈 zip에 똑같이 쓴다.
   - **클래스 이름을 코드로 조립하지 않는다.** 빌드가 리터럴로 있는 클래스만 굽는다.
     `bg-${x}-50`은 CSS에서 빠지는데 dev에서는 멀쩡히 보인다. `npm run check -- classes`가 잡는다.
+  - **JS 문자열에 Tailwind 클래스를 적지 않는다**(2026-09-25 사용자 확정). Tailwind는 HTML만 읽고
+    `src/entries/`의 JS는 읽지 않아, JS에 적은 클래스는 같은 것이 우연히 HTML에 있을 때만 산다
+    (CDN 시절의 흔적이다). JS에는 뜻을 가진 이름(`sim-badge`)만 적고 모양은
+    `src/styles/_sim-ui.css`에서 `@apply`로 준다. 같은 검사가 Tailwind에게 직접 구워 보게 해서 잡는다.
+    상태 표시로 켜고 끄는 `hidden`만 예외다.
 - **밝은 그러데이션 배경(`bg-gradient-to-* from-*-50 to-*-50`)을 쓰지 않는다.**
   `bg-gradient-*`는 `background-image`만 만들어 **`background-color`가 투명으로 남는다.**
   다크모드 확장은 `background-color`를 바꾸므로, 투명한 배경은 그대로 두고 **어두운 글자만
@@ -557,7 +562,7 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
   따로인 페이지에서 탭 줄을 안으로 들이면 **눌러도 화면이 바뀌지 않는다** — 눌린 탭의
   무대는 top layer 밖이다. 전체 화면 대상을 갈아 끼워 고쳐 보았으나 누를 때마다 굼떠서
   물렀다. 탭은 조작이 아니라 **어느 무대를 켤지 켜기 «전»에 고르는 것**으로 둔다.
-- 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-drawer` · `fs-tabs` · `fs-outside` · `sim-deck`)은
+- 규약(`fs-cols` · `fs-main` · `fs-side` · `fs-tabs` · `fs-outside` · `sim-deck`)은
   [`src/styles/simulator.css`](src/styles/simulator.css) 머리에 있다.
 - **누를 때마다 화면이 흔들리지 않아야 한다**(2026-09-25 사용자 확정). 단계마다 길이가 바뀌는
   설명은 높이를 못박고, 연산을 눌러도 재생하지 않는다 — 교사가 설명하고 재생을 따로 누른다.

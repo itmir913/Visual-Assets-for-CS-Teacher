@@ -307,6 +307,7 @@ const MUTANTS = [
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'const reward = Math.random() < machine.trueProb ? 1 : 0;', 'const reward = Math.random() > machine.trueProb ? 1 : 0;', '당첨 확률을 뒤집음'],
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'if (this.history.length > 500) {', 'if (this.history.length > 501) {', '기록을 한 줄 더 남김'],
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'this.episode++;', 'this.episode += 2;', '회차를 둘씩 셈'],
+    ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'rand(0.61, 0.75)', 'rand(0.60, 0.75)', '최선 구간이 둘째와 끝점을 나눔'],
     ['sim-wumpus', 'simulator/ai/wumpus-world.html', 'if (p.glitter) {', 'if (p.glitter || p.breeze) {', '바람 부는 칸에서 금을 주움'],
     ['sim-wumpus', 'simulator/ai/wumpus-world.html', 'if (남은칸.length === 1 && !agent.knownPit.has(남은칸[0])) {', 'if (남은칸.length <= 2 && !agent.knownPit.has(남은칸[0])) {', '후보가 둘인데 함정으로 확정'],
     ['sim-wumpus', 'simulator/ai/wumpus-world.html', 'if (후보.size === 1 && agent.knownWumpus !== 하나) {', 'if (후보.size <= 2 && agent.knownWumpus !== 하나) {', '후보가 둘인데 괴물로 확정'],

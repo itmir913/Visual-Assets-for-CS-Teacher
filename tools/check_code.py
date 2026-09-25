@@ -4,6 +4,9 @@
 `.py`는 컴파일해 보고, `.c`는 `gcc -fsyntax-only`로 본다. **동작까지 보지는 않는다.**
 오타를 잡는 것이 목적이다.
 
+**강의노트 HTML 에 코드를 직접 적지 않았는지도 본다**(`check_inline`) — `<pre>` 안의 `<code>` 는
+`data-src` 마커여야 한다.
+
 파일 이름이 규약을 지키는지도 함께 본다 → `CLAUDE.md`의 「코드 파일 이름」.
 
 조각 모음처럼 홀로 서지 않는 파일은 맨 위 주석 프론트매터로 뺀다.
@@ -152,6 +155,33 @@ def check_syntax(files: list[Path], root: Path) -> tuple[list[str], int, int]:
     return errs, checked, skipped
 
 
+PRE = re.compile(r"<pre\b[^>]*>(.*?)</pre>", re.S | re.I)
+CODE_OPEN = re.compile(r"<code\b([^>]*)>(.*?)</code>", re.S | re.I)
+
+
+def check_inline(root: Path) -> list[str]:
+    """강의노트 HTML 에 코드 본문이 직접 들어 있지 않은가 — `CLAUDE.md` 「코드 자체는 HTML에 쓰지 않는다」.
+
+    `<pre>` 안의 `<code>` 는 반드시 `data-src` 마커이고 속이 비어 있어야 한다. 코드는 옆
+    `code/` 실파일에 두고 빌드가 주입한다. `<code>` 없는 `<pre>`(표 · 주소 같은 고정폭 글)는
+    코드가 아니므로 둔다. 시뮬레이터는 강의노트가 아니라 뺀다.
+    """
+    from subjects import SUBJECTS  # noqa: E402 — subjects.json 이 과목 폴더를 정한다
+    errs: list[str] = []
+    for subj in SUBJECTS:
+        for html in sorted((root / subj["dir"]).rglob("*.html")):
+            src = html.read_text(encoding="utf-8")
+            for m in PRE.finditer(src):
+                for c in CODE_OPEN.finditer(m.group(1)):
+                    attrs, body = c.group(1), c.group(2)
+                    if "data-src" in attrs and not body.strip():
+                        continue
+                    line = src.count("\n", 0, m.start()) + 1
+                    why = "마커 안에 코드가 들어 있다" if "data-src" in attrs else "data-src 없이 코드를 직접 적었다"
+                    errs.append(f"{html.relative_to(root).as_posix()}:{line} <pre><code> — {why}. code/ 실파일로 빼고 data-src 로 건다")
+    return errs
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("paths", nargs="*", help="검사할 파일 (없으면 저장소 전체)")
@@ -164,6 +194,8 @@ def main() -> int:
     files = [Path(p).resolve() for p in args.paths] if args.paths else code_files(REPO_ROOT)
     errs, checked, skipped = check_syntax(files, REPO_ROOT)
     errs += check_names(files, REPO_ROOT)
+    if not args.paths:
+        errs += check_inline(REPO_ROOT)
 
     for e in errs:
         LOG.error("%s", e.replace("\n", " | "))

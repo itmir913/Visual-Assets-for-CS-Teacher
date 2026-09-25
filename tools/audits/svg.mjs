@@ -9,8 +9,13 @@
 // 수정은 하지 않는다 — 각 SVG 의 실제 배치 폭(그리드 칼럼 등)에 따라 적절한 max-width 값이
 // 다르므로 사람이 정해야 한다.
 //
-//     npm run audit -- svg                     # 저장소 전체
-//     npm run audit -- svg 인공지능기초         # 디렉터리 지정
+// 이어서 **브라우저 실측**을 한다 — 그림 속 글자가 서로 겹치거나 12px 보다 작게 그려지는지
+// (→ tests/browser/svg-text.test.mjs). 정적 검사로는 알 수 없는 것이다. SVG 를 고쳤을 때 부른다.
+//
+//     npm run audit -- svg                     # 저장소 전체(실측 포함, 1~2분)
+//     npm run audit -- svg 인공지능기초         # 디렉터리 지정 — 실측도 그 폴더만
+//     npm run audit -- svg --static            # 정적 목록만
+import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {ROOT, htmlFiles, read, rel, walk} from '../lib/repo.mjs';
@@ -95,7 +100,7 @@ export function scanFile(src) {
 const g = (x) => String(x);
 
 export function run(argv) {
-    const args = argv.filter((a) => a !== '-v' && a !== '--verbose');
+    const args = argv.filter((a) => a !== '-v' && a !== '--verbose' && a !== '--static');
     const files = args.length
         ? [...new Set(args.flatMap((d) => walk(path.resolve(ROOT, d), {ext: ['.html']})))].sort()
         : htmlFiles();
@@ -113,4 +118,14 @@ export function run(argv) {
         }
     }
     console.log(`INFO  audit_svg: 완료 — 파일 ${files.length}, 걸린 파일 ${hit}, 천장 없음 ${counts['천장']}, 가운데 정렬 없음 ${counts['정렬']}`);
+    if (argv.includes('--static')) return;
+
+    // 둘째 단계 — 진짜 브라우저로 그림 속 글자를 잰다(겹침 · 12px 미만) → tests/browser/svg-text.test.mjs.
+    // **ci 에 넣지 않았다**(2026-09-25 사용자 결정). 197편을 다 재면 1~2분이라 매번 돌릴 값어치가 없다.
+    // SVG 를 고친 뒤에 폴더를 주어 부른다.
+    console.log('INFO  audit_svg: 브라우저 실측 — 글자가 든 그림이 있는 페이지만 잰다');
+    const proc = spawnSync(process.execPath, [
+        path.join(ROOT, 'node_modules', 'vitest', 'vitest.mjs'), 'run', 'tests/browser/svg-text.test.mjs',
+    ], {cwd: ROOT, stdio: 'inherit', env: {...process.env, VITE_SVG_DIRS: JSON.stringify(args)}});
+    process.exitCode = proc.status ?? 1;
 }

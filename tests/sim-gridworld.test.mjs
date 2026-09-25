@@ -269,5 +269,124 @@ for (const [크기, 씨] of [[4, 4242], [5, 777], [6, 31337]]) {
     if (P('gridWorldController.env.totalEpisodes') !== 0) bad('되돌리기: 새 판인데 회차가 0이 아니다');
 }
 
+/* ================================================================
+   7. ε-탐욕 — ε 확률로 네 방향 가운데 무작위, 나머지는 가장 큰 Q(동점이면 그 가운데 무작위)
+   ================================================================ */
+{
+    새판(4, 8080);
+    씨앗(99);
+    const 세기 = (ε, 횟수) => {
+        const n = [0, 0, 0, 0];
+        for (let i = 0; i < 횟수; i++) n[P(`gridWorldController.agent.chooseAction(0, 0, ${ε})`)]++;
+        return n.map((v) => v / 횟수);
+    };
+    P('gridWorldController.agent.qTable[0][0] = [0.1, 0.5, -0.2, 0.3]');
+    const 탐욕 = 세기(0, 400);
+    if (탐욕[1] !== 1) bad(`ε-탐욕: ε=0 인데 가장 큰 Q(오른쪽)를 ${(탐욕[1] * 100).toFixed(0)}% 만 골랐다`);
+    const 반쯤 = 세기(0.4, 8000);   // 기대: 오른쪽 0.6 + 0.4/4 = 0.7, 나머지 0.1
+    if (Math.abs(반쯤[1] - 0.7) > 0.03 || 반쯤.some((v, i) => i !== 1 && Math.abs(v - 0.1) > 0.02)) {
+        bad(`ε-탐욕: ε=0.4 에서 고른 비율이 [${반쯤.map((v) => v.toFixed(3))}] — 기대는 [0.1, 0.7, 0.1, 0.1] 이다`);
+    }
+    const 전부탐험 = 세기(1, 8000);
+    if (전부탐험.some((v) => Math.abs(v - 0.25) > 0.025)) bad(`ε-탐욕: ε=1 인데 고른 비율이 [${전부탐험.map((v) => v.toFixed(3))}] — 네 방향이 고르게 나와야 한다`);
+    // 동점 — 가장 큰 Q 가 둘이면 둘만, 고르게
+    P('gridWorldController.agent.qTable[0][0] = [0.5, -1, 0.5, 0]');
+    const 동점 = 세기(0, 4000);
+    if (동점[1] || 동점[3]) bad(`ε-탐욕: 동점인 위·아래가 아닌 쪽을 골랐다 — [${동점.map((v) => v.toFixed(3))}]`);
+    if (Math.abs(동점[0] - 0.5) > 0.04) bad(`ε-탐욕: 동점인 둘을 고르게 깨지 않는다 — 위 ${(동점[0] * 100).toFixed(0)}%`);
+}
+
+/* ================================================================
+   8. 화면의 「한 걸음」 — 따로 짠 Q-러닝과 Q 표 전체 대조, 에피소드 기록
+   ================================================================ */
+/** 페이지와 같은 난수 순서로 도는 Q-러닝. 이동 규칙도 여기서 따로 짰다. */
+function 따로Q러닝(env, 걸음수, ε, α, γ, 씨) {
+    const rnd = mulberry32(씨);
+    const q = Array.from({length: env.rows}, () => Array.from({length: env.cols}, () => [0, 0, 0, 0]));
+    const 벽 = new Set(env.walls.map((w) => `${w.x},${w.y}`));
+    let x = env.start.x, y = env.start.y, 기다림 = false, 합 = 0, 회차 = 0;
+    const 기록 = [];
+    for (let i = 0; i < 걸음수; i++) {
+        if (기다림) { 기록.push(합); 합 = 0; x = env.start.x; y = env.start.y; 기다림 = false; continue; }
+        let a;
+        if (rnd() < ε) a = Math.floor(rnd() * 4);
+        else {
+            const m = Math.max(...q[y][x]);
+            const 후보 = [0, 1, 2, 3].filter((k) => q[y][x][k] === m);
+            a = 후보[Math.floor(rnd() * 후보.length)];
+        }
+        let nx = x + 움직임[a][0], ny = y + 움직임[a][1];
+        if (nx < 0 || ny < 0 || nx >= env.cols || ny >= env.rows || 벽.has(`${nx},${ny}`)) { nx = x; ny = y; }
+        const 끝 = nx === env.goal.x && ny === env.goal.y;
+        const r = 끝 ? 10 : -0.1;
+        합 += r;
+        const 다음 = 끝 ? 0 : Math.max(...q[ny][nx]);
+        q[y][x][a] += α * (r + γ * 다음 - q[y][x][a]);
+        x = nx; y = ny;
+        if (끝) { 기다림 = true; 회차++; }
+    }
+    return {q, 기록, 회차, x, y};
+}
+for (const [크기, ε, α, γ, 씨] of [[4, 0, 0.5, 0.9, 1], [5, 0.2, 0.3, 0.95, 2], [4, 1, 0.8, 0.5, 3]]) {
+    새판(크기, 씨 * 1000 + 7);
+    const env = P('gridWorldController.env');
+    doc.getElementById('epsilonSlider').value = String(ε);
+    doc.getElementById('alphaSlider').value = String(α);
+    doc.getElementById('gammaSlider').value = String(γ);
+    const 걸음수 = 1500;
+    씨앗(씨);
+    // 버튼을 누르지 않고 `step()` 을 부른다 — 받침대가 `onload` 를 두 번 불러 컨트롤러가 둘 떠 있고, 버튼은 둘 다를 한 걸음씩 걷게 한다
+    P(`for (let i = 0; i < ${걸음수}; i++) gridWorldController.step()`);
+    const 답 = 따로Q러닝(env, 걸음수, ε, α, γ, 씨);
+    const q = P('gridWorldController.agent.qTable');
+    let 어긋남 = 0;
+    for (let y = 0; y < env.rows; y++) for (let x = 0; x < env.cols; x++) for (let a = 0; a < 4; a++) {
+        if (Math.abs(q[y][x][a] - 답.q[y][x][a]) > 1e-9) 어긋남++;
+    }
+    const 뜻 = `${크기}×${크기} ε=${ε} α=${α} γ=${γ}`;
+    if (어긋남) bad(`한 걸음(${뜻}): Q 표 ${어긋남}칸이 따로 돌린 Q-러닝과 다르다`);
+    if (P('gridWorldController.env.totalEpisodes') !== 답.회차) bad(`한 걸음(${뜻}): 에피소드 ${P('gridWorldController.env.totalEpisodes')} — 따로 센 것은 ${답.회차}`);
+    if (doc.getElementById('episodeCount').textContent !== String(답.회차)) bad(`한 걸음(${뜻}): 화면의 에피소드 수가 ${doc.getElementById('episodeCount').textContent} 이다 — ${답.회차} 여야 한다`);
+    const 기록 = P('gridWorldController.history').map((h) => h.reward);
+    const 기대기록 = 답.기록.slice(-150);
+    if (기록.length !== 기대기록.length || 기록.some((r, i) => Math.abs(r - 기대기록[i]) > 1e-9)) {
+        bad(`한 걸음(${뜻}): 에피소드별 보상 기록이 따로 더한 값과 다르다 — [${기록.slice(0, 3).map((v) => v.toFixed(1))}…] / [${기대기록.slice(0, 3).map((v) => v.toFixed(1))}…]`);
+    }
+    if (답.회차 < 1) bad(`한 걸음(${뜻}): ${걸음수}걸음 동안 한 번도 목표에 닿지 않아 대조가 헛돈다`);
+}
+
+/* ================================================================
+   9. 확인 질문의 주장 — γ=0 이면 목표 옆 칸만 +10 을 배우고 나머지는 −0.1 로 같아진다
+   ================================================================ */
+{
+    새판(4, 4040);
+    const 거리 = 최단거리표(P('gridWorldController.env'));
+    const env = P('gridWorldController.env');
+    씨앗(17);
+    P(`(function () {
+        const c = gridWorldController;
+        for (let i = 0; i < 200000 && c.env.totalEpisodes < 300; i++) {
+            const x = c.env.agentPos.x, y = c.env.agentPos.y;
+            const a = c.agent.chooseAction(x, y, 1);
+            const r = c.env.step(a);
+            c.agent.learn(x, y, a, r.reward, r.nx, r.ny, r.done, 0.5, 0);
+            if (r.done) c.env.reset();
+        }
+    })()`);
+    const q = P('gridWorldController.agent.qTable');
+    const 벽 = new Set(env.walls.map((w) => `${w.x},${w.y}`));
+    let 어긋남 = '';
+    for (let y = 0; y < env.rows && !어긋남; y++) for (let x = 0; x < env.cols; x++) {
+        if (벽.has(`${x},${y}`) || (x === env.goal.x && y === env.goal.y) || !Number.isFinite(거리[y][x])) continue;
+        for (let a = 0; a < 4; a++) {
+            const nx = x + 움직임[a][0], ny = y + 움직임[a][1];
+            const 목표로 = nx === env.goal.x && ny === env.goal.y;
+            const 기대 = 목표로 ? 10 : -0.1;
+            if (Math.abs(q[y][x][a] - 기대) > 0.01) { 어긋남 = `(${x},${y}) ${a}번 방향 Q=${q[y][x][a].toFixed(3)} — 기대 ${기대}`; break; }
+        }
+    }
+    if (어긋남) bad(`γ=0: ${어긋남}`);
+}
+
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');
 test('gridworld', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

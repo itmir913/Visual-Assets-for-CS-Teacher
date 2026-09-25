@@ -25,6 +25,8 @@
 
 import {test, expect} from 'vitest';
 import {loadSim, SIM_ROOT} from '../tools/_sim-harness.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
 
 let fail = 0;
 const bad = (m) => {
@@ -265,6 +267,155 @@ P("setMode('play')");
     if (!sim.doc.getElementById('btn-grab').disabled) bad('직접 걷기: 죽은 뒤에도 「금 획득」이 눌린다');
     P('movePlayer(1, 0)');
     if (P('player').moves !== 1) bad('직접 걷기: 죽은 뒤에도 움직인다');
+}
+
+/* ================================================================
+   10. 지도 뽑기의 규칙 — 출발 칸은 비고, 금과 괴물은 겹치지 않고, 함정은 둘 위에 없다.
+       큰 격자에서도 지각이 규칙대로인가
+   ================================================================ */
+for (const size of [4, 5, 8]) {
+    setSize(size);
+    for (let s = 0; s < (size === 4 ? 80 : 25); s++) {
+        씨앗(s * 4099 + size);
+        P('initGame()');
+        const env = P('env');
+        const 뜻 = `${size}x${size}(씨앗 ${s})`;
+        if (env.gold.x === 0 && env.gold.y === 0) bad(`지도 ${뜻}: 금을 출발 칸에 놓았다`);
+        if (env.wumpus.x === 0 && env.wumpus.y === 0) bad(`지도 ${뜻}: 괴물을 출발 칸에 놓았다`);
+        if (env.pits.has('0,0')) bad(`지도 ${뜻}: 출발 칸에 함정을 놓았다`);
+        if (env.gold.x === env.wumpus.x && env.gold.y === env.wumpus.y) bad(`지도 ${뜻}: 금과 괴물이 한 칸에 있다`);
+        if (env.pits.has(`${env.gold.x},${env.gold.y}`) || env.pits.has(`${env.wumpus.x},${env.wumpus.y}`)) bad(`지도 ${뜻}: 금이나 괴물 칸에 함정을 겹쳐 놓았다`);
+        for (const [x, y] of 칸들(size)) {
+            const p = env.getPercepts(x, y);
+            const 바람 = 이웃(size, x, y).some(([a, b]) => env.pits.has(`${a},${b}`));
+            const 냄새 = 이웃(size, x, y).some(([a, b]) => env.wumpus.x === a && env.wumpus.y === b);
+            if (!!p.breeze !== 바람 || !!p.stench !== 냄새 || !!p.glitter !== (env.gold.x === x && env.gold.y === y)) {
+                bad(`지각 ${뜻}: (${x},${y}) 의 지각이 규칙과 어긋난다`);
+                break;
+            }
+        }
+    }
+}
+
+/* ================================================================
+   11. AI 의 걸음 — 이웃 칸으로만 옮기고, 새 칸은 고른 목표뿐이며, 끝의 판정이 실제와 같다
+   ================================================================ */
+setSize(4);
+for (let s = 0; s < 60; s++) {
+    씨앗(s * 6007 + 11);
+    P('initGame()');
+    P("setMode('ai')");
+    const env = P('env');
+    let 회차 = 0;
+    for (; 회차 < 2000; 회차++) {
+        // `P('agent')` 는 살아 있는 객체라 걸음 뒤에 바뀐다 — 앞 상태는 떠 둔다
+        const 앞 = P('({x: agent.x, y: agent.y, state: agent.state, visited: new Set(agent.visited), safe: new Set(agent.safe), hasGold: agent.hasGold, isDead: agent.isDead, stopped: agent.stopped})');
+        if (앞.hasGold || 앞.isDead || 앞.stopped) break;
+        const 목표 = 앞.state === 'MOVE' ? P('chooseBestTarget()') : null;
+        P('stepSimulation()');
+        const 뒤 = P('agent');
+        if (앞.state !== 'MOVE') continue;
+        const 옮김 = Math.abs(뒤.x - 앞.x) + Math.abs(뒤.y - 앞.y);
+        if (목표 && 옮김 !== 1) { bad(`AI 걸음(씨앗 ${s}): (${앞.x},${앞.y}) 에서 (${뒤.x},${뒤.y}) 로 ${옮김}칸을 옮겼다 — 한 걸음은 이웃 칸이다`); break; }
+        const 새칸 = `${뒤.x},${뒤.y}`;
+        if (!앞.visited.has(새칸) && 목표 && !(앞.safe.has(새칸) || !앞.safe.has(목표.k))) {
+            bad(`AI 걸음(씨앗 ${s}): 목표는 안전한 칸인데 가 보지 않은 위험한 칸 (${새칸}) 을 지나갔다`);
+        }
+        const 함정 = env.pits.has(새칸), 괴물 = env.wumpus.x === 뒤.x && env.wumpus.y === 뒤.y;
+        if (뒤.isDead !== (함정 || 괴물)) bad(`AI 걸음(씨앗 ${s}): (${새칸}) 에 함정 ${함정} · 괴물 ${괴물} 인데 사망을 ${뒤.isDead} 로 적었다`);
+    }
+    const 끝 = P('agent');
+    if (끝.hasGold && !(env.gold.x === 끝.x && env.gold.y === 끝.y)) bad(`AI(씨앗 ${s}): 금이 없는 (${끝.x},${끝.y}) 에서 금을 주웠다`);
+    if (끝.stopped) {
+        // 멈췄다면 정말 갈 곳이 없어야 한다 — 가 보지 않은 이웃 칸이 모두 확정된 위험이다
+        const 경계 = 칸들(4).map(([x, y]) => `${x},${y}`).filter((k) => !끝.visited.has(k)
+            && 이웃(4, ...k.split(',').map(Number)).some(([a, b]) => 끝.visited.has(`${a},${b}`)));
+        const 남은곳 = 경계.filter((k) => !끝.knownPit.has(k) && 끝.knownWumpus !== k);
+        if (남은곳.length) bad(`AI(씨앗 ${s}): 갈 곳이 없다고 멈췄는데 확정되지 않은 칸(${남은곳.join(' ')})이 남았다`);
+    }
+}
+
+/* ================================================================
+   12. 직접 걷기의 끝 — 함정 · 괴물 칸에서 죽고 까닭을 남기며, 금 칸에서만 금을 쥔다
+   ================================================================ */
+{
+    setSize(4);
+    P("setMode('play')");
+    /** 출발에서 목표까지 함정·괴물을 피하는 이웃 걸음들. 목표 칸 자체는 막지 않는다. */
+    const 길 = (env, 목표) => {
+        const 막힘 = (k) => env.pits.has(k) || `${env.wumpus.x},${env.wumpus.y}` === k;
+        const 앞 = new Map([['0,0', null]]);
+        const 줄 = ['0,0'];
+        while (줄.length) {
+            const k = 줄.shift();
+            if (k === 목표) break;
+            for (const [a, b] of 이웃(4, ...k.split(',').map(Number))) {
+                const n = `${a},${b}`;
+                if (앞.has(n) || (막힘(n) && n !== 목표)) continue;
+                앞.set(n, k);
+                줄.push(n);
+            }
+        }
+        if (!앞.has(목표)) return null;
+        const 걸음 = [];
+        for (let k = 목표; k !== '0,0'; k = 앞.get(k)) 걸음.unshift(k);
+        return 걸음;
+    };
+    const 걷기 = (걸음) => {
+        for (const k of 걸음) {
+            const [x, y] = k.split(',').map(Number);
+            const pl = P('player');
+            P(`movePlayer(${x - pl.x}, ${y - pl.y})`);
+        }
+    };
+    let 본함정 = 0, 본괴물 = 0;
+    for (let s = 0; s < 40 && (본함정 < 3 || 본괴물 < 3); s++) {
+        씨앗(s * 3571 + 1);
+        P('initGame()');
+        const env = P('env');
+        // 금까지 걸어가 쥔다
+        const 금길 = 길(env, `${env.gold.x},${env.gold.y}`);
+        걷기(금길);
+        let pl = P('player');
+        if (pl.isDead) { bad(`직접 걷기(씨앗 ${s}): 안전한 길로 금까지 걸었는데 죽었다`); continue; }
+        if (pl.moves !== 금길.length) bad(`직접 걷기(씨앗 ${s}): ${금길.length}번 옮겼는데 이동 횟수를 ${pl.moves} 로 셌다`);
+        P('grabGold()');
+        if (!P('player').hasGold) bad(`직접 걷기(씨앗 ${s}): 금 칸에서 「금 획득」을 눌렀는데 쥐지 않았다`);
+        P('movePlayer(1, 0)'); P('movePlayer(-1, 0)');
+        if (P('player').moves !== 금길.length) bad(`직접 걷기(씨앗 ${s}): 금을 쥔 뒤에도 움직인다`);
+        // 같은 지도를 처음부터 걸어 위험한 칸으로 들어간다
+        for (const [무엇, 목표] of [['pit', [...env.pits][0]], ['wumpus', `${env.wumpus.x},${env.wumpus.y}`]]) {
+            if (!목표) continue;
+            P('resetPlay()');
+            const 위험길 = 길(env, 목표);
+            if (!위험길) continue;
+            걷기(위험길);
+            pl = P('player');
+            if (!pl.isDead || pl.cause !== 무엇) { bad(`직접 걷기(씨앗 ${s}): ${무엇} 칸 (${목표}) 에 들어갔는데 isDead=${pl.isDead} · 까닭=${pl.cause}`); continue; }
+            if (무엇 === 'pit') 본함정++; else 본괴물++;
+            const 글 = sim.doc.getElementById('play-percept').textContent;
+            if (!글.includes(무엇 === 'pit' ? '함정' : '몬스터')) bad(`직접 걷기(씨앗 ${s}): ${무엇} 에 죽었는데 안내 글이 「${글.slice(0, 40)}」 이다`);
+        }
+    }
+    if (본함정 < 1 || 본괴물 < 1) bad(`직접 걷기: 죽는 길을 충분히 보지 못했다(함정 ${본함정} · 괴물 ${본괴물}) — 검사가 헛돈다`);
+    // 화면 글이 없는 버튼을 가리키지 않는다
+    // 처음 뜰 때 스크립트가 덮어쓰는 글도 본다 — 원본 HTML 에서 주석과 스크립트를 걷어 낸 글
+    const 원본 = fs.readFileSync(path.join(SIM_ROOT, 'ai/wumpus-world.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/<script[\s\S]*?<\/script>/g, '');
+    if (/방향 버튼/.test(원본)) bad('화면: 없는 「방향 버튼」을 누르라고 한다 — 방향은 이웃 칸을 눌러 옮긴다');
+}
+
+/* ================================================================
+   13. 목표 고르기 — 안전한 칸이 있으면 아무것도 모르는 칸보다 먼저, 멀어도 먼저
+   ================================================================ */
+{
+    setSize(4);
+    for (let s = 0; s < 20; s++) {
+        씨앗(s + 1);
+        // (0,0)·(1,0) 을 밟았고, 안전하다고 밝혀진 칸은 (2,0) 하나. (0,1)·(1,1) 은 아무것도 모른다
+        P(`agent = new Agent(); agent.visited.add('1,0'); agent.safe.add('1,0'); agent.safe.add('2,0'); agent.state = 'MOVE'`);
+        const 고른칸 = P('chooseBestTarget()');
+        if (고른칸?.k !== '2,0') { bad(`목표 고르기: 안전한 (2,0) 을 두고 (${고른칸?.k}) 를 골랐다`); break; }
+    }
 }
 
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');

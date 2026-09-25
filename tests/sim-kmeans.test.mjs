@@ -219,6 +219,93 @@ for (const 흩음 of [40, 100, 200]) {
         }
     }
     if (점들.some((p) => p.cluster !== -1)) bad('무작위 자료: 새로 뽑은 점에 소속이 붙어 있다');
+    // 판 밖으로 나간 점을 가장자리로 끌어오면 흩음이 클 때 가장자리에 한 줄로 쌓인다.
+    // 다시 뽑으면 가장자리 선 위에 정확히 놓일 확률은 0 이다.
+    const 선위 = 점들.filter((p) => [p.rx, p.ry].some((v) => Math.abs(v - 10 / 300) < 1e-9 || Math.abs(v - 290 / 300) < 1e-9));
+    if (선위.length) bad(`무작위 자료(흩음 ${흩음}): 점 ${선위.length}개가 판 가장자리 선 위에 쌓였다`);
+}
+
+/* ================================================================
+   7. 동점 — 두 중심에서 같은 거리인 점은 먼저 놓인(번호가 작은) 중심으로
+   ================================================================ */
+{
+    P(`dataManager.points = ${JSON.stringify([{rx: 0.5, ry: 0.5, cluster: -1}, {rx: 0.25, ry: 0.5, cluster: -1}])}`);
+    P('kmeans.centroids = [{rx:0.25,ry:0.25,targetRx:0.25,targetRy:0.25,clusterId:1},{rx:0.75,ry:0.75,targetRx:0.75,targetRy:0.75,clusterId:2},{rx:0.25,ry:0.75,targetRx:0.25,targetRy:0.75,clusterId:3}]');
+    P('kmeans.assignPoints()');
+    const [가운데, 왼쪽] = P('dataManager.points');
+    // (0.5,0.5) 는 세 중심 모두에서 거리가 같다 · (0.25,0.5) 는 1번과 3번에서 같다
+    if (가운데.cluster !== 1) bad(`동점: 세 중심에서 같은 거리인 점을 ${가운데.cluster}번에 넣었다 — 규칙은 먼저 놓인 1번이다`);
+    if (왼쪽.cluster !== 1) bad(`동점: 1·3번에서 같은 거리인 점을 ${왼쪽.cluster}번에 넣었다 — 규칙은 먼저 놓인 1번이다`);
+    // 동점이 소속을 흔들면 되풀이가 멎지 않는다 — 다시 모아도 바뀌지 않아야 한다
+    if (P('kmeans.assignPoints()')) bad('동점: 중심이 그대로인데 다시 모으자 소속이 바뀌었다');
+    // 2번·3번은 점을 하나도 받지 못했다 — 빈 군집의 중심은 제자리에 둔다(0 으로 나누면 NaN 이 된다)
+    P('kmeans.calculateNewCentroids()');
+    const [, 둘, 셋] = P('kmeans.centroids');
+    if (둘.targetRx !== 0.75 || 둘.targetRy !== 0.75 || 셋.targetRx !== 0.25 || 셋.targetRy !== 0.75) {
+        bad(`빈 군집: 점이 없는 중심을 (${둘.targetRx},${둘.targetRy}) · (${셋.targetRx},${셋.targetRy}) 로 옮겼다 — 제자리여야 한다`);
+    }
+}
+
+/* ================================================================
+   8. 버튼으로 끝까지 — 따로 짠 로이드 되풀이와 같은 끝, 단계 줄과 문장
+   ================================================================ */
+/** 따로 짠 로이드 되풀이. 거리 제곱을 쓰고(제곱근 없이) 동점은 번호가 작은 쪽. */
+function 로이드(점들, 중심) {
+    const 소속 = 점들.map(() => -1);
+    let c = 중심.map((q) => ({...q}));
+    for (let 회 = 0; 회 < 500; 회++) {
+        let 바뀜 = false;
+        점들.forEach((p, i) => {
+            let 최소 = Infinity, 고름 = -1;
+            for (const q of c) {
+                const d2 = (p.rx - q.rx) ** 2 + (p.ry - q.ry) ** 2;
+                if (d2 < 최소) { 최소 = d2; 고름 = q.id; }
+            }
+            if (고름 !== 소속[i]) { 소속[i] = 고름; 바뀜 = true; }
+        });
+        if (!바뀜) return {소속, c};
+        c = c.map((q) => {
+            const 속 = 점들.filter((_, i) => 소속[i] === q.id);
+            if (!속.length) return q;
+            return {id: q.id, rx: 속.reduce((a, p) => a + p.rx, 0) / 속.length, ry: 속.reduce((a, p) => a + p.ry, 0) / 속.length};
+        });
+    }
+    return {소속, c};
+}
+for (const [k, 씨] of [[3, 5], [4, 6], [7, 8]]) {
+    sim.setBox(500, 500);
+    sim.fireResize();
+    씨앗(씨 * 101);
+    P(`dataManager.points = ${JSON.stringify(점만들기(50, 씨))}`);
+    P(`kmeans.initCentroids(${k})`);
+    P("updatePhase('IDLE'); toggleAlgControls(true)");
+    const 처음 = P('kmeans.centroids').map((c) => ({id: c.clusterId, rx: c.rx, ry: c.ry}));
+    const 답 = 로이드(P('dataManager.points'), 처음);
+
+    const 단계 = [];
+    let 누름 = 0;
+    for (; 누름 < 400 && P('window.currentPhase') !== 'DONE'; 누름++) {
+        doc.getElementById('btnStep').click();
+        단계.push(P('window.currentPhase'));
+        const 켜짐 = ['IDLE', 'ASSIGN', 'UPDATE', 'DONE'].filter((p) => doc.getElementById(`flow-${p}`).classList.contains('on'));
+        if (켜짐.length !== 1 || 켜짐[0] !== 단계.at(-1)) bad(`버튼(k=${k}): 단계가 ${단계.at(-1)} 인데 단계 줄은 [${켜짐}] 에 불이 켜졌다`);
+        중심앉히기();
+    }
+    if (P('window.currentPhase') !== 'DONE') { bad(`버튼(k=${k}): ${누름}번 눌러도 수렴 완료에 닿지 않았다`); continue; }
+    // 모으기와 옮기기가 번갈아 와야 한다 — 끝은 소속이 안 바뀐 모으기 뒤다
+    const 기대단계 = 단계.slice(0, -1).every((s, i) => s === (i % 2 === 0 ? 'ASSIGN' : 'UPDATE'));
+    if (!기대단계 || 단계.at(-2) !== 'UPDATE') bad(`버튼(k=${k}): 단계가 모으기·옮기기를 번갈지 않았다 — ${단계.join(' ')}`);
+    const 끝점 = P('dataManager.points');
+    if (끝점.some((p, i) => p.cluster !== 답.소속[i])) bad(`버튼(k=${k}): 끝난 소속이 따로 돌린 로이드 되풀이와 다르다`);
+    for (const q of 답.c) {
+        const c = P('kmeans.centroids').find((x) => x.clusterId === q.id);
+        if (!c || Math.abs(c.rx - q.rx) > 1e-9 || Math.abs(c.ry - q.ry) > 1e-9) bad(`버튼(k=${k}): ${q.id}번 중심의 끝자리가 따로 돌린 로이드 되풀이와 다르다`);
+    }
+    if (!doc.getElementById('statusMessageText').textContent.includes('수렴')) bad(`버튼(k=${k}): 끝났는데 상태 줄에 수렴이라는 말이 없다`);
+    if (!doc.getElementById('btnStep').disabled || !doc.getElementById('btnRun').disabled) bad(`버튼(k=${k}): 끝났는데 Step·Run 이 눌린다`);
+    // 수렴 완료 직전의 모으기는 소속을 바꾸지 않았어야 한다 — 따로 센 되풀이 수와 맞춘다
+    const 모으기수 = 단계.filter((s) => s === 'ASSIGN').length;
+    if (모으기수 < 1) bad(`버튼(k=${k}): 한 번도 모으지 않고 끝났다`);
 }
 
 /* ================================================================

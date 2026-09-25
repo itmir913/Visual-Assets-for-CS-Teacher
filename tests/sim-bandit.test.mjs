@@ -196,5 +196,85 @@ for (const [ε, 씨] of [[0.1, 111], [0.3, 222]]) {
     if (새왕관.length) bad('화면: 한 판도 돌리지 않았는데 왕관을 씌웠다');
 }
 
+/* ================================================================
+   6. 따로 짠 ε-탐욕과 한 판 전체 대조 — 같은 난수 순서로 고른 것 · 보상 합 · 산술 평균
+   ================================================================ */
+// 버튼을 누르지 않고 `banditController.step()` 을 부른다 — 받침대가 `onload` 를 두 번 불러
+// 컨트롤러가 둘 떠 있고, 버튼은 둘 다를 한 번씩 돌린다.
+for (const [ε, 씨] of [[0, 5], [0.2, 6], [1, 7]]) {
+    씨앗(씨);
+    P('banditController.env.reset(); banditController.initDOM(); banditController.updateUI()');
+    const 확률 = P('banditController.env.machines').map((m) => m.trueProb);
+    const 판수 = 700;
+    P(`for (let i = 0; i < ${판수}; i++) banditController.step(banditController.env.chooseAction(${ε}))`);
+
+    // 기계를 뽑는 데 쓴 난수까지 똑같이 흘려보낸 뒤 따로 돌린다 — 뽑기 다섯 + 섞기 넷
+    const rnd = mulberry32(씨);
+    for (let i = 0; i < 9; i++) rnd();
+    const 합 = [0, 0, 0, 0, 0], 셈 = [0, 0, 0, 0, 0];
+    let 총보상 = 0;
+    for (let i = 0; i < 판수; i++) {
+        let a;
+        if (rnd() < ε) a = Math.floor(rnd() * 5);
+        else {
+            // 예측은 산술 평균으로 — 페이지의 증분식과 다른 길
+            const 예측 = 합.map((s, k) => (셈[k] ? s / 셈[k] : 0));
+            const m = Math.max(...예측);
+            const 후보 = [0, 1, 2, 3, 4].filter((k) => 예측[k] === m);
+            a = 후보[Math.floor(rnd() * 후보.length)];
+        }
+        const r = rnd() < 확률[a] ? 1 : 0;
+        합[a] += r; 셈[a]++; 총보상 += r;
+    }
+    const 기계 = P('banditController.env.machines');
+    const 뜻 = `ε=${ε}`;
+    if (기계.some((m, k) => m.count !== 셈[k])) bad(`한 판(${뜻}): 고른 횟수 [${기계.map((m) => m.count)}] — 따로 돌린 것은 [${셈}]`);
+    for (const [k, m] of 기계.entries()) {
+        const 평균 = 셈[k] ? 합[k] / 셈[k] : 0;
+        if (Math.abs(m.qValue - 평균) > 1e-9) { bad(`한 판(${뜻}): ${m.id} 의 예측값 ${m.qValue} — 산술 평균은 ${평균}`); break; }
+    }
+    const 페이지총보상 = 기계.reduce((a, m) => a + m.qValue * m.count, 0);
+    if (Math.abs(페이지총보상 - 총보상) > 1e-6) bad(`한 판(${뜻}): 예측값×횟수로 되살린 총보상 ${페이지총보상.toFixed(3)} — 따로 더한 것은 ${총보상}`);
+    if (doc.getElementById('episodeCount').textContent !== String(판수)) bad(`한 판(${뜻}): 화면의 에피소드가 ${doc.getElementById('episodeCount').textContent} 이다`);
+    // 그래프 기록 — 새 판 한 줄 + 판마다 한 줄, 500줄에서 앞이 잘리고 마지막 줄은 지금 예측값
+    const 기록 = P('banditController.env.history');
+    if (기록.length !== 500) bad(`한 판(${뜻}): 기록이 ${기록.length}줄 — ${판수 + 1}줄 가운데 최근 500줄이어야 한다`);
+    if (기록[0].episode !== 판수 + 1 - 500) bad(`한 판(${뜻}): 가장 오랜 기록이 ${기록[0].episode}회차다 — ${판수 + 1 - 500}회차여야 한다`);
+    if (기록.at(-1).qValues.some((q, k) => q !== 기계[k].qValue)) bad(`한 판(${뜻}): 마지막 기록의 예측값이 지금 예측값과 다르다`);
+}
+
+/* ================================================================
+   7. 화면의 주장 — ε=0 이면 나쁜 기계에 갇힐 수 있고, ε=100% 는 총 보상이 줄어든다
+   ================================================================ */
+{
+    let 갇힘 = 0, 판 = 0;
+    const 평균보상 = {0.1: 0, 1: 0};
+    for (let s = 0; s < 30; s++) {
+        씨앗(9000 + s);
+        P('banditController.env.reset()');
+        const 기계 = P('banditController.env.machines');
+        const 최고 = 기계.reduce((a, b, k) => (b.trueProb > 기계[a].trueProb ? k : a), 0);
+        // ε=0 — 처음 1 을 받은 기계는 평균이 0 보다 커서 다시는 다른 기계를 고르지 않는다
+        let 처음당첨 = -1, 배신 = false;
+        for (let i = 0; i < 300; i++) {
+            const a = P('banditController.env.chooseAction(0)');
+            if (처음당첨 >= 0 && a !== 처음당첨) 배신 = true;
+            const r = P(`banditController.env.playMachine(${a})`).reward;
+            if (r === 1 && 처음당첨 < 0) 처음당첨 = a;
+        }
+        if (배신) bad(`ε=0(씨앗 ${s}): 처음 당첨된 기계를 두고 다른 기계를 골랐다 — 예측이 가장 높은 것만 골라야 한다`);
+        판++;
+        if (처음당첨 >= 0 && 처음당첨 !== 최고) 갇힘++;
+        for (const ε of [0.1, 1]) {
+            P('banditController.env.machines.forEach((m) => { m.qValue = 0; m.count = 0; })');
+            let 합 = 0;
+            for (let i = 0; i < 1000; i++) 합 += P(`banditController.env.playMachine(banditController.env.chooseAction(${ε}))`).reward;
+            평균보상[ε] += 합 / 1000 / 30;
+        }
+    }
+    if (!갇힘) bad(`ε=0: ${판}판 모두 최고 기계를 찾았다 — 화면은 「나쁜 기계에 갇힐 수 있다」고 말한다`);
+    if (!(평균보상[1] < 평균보상[0.1])) bad(`ε=100% 의 판당 보상 ${평균보상[1].toFixed(3)} 이 ε=10% 의 ${평균보상[0.1].toFixed(3)} 보다 작지 않다 — 화면은 줄어든다고 말한다`);
+}
+
 console.log(fail ? `\n✗ ${fail}건` : '\n✓ 모두 통과');
 test('bandit', () => { expect(fail, '위 ✗ 줄을 볼 것').toBe(0); });

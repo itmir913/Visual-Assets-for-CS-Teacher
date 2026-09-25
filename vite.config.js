@@ -113,6 +113,10 @@ export default {
     test: {
         testTimeout: 600_000,
         hookTimeout: 600_000,
+        // 일꾼은 셋까지. 기본값(코어 수 − 1)으로 두면 jsdom 검사와 Chromium 이 CPU 를 서로 빼앗아
+        // 오히려 느렸다. 2026-09-25 에 이 컴퓨터(8코어)에서 전체 검사를 잰 값 — forks 기본 222초 ·
+        // forks×3 204초 · threads 기본 254초 · threads×2 234초 · **threads×3 194초**.
+        maxWorkers: 3,
         projects: [
             {
                 extends: true,
@@ -121,7 +125,9 @@ export default {
                     include: ['tests/**/*.test.mjs'],
                     exclude: ['tests/browser/**'],
                     // 검사끼리 전역(jsdom · 캔버스 가짜)을 나눠 쓰지 않게 파일마다 따로 띄운다.
-                    pool: 'forks',
+                    // 스레드도 `isolate`(기본값)면 파일마다 일꾼이 따로라 전역이 섞이지 않는다 —
+                    // 프로세스(`forks`)에서 바꾼 뒤 돌연변이 35개가 모두 잡혔다.
+                    pool: 'threads',
                 },
             },
             {

@@ -115,19 +115,6 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             z-index: 10;
         }
-
-        /* 전체 화면에서는 가로가 남는다. 양옆 조작 칸을 조금씩 넓혀 슬라이더 라벨과
-           버튼 글자가 덜 접히게 한다. 평소 배치(`lg:grid-cols-[200px_1fr_260px]`)는
-           그대로 두고 전체 화면일 때만 바꾼다.
-           **가운데 그림은 좁아지지 않는다** — `.fs-fit` 이 전체 화면에서는 폭이 아니라
-           남는 높이로 크기를 정하기 때문이다.
-           격자가 세 열이 되는 것은 `lg` 부터이므로 같은 폭에서만 건다. 안 그러면
-           좁은 화면에서 전체 화면으로 갔을 때 한 열짜리 배치를 세 열로 되돌린다. */
-        @media (min-width: 1024px) {
-            #activity:is(:fullscreen, .fs-on) > .fs-fill {
-                grid-template-columns: 224px 1fr 284px;
-            }
-        }
     </style>
 </head>
 <body class="text-slate-900">
@@ -200,7 +187,7 @@
     </section>
 
     <section id="activity"
-             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage sim-deck fs-tall">
         <!-- 교실 화면용 전체 화면 버튼. 나올 때는 Esc 또는 같은 버튼. -->
         <button type="button" class="fs-btn" data-fullscreen="activity"
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
@@ -212,169 +199,132 @@
             <p class="text-slate-600 text-lg fs-hide">데이터를 배치하고 분류할 「Query Point(새로운 점)」를 찍어보세요. 이웃들이 어떻게 뭉치는지 확인할 수 있습니다.</p>
         </div>
 
-        <div class="fs-fill grid grid-cols-1 lg:grid-cols-[200px_1fr_260px] gap-4 items-start">
-
-            <!-- Col 1: 데이터 입력 도구 -->
-            <div class="flex flex-col gap-4">
-                <div class="bg-white p-3 rounded-2xl border-2 border-slate-200 flex flex-col gap-2 shadow-sm">
-                    <p class="text-base font-bold text-slate-500 text-center uppercase tracking-wide">클래스 선택</p>
-                    <button class="tool-btn active px-4 py-2.5 text-base bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-all border-2 border-rose-200 flex items-center justify-center"
-                            data-tool="A">
-                        <div class="w-3.5 h-3.5 rounded-full bg-rose-500 mr-2 shrink-0"></div>
-                        Class A
-                    </button>
-                    <button class="tool-btn px-4 py-2.5 text-base bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border-2 border-blue-200 flex items-center justify-center"
-                            data-tool="B">
-                        <div class="w-3.5 h-3.5 bg-blue-500 mr-2 shrink-0"></div>
-                        Class B
-                    </button>
-                    <button class="tool-btn px-4 py-2.5 text-base bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg font-bold transition-all border-2 border-emerald-200 flex items-center justify-center"
-                            data-tool="C">
-                        <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[12px] border-b-emerald-500 mr-2 shrink-0"></div>
-                        Class C
-                    </button>
-                    <button class="tool-btn px-4 py-2.5 text-base bg-slate-800 text-white hover:bg-slate-700 rounded-lg font-black transition-all border-2 border-slate-900 shadow-md flex items-center justify-center"
-                            data-tool="QUERY">
-                        <div class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-base font-black mr-2 shrink-0">
-                            ?
+        <!-- sim-deck 세로형(선형 · 로지스틱 회귀와 같은 짜임): 넓은 화면에서는 조작(fs-side)이 왼쪽 칸,
+             그림(fs-main)이 남는 폭과 높이를 갖는다. 그림 아래에는 상태 줄과 단계 줄이 제 높이만.
+             좁은 화면에서는 그림이 먼저다. -->
+        <div class="fs-fill fs-cols flex flex-col gap-6">
+            <div class="fs-main flex flex-col gap-3">
+                <div class="fs-grow">
+                    <div class="sim-plot-pair grid grid-cols-1">
+                        <div class="sim-plot sim-plot-square relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas id="knnCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
                         </div>
-                        Query
-                    </button>
+                    </div>
                 </div>
+                <div id="statusMessageBar" class="sim-status">
+                    <i id="statusMessageIcon" class="fa-solid fa-pen-nib sim-status-icon"></i>
+                    <span id="statusMessageText" class="text-base">배치할 데이터의 클래스를 선택하고 캔버스를 클릭하세요.</span>
+                </div>
+                <!-- 단계 줄 — 켜진 단계와 지난 단계는 색만 바뀐다(크기는 그대로라 흔들리지 않는다). -->
+                <div class="sim-steps" aria-label="알고리즘 진행 단계">
+                    <span id="flow-IDLE" class="sim-step on"><span class="sim-step-no">Step 0</span>대기</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-CALC" class="sim-step"><span class="sim-step-no">Step 1</span>거리 계산</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-SELECT" class="sim-step"><span class="sim-step-no">Step 2</span>이웃 K개 선택</span>
+                    <i class="fa-solid fa-chevron-right sim-step-sep"></i>
+                    <span id="flow-DONE" class="sim-step"><span class="sim-step-no">Step 3</span>다수결 투표</span>
+                </div>
+            </div>
 
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col gap-3">
-                    <div class="flex flex-col gap-1.5">
-                        <label class="font-bold text-slate-600 text-base flex items-center">
-                            <i class="fa-solid fa-up-right-and-down-left-from-center mr-2 text-slate-400"></i>데이터 퍼짐 정도
-                        </label>
-                        <span class="text-base font-bold text-slate-400"><span id="spreadLabel" class="text-purple-600">적당함</span> (응집 ↔ 분산)</span>
+            <div class="fs-side sim-side-roomy">
+                <!-- 자료 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="tool-btn active px-3 py-2.5 text-base bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-all border-2 border-rose-200 flex items-center justify-center whitespace-nowrap"
+                                data-tool="A">
+                            <div class="w-3.5 h-3.5 rounded-full bg-rose-500 mr-2 shrink-0"></div>
+                            Class A
+                        </button>
+                        <button class="tool-btn px-3 py-2.5 text-base bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border-2 border-blue-200 flex items-center justify-center whitespace-nowrap"
+                                data-tool="B">
+                            <div class="w-3.5 h-3.5 bg-blue-500 mr-2 shrink-0"></div>
+                            Class B
+                        </button>
+                        <button class="tool-btn px-3 py-2.5 text-base bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg font-bold transition-all border-2 border-emerald-200 flex items-center justify-center whitespace-nowrap"
+                                data-tool="C">
+                            <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[12px] border-b-emerald-500 mr-2 shrink-0"></div>
+                            Class C
+                        </button>
+                        <button class="tool-btn px-3 py-2.5 text-base bg-slate-800 text-white hover:bg-slate-700 rounded-lg font-black transition-all border-2 border-slate-900 shadow-md flex items-center justify-center whitespace-nowrap"
+                                data-tool="QUERY">
+                            <div class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-base font-black mr-2 shrink-0">
+                                ?
+                            </div>
+                            Query
+                        </button>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="spreadSlider" class="text-base font-bold text-slate-600">데이터 퍼짐 정도</label>
+                            <span id="spreadLabel" class="text-base font-bold text-purple-600">적당함</span>
+                        </div>
                         <input type="range" id="spreadSlider" min="50" max="450" value="250"
                                class="w-full accent-purple-500 cursor-pointer">
                     </div>
-                    <button id="btnRandomData"
-                            class="w-full px-4 py-2.5 text-base bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl transition-all border-2 border-purple-200 shadow-sm flex items-center justify-center whitespace-nowrap">
-                        <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
-                    </button>
-                    <button id="btnClearData"
-                            class="w-full px-4 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all border-2 border-slate-200 shadow-sm flex items-center justify-center whitespace-nowrap">
-                        <i class="fa-solid fa-eraser mr-2"></i>삭제
-                    </button>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col">
-                    <h4 class="font-black text-slate-700 mb-3 flex items-center text-base">
-                        <i class="fa-solid fa-chart-simple text-slate-400 mr-2"></i>다수결 투표 현황
-                    </h4>
-                    <div class="flex flex-col gap-1.5 mb-3">
-                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                            <div class="flex items-center">
-                                <div class="w-3.5 h-3.5 rounded-full bg-rose-500 mr-2.5 shrink-0"></div>
-                                <span class="font-bold text-slate-600 text-base">Class A</span>
-                            </div>
-                            <span id="voteA" class="font-black text-xl text-rose-600">0</span>
-                        </div>
-                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                            <div class="flex items-center">
-                                <div class="w-3.5 h-3.5 bg-blue-500 mr-2.5 shrink-0"></div>
-                                <span class="font-bold text-slate-600 text-base">Class B</span>
-                            </div>
-                            <span id="voteB" class="font-black text-xl text-blue-600">0</span>
-                        </div>
-                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                            <div class="flex items-center">
-                                <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[12px] border-b-emerald-500 mr-2.5 shrink-0"></div>
-                                <span class="font-bold text-slate-600 text-base">Class C</span>
-                            </div>
-                            <span id="voteC" class="font-black text-xl text-emerald-600">0</span>
-                        </div>
-                    </div>
-                    <div class="pt-2.5 border-t border-slate-200 flex flex-col gap-1">
-                        <span class="font-bold text-slate-500 text-base">최종 분류 결과</span>
-                        <span id="finalResultText"
-                              class="font-black text-base text-slate-800 bg-slate-100 px-3 py-1.5 rounded-md text-center">
-                            대기 중
-                        </span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnRandomData"
+                                class="px-3 py-2.5 text-base bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-lg transition-all border border-purple-200 flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-braille mr-2"></i>랜덤 생성
+                        </button>
+                        <button id="btnClearData"
+                                class="px-3 py-2.5 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg transition-all border border-slate-200 flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-eraser mr-2"></i>삭제
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Col 2: 캔버스 + 상태 메시지 -->
-            <div class="flex flex-col gap-4">
-                <!-- 넓은 평소 화면에서는 정사각 그림이 칸 폭(690px 언저리)대로 커져 낮은 화면(768)을 넘었다.
-                     화면 높이에서 붙박이 nav · 아래 상태 줄 몫(11rem)을 뺀 값을 천장으로 둔다. 전체 화면은
-                     `fs-fit` 이 남는 높이로 크기를 정하고(그 규칙이 이 천장보다 특정도가 높다), 좁은 화면은 폭대로. -->
-                <div class="fs-fit relative w-full lg:max-w-[max(20rem,calc(100dvh-11rem))] mx-auto bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner aspect-square">
-                    <canvas id="knnCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
-                </div>
-                <div class="bg-slate-100 border-2 border-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 min-h-[72px]"
-                     id="statusMessageBar">
-                    <i id="statusMessageIcon" class="fa-solid fa-pen-nib mr-3 text-xl"></i>
-                    <span id="statusMessageText" class="text-base">배치할 데이터의 클래스를 선택하고 캔버스를 클릭하세요.</span>
-                </div>
-            </div>
-
-            <!-- Col 3: 알고리즘 조절 + 결과 -->
-            <div class="flex flex-col gap-4">
-                <div class="bg-purple-50/80 p-4 rounded-2xl border-2 border-purple-100 shadow-sm flex flex-col gap-3">
-                    <div class="bg-white p-3 rounded-xl border border-purple-100 shadow-sm">
-                        <div class="flex justify-between items-center mb-0.5">
-                            <label class="font-bold text-slate-700 text-base">K (탐색할 이웃 수)</label>
+                <!-- 분류 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-magnifying-glass-location mr-2"></i>분류</p>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="kSlider" class="text-base font-bold text-slate-600">K (탐색할 이웃 수)</label>
                             <span id="kValueDisplay" class="font-black text-purple-600 text-2xl leading-none">3</span>
                         </div>
                         <input type="range" id="kSlider" min="1" max="29" value="3" step="2"
-                               class="w-full accent-purple-600 mb-1.5 cursor-pointer">
-                        <p class="text-base font-bold text-purple-500 text-center bg-purple-50 py-1.5 rounded break-keep leading-snug">
-                            K는 홀수(1~29)만 고를 수 있습니다. 슬라이더를 움직이면 즉시 재분류됩니다.</p>
+                               class="w-full accent-purple-600 cursor-pointer">
+                        <p class="text-base font-medium text-slate-500 leading-snug break-keep">K는 홀수(1~29)만 고를 수 있고, 움직이면 바로 다시 분류합니다.</p>
                     </div>
-                    <button id="btnStep" disabled
-                            class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex items-center justify-center whitespace-nowrap">
-                        <i class="fa-solid fa-shoe-prints mr-2"></i>Step
-                    </button>
-                    <button id="btnRun" disabled
-                            class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-base rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 flex items-center justify-center whitespace-nowrap">
-                        <i class="fa-solid fa-play mr-2"></i>자동 실행
-                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnStep" disabled
+                                class="py-3 bg-purple-600 hover:bg-purple-700 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-shoe-prints mr-2"></i>Step
+                        </button>
+                        <button id="btnRun" disabled
+                                class="py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-lg rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center whitespace-nowrap">
+                            <i class="fa-solid fa-play mr-2"></i>자동 실행
+                        </button>
+                    </div>
                 </div>
 
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col">
-                    <h3 class="font-black text-slate-800 mb-3 flex items-center text-base shrink-0">
-                        <i class="fa-solid fa-list-check text-purple-600 mr-2"></i>알고리즘 진행 과정
-                    </h3>
-                    <div class="flex flex-col gap-2.5 relative">
-                        <div class="absolute left-5 top-6 bottom-6 w-0.5 bg-slate-200 z-0 rounded"></div>
-
-                        <div id="flow-IDLE"
-                             class="flow-box relative z-10 bg-white border-2 border-slate-300 rounded-xl p-3 shadow-sm transition-all duration-300 transform scale-[1.02]">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-black mb-1 bg-slate-100 text-slate-600">Step 0</span>
-                            <div class="step-title font-bold text-slate-800 text-base flex items-center break-keep">
-                                <i class="fa-regular fa-circle-question w-5 shrink-0"></i>Query Point 대기
-                            </div>
+                <!-- 다수결 투표 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-chart-simple mr-2"></i>다수결 투표</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                            <div class="w-3.5 h-3.5 rounded-full bg-rose-500 shrink-0" title="Class A"></div>
+                            <span class="font-bold text-slate-600 text-base">A</span>
+                            <span id="voteA" class="font-black text-xl text-rose-600">0</span>
                         </div>
-                        <div id="flow-CALC"
-                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 1</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-ruler w-5 shrink-0"></i>모든 점들과의 거리 계산
-                            </div>
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                            <div class="w-3.5 h-3.5 bg-blue-500 shrink-0" title="Class B"></div>
+                            <span class="font-bold text-slate-600 text-base">B</span>
+                            <span id="voteB" class="font-black text-xl text-blue-600">0</span>
                         </div>
-                        <div id="flow-SELECT"
-                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 2</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-magnifying-glass-location w-5 shrink-0"></i>가까운 K개 이웃 선택
-                            </div>
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                            <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[12px] border-b-emerald-500 shrink-0" title="Class C"></div>
+                            <span class="font-bold text-slate-600 text-base">C</span>
+                            <span id="voteC" class="font-black text-xl text-emerald-600">0</span>
                         </div>
-                        <div id="flow-DONE"
-                             class="flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300">
-                            <span class="step-badge inline-block px-2 py-0.5 rounded-md text-base font-bold mb-1 bg-slate-200 text-slate-500">Step 3</span>
-                            <div class="step-title font-bold text-slate-500 text-base flex items-center break-keep">
-                                <i class="fa-solid fa-check-to-slot w-5 shrink-0"></i>다수결 투표 및 분류 완료
-                            </div>
-                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="font-bold text-slate-600 text-base">최종 분류 결과</span>
+                        <span id="finalResultText" class="sim-verdict">대기 중</span>
                     </div>
                 </div>
             </div>
-
         </div>
     </section>
 
@@ -788,17 +738,8 @@
     let phase = 'IDLE';
     let autoRunTimer = null; // [타이머 오류 수정] 변수명 및 관리 방식 변경
 
-    const THEMES = {
-        IDLE: {boxBg: 'bg-white', boxBorder: 'border-slate-400', text: 'text-slate-800', badgeBg: 'bg-slate-200'},
-        CALC: {boxBg: 'bg-blue-50', boxBorder: 'border-blue-500', text: 'text-blue-800', badgeBg: 'bg-blue-200'},
-        SELECT: {
-            boxBg: 'bg-indigo-50',
-            boxBorder: 'border-indigo-500',
-            text: 'text-indigo-800',
-            badgeBg: 'bg-indigo-200'
-        },
-        DONE: {boxBg: 'bg-purple-50', boxBorder: 'border-purple-500', text: 'text-purple-800', badgeBg: 'bg-purple-200'}
-    };
+    // 단계 줄의 순서. 상태 줄의 바탕색(tone-*)도 이 순서를 따른다 → _sim-ui.css 의 `sim-status`.
+    const PHASES = ['IDLE', 'CALC', 'SELECT', 'DONE'];
 
     // [상태 오류 방지] 자동 실행 취소 공통 함수
     function stopAutoRun() {
@@ -812,23 +753,20 @@
         }
     }
 
-    function updateFlowUI(activePhase, message, icon, barBg = 'bg-slate-100', barText = 'text-slate-700') {
+    // 상태 줄과 단계 줄을 함께 바꾼다. **색 이름만 켜고 끈다** — 크기는 그대로라 누를 때 흔들리지 않는다.
+    // `tone` 은 상태 줄 바탕색이다(0 = 회색, 1~3 = 단계 색). 넘기지 않으면 회색이다.
+    function updateFlowUI(activePhase, message, icon, tone = 0) {
         const msgBar = document.getElementById('statusMessageBar');
         document.getElementById('statusMessageText').innerText = message;
-        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} mr-3 text-xl`;
-        msgBar.className = `w-full px-5 py-3.5 rounded-xl font-bold flex items-center shadow-sm transition-all duration-300 border-2 min-h-[72px] ${barBg} border-slate-200 ${barText}`;
+        document.getElementById('statusMessageIcon').className = `fa-solid ${icon} sim-status-icon`;
+        msgBar.classList.remove('tone-1', 'tone-2', 'tone-3');
+        if (tone) msgBar.classList.add(`tone-${tone}`);
 
-        ['IDLE', 'CALC', 'SELECT', 'DONE'].forEach(p => {
+        const at = PHASES.indexOf(activePhase);
+        PHASES.forEach((p, i) => {
             const box = document.getElementById(`flow-${p}`);
-            if (p === activePhase) {
-                box.className = `flow-box relative z-10 opacity-100 shadow-md scale-[1.03] border-2 rounded-xl p-3 transition-all duration-300 ${THEMES[p].boxBg} ${THEMES[p].boxBorder}`;
-                box.querySelector('.step-badge').className = `step-badge inline-block px-2 py-0.5 rounded-md text-sm font-black mb-1 text-slate-800 ${THEMES[p].badgeBg}`;
-                box.querySelector('.step-title').className = `step-title font-bold text-base flex items-center break-keep ${THEMES[p].text}`;
-            } else {
-                box.className = `flow-box relative z-10 opacity-50 grayscale-[30%] bg-slate-50 border-2 border-slate-200 rounded-xl p-3 transition-all duration-300 transform scale-100`;
-                box.querySelector('.step-badge').className = `step-badge inline-block px-2 py-0.5 rounded-md text-sm font-bold mb-1 bg-slate-200 text-slate-500`;
-                box.querySelector('.step-title').className = `step-title font-bold text-slate-500 text-base flex items-center break-keep`;
-            }
+            box.classList.toggle('on', i === at);
+            box.classList.toggle('done', i < at);
         });
     }
 
@@ -842,10 +780,11 @@
             let resultText = `Class ${cls}`;
             if (knn.isTie) resultText += ` (동점: 거리 우선)`;
             resultEl.innerText = resultText;
-            resultEl.className = `font-black text-xl text-white px-4 py-1.5 rounded-md shadow-sm whitespace-nowrap ${cls === 'A' ? 'bg-rose-500' : cls === 'B' ? 'bg-blue-500' : 'bg-emerald-500'}`;
+            resultEl.classList.remove('cls-A', 'cls-B', 'cls-C');
+            resultEl.classList.add(`cls-${cls}`);
         } else {
             resultEl.innerText = "대기 중";
-            resultEl.className = "font-black text-xl text-slate-800 bg-slate-100 px-4 py-1.5 rounded-md";
+            resultEl.classList.remove('cls-A', 'cls-B', 'cls-C');
         }
     }
 
@@ -859,16 +798,16 @@
         if (phase === 'IDLE') {
             knn.calcAllDistances();
             phase = 'CALC';
-            updateFlowUI('CALC', 'Step 1: 모든 데이터 포인트와의 거리를 계산했습니다.', 'fa-ruler', 'bg-blue-50', 'text-blue-800');
+            updateFlowUI('CALC', 'Step 1: 모든 데이터 포인트와의 거리를 계산했습니다.', 'fa-ruler', 1);
         } else if (phase === 'CALC') {
             knn.selectKNeighbors(parseInt(sliderK.value));
             phase = 'SELECT';
-            updateFlowUI('SELECT', `Step 2: 거리가 가장 가까운 ${sliderK.value}개의 이웃을 찾았습니다.`, 'fa-magnifying-glass-location', 'bg-indigo-50', 'text-indigo-800');
+            updateFlowUI('SELECT', `Step 2: 거리가 가장 가까운 ${sliderK.value}개의 이웃을 찾았습니다.`, 'fa-magnifying-glass-location', 2);
         } else if (phase === 'SELECT') {
             knn.doVoting();
             phase = 'DONE';
             updateVotingUI();
-            updateFlowUI('DONE', 'Step 3: 다수결 투표가 완료되어 그룹이 분류되었습니다!', 'fa-check-to-slot', 'bg-purple-50', 'text-purple-800');
+            updateFlowUI('DONE', 'Step 3: 다수결 투표가 완료되어 그룹이 분류되었습니다!', 'fa-check-to-slot', 3);
             stopAutoRun();
             btnStep.disabled = true;
             btnRun.disabled = true;
@@ -941,7 +880,7 @@
                 knn.selectKNeighbors(parseInt(sliderK.value));
                 knn.doVoting();
                 updateVotingUI();
-                updateFlowUI('DONE', '데이터가 추가되어 실시간으로 투표 현황이 재계산되었습니다.', 'fa-bolt', 'bg-purple-50', 'text-purple-800');
+                updateFlowUI('DONE', '데이터가 추가되어 실시간으로 투표 현황이 재계산되었습니다.', 'fa-bolt', 3);
             }
         }
         renderer.requestDraw();
@@ -953,7 +892,7 @@
             knn.selectKNeighbors(parseInt(e.target.value));
             knn.doVoting();
             updateVotingUI();
-            updateFlowUI('DONE', `K값이 ${e.target.value}${window.josa(e.target.value, '으로')} 변경되어 분류 결과가 실시간 갱신되었습니다.`, 'fa-bolt', 'bg-purple-50', 'text-purple-800');
+            updateFlowUI('DONE', `K값이 ${e.target.value}${window.josa(e.target.value, '으로')} 변경되어 분류 결과가 실시간 갱신되었습니다.`, 'fa-bolt', 3);
             renderer.requestDraw();
         } else if (phase === 'CALC' || phase === 'SELECT') {
             // 진행 중 슬라이더 조작 시 꼬임을 방지하기 위해 강제 리셋

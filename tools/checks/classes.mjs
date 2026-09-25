@@ -64,31 +64,107 @@ const JS_SITES = [
  *  HTML 에 늘 있으므로 Tailwind 가 반드시 굽는다. */
 const JS_ALLOWED = new Set(['hidden']);
 
+/** 인라인 `<script>` 까지 보는 HTML — 시뮬레이터 페이지와 틀린 조각.
+ *  강의노트의 인라인 스크립트는 아직 이 검사 밖이다(메뉴 여닫기 같은 공통 조각이 걸린다).
+ *  `simulator/index.html` 은 루트 `index.html` 에서 구워 낸 입구라 뺀다. */
+const INLINE_SCOPE = (p) => {
+    const r = rel(p);
+    return (r.startsWith('simulator/') && !r.endsWith('/index.html')) || r.startsWith('tests/fixtures/');
+};
+
+/** 인라인 스크립트의 Tailwind 를 아직 옮기지 못한 시뮬레이터. **비어 있는 것이 목표다** —
+ *  옮긴 페이지는 여기서 지운다. 새 페이지는 여기 넣지 않는다(처음부터 뜻 이름으로 쓴다). */
+const INLINE_PENDING = new Set([
+    'simulator/ai/computer-vision-ml5.html',
+    'simulator/ai/deep-learning.html',
+    'simulator/ai/reinforcement-multi-armed-bandit.html',
+    'simulator/ai/search-8-puzzle.html',
+    'simulator/ai/search-heuristic.html',
+    'simulator/ai/search-n-queen.html',
+    'simulator/ai/search-river-crossing.html',
+    'simulator/ai/search-tower-of-hanoi.html',
+    'simulator/ai/supervised-decision-tree.html',
+    'simulator/ai/wumpus-world.html',
+]);
+
 async function tailwindMade(tokens) {
     const [{default: postcss}, {default: tailwind}] = await Promise.all([import('postcss'), import('tailwindcss')]);
     const raw = tokens.map((t) => `<div class="${t}"></div>`).join('\n');
     const out = await postcss([tailwind({content: [{raw}], corePlugins: {preflight: false}})])
         .process('@tailwind components; @tailwind utilities;', {from: undefined});
     const esc = (t) => t.replace(/([^a-zA-Z0-9_-])/g, '\\$1');
-    return new Set(tokens.filter((t) => out.css.includes('.' + esc(t))));
+    /* 선택자 머리에 온 `.이름` 만 센다. 그냥 `includes` 로 보면 `0.5rem` 의 `.5` 가
+       「5」라는 클래스로 읽힌다. */
+    const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new Set(tokens.filter((t) =>
+        new RegExp('(^|[\\s,}>~+])\\.' + reEsc(esc(t)) + '(?=[\\s{:,.\\[>~+)])', 'm').test(out.css)));
 }
 
-async function checkJs(r, files) {
-    const seen = [];   // [token, 파일, 줄]
-    for (const p of files) {
-        const text = read(p);
-        for (const re of JS_SITES) {
-            for (const m of text.matchAll(re)) {
-                for (const t of m[1].split(/\s+/)) {
-                    if (!t || t.includes('${') || JS_ALLOWED.has(t)) continue;
-                    seen.push([t, p, lineOf(text, m.index)]);
-                }
+/** HTML 의 인라인 `<script>` 본문 — [본문, 파일 안의 시작 위치]. `src=` 가 있는 것은 뺀다. */
+const inlineScripts = (text) =>
+    [...text.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+        .map((m) => [m[1], m.index + m[0].indexOf('>') + 1]);
+
+/** `classList.add('a', 'b')` 의 **인자 전부**. 위 `JS_SITES` 는 첫 인자만 본다. */
+const CLASSLIST_ARGS = /classList\.(?:add|remove|toggle|contains|replace)\(([^)]*)\)/g;
+
+/** 문자열 리터럴 전부. 템플릿은 `${…}` 를 뺀 조각으로 나눈다. */
+const STRING_LIT = /'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g;
+
+async function checkJs(r, files, htmlFiles = []) {
+    const seen = [];   // [token, 파일, 줄] — 클래스 자리에 적힌 낱말
+    /* 클래스 자리가 아닌 곳에 **클래스 뭉치를 변수로 먼저 담는** 꼴도 있다 —
+       `const active = 'px-3 py-1 …'; el.className = active;`. 이름이 무엇이든 잡도록,
+       **낱말 둘 이상이 전부 Tailwind 클래스인 문자열**을 따로 모은다. 낱말 하나(`'flex'`)는
+       스타일 값과 구별이 안 되므로 보지 않는다. */
+    const bundles = [];   // [낱말들, 파일, 줄]
+    // 주석 속 `…` 가 문자열로 읽히지 않게 주석을 같은 길이의 빈칸으로 덮는다(줄 번호는 그대로)
+    const blank = (s) => s.replace(/[^\n]/g, ' ');
+    const noComments = (code) => code
+        .replace(/\/\*[\s\S]*?\*\//g, blank)
+        .replace(/(^|[\s;{}(),])(\/\/[^\n]*)/g, (_, a, c) => a + blank(c));
+    const scan = (p, text, raw, base) => {
+        const code = noComments(raw);
+        const at = (i) => lineOf(text, base + i);
+        const push = (s, i) => {
+            for (const t of s.split(/\s+/)) {
+                if (!t || t.includes('${') || JS_ALLOWED.has(t)) continue;
+                seen.push([t, p, at(i)]);
+            }
+        };
+        for (const re of JS_SITES) for (const m of code.matchAll(re)) push(m[1], m.index);
+        for (const m of code.matchAll(CLASSLIST_ARGS)) {
+            for (const q of m[1].matchAll(/[`'"]([^`'"]*)[`'"]/g)) push(q[1], m.index);
+        }
+        for (const m of code.matchAll(STRING_LIT)) {
+            const parts = m[3] !== undefined ? m[3].split(/\$\{[^}]*\}/) : [m[1] ?? m[2]];
+            for (const s of parts) {
+                const ts = s.trim().split(/\s+/).filter(Boolean);
+                if (ts.length >= 2) bundles.push([ts, p, at(m.index)]);
             }
         }
+    };
+    for (const p of files) { const text = read(p); scan(p, text, text, 0); }
+    // 페이지 안의 인라인 스크립트도 같은 JS 다 — 예전에는 `src/entries/` 만 보아 여기가 샜다
+    for (const p of htmlFiles) {
+        const text = read(p);
+        for (const [code, base] of inlineScripts(text)) scan(p, text, code, base);
     }
-    const made = await tailwindMade([...new Set(seen.map(([t]) => t))]);
+    const bundleTokens = bundles.flatMap(([ts]) => ts).filter((t) => /^[a-z0-9:[\]\/.#%()_-]+$/i.test(t) && !t.includes('${'));
+    const made = await tailwindMade([...new Set([...seen.map(([t]) => t), ...bundleTokens])]);
+    const said = new Set();
     for (const [t, p, line] of seen) {
-        if (made.has(t)) r.error(`${rel(p)}:${line} [JS 속 Tailwind] 「${t}」 — JS 는 Tailwind 가 읽지 않는다`);
+        if (!made.has(t) || said.has(`${p}:${line}:${t}`)) continue;
+        said.add(`${p}:${line}:${t}`);
+        r.error(`${rel(p)}:${line} [JS 속 Tailwind] 「${t}」 — ` +
+            (p.endsWith('.html') ? '스크립트는 뜻 이름만 적는다' : 'JS 는 Tailwind 가 읽지 않는다'));
+    }
+    for (const [ts, p, line] of bundles) {
+        if (!ts.every((t) => made.has(t) || JS_ALLOWED.has(t))) continue;
+        const left = ts.filter((t) => !JS_ALLOWED.has(t) && !said.has(`${p}:${line}:${t}`));
+        if (!left.length) continue;
+        left.forEach((t) => said.add(`${p}:${line}:${t}`));
+        r.error(`${rel(p)}:${line} [JS 속 Tailwind] 「${left.join(' ')}」 — 클래스 뭉치를 문자열로 들고 있다`);
     }
 }
 
@@ -104,7 +180,8 @@ export async function check(args = []) {
         ? resolved.filter((p) => p.endsWith('.js'))
         : walk(path.join(ROOT, 'src', 'entries'), {ext: ['.js'], skip: SKIP});
     if (!files.length && !jsFiles.length) { r.error('검사할 파일이 없다'); return r; }
-    if (jsFiles.length) await checkJs(r, jsFiles);
+    const inlineHtml = files.filter((p) => INLINE_SCOPE(p) && !INLINE_PENDING.has(rel(p)));
+    if (jsFiles.length || inlineHtml.length) await checkJs(r, jsFiles, inlineHtml);
     for (const p of files) {
         const text = read(p);
         for (const [re, label] of RULES) {

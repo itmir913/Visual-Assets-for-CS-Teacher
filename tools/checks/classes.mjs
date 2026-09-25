@@ -79,7 +79,6 @@ const INLINE_PENDING = new Set([
     'simulator/ai/deep-learning.html',
     'simulator/ai/reinforcement-multi-armed-bandit.html',
     'simulator/ai/search-8-puzzle.html',
-    'simulator/ai/search-n-queen.html',
     'simulator/ai/search-river-crossing.html',
     'simulator/ai/search-tower-of-hanoi.html',
     'simulator/ai/supervised-decision-tree.html',

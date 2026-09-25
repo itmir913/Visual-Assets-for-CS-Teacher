@@ -830,7 +830,7 @@
                         <!-- 진행 바 -->
                         <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                             <div id="iq-progress-bar"
-                                 class="iq-progress-fill h-3 rounded-full bg-indigo-400"
+                                 class="iq-progress-fill sim-nq-bar h-3 rounded-full"
                                  style="width: 0%"></div>
                         </div>
                         <p class="text-slate-400 text-base mt-2">목표: <span class="font-bold" id="iq-goal-text">8개 모두 배치 + 충돌 없음</span>
@@ -843,7 +843,7 @@
                             <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> 충돌 위치
                         </h4>
                         <div id="iq-conflict-details" class="flex flex-wrap gap-1.5 min-h-[32px]">
-                            <span class="text-slate-400 text-base">충돌 없음 ✓</span>
+                            <span class="sim-nq-none">충돌 없음 ✓</span>
                         </div>
                     </div>
 
@@ -919,7 +919,7 @@
 
 
                     <div class="flex flex-col items-center gap-2 w-full px-2">
-                        <div class="min-h-10 py-1.5 font-bold text-slate-600 mb-0 transition-colors px-2 text-center flex items-center justify-center bg-slate-100 rounded-lg border border-slate-200 w-full text-base leading-snug break-keep"
+                        <div class="sim-nq-status min-h-10 py-1.5 font-bold mb-0 transition-colors px-2 text-center flex items-center justify-center rounded-lg border w-full text-base leading-snug break-keep"
                              id="statusText">
                             <span>크기를 정한 뒤 [자동 재생]으로 쭉 보거나, [다음 단계]로 한 걸음씩 보세요.</span>
                         </div>
@@ -1238,9 +1238,13 @@
         updateStatusText("크기를 정한 뒤 [자동 재생]으로 쭉 보거나, [다음 단계]로 한 걸음씩 보세요.");
     }
 
-    function updateStatusText(msg, colorClass = "text-slate-600 bg-slate-100 border-slate-200") {
-        // 높이를 h-10 으로 고정하면 좁은 화면에서 두 줄짜리 메시지가 잘린다. min-h 로 둘 것.
-        statusText.className = `min-h-10 py-1.5 font-bold mb-0 transition-colors px-2 text-center w-full flex items-center justify-center rounded-lg border text-base leading-snug break-keep ${colorClass}`;
+    // 상태 줄의 색. 짜임은 HTML 이 들고 있고 여기서는 색 이름 하나만 갈아 끼운다(_sim-ui.css 의 sim-nq-status).
+    const STATUS_TONES = ['run', 'paused', 'done', 'solved', 'manual', 'try', 'safe', 'prune', 'back'];
+
+    function updateStatusText(msg, tone = '') {
+        // 높이를 h-10 으로 고정하면 좁은 화면에서 두 줄짜리 메시지가 잘린다. min-h 로 둘 것(HTML).
+        statusText.classList.remove(...STATUS_TONES);
+        if (tone) statusText.classList.add(tone);
         statusText.innerHTML = `<span>${msg}</span>`;
     }
 
@@ -1305,7 +1309,7 @@
         } else {
             isPaused = false;
             toggleBtnGroup('playing');
-            updateStatusText("AI가 깊이 우선 탐색(DFS)을 시작합니다.", "text-purple-700 bg-purple-100 border-purple-200");
+            updateStatusText("AI가 깊이 우선 탐색(DFS)을 시작합니다.", 'run');
             executeNextStep();
         }
     }
@@ -1334,14 +1338,14 @@
         isPaused = true;
         clearTimeout(animationTimer);
         toggleBtnGroup('paused');
-        updateStatusText("⏸️ [일시정지] 「다음 단계」를 눌러 확인하세요.", "text-amber-700 bg-amber-100 border-amber-300");
+        updateStatusText("⏸️ [일시정지] 「다음 단계」를 눌러 확인하세요.", 'paused');
     }
 
     function resumeAI() {
         if (!isAnimating) return;
         isPaused = false;
         toggleBtnGroup('playing');
-        updateStatusText("▶️ 탐색을 자동으로 재개합니다.", "text-purple-700 bg-purple-100 border-purple-200");
+        updateStatusText("▶️ 탐색을 자동으로 재개합니다.", 'run');
         executeNextStep();
     }
 
@@ -1363,7 +1367,7 @@
         if (result.done || !result.value) {
             isAnimating = false;
             toggleBtnGroup('idle');
-            updateStatusText("🏁 탐색 종료! 모든 탐색을 마쳤거나 정답이 없습니다.", "text-slate-700 bg-slate-100 border-slate-300");
+            updateStatusText("🏁 탐색 종료! 모든 탐색을 마쳤거나 정답이 없습니다.", 'done');
             return;
         }
 
@@ -1373,7 +1377,7 @@
         if (step.type === 'solution') {
             isAnimating = false;
             toggleBtnGroup('idle');
-            updateStatusText("🎉 탐색 성공! N-Queen 완벽한 배치를 찾았습니다.", "text-emerald-700 bg-emerald-100 border-emerald-300");
+            updateStatusText("🎉 탐색 성공! N-Queen 완벽한 배치를 찾았습니다.", 'solved');
             renderBoard(step.state, null);
             highlightSolutionPath(step.path);
             return;
@@ -1388,7 +1392,7 @@
         let currentDelay = delayMap[speedSliderVal];
 
         if (isManual) {
-            updateStatusText(`[수동 탐색] 단계 ${currentStepIndex} : 상태 트리 확인`, "text-indigo-700 bg-indigo-100 border-indigo-300");
+            updateStatusText(`[수동 탐색] 단계 ${currentStepIndex} : 상태 트리 확인`, 'manual');
         } else {
             if (step.type === 'prune' || step.type === 'backtrack') currentDelay += 100;
             if (currentDelay < 20) currentDelay = delayMap[speedSliderVal]; // 최고 속도일 때 딜레이 가중치 무시
@@ -1410,16 +1414,16 @@
                 if (activeStep && activeStep.row === r && activeStep.col === c) {
                     if (activeStep.type === 'try') {
                         cell.classList.add('cell-try');
-                        if (!isPaused) updateStatusText(`🔍 시도: ${r + 1}행 ${c + 1}열 배치를 검사합니다.`, "text-amber-700 bg-amber-50 border-amber-200");
+                        if (!isPaused) updateStatusText(`🔍 시도: ${r + 1}행 ${c + 1}열 배치를 검사합니다.`, 'try');
                     } else if (activeStep.type === 'place') {
                         cell.classList.add('cell-place');
-                        if (!isPaused) updateStatusText(`✅ 안전: 충돌이 없어 자식 노드로 이동합니다.`, "text-emerald-700 bg-emerald-50 border-emerald-200");
+                        if (!isPaused) updateStatusText(`✅ 안전: 충돌이 없어 자식 노드로 이동합니다.`, 'safe');
                     } else if (activeStep.type === 'prune') {
                         cell.classList.add('cell-conflict');
-                        if (!isPaused) updateStatusText(`✂️ 가지치기: 충돌! 이 경로는 탐색하지 않습니다.`, "text-rose-700 bg-rose-50 border-rose-200");
+                        if (!isPaused) updateStatusText(`✂️ 가지치기: 충돌! 이 경로는 탐색하지 않습니다.`, 'prune');
                     } else if (activeStep.type === 'backtrack') {
                         cell.classList.add('cell-paused');
-                        if (!isPaused) updateStatusText(`🔙 백트래킹: 답이 없어 이전으로 돌아갑니다.`, "text-slate-700 bg-slate-200 border-slate-300");
+                        if (!isPaused) updateStatusText(`🔙 백트래킹: 답이 없어 이전으로 돌아갑니다.`, 'back');
                     }
                 }
 
@@ -1669,10 +1673,8 @@
                 const pct = Math.round((queenCount / iqN) * 100);
                 progressEl.style.width = `${pct}%`;
                 const hasConflictsForBar = iqConflicts.size > 0;
-                progressEl.className = `iq-progress-fill h-3 rounded-full ${
-                    hasConflictsForBar ? 'bg-rose-400' :
-                        queenCount === iqN ? 'bg-emerald-400' : 'bg-indigo-400'
-                }`;
+                progressEl.classList.toggle('conflict', hasConflictsForBar);
+                progressEl.classList.toggle('full', !hasConflictsForBar && queenCount === iqN);
             }
 
             // 충돌 목록
@@ -1680,11 +1682,11 @@
                 if (iqConflicts.size > 0) {
                     const items = [...iqConflicts].map(k => {
                         const [rr, cc] = k.split(',').map(Number);
-                        return `<span class="inline-flex items-center bg-rose-100 text-rose-700 text-base font-bold px-2 py-0.5 rounded-full">${rr + 1}행 ${cc + 1}열</span>`;
+                        return `<span class="sim-nq-chip">${rr + 1}행 ${cc + 1}열</span>`;
                     });
                     conflictListEl.innerHTML = items.join(' ');
                 } else {
-                    conflictListEl.innerHTML = '<span class="text-slate-400 text-base">충돌 없음 ✓</span>';
+                    conflictListEl.innerHTML = '<span class="sim-nq-none">충돌 없음 ✓</span>';
                 }
             }
 
@@ -1695,20 +1697,20 @@
 
             if (isComplete) {
                 statusEl.className = 'iq-status iq-status-success';
-                statusEl.innerHTML = '<i class="fa-solid fa-trophy mr-2"></i>🎉 완벽합니다! N-Queen 문제를 해결했습니다!';
+                statusEl.innerHTML = '<i class="fa-solid fa-trophy sim-ico"></i>🎉 완벽합니다! N-Queen 문제를 해결했습니다!';
                 if (successEl) successEl.classList.remove('hidden');
             } else if (hasConflicts) {
                 const pairs = iqConflicts.size / 2;
                 statusEl.className = 'iq-status iq-status-conflict';
-                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-2"></i>충돌 발생! 빨간 퀸 ${iqConflicts.size}개가 서로 공격 중입니다.`;
+                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation sim-ico"></i>충돌 발생! 빨간 퀸 ${iqConflicts.size}개가 서로 공격 중입니다.`;
                 if (successEl) successEl.classList.add('hidden');
             } else if (queenCount === 0) {
                 statusEl.className = 'iq-status iq-status-idle';
-                statusEl.innerHTML = '<i class="fa-solid fa-hand-pointer mr-2"></i>체스판을 클릭하여 퀸을 배치해보세요!';
+                statusEl.innerHTML = '<i class="fa-solid fa-hand-pointer sim-ico"></i>체스판을 클릭하여 퀸을 배치해보세요!';
                 if (successEl) successEl.classList.add('hidden');
             } else {
                 statusEl.className = 'iq-status iq-status-ok';
-                statusEl.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>${queenCount}개 배치됨 — 충돌 없음! (목표: ${iqN}개)`;
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-check sim-ico"></i>${queenCount}개 배치됨 — 충돌 없음! (목표: ${iqN}개)`;
                 if (successEl) successEl.classList.add('hidden');
             }
         }

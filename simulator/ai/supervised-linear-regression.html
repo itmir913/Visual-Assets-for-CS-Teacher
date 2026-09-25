@@ -237,137 +237,167 @@
          버튼만 누른다. 여기서 오차를 제곱한 것을 «넓이»로 보이고, 그 합을 학생이
          손으로 줄여 본 뒤에 아래 절로 간다. -->
     <section id="hand-fit"
-             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage sim-deck fs-tall">
         <button type="button" class="fs-btn" data-fullscreen="hand-fit"
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
             <i class="fa-solid fa-expand"></i>
         </button>
-        <div class="mb-8 space-y-2 text-center md:text-left">
+        <div class="mb-4 space-y-2 text-center md:text-left">
             <span class="text-violet-600 font-bold tracking-widest uppercase text-base fs-hide">Least Squares</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-800">손으로 맞추기 — 오차 제곱의 합 줄이기</h2>
             <p class="text-slate-600 text-lg fs-hide">기울기와 절편을 직접 움직여 보라색 정사각형의 넓이 합이 가장 작아지는 선을 찾아보세요.</p>
         </div>
 
-        <div class="fs-fill flex flex-col lg:flex-row gap-6 items-stretch">
-            <div class="w-full lg:w-[58%] min-w-0 flex flex-col gap-4">
-                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
-                     style="aspect-ratio: 4/3;">
-                    <canvas id="handFitCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+        <!-- sim-deck 세로형(학습 시뮬레이터와 같은 짜임): 조작은 왼쪽 칸, 그림 아래에는 값과 기록.
+             그림 아래 것들은 켜고 꺼져도 높이가 그대로여야 그림이 들썩이지 않는다 — 자리를 못박는다. -->
+        <div class="fs-fill fs-cols flex flex-col gap-6">
+            <div class="fs-main flex flex-col gap-3">
+                <div class="fs-grow">
+                    <div class="sim-plot-pair grid grid-cols-1">
+                        <div class="sim-plot relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas id="handFitCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                        </div>
+                    </div>
                 </div>
                 <!-- 정사각형의 가로 폭은 x축의 값이 아니다. 밝혀 두지 않으면 학생이
                      「x로도 그만큼 틀렸다」로 읽는다. -->
                 <p class="text-base text-slate-500 font-medium leading-snug break-keep">
                     보라색 사각형의 가로 폭은 <strong>넓이를 보이려고 세로 길이와 같게 그린 것</strong>입니다.
                     x축의 값이 아닙니다.
-                </p>
-                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
-                    <i class="fa-solid fa-hand-pointer mr-1 text-violet-500"></i>
-                    <strong>그림을 누르면 그 자리에 점이 하나 늘어납니다.</strong>
+                    <i class="fa-solid fa-hand-pointer ml-1 mr-1 text-violet-500"></i>그림을 누르면 그 자리에 점이 하나 늘어나고,
                     처음으로 되돌리려면 예제 버튼을 다시 누르세요.
                 </p>
 
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="flex flex-col gap-2">
+                        <div class="bg-white px-4 py-3 rounded-xl border-2 border-violet-200 shadow-sm">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-violet-700 text-base">오차 제곱의 합</span>
+                                <span id="hfSum" class="font-black text-violet-700 math-font text-xl">0</span>
+                            </div>
+                            <!-- 화면의 보라 넓이 총량과 같은 것이라고 붙여 읽히도록 막대로 함께 보인다.
+                                 가득 찬 상태는 기울기가 0인 평균선이다 — 관계를 하나도 쓰지 않은 선. -->
+                            <div class="mt-2 h-3 w-full bg-violet-100 rounded-full overflow-hidden">
+                                <div id="hfBar" class="h-full bg-violet-500 rounded-full transition-all" style="width: 0"></div>
+                            </div>
+                            <p class="mt-2 text-base text-slate-500 font-medium leading-snug break-keep">
+                                점 개수로 나눈 평균(MSE) <span id="hfMse" class="math-font font-bold text-slate-700">0</span>
+                                — 아래 자동 학습이 줄이는 값이 이것입니다.
+                            </p>
+                        </div>
+                        <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                            <span class="font-bold text-slate-500 text-base">가장 작은 합보다</span>
+                            <span id="hfGap" class="font-black text-slate-800 math-font">0</span>
+                        </div>
+                        <!-- 배지는 켜지고 꺼져도 자리가 그대로여야 한다. -->
+                        <div class="h-12">
+                            <div id="hfBadge"
+                                 class="hidden h-full flex items-center justify-center bg-emerald-500 text-white px-4 rounded-xl font-black text-center text-base">
+                                <i class="fa-solid fa-circle-check mr-1"></i> 가장 작은 합의 1.05배 안에 들었습니다
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <div class="bg-white px-4 py-2 rounded-2xl border-2 border-slate-200 shadow-sm">
+                            <p class="font-bold text-slate-600 text-base mb-1"><i
+                                    class="fa-solid fa-clock-rotate-left mr-2"></i>내가 놓아 본 선</p>
+                            <!-- 기록은 다섯 줄까지 쌓인다. 처음부터 다섯 줄 자리를 잡아 둔다. -->
+                            <div class="overflow-x-auto h-[11rem]">
+                                <table class="w-full text-base">
+                                    <thead>
+                                    <tr class="text-slate-500 border-b border-slate-200">
+                                        <th class="text-left font-bold py-1">기울기 a</th>
+                                        <th class="text-left font-bold py-1">절편 b</th>
+                                        <th class="text-right font-bold py-1">합</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="hfHistory" class="math-font text-slate-700"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fs-side sim-side-roomy">
+                <!-- ① 자료 · 보기 -->
+                <div class="sim-panel flex flex-col gap-2">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50 whitespace-nowrap"
                                 onclick="handFit.loadExample(1)">
                             <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 → 시험 점수
                         </button>
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50 whitespace-nowrap"
                                 onclick="handFit.loadExample(2)">
                             <i class="fa-solid fa-temperature-high mr-1"></i> 기온 → 아이스크림 판매
                         </button>
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50 whitespace-nowrap"
                                 onclick="handFit.loadExample(3)">
                             <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 → 게임 점수
                         </button>
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50"
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-violet-50 whitespace-nowrap"
                                 onclick="handFit.loadExample(4)">
                             <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
                         </button>
                     </div>
-                    <p id="handFitDesc" class="mt-3 text-base text-violet-700 font-medium min-h-5 text-center leading-snug break-keep"></p>
-                    <div class="flex gap-3 mt-3">
+                    <!-- 예제마다 글 길이가 달라도 칸이 그대로이게 두 줄 높이를 못박는다.
+                         w-0 min-w-full: 글이 칸 폭을 정하지 못하게 한다. -->
+                    <p id="handFitDesc" class="w-0 min-w-full h-[3.25rem] overflow-y-auto text-base text-violet-700 font-medium leading-snug break-keep"></p>
+                    <div class="flex gap-2">
                         <button id="hfRandom"
-                                class="flex-1 px-4 py-3 text-base bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold rounded-xl border border-violet-200">
+                                class="flex-1 px-3 py-2 text-base bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold rounded-lg border border-violet-200">
                             랜덤 데이터
                         </button>
                         <button id="hfClear"
-                                class="flex-1 px-4 py-3 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl border border-slate-200">
+                                class="flex-1 px-3 py-2 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg border border-slate-200">
                             전체 삭제
                         </button>
                     </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-wrap gap-x-6 gap-y-3">
-                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
-                        <input type="checkbox" id="hfChkResidual" checked class="w-4 h-4 accent-rose-500"> 오차선 보기
-                    </label>
-                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
-                        <input type="checkbox" id="hfChkSquare" checked class="w-4 h-4 accent-violet-500"> 오차 제곱 보기
-                    </label>
-                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
-                        <input type="checkbox" id="hfChkBest" class="w-4 h-4 accent-emerald-500"> 최적합선 보기
-                    </label>
-                    <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
-                        <input type="checkbox" id="hfChkR" class="w-4 h-4 accent-sky-500"> 상관계수 보기
-                    </label>
-                </div>
-            </div>
-
-            <div class="w-full lg:w-[42%] min-w-0 flex flex-col gap-5">
-                <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white">
-                    <p class="font-black text-slate-300 text-base flex items-center uppercase tracking-widest mb-3">
-                        <i class="fa-solid fa-sliders mr-2"></i>내 선 만들기</p>
-                    <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-600 shadow-inner mb-4">
-                        <span id="hfEquation" class="math-font text-2xl font-black text-violet-300">y = ax + b</span>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                        <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                            <input type="checkbox" id="hfChkResidual" checked class="w-4 h-4 accent-rose-500"> 오차선 보기
+                        </label>
+                        <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                            <input type="checkbox" id="hfChkSquare" checked class="w-4 h-4 accent-violet-500"> 오차 제곱 보기
+                        </label>
+                        <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                            <input type="checkbox" id="hfChkBest" class="w-4 h-4 accent-emerald-500"> 최적합선 보기
+                        </label>
+                        <label class="flex items-center gap-2 text-base font-bold text-slate-600 cursor-pointer">
+                            <input type="checkbox" id="hfChkR" class="w-4 h-4 accent-sky-500"> 상관계수 보기
+                        </label>
                     </div>
-                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="hfSlopeSlider" class="text-base font-bold text-slate-300">기울기 (a)</label>
-                            <span id="hfSlopeVal" class="math-font text-base font-black text-violet-300">0.000</span>
+                </div>
+
+                <!-- ② 내 선 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-sliders mr-2"></i>내 선 만들기</p>
+                    <div class="bg-slate-800 rounded-xl px-4 py-2 text-center overflow-x-auto whitespace-nowrap">
+                        <span id="hfEquation" class="math-font text-lg md:text-xl font-black text-violet-300">y = ax + b</span>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <label for="hfSlopeSlider" class="text-base font-bold text-slate-600">기울기 (a)</label>
+                            <span id="hfSlopeVal" class="math-font text-base font-black text-violet-700">0.000</span>
                         </div>
                         <input type="range" id="hfSlopeSlider" min="0" max="1000" step="1" value="500"
                                class="w-full accent-violet-500 cursor-pointer">
                     </div>
-                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="hfInterceptSlider" class="text-base font-bold text-slate-300">절편 (b)</label>
-                            <span id="hfInterceptVal" class="math-font text-base font-black text-violet-300">0.000</span>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <label for="hfInterceptSlider" class="text-base font-bold text-slate-600">절편 (b)</label>
+                            <span id="hfInterceptVal" class="math-font text-base font-black text-violet-700">0.000</span>
                         </div>
                         <input type="range" id="hfInterceptSlider" min="0" max="1000" step="1" value="500"
                                class="w-full accent-violet-500 cursor-pointer">
                     </div>
                     <button id="hfReset"
-                            class="w-full py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center">
+                            class="w-full px-3 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center text-base">
                         <i class="fa-solid fa-rotate-right mr-2"></i>평균선으로 되돌리기
                     </button>
-                </div>
-
-                <div class="bg-violet-50/60 p-5 rounded-2xl border border-violet-100 flex flex-col gap-3">
-                    <div class="bg-white px-4 py-3 rounded-xl border-2 border-violet-200 shadow-sm">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-violet-700 text-base">오차 제곱의 합</span>
-                            <span id="hfSum" class="font-black text-violet-700 math-font text-xl">0</span>
-                        </div>
-                        <!-- 화면의 보라 넓이 총량과 같은 것이라고 붙여 읽히도록 막대로 함께 보인다.
-                             가득 찬 상태는 기울기가 0인 평균선이다 — 관계를 하나도 쓰지 않은 선. -->
-                        <div class="mt-2 h-3 w-full bg-violet-100 rounded-full overflow-hidden">
-                            <div id="hfBar" class="h-full bg-violet-500 rounded-full transition-all" style="width: 0"></div>
-                        </div>
-                        <p class="mt-2 text-base text-slate-500 font-medium leading-snug break-keep">
-                            점 개수로 나눈 평균(MSE) <span id="hfMse" class="math-font font-bold text-slate-700">0</span>
-                            — 아래 자동 학습이 줄이는 값이 이것입니다.
-                        </p>
-                    </div>
-                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-slate-500 text-base">가장 작은 합보다</span>
-                        <span id="hfGap" class="font-black text-slate-800 math-font">0</span>
-                    </div>
-                    <div id="hfBadge"
-                         class="hidden bg-emerald-500 text-white px-4 py-3 rounded-xl font-black text-center text-base">
-                        <i class="fa-solid fa-circle-check mr-1"></i> 가장 작은 합의 1.05배 안에 들었습니다
-                    </div>
-                    <!-- 상관계수는 기본으로 감춰 둔다. 켜는 순간 「r = 기울기」 오개념을 그 자리에서 막는다. -->
+                    <!-- 상관계수는 기본으로 감춰 둔다. 켜는 순간 「r = 기울기」 오개념을 그 자리에서 막는다.
+                         조작 칸의 맨 끝이라 켜고 꺼도 그 위의 것은 움직이지 않는다. -->
                     <div id="hfRRow" class="hidden bg-white px-4 py-3 rounded-xl border border-sky-200 shadow-sm">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-sky-700 text-base">상관계수 (r)</span>
@@ -378,23 +408,6 @@
                         </p>
                     </div>
                 </div>
-
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
-                    <p class="font-bold text-slate-600 text-base mb-2"><i
-                            class="fa-solid fa-clock-rotate-left mr-2"></i>내가 놓아 본 선</p>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-base">
-                            <thead>
-                            <tr class="text-slate-500 border-b border-slate-200">
-                                <th class="text-left font-bold py-1">기울기 a</th>
-                                <th class="text-left font-bold py-1">절편 b</th>
-                                <th class="text-right font-bold py-1">합</th>
-                            </tr>
-                            </thead>
-                            <tbody id="hfHistory" class="math-font text-slate-700"></tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
@@ -403,102 +416,111 @@
          「줄이는 방향」을 아래 절이 말로만 하고 있었다. 여기서 골짜기를 먼저 눈으로
          보여 두면, 자동 학습의 한 걸음이 **이미 본 그림 위의 움직임**이 된다. -->
     <section id="error-curve"
-             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage sim-deck fs-wide">
         <button type="button" class="fs-btn" data-fullscreen="error-curve"
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
             <i class="fa-solid fa-expand"></i>
         </button>
-        <div class="mb-8 space-y-2 text-center md:text-left">
+        <div class="mb-4 space-y-2 text-center md:text-left">
             <span class="text-amber-600 font-bold tracking-widest uppercase text-base fs-hide">Error Curve</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-800">오차 곡선 — 골짜기의 바닥을 찾아가기</h2>
             <p class="text-slate-600 text-lg fs-hide">기울기를 바꿀 때 오차 제곱의 합이 어떻게 변하는지 그려 봅니다.</p>
         </div>
 
-        <div class="fs-fill flex flex-col lg:flex-row gap-6 items-stretch">
-            <div class="w-full lg:w-[50%] min-w-0 flex flex-col gap-3">
-                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
-                     style="aspect-ratio: 4/3;">
-                    <canvas id="curveScatter" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
-                </div>
-                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
-                    <strong class="text-slate-700">자료와 내 선.</strong> 점선 하나하나가 오차입니다.
-                    그림을 누르면 그 자리에 점이 하나 늘어나고, 오차 곡선의 모양도 함께 바뀝니다.
-                </p>
-            </div>
-            <div class="w-full lg:w-[50%] min-w-0 flex flex-col gap-3">
-                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
-                     style="aspect-ratio: 4/3;">
-                    <canvas id="curveGraph" class="absolute top-0 left-0 w-full h-full"></canvas>
-                </div>
-                <!-- 이 한 줄이 없으면 학생은 골짜기 바닥을 곧바로 「정답 기울기」로 읽는다. -->
-                <p class="text-base text-slate-500 font-medium leading-snug break-keep">
-                    <strong class="text-slate-700">이 곡선은 절편 b를 지금 값으로 고정하고 기울기 a만 바꿔 본 것입니다.</strong>
-                    b를 움직이면 곡선 전체가 바뀌므로, 골짜기 바닥이 곧 정답 기울기인 것은 아닙니다.
-                    가로 축은 골짜기 둘레만 보이도록 좁혀지고, 가까이 갈수록 더 크게 확대됩니다.
-                    세로 축도 0에서 시작하지 않으므로, 축 양 끝에 적힌 값을 함께 보세요.
-                </p>
-            </div>
-        </div>
-
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white flex flex-col gap-3">
-                <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner">
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="ecSlopeSlider" class="text-base font-bold text-slate-300">기울기 (a)</label>
-                        <span id="ecSlopeVal" class="math-font text-base font-black text-amber-300">0.000</span>
+        <!-- sim-deck 가로형: 그림이 둘이라 조작을 위 띠에 두고 그림 둘이 폭을 나눠 갖는다
+             (다중 선형 회귀와 같은 짜임). 좁은 화면에서는 그림이 먼저다. -->
+        <div class="fs-fill fs-cols flex flex-col gap-6">
+            <div class="fs-main flex flex-col gap-3">
+                <div class="fs-grow">
+                    <div class="sim-plot-pair grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="sim-plot relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas id="curveScatter" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                        </div>
+                        <div class="sim-plot relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas id="curveGraph" class="absolute top-0 left-0 w-full h-full"></canvas>
+                        </div>
                     </div>
-                    <input type="range" id="ecSlopeSlider" min="0" max="1000" step="1" value="500"
-                           class="w-full accent-amber-500 cursor-pointer">
                 </div>
-                <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner">
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="ecInterceptSlider" class="text-base font-bold text-slate-300">절편 (b)</label>
-                        <span id="ecInterceptVal" class="math-font text-base font-black text-amber-300">0.000</span>
-                    </div>
-                    <input type="range" id="ecInterceptSlider" min="0" max="1000" step="1" value="500"
-                           class="w-full accent-amber-500 cursor-pointer">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p class="text-base text-slate-500 font-medium leading-snug break-keep">
+                        <strong class="text-slate-700">자료와 내 선.</strong> 점선 하나하나가 오차입니다.
+                        그림을 누르면 그 자리에 점이 하나 늘어나고, 오차 곡선의 모양도 함께 바뀝니다.
+                    </p>
+                    <!-- 이 한 줄이 없으면 학생은 골짜기 바닥을 곧바로 「정답 기울기」로 읽는다. -->
+                    <p class="text-base text-slate-500 font-medium leading-snug break-keep">
+                        <strong class="text-slate-700">이 곡선은 절편 b를 지금 값으로 고정하고 기울기 a만 바꿔 본 것입니다.</strong>
+                        b를 움직이면 곡선 전체가 바뀌므로, 골짜기 바닥이 곧 정답 기울기인 것은 아닙니다.
+                        가로 축은 골짜기 둘레만 보이도록 좁혀지고, 가까이 갈수록 더 크게 확대됩니다.
+                        세로 축도 0에서 시작하지 않으므로, 축 양 끝에 적힌 값을 함께 보세요.
+                    </p>
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3">
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
-                            onclick="errorCurve.loadExample(1)">
-                        <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 → 시험 점수
-                    </button>
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
-                            onclick="errorCurve.loadExample(2)">
-                        <i class="fa-solid fa-temperature-high mr-1"></i> 기온 → 아이스크림 판매
-                    </button>
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
-                            onclick="errorCurve.loadExample(3)">
-                        <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 → 게임 점수
-                    </button>
-                    <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50"
-                            onclick="errorCurve.loadExample(4)">
-                        <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
-                    </button>
-                    <button id="ecRandom"
-                            class="w-full px-3 py-2 text-base bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg border border-amber-200">
-                        랜덤 데이터
-                    </button>
-                    <button id="ecClear"
-                            class="w-full px-3 py-2 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg border border-slate-200">
-                        전체 삭제
-                    </button>
+            <div class="fs-side">
+                <!-- ① 내 선 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-sliders mr-2"></i>내 선</p>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <label for="ecSlopeSlider" class="text-base font-bold text-slate-600">기울기 (a)</label>
+                            <span id="ecSlopeVal" class="math-font text-base font-black text-amber-700">0.000</span>
+                        </div>
+                        <input type="range" id="ecSlopeSlider" min="0" max="1000" step="1" value="500"
+                               class="w-full accent-amber-500 cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <label for="ecInterceptSlider" class="text-base font-bold text-slate-600">절편 (b)</label>
+                            <span id="ecInterceptVal" class="math-font text-base font-black text-amber-700">0.000</span>
+                        </div>
+                        <input type="range" id="ecInterceptSlider" min="0" max="1000" step="1" value="500"
+                               class="w-full accent-amber-500 cursor-pointer">
+                    </div>
                 </div>
-                <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-100 flex flex-col gap-2">
-                    <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-slate-500 text-base">지금 선의 합</span>
-                        <span id="ecSum" class="font-black text-slate-800 math-font">0</span>
+
+                <!-- ② 자료 · 값 -->
+                <div class="sim-panel flex flex-col gap-2">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50 whitespace-nowrap"
+                                onclick="errorCurve.loadExample(1)">
+                            <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 → 시험 점수
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50 whitespace-nowrap"
+                                onclick="errorCurve.loadExample(2)">
+                            <i class="fa-solid fa-temperature-high mr-1"></i> 기온 → 아이스크림 판매
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50 whitespace-nowrap"
+                                onclick="errorCurve.loadExample(3)">
+                            <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 → 게임 점수
+                        </button>
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-amber-50 whitespace-nowrap"
+                                onclick="errorCurve.loadExample(4)">
+                            <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
+                        </button>
+                        <button id="ecRandom"
+                                class="w-full px-3 py-2 text-base bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg border border-amber-200">
+                            랜덤 데이터
+                        </button>
+                        <button id="ecClear"
+                                class="w-full px-3 py-2 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg border border-slate-200">
+                            전체 삭제
+                        </button>
                     </div>
-                    <div class="bg-white px-4 py-2 rounded-xl border border-amber-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-amber-700 text-base">이 절편에서 가장 작은 합</span>
-                        <span id="ecMin" class="font-black text-amber-700 math-font">0</span>
-                    </div>
-                    <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-slate-500 text-base">그때의 기울기</span>
-                        <span id="ecMinA" class="font-black text-slate-800 math-font">0</span>
+                    <!-- 값은 칸 폭을 고정해 자릿수가 바뀌어도 줄이 접히지 않게 한다. -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div class="bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="font-bold text-slate-500 text-base whitespace-nowrap">지금 선의 합</p>
+                            <p id="ecSum" class="font-black text-slate-800 math-font text-base truncate">0</p>
+                        </div>
+                        <div class="px-3 py-1 rounded-xl border border-amber-200 shadow-sm bg-amber-50">
+                            <p class="font-bold text-amber-700 text-base whitespace-nowrap">이 절편에서 가장 작은 합</p>
+                            <p id="ecMin" class="font-black text-amber-700 math-font text-base truncate">0</p>
+                        </div>
+                        <div class="bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="font-bold text-slate-500 text-base whitespace-nowrap">그때의 기울기</p>
+                            <p id="ecMinA" class="font-black text-slate-800 math-font text-base truncate">0</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -506,143 +528,136 @@
     </section>
 
     <section id="activity"
-             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage">
+             class="mx-auto scroll-mt-24 section-card !p-6 md:!p-8 overflow-hidden bg-white border border-slate-200 shadow-lg fs-stage sim-deck fs-tall">
         <!-- 교실 화면용 전체 화면 버튼. 나올 때는 Esc 또는 같은 버튼. -->
         <button type="button" class="fs-btn" data-fullscreen="activity"
                 title="전체 화면으로 보기" aria-label="전체 화면으로 보기">
             <i class="fa-solid fa-expand"></i>
         </button>
-        <div class="mb-8 space-y-2 text-center md:text-left">
+        <div class="mb-4 space-y-2 text-center md:text-left">
             <span class="text-blue-600 font-bold tracking-widest uppercase text-base fs-hide">Interactive Simulator</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-800">선형 회귀 학습 시뮬레이터</h2>
             <p class="text-slate-600 text-lg fs-hide">데이터를 입력하거나 실생활 예제를 불러온 뒤 「학습 시작」을 눌러보세요.</p>
         </div>
 
-        <div class="fs-fill flex flex-col lg:flex-row gap-6 items-stretch">
-            <div class="w-full lg:w-[60%] flex flex-col gap-4">
-                <div class="fs-fit relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner"
-                     style="aspect-ratio: 4/3;">
-                    <canvas id="regressionCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                    <div class="flex-1 flex flex-col gap-2">
-                        <label class="font-bold text-slate-600 text-base">좌표 직접 입력</label>
-                        <div class="flex gap-2">
-                            <input type="number" id="inputX" placeholder="x"
-                                   class="w-full px-3 py-2 border rounded-lg bg-slate-50 outline-none focus:border-blue-400">
-                            <input type="number" id="inputY" placeholder="y"
-                                   class="w-full px-3 py-2 border rounded-lg bg-slate-50 outline-none focus:border-blue-400">
-                            <button id="btnAddCoord"
-                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 whitespace-nowrap">
-                                추가
-                            </button>
-                        </div>
-                    </div>
-                    <div class="flex-1 flex flex-col gap-2">
-                        <label class="font-bold text-slate-600 text-base">일괄 데이터 입력 (x,y)</label>
-                        <div class="flex gap-2 h-full">
-                            <textarea id="bulkInput" placeholder="1,2&#10;2,3"
-                                      class="w-full h-[42px] px-3 py-1 border rounded-lg bg-slate-50 outline-none focus:border-blue-400 text-base resize-none"></textarea>
-                            <button id="btnBulkAdd"
-                                    class="px-4 py-2 bg-slate-700 text-white rounded-lg font-bold hover:bg-slate-800 whitespace-nowrap">
-                                일괄 추가
-                            </button>
+        <!-- sim-deck 세로형: 그림이 하나라 위 띠로 두면 양옆이 빈다. 넓은 화면에서는 조작(fs-side)이
+             왼쪽 칸, 그림(fs-main)이 남는 폭과 높이를 갖는다. 좁은 화면에서는 그림이 먼저다. -->
+        <div class="fs-fill fs-cols flex flex-col gap-6">
+            <div class="fs-main flex flex-col gap-4">
+                <div class="fs-grow">
+                    <div class="sim-plot-pair grid grid-cols-1">
+                        <div class="sim-plot relative w-full bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-inner">
+                            <canvas id="regressionCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
+            <div class="fs-side sim-side-roomy">
+                <!-- ① 자료 -->
+                <div class="sim-panel flex flex-col gap-2">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-database mr-2"></i>자료</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50 whitespace-nowrap"
                                 onclick="uiController.loadExample(1)">
                             <i class="fa-solid fa-mug-hot mr-1"></i> 밤샘 공부 → 시험 점수
                         </button>
-
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50 whitespace-nowrap"
                                 onclick="uiController.loadExample(2)">
                             <i class="fa-solid fa-temperature-high mr-1"></i> 기온 → 아이스크림 판매
                         </button>
-
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50 whitespace-nowrap"
                                 onclick="uiController.loadExample(3)">
                             <i class="fa-solid fa-gamepad mr-1"></i> 게임 연습 → 게임 점수
                         </button>
-
-                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50"
+                        <button class="w-full px-3 py-2 text-base bg-slate-50 text-slate-700 rounded-lg font-bold border border-slate-200 hover:bg-blue-50 whitespace-nowrap"
                                 onclick="uiController.loadExample(4)">
                             <i class="fa-solid fa-wifi mr-1"></i> 공유기 거리 → WiFi 속도
                         </button>
                     </div>
-                    <!-- h-5(20px) 고정이면 좁은 화면에서 설명이 두세 줄이 되며 통째로 잘린다. -->
-                    <p id="exampleDesc" class="mt-3 text-base text-blue-600 font-medium min-h-5 text-center leading-snug break-keep"></p>
+                    <!-- 예제마다 글 길이가 달라도 칸이 그대로이게 두 줄 높이를 못박는다.
+                         w-0 min-w-full: 글이 칸 폭을 정하지 못하게 한다. -->
+                    <p id="exampleDesc" class="w-0 min-w-full h-[3.25rem] overflow-y-auto text-base text-blue-600 font-medium leading-snug break-keep"></p>
+                    <div class="flex gap-2">
+                        <input type="number" id="inputX" placeholder="x" aria-label="x"
+                               class="w-0 flex-1 px-3 py-2 border rounded-lg bg-slate-50 outline-none focus:border-blue-400 text-base">
+                        <input type="number" id="inputY" placeholder="y" aria-label="y"
+                               class="w-0 flex-1 px-3 py-2 border rounded-lg bg-slate-50 outline-none focus:border-blue-400 text-base">
+                        <button id="btnAddCoord"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 whitespace-nowrap text-base">
+                            추가
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <textarea id="bulkInput" placeholder="1,2&#10;2,3" aria-label="일괄 데이터 입력 (x,y)"
+                                  class="w-0 flex-1 h-[42px] px-3 py-1 border rounded-lg bg-slate-50 outline-none focus:border-blue-400 text-base resize-none"></textarea>
+                        <button id="btnBulkAdd"
+                                class="px-4 py-2 bg-slate-700 text-white rounded-lg font-bold hover:bg-slate-800 whitespace-nowrap text-base">
+                            일괄 추가
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btnRandomData"
+                                class="flex-1 px-3 py-2 text-base bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg border border-blue-200">
+                            랜덤 데이터
+                        </button>
+                        <button id="btnClearData"
+                                class="flex-1 px-3 py-2 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-lg border border-slate-200">
+                            전체 삭제
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex gap-3 mt-auto">
-                    <button id="btnRandomData"
-                            class="flex-1 px-4 py-3 text-base bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl border border-blue-200">
-                        랜덤 데이터
-                    </button>
-                    <button id="btnClearData"
-                            class="flex-1 px-4 py-3 text-base bg-white hover:bg-rose-50 text-rose-600 font-bold rounded-xl border border-slate-200">
-                        전체 삭제
-                    </button>
-                </div>
-            </div>
-
-            <div class="w-full lg:w-[40%] flex flex-col gap-5">
-                <div class="bg-slate-800 p-5 rounded-2xl border-2 border-slate-700 shadow-lg text-white">
-                    <p class="font-black text-slate-300 text-base flex items-center uppercase tracking-widest mb-3"><i
-                            class="fa-solid fa-calculator mr-2"></i>Model Info</p>
-                    <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-600 shadow-inner mb-4">
+                <!-- ② 학습 · 값 -->
+                <div class="sim-panel flex flex-col gap-3">
+                    <p class="font-black text-slate-500 text-base"><i class="fa-solid fa-calculator mr-2"></i>학습</p>
+                    <div class="bg-slate-800 rounded-xl px-4 py-2 text-center overflow-x-auto whitespace-nowrap">
                         <span id="equationDisplay"
-                              class="math-font text-2xl font-black text-emerald-400">y = ax + b</span>
+                              class="math-font text-lg md:text-xl font-black text-emerald-400">y = ax + b</span>
                     </div>
                     <!-- 학습률(learning rate): 경사하강의 핵심 하이퍼파라미터.
                          너무 크면 발산하고 너무 작으면 느리다는 것을 직접 실험할 수 있어야 한다. -->
-                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-600 shadow-inner mb-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="lrSlider" class="text-base font-bold text-slate-300">학습률 (α)</label>
-                            <span id="lrDisplay" class="math-font text-base font-black text-amber-400">0.050</span>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <label for="lrSlider" class="text-base font-bold text-slate-600">학습률 (α)</label>
+                            <span id="lrDisplay" class="math-font text-base font-black text-amber-600">0.050</span>
                         </div>
                         <input type="range" id="lrSlider" min="0" max="100" step="1" value="50"
                                class="w-full accent-amber-500 cursor-pointer">
-                        <p id="lrHint" class="text-base text-slate-400 font-medium mt-2 leading-snug break-keep">
-                            적당한 학습률입니다.
-                        </p>
+                        <p id="lrHint" class="sim-lr-hint sim-lr-hint-2 ok">적당한 학습률입니다.</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 mb-2">
+                    <div class="grid grid-cols-2 gap-2">
                         <button id="btnTrain"
-                                class="col-span-2 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg">
+                                class="col-span-2 px-3 py-3 bg-blue-500 text-white font-black rounded-xl transition-all shadow-md flex justify-center items-center text-lg whitespace-nowrap state-ready">
                             <i class="fa-solid fa-play mr-2"></i>학습 시작
                         </button>
                         <button id="btnPause"
-                                class="py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center">
+                                class="px-3 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center text-base whitespace-nowrap">
                             <i class="fa-solid fa-pause mr-2"></i>일시정지
                         </button>
                         <button id="btnReset"
-                                class="py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center">
+                                class="px-3 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl transition-all flex justify-center items-center text-base whitespace-nowrap">
                             <i class="fa-solid fa-rotate-right mr-2"></i>초기화
                         </button>
                     </div>
-                </div>
-
-                <div class="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 flex-1 flex flex-col justify-center gap-3">
-                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-slate-500 text-base">기울기 (a)</span>
-                        <span id="valSlope" class="font-black text-slate-800 math-font">0.000</span>
-                    </div>
-                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-slate-500 text-base">절편 (b)</span>
-                        <span id="valIntercept" class="font-black text-slate-800 math-font">0.000</span>
-                    </div>
-                    <div class="bg-white px-4 py-3 rounded-xl border border-rose-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-rose-500 text-base">MSE (평균제곱오차)</span>
-                        <span id="valMSE" class="font-black text-rose-600 math-font">0.000</span>
-                    </div>
-                    <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span class="font-bold text-slate-500 text-base">Epoch (반복)</span>
-                        <span id="valEpoch" class="font-black text-slate-800 math-font">0</span>
+                    <!-- 값은 칸 폭을 고정해 자릿수가 바뀌어도 줄이 접히지 않게 한다. -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div class="bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="font-bold text-slate-500 text-base whitespace-nowrap">기울기 a</p>
+                            <p id="valSlope" class="font-black text-slate-800 math-font text-base truncate">0.000</p>
+                        </div>
+                        <div class="bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="font-bold text-slate-500 text-base whitespace-nowrap">절편 b</p>
+                            <p id="valIntercept" class="font-black text-slate-800 math-font text-base truncate">0.000</p>
+                        </div>
+                        <div class="px-3 py-1 rounded-xl border border-rose-200 shadow-sm bg-rose-50">
+                            <p class="font-bold text-rose-500 text-base whitespace-nowrap">MSE</p>
+                            <p id="valMSE" class="font-black text-rose-600 math-font text-base truncate">0.000</p>
+                        </div>
+                        <div class="bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="font-bold text-slate-500 text-base whitespace-nowrap">Epoch</p>
+                            <p id="valEpoch" class="font-black text-slate-800 math-font text-base truncate">0</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -878,8 +893,7 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 시작';
             // 이전 실행의 완료/발산 상태 색이 남지 않도록 함께 지운다.
-            btn.classList.remove('bg-emerald-500', 'bg-blue-700', 'state-complete', 'state-diverged', 'state-loading');
-            btn.classList.add('bg-blue-500');
+            btn.classList.remove('state-complete', 'state-diverged', 'state-loading');
             this.model.diverged = false;
             document.getElementById('btnPause').disabled = false;
         }
@@ -909,22 +923,23 @@
                 let msg, cls;
                 if (lr < 0.01) {
                     msg = '너무 작습니다. 수렴까지 아주 오래 걸립니다.';
-                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-sky-400';
+                    cls = 'slow';
                 } else if (lr <= 0.5) {
                     msg = '적당한 학습률입니다.';
-                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-slate-400';
+                    cls = 'ok';
                 } else if (lr <= 1.2) {
                     // 발산 임계값은 데이터 모양에 따라 다르다. 이 구간은 '진동만 하고 끝나는'
                     // 구간이 아니라 발산이 섞이는 구간이라, 문구도 '발산할 수 있다'로 흐려 둔다.
                     // 실제 경계가 궁금하면 예제를 바꿔 가며 측정해 볼 것 — 여기 숫자로 적으면 낡는다.
                     msg = '큽니다. 직선이 좌우로 진동하다가 발산할 수 있습니다.';
-                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-amber-400';
+                    cls = 'warn';
                 } else {
                     msg = '너무 큽니다. 거의 항상 발산합니다.';
-                    cls = 'text-base font-medium mt-2 leading-snug break-keep text-rose-400';
+                    cls = 'bad';
                 }
                 lrHint.innerText = msg;
-                lrHint.className = cls;
+                lrHint.classList.remove('slow', 'ok', 'warn', 'bad');
+                lrHint.classList.add(cls);
             };
 
             lrSlider.addEventListener('input', applyLR);
@@ -941,8 +956,8 @@
 
                 const btn = document.getElementById('btnTrain');
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>학습 중...';
-                btn.classList.replace('bg-blue-500', 'bg-blue-700');
                 btn.classList.remove('state-diverged', 'state-complete');
+                btn.classList.add('state-loading');
                 btn.disabled = true;
                 document.getElementById('btnPause').disabled = false;
 
@@ -955,7 +970,7 @@
                 const btn = document.getElementById('btnTrain');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-play mr-2"></i>학습 재개';
-                btn.classList.replace('bg-blue-700', 'bg-blue-500');
+                btn.classList.remove('state-loading');
             });
 
             document.getElementById('btnReset').addEventListener('click', () => this.enableTraining() || this.updateUI());
@@ -1077,11 +1092,13 @@
                 if (this.model.diverged) {
                     // 발산은 실패가 아니라 관찰 대상이다. 이유를 분명히 알려 주고 다시 시도할 수 있게 둔다.
                     btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-2"></i>발산! 학습률을 낮춰 보세요';
+                    btn.classList.remove('state-loading');
                     btn.classList.add('state-diverged');
                     btn.disabled = false;
                     document.getElementById('btnPause').disabled = true;
                 } else {
                     btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>학습 완료 (수렴)';
+                    btn.classList.remove('state-loading');
                     btn.classList.add('state-complete');
                     btn.disabled = true; // [핵심 개선] 수렴 시 버튼 비활성화
                     document.getElementById('btnPause').disabled = true;

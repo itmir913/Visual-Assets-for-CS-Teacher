@@ -207,14 +207,15 @@ for (const [ε, 씨] of [[0.1, 111], [0.3, 222]]) {
 /* ================================================================
    6. 따로 짠 ε-탐욕과 한 판 전체 대조 — 같은 난수 순서로 고른 것 · 보상 합 · 산술 평균
    ================================================================ */
-// 버튼을 누르지 않고 `banditController.step()` 을 부른다 — 받침대가 `onload` 를 두 번 불러
-// 컨트롤러가 둘 떠 있고, 버튼은 둘 다를 한 번씩 돌린다.
+// 「한 번 실행」 버튼을 누른다 — ε 은 슬라이더로 넣고, 버튼 배선까지 함께 본다.
 for (const [ε, 씨] of [[0, 5], [0.2, 6], [1, 7]]) {
     씨앗(씨);
     P('banditController.env.reset(); banditController.initDOM(); banditController.updateUI()');
     const 확률 = P('banditController.env.machines').map((m) => m.trueProb);
     const 판수 = 700;
-    P(`for (let i = 0; i < ${판수}; i++) banditController.step(banditController.env.chooseAction(${ε}))`);
+    doc.getElementById('epsilonSlider').value = String(ε);
+    const 한번 = doc.getElementById('btnStep');
+    for (let i = 0; i < 판수; i++) 한번.dispatchEvent(new sim.window.MouseEvent('click', {bubbles: true}));
 
     // 기계를 뽑는 데 쓴 난수까지 똑같이 흘려보낸 뒤 따로 돌린다 — 뽑기 다섯 + 섞기 넷
     const rnd = mulberry32(씨);

@@ -473,10 +473,10 @@ export function loadSim(name, opts = {}) {
         Object.defineProperty(doc, 'readyState', {value: 'interactive', configurable: true});
         fire(doc, 'DOMContentLoaded');
         Object.defineProperty(doc, 'readyState', {value: 'complete', configurable: true});
+        /* `window.onload = …` 도 이 한 번으로 불린다 — jsdom 이 사건 처리기 속성을 사건에 묶는다.
+           예전에는 여기서 `W.onload()` 를 한 번 더 불러, 컨트롤러를 만드는 페이지가 검사 안에서만
+           두 벌 떠 버튼 한 번에 둘이 함께 움직였다. */
         fire(W, 'load');
-        if (typeof W.onload === 'function') {
-            try { W.onload(); } catch (e) { errors.push(`onload: ${e.message}`); }
-        }
     };
 
     /** id 가 붙은 요소를 전부. 화면에 무엇이 찍혔는지 살펴볼 때 쓴다. */

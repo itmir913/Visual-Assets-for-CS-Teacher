@@ -335,8 +335,9 @@ for (const [크기, ε, α, γ, 씨] of [[4, 0, 0.5, 0.9, 1], [5, 0.2, 0.3, 0.95
     doc.getElementById('gammaSlider').value = String(γ);
     const 걸음수 = 1500;
     씨앗(씨);
-    // 버튼을 누르지 않고 `step()` 을 부른다 — 받침대가 `onload` 를 두 번 불러 컨트롤러가 둘 떠 있고, 버튼은 둘 다를 한 걸음씩 걷게 한다
-    P(`for (let i = 0; i < ${걸음수}; i++) gridWorldController.step()`);
+    // 「한 걸음」 버튼을 누른다 — 버튼 배선까지 함께 본다
+    const 한걸음 = doc.getElementById('btnStep');
+    for (let i = 0; i < 걸음수; i++) 한걸음.dispatchEvent(new sim.window.MouseEvent('click', {bubbles: true}));
     const 답 = 따로Q러닝(env, 걸음수, ε, α, γ, 씨);
     const q = P('gridWorldController.agent.qTable');
     let 어긋남 = 0;

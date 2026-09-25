@@ -327,6 +327,7 @@ const MUTANTS = [
     ['sim-gridworld', 'simulator/ai/reinforcement-gridworld.html', 'this.episodeReward += reward;', 'this.episodeReward = reward;', '에피소드 보상을 마지막 한 걸음만'],
     ['sim-gridworld', 'simulator/ai/reinforcement-gridworld.html', "const gamma = parseFloat(document.getElementById('gammaSlider').value);", "const gamma = parseFloat(document.getElementById('alphaSlider').value);", 'γ 를 α 조절기에서 읽음'],
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'if (m.qValue > maxQ) {', 'if (m.qValue >= maxQ) {', '동점을 마지막 기계 하나로'],
+    ['sim-gridworld', 'tools/_sim-harness.mjs', "fire(W, 'load');", "fire(W, 'load'); if (typeof W.onload === 'function') W.onload();", '받침대가 onload 를 두 번 부름'],
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'return Math.floor(Math.random() * this.machines.length);', 'return Math.floor(Math.random() * (this.machines.length - 1));', '탐험에서 마지막 기계가 나오지 않음'],
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'const reward = Math.random() < machine.trueProb ? 1 : 0;', 'const reward = Math.random() > machine.trueProb ? 1 : 0;', '당첨 확률을 뒤집음'],
     ['sim-bandit', 'simulator/ai/reinforcement-multi-armed-bandit.html', 'if (this.history.length > 500) {', 'if (this.history.length > 501) {', '기록을 한 줄 더 남김'],

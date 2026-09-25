@@ -140,10 +140,10 @@ function bstRemove(rec, v, {rebalance = false} = {}) {
            옮겨 간 값이 제자리를 벗어난다(화면에서도 가로 순서가 어긋나 보인다).
            곧 그 노드를 제거하므로 끝나고 나면 성질이 돌아온다 —
            **그 「잠깐」을 밝히지 않으면 자막이 화면을 부정한다.** */
-        rec.say(`${target.v} 자리에 **${withJosa(succ.v, '을를')}** 올려놓습니다. `
-            + `옮겨 온 자리(${withJosa(target.v, '이가')} 있던 곳)에는 `
-            + `이제 ${withJosa(succ.v, '이가')} 두 번 있는 셈이라 `
-            + '**잠깐 규칙이 어긋납니다** — 곧 아래쪽 노드를 제거하면 제자리로 돌아옵니다.');
+        rec.say(`${withJosa(target.v, '과와')} ${succ.v}의 **값을 맞바꿉니다.** `
+            + `위로 올라간 ${withJosa(succ.v, '은는')} 제자리를 찾지만, 아래로 내려간 `
+            + `${withJosa(target.v, '은는')} 자기보다 큰 ${succ.v}의 오른쪽 가지에 놓여 `
+            + '**잠깐 규칙이 어긋납니다** — 곧 그 노드를 제거하면 규칙이 돌아옵니다.');
         rec.swapValues(target.id, succ.id);
         target = succ;   // 이제 지울 것은 «다음 값»이 옮겨 간 노드다
     }

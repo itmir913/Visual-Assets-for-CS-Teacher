@@ -14,6 +14,12 @@
 //     npm run prose -- "인공지능기초/*.html" -o out.md
 //     npm run prose -- "데이터과학/*.html" --stats   # 크기만 보고 싶을 때
 //     npm run prose -- "인공지능기초/**/*.html" --digest -o d.md   # 과목 전체 요약판 → digest()
+//     npm run prose -- --glossary -o g.md   # 과목 간 용어집 → glossary(). 글롭 없이 전 과목을 본다
+//
+// 과목 간 점검 — 요약판도 다섯 과목을 합치면 감사자 한 번에 읽기엔 크다. 과목 사이의 어긋남은
+// «같은 개념을 두 과목이 다르게 말하는 것»이므로 과목이 아니라 용어 단위로 모은다(2026-09-25).
+// 용어집을 주제 묶음(인공지능 · 데이터 · 알고리즘 · 시스템)별 감사자에게 주고, 지적은 전문판에서
+// 원문을 확인한 것만 받는다. 기준 과목은 `subjects.json` 의 첫 과목이고 표의 맨 앞 열이 된다.
 //
 // 주의 — 추출본에는 **표의 열 구조와 그림이 남지 않는다.**
 // "두 산점도를 나란히 놓아 비교시킨다" 같은 시각 장치는 감사 범위에서 빠진다.
@@ -22,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ARIA, DROP, QUIZ, SVG, TAG, clean} from './lib/prose-text.mjs';
+import {ROOT, SUBJECTS, walk} from './lib/repo.mjs';
 
 const HEADING = /<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/g;
 const SECTION = /<section\b[^>]*\bid="([^"]+)"/g;
@@ -82,7 +89,71 @@ export function digest(text) {
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/**
+ * 과목 간 용어집 — 두 과목 이상에 나오는 용어의 정의 문장을 과목별로 나란히 놓는다.
+ *
+ * 열쇠는 둘이다. 「한글(English)」 병기의 영어(소문자)와, 「X(이)란 」 정의꼴의 한글 X.
+ * 영어를 열쇠로 삼으면 **같은 영어에 과목마다 다른 한글이 붙은 것**(인코딩 / 부호화 같은)이
+ * 저절로 드러난다 — 그런 용어에는 ⚠ 를 단다. 뽑는 규칙이 느슨해 잡음이 섞이므로 판정은
+ * 감사자가 원문을 보고 한다.
+ * @param {{subj: string, name: string, text: string}[]} docs 과목 순서대로
+ */
+export function glossary(docs, subjects) {
+    const sentences = (text) => text.split('\n').filter((l) => !/^#|^\[/.test(l) && !/class=/.test(l)).join(' ')
+        .replace(/\s+/g, ' ').split(/(?<=[.?!])\s+|(?<=다)\s+(?=[가-힣「])/)
+        .map((s) => s.trim()).filter((s) => s.length > 8 && s.length < 260);
+    const files = docs.map((d) => ({...d, sents: sentences(d.text)}));
+    const terms = new Map();
+    const add = (k, ko, f, s) => {
+        if (!terms.has(k)) terms.set(k, {ko: new Map(), hits: new Map()});
+        const t = terms.get(k);
+        if (ko) (t.ko.get(f.subj) ?? t.ko.set(f.subj, new Set()).get(f.subj)).add(ko);
+        const arr = t.hits.get(f.subj) ?? t.hits.set(f.subj, []).get(f.subj);
+        if (!arr.some(([, x]) => x === s)) arr.push([f.name, s, DEF.test(s)]);
+    };
+    for (const f of files) {
+        for (const s of f.sents) {
+            for (const m of s.matchAll(/([가-힣]+(?: [가-힣]+)?)\s?\(([A-Za-z][A-Za-z .'-]{1,40}?)\)/g)) {
+                const en = m[2].trim().toLowerCase();
+                if (en.length >= 3) add('en:' + en, m[1].split(' ').pop(), f, s);
+            }
+            for (const m of s.matchAll(/(?:^|[\s「])([가-힣]{2,12})(?:이)?란 /g)) add('ko:' + m[1], m[1], f, s);
+        }
+    }
+    // 한글 열쇠는 그 낱말로 시작하는 정의꼴 문장을 다른 과목에서도 줍는다.
+    for (const [k] of terms) {
+        if (!k.startsWith('ko:')) continue;
+        const w = k.slice(3);
+        for (const f of files) for (const s of f.sents) if (s.includes(w) && DEF.test(s) && s.indexOf(w) < 25) add(k, w, f, s);
+    }
+    const out = ['# 과목 간 용어집', '', `두 과목 이상에 나오는 것만. 과목 순서: ${subjects.join(' · ')} (앞이 기준)`, ''];
+    for (const [k, t] of [...terms].sort()) {
+        if (t.hits.size < 2) continue;
+        const kos = new Set([...t.ko.values()].flatMap((x) => [...x]));
+        out.push(`## ${k.slice(3)}${kos.size > 1 ? `  ⚠ 한글 이름 ${[...kos].join(' / ')}` : ''}`);
+        for (const subj of subjects) {
+            const hs = t.hits.get(subj);
+            if (!hs) continue;
+            const pick = [...hs.filter((h) => h[2]), ...hs.filter((h) => !h[2])].slice(0, 2);
+            out.push(`- **${subj}** (${hs.length}곳${t.ko.get(subj) ? ' · ' + [...t.ko.get(subj)].join('/') : ''})`);
+            for (const [fn, s] of pick) out.push(`  - \`${fn}\` ${s.slice(0, 220)}`);
+        }
+        out.push('');
+    }
+    return out.join('\n');
+}
+
 function main(argv) {
+    if (argv.includes('--glossary')) {
+        const o = argv.indexOf('-o') >= 0 ? argv[argv.indexOf('-o') + 1] : null;
+        const subjects = SUBJECTS.map((s) => s.dir);
+        const docs = SUBJECTS.flatMap((s) => walk(path.join(ROOT, s.dir), {ext: ['.html']})
+            .map((f) => ({subj: s.dir, name: path.basename(f, '.html'), text: extract(f)[0]})));
+        const body = glossary(docs, subjects);
+        if (o) { fs.writeFileSync(o, body); console.error(`용어집 ${(body.match(/^## /gm) || []).length}개 → ${o}`); }
+        else process.stdout.write(body);
+        return;
+    }
     let outFile = null, stats = false, brief = false;
     const pats = [];
     for (let i = 0; i < argv.length; i++) {

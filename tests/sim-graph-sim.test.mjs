@@ -155,6 +155,73 @@ function pathIsReal(graph, p) {
     return true;
 }
 
+/**
+ * **정답을 `graph-model.js`와 다른 방법으로 한 번 더 구한다.**
+ *
+ * 위의 판정은 `cheapestCost` · `fewestHops`를 정답으로 쓰는데, 그 둘도 시뮬레이터와 같은
+ * 인접 목록(`graph.adj`)을 읽는다. 인접 목록을 만드는 자리(방향 풀기 · 비용 올림)가 틀리면
+ * 탐색과 정답이 함께 틀려 검사가 헛돈다. 그래서 **간선 배열과 좌표에서 곧바로** 플로이드-워셜로
+ * 모든 쌍의 최소 비용과 최소 칸 수를 따로 구하고, 두 정답이 같은지부터 본다.
+ */
+function truthOf(g, where) {
+    const ids = g.nodes.map(n => n.id);
+    const at = new Map(ids.map((id, i) => [id, i]));
+    const N = ids.length;
+    const C = Array.from({length: N}, (_, i) => Array.from({length: N}, (_, j) => (i === j ? 0 : Infinity)));
+    const H = C.map(row => [...row]);
+    const nbrs = new Map(ids.map(id => [id, new Set()]));
+    for (const e of g.edges) {
+        const p = g.byId.get(e.a), q = g.byId.get(e.b);
+        // 비용 = 올림(길이 ÷ 20), 적어도 1. 비용을 끄면 전부 1.
+        const want = g.weighted ? Math.max(1, Math.ceil(Math.hypot(p.x - q.x, p.y - q.y) / 20)) : 1;
+        if (e.cost !== want) bad(`${where}: 간선 ${e.id}의 비용이 ${e.cost}인데 좌표로는 ${want}`);
+        const a = at.get(e.a), b = at.get(e.b);
+        C[a][b] = Math.min(C[a][b], want);
+        H[a][b] = 1;
+        nbrs.get(e.a).add(e.b);
+        // 화살표(directed === true)만 한쪽으로 간다. 무방향과 양방향은 거꾸로도 간다.
+        if (e.directed !== true) {
+            C[b][a] = Math.min(C[b][a], want);
+            H[b][a] = 1;
+            nbrs.get(e.b).add(e.a);
+        }
+    }
+    for (let k = 0; k < N; k++) {
+        for (let i = 0; i < N; i++) {
+            for (let j = 0; j < N; j++) {
+                if (C[i][k] + C[k][j] < C[i][j]) C[i][j] = C[i][k] + C[k][j];
+                if (H[i][k] + H[k][j] < H[i][j]) H[i][j] = H[i][k] + H[k][j];
+            }
+        }
+    }
+    // 이웃은 이름순 — 깊이 우선이 「첫째 이웃부터」 간다는 말의 기준이다
+    for (const id of ids) {
+        const 참 = [...nbrs.get(id)].sort();
+        const 쓴것 = M.neighborsOf(g, id);
+        if ([...new Set(쓴것)].join() !== 참.join()) bad(`${where}: ${id}의 이웃이 ${쓴것.join(',')}인데 간선으로는 ${참.join(',')}`);
+    }
+    return {
+        cost: (u, v) => C[at.get(u)][at.get(v)],
+        hops: (u, v) => H[at.get(u)][at.get(v)],
+        firstNeighbor: (list) => [...list].sort()[0],
+    };
+}
+
+/** 두 정답이 같은가, h가 따로 구한 남은 비용을 넘지 않는가. */
+function crossCheck(g, T, where) {
+    if (M.cheapestCost(g) !== T.cost(g.start, g.goal)) {
+        bad(`${where}: cheapestCost ${M.cheapestCost(g)}, 플로이드-워셜 ${T.cost(g.start, g.goal)}`);
+    }
+    if (M.fewestHops(g) !== T.hops(g.start, g.goal)) {
+        bad(`${where}: fewestHops ${M.fewestHops(g)}, 플로이드-워셜 ${T.hops(g.start, g.goal)}`);
+    }
+    if (M.isReachable(g) !== Number.isFinite(T.cost(g.start, g.goal))) bad(`${where}: isReachable 이 틀렸다`);
+    for (const n of g.nodes) {
+        const rest = T.cost(n.id, g.goal);
+        if (Number.isFinite(rest) && M.hOf(g, n.id) > rest) bad(`${where}: h(${n.id})=${M.hOf(g, n.id)} > 남은 비용 ${rest}`);
+    }
+}
+
 /* ================================================================
    1. 맹목적 탐색 — 너비 우선 · 깊이 우선 · 균일 비용
    ================================================================ */
@@ -187,6 +254,7 @@ function checkBlind() {
     for (const preset of GRAPH_PRESETS) {
         for (const combo of COMBOS) {
             const truth = M.buildGraph(preset, combo);
+            crossCheck(truth, truthOf(truth, `정답 ${preset.id} ${tag(combo)}`), `정답 ${preset.id} ${tag(combo)}`);
             const bestCost = M.cheapestCost(truth);
             const bestHops = M.fewestHops(truth);
 
@@ -215,6 +283,58 @@ function checkBlind() {
                 if (cost < bestCost) bad(`${where}: 비용 ${cost} < 최소 ${bestCost} — 계산이 어긋났다`);
                 if (hops < bestHops) bad(`${where}: 칸 수 ${hops} < 최소 ${bestHops} — 계산이 어긋났다`);
                 if (st.closed.size > truth.nodes.length) bad(`${where}: 연 노드가 노드 수보다 많다`);
+            }
+        }
+    }
+
+    /* **꺼내는 차례가 그 방법의 정의대로인가.** 찾은 길이 맞아도 차례가 틀릴 수 있다 —
+       깊이 우선이 이웃을 거꾸로 넣지 않으면 길은 여전히 이어져 있지만 「첫째 이웃부터」가 깨진다.
+       기준은 위에서 플로이드-워셜로 따로 구한 거리다.
+         - 너비 우선: 꺼낸 노드의 칸 수가 줄어드는 일이 없다
+         - 깊이 우선: 방금 새로 넣은 이웃이 있으면 다음에 꺼내는 것은 그 가운데 이름순 첫째다
+         - 균일 비용: 꺼내는 순간의 비용이 곧 시작점에서의 최소 비용이고, 줄어드는 일이 없다 */
+    for (const preset of GRAPH_PRESETS) {
+        for (const combo of COMBOS) {
+            for (const algo of ['bfs', 'dfs', 'ucs']) {
+                el('graph-opt-directed').checked = combo.directed;
+                el('graph-opt-weighted').checked = combo.weighted;
+                el('graph-opt-cyclic').checked = combo.cyclic;
+                el('graph-opt-revisit').checked = true;
+                el('graph-algo').value = algo;
+                sim.loadPreset(preset);
+                sim.initSearch();
+                const T = truthOf(sim.graph, `차례 ${preset.id}`);
+                const where = `차례 ${preset.id} ${tag(combo)} ${algo}`;
+                const pops = [];
+                for (let guard = 0; guard < 5000; guard++) {
+                    const before = [...sim.search.frontier];
+                    const more = sim.step();
+                    const cur = sim.search.current;
+                    if (cur !== null) pops.push({cur, before, after: [...sim.search.frontier], g: sim.search.g.get(cur)});
+                    if (!more) break;
+                }
+                const start = sim.graph.start;
+                for (let i = 0; i < pops.length; i++) {
+                    const p = pops[i], q = pops[i + 1];
+                    if (algo === 'bfs' && q && T.hops(start, q.cur) < T.hops(start, p.cur)) {
+                        bad(`${where}: ${p.cur}(${T.hops(start, p.cur)}칸) 다음에 더 가까운 ${q.cur}(${T.hops(start, q.cur)}칸)를 꺼냈다`);
+                        break;
+                    }
+                    if (algo === 'dfs' && q) {
+                        const 새로 = p.after.filter(id => !p.before.includes(id));
+                        if (새로.length && q.cur !== T.firstNeighbor(새로)) {
+                            bad(`${where}: ${p.cur}에서 ${새로.join(',')}를 넣었는데 첫째 ${T.firstNeighbor(새로)}가 아니라 ${q.cur}를 꺼냈다`);
+                            break;
+                        }
+                    }
+                    if (algo === 'ucs') {
+                        if (p.g !== T.cost(start, p.cur)) {
+                            bad(`${where}: ${p.cur}를 비용 ${p.g}로 꺼냈는데 최소 비용은 ${T.cost(start, p.cur)}`);
+                            break;
+                        }
+                        if (q && q.g < p.g) { bad(`${where}: 비용 ${p.g} 다음에 더 싼 ${q.g}를 꺼냈다`); break; }
+                    }
+                }
             }
         }
     }
@@ -531,6 +651,61 @@ function checkHeuristic() {
             }
         }
     }
+
+    /* ---- 꺼내는 차례가 그 방법의 정의대로인가 ----
+       기준은 플로이드-워셜로 따로 구한 거리다. 값은 엔진의 g와 `hOf`의 h로 다시 세어,
+       열린 목록에서 가장 작은 것을 꺼냈는지 본다.
+         - 최상 우선: h가 가장 작은 것 — g를 조금이라도 섞으면 걸린다
+         - 다익스트라: g가 가장 작은 것, 그리고 **닫는 순간의 g가 최소 비용**
+         - A*: g + h가 가장 작은 것, h가 일관적이라 **닫는 순간의 g가 최소 비용**
+         - 너비 우선: 칸 수가 줄어드는 일이 없다 · 깊이 우선: 새로 넣은 이웃 가운데 이름순 첫째 */
+    let 차례판 = 0;
+    for (const preset of GRAPH_PRESETS) {
+        for (const combo of COMBOS) {
+            load(preset, combo);
+            const T = truthOf(sim.graph, `정보 차례 ${preset.id}`);
+            crossCheck(sim.graph, T, `정보 차례 ${preset.id} ${tag(combo)}`);
+            const start = sim.graph.start;
+            for (const algo of ['astar', 'dijkstra', 'greedy', 'bfs', 'dfs']) {
+                const en = sim.makeEngine(algo);
+                const where = `정보 차례 ${preset.id} ${tag(combo)} ${algo}`;
+                const h = (id) => M.hOf(sim.graph, id);
+                const key = {
+                    greedy: (id) => h(id),
+                    dijkstra: (id) => en.gScore.get(id),
+                    astar: (id) => en.gScore.get(id) + h(id),
+                }[algo];
+                let 앞 = null, 새로 = [];
+                for (let guard = 0; !en.isFinished && guard < 5000; guard++) {
+                    const 후보 = en.state === 'SELECT' ? null : [...en.openSet];
+                    const r = en.step();
+                    // 깊이 우선은 새로 발견한 이웃만 목록에 싣는다(부모를 갈아 끼우지 않는다)
+                    if (r.type === 'expand') { 새로 = r.expanded.map(x => x.id); continue; }
+                    if (!후보 || (r.type !== 'select' && r.type !== 'success')) continue;
+                    차례판++;
+                    if (key) {
+                        const 최소 = Math.min(...후보.map(key));
+                        if (key(r.node) !== 최소) { bad(`${where}: 값 ${key(r.node)}인 ${r.node}를 꺼냈는데 열린 목록의 최소는 ${최소}`); break; }
+                    }
+                    if ((algo === 'astar' || algo === 'dijkstra') && en.gScore.get(r.node) !== T.cost(start, r.node)) {
+                        bad(`${where}: ${r.node}를 g=${en.gScore.get(r.node)}로 닫았는데 최소 비용은 ${T.cost(start, r.node)}`);
+                        break;
+                    }
+                    if (algo === 'bfs' && 앞 !== null && T.hops(start, r.node) < T.hops(start, 앞)) {
+                        bad(`${where}: ${앞} 다음에 더 가까운 ${r.node}를 꺼냈다`);
+                        break;
+                    }
+                    if (algo === 'dfs' && 새로.length && r.node !== T.firstNeighbor(새로)) {
+                        bad(`${where}: ${새로.join(',')}를 넣었는데 첫째 ${T.firstNeighbor(새로)}가 아니라 ${r.node}를 꺼냈다`);
+                        break;
+                    }
+                    앞 = r.node;
+                    새로 = [];
+                }
+            }
+        }
+    }
+    if (차례판 === 0) bad('정보 차례: 꺼내는 회차를 하나도 못 보았다 — 검사가 헛돈다');
 
     /* ---- 지도를 고친 뒤에도 값이 성립하는가 ----
        간선을 끊고 잇고 노드를 옮기는 것은 **좌표와 간선을 바꾸는 일**이다. 비용과 h(n)이

@@ -53,7 +53,7 @@ const SIMS = [
     // 모든 페이지 공통 — 뜨는가 · 캔버스 배율 · on* 핸들러가 가리키는 것이 있는가
     'pages', 'fullscreen',
     // 페이지마다
-    'graph', 'graph-sim', 'heuristic-tree', 'puzzle', 'sort', 'ordering', 'ds', 'tree', 'find', 'compress',
+    'graph', 'graph-sim', 'heuristic-tree', 'search-tabs', 'puzzle', 'sort', 'ordering', 'ds', 'tree', 'find', 'compress',
     'least-squares', 'deep-learning', 'wumpus', 'nqueen', 'hanoi', 'river', 'decision-tree',
     'knn', 'logistic', 'svm', 'multiple-regression', 'gridworld', 'bandit', 'kmeans', 'vision',
 ];

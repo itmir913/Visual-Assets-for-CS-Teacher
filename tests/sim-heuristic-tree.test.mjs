@@ -232,11 +232,31 @@ for (const [depth, maxChild] of [[4, 3], [5, 3], [3, 2], [6, 4]]) {
         // 4) 네 방법을 돌려 꺼내는 규칙과 찾은 길을 본다.
         const 유일한길 = onlyPath(t).join(',');
         let 이판동점 = 0, 이판목표두고 = 0;
+        const 연노드 = {}, 알림 = {};
         for (const algo of ['astar', 'greedy', 'bfs', 'dfs']) {
             const r = runWatched(sim, algo, el, where);
             if (!r.결과) {
                 bad(`${where} ${algo}: 목표에 닿지 못했다`);
                 continue;
+            }
+            연노드[algo] = r.engine.closedSet.size;
+            알림[algo] = r.결과.msg;
+            // 알림에 적은 수가 실제로 센 것과 같은가 — 칸 수 · 비용 · 확장한 노드 수를 따로 센다
+            const 길 = onlyPath(t);
+            const 비용 = 길.slice(1).reduce((s, id) => s + t.cost.get(id), 0);
+            if (!r.결과.msg.includes(`<b>${길.length - 1}칸</b>`)) bad(`${where} ${algo}: 알림의 칸 수가 ${길.length - 1}칸이 아니다`);
+            if (!r.결과.msg.includes(`든 비용 <b>${비용}</b>`)) bad(`${where} ${algo}: 알림의 비용이 ${비용}이 아니다`);
+            if (!r.결과.msg.includes(`확장한 노드 <b>${r.engine.closedSet.size}개</b>`)) bad(`${where} ${algo}: 알림의 확장한 노드 수가 다르다`);
+            // 너비 우선은 목표보다 얕은 노드를 하나도 빠짐없이 확장한다 — 트리에서 깊이를 따로 세어 본다
+            if (algo === 'bfs') {
+                const 깊이 = (id) => { let d = 0; for (let c = id; c !== t.start; c = t.parent.get(c)) d++; return d; };
+                const 목표깊이 = 깊이(t.goal);
+                for (const id of t.children.keys()) {
+                    if (깊이(id) < 목표깊이 && !r.engine.closedSet.has(id)) {
+                        bad(`${where} bfs: 목표보다 얕은 노드 ${id}를 확장하지 않았다`);
+                        break;
+                    }
+                }
             }
             if (r.결과.path.join(',') !== 유일한길) {
                 bad(`${where} ${algo}: 트리에 길은 ${유일한길} 하나뿐인데 ${r.결과.path.join(',')}를 찾았다`);
@@ -253,6 +273,12 @@ for (const [depth, maxChild] of [[4, 3], [5, 3], [3, 2], [6, 4]]) {
                 const 가능최대 = detourDepth(t, 길목, [...t.children.keys()]);
                 if (가능최대 >= Sim.WANT_DETOUR && 깊이 < Sim.WANT_DETOUR) 헛걸음모자란판++;
             }
+        }
+        /* **「확장한 노드가 가장 많습니다」는 트리마다 참이 아니다.** 목표가 얕은 곳 오른쪽에
+           있으면 깊이 우선이 왼쪽 가지를 통째로 파고들어 너비 우선보다 많이 연다.
+           알림이 「가장」이라고 적었다면 그 판에서 정말 가장 많아야 한다. */
+        if (알림.bfs && /가장 많/.test(알림.bfs) && 연노드.bfs < Math.max(...Object.values(연노드))) {
+            bad(`${where}: 너비 우선이 ${연노드.bfs}개를 열었는데 「가장 많다」고 적는다(가장 많은 것은 ${Math.max(...Object.values(연노드))}개)`);
         }
         if (이판동점) 동점본판++;
         if (이판목표두고) 목표두고본판++;

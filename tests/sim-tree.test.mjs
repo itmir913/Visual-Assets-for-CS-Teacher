@@ -424,6 +424,217 @@ console.log(`AVL 삭제 ${chainChecks}판 — 깊은 트리에서 이어 빼며 
     + ` (한 회차에서 가장 많이 돈 횟수 ${deepestChain})`);
 
 /* ================================================================
+   5-1. **센 값과 화면의 말이 실제로 일어난 일과 같은가** (2026-09-26)
+
+   앞 절들은 «결과가 성한가»를 본다. 그런데 학생이 읽는 것은 끝 장의 문장 —
+   「3번 비교해 찾았습니다」「2번 회전해」「1번 올라갔습니다」 — 과 계수기다.
+   결과는 맞는데 세는 줄 하나를 빠뜨리면 그 수만 조용히 틀린다.
+   기대값은 **트리의 코드를 쓰지 않고** 노드의 링크와 평범한 배열로 따로 구한다.
+   ================================================================ */
+
+const plain = (say) => say.replace(/\*\*/g, '');
+const numIn = (say, re) => { const m = plain(say).match(re); return m ? Number(m[1]) : null; };
+
+/** 루트에서 값 `v`를 찾아 내려갈 때 들르는 노드 수. 찾으면 그 노드까지, 없으면 떨어질 때까지. */
+function pathLen(s, v) {
+    const byId = new Map(s.nodes.map((n) => [n.id, n]));
+    let at = byId.get(s.root);
+    let k = 0;
+    while (at) {
+        k++;
+        if (at.v === v) break;
+        at = byId.get(v < at.v ? at.left : at.right);
+    }
+    return k;
+}
+
+/** 노드 높이를 링크만 보고 따로 잰다(잎이 1). 트리가 적어 둔 `height`를 믿지 않는다. */
+function ownHeight(s, id) {
+    if (id === null || id === undefined) return 0;
+    const nd = s.nodes.find((n) => n.id === id);
+    return nd ? 1 + Math.max(ownHeight(s, nd.left), ownHeight(s, nd.right)) : 0;
+}
+
+let exactTree = 0;
+for (const spec of LINKED) {
+    for (let trial = 0; trial < 12; trial++) {
+        const values = distinct(3 + Math.floor(rnd() * 14));
+        const state = spec.build(values);
+        const sorted = [...values].sort((a, b) => a - b);
+        const opOf = (id) => spec.ops.find((o) => o.id === id);
+
+        /* 탐색 — 비교 횟수는 들른 노드 수와 같고, 끝 장의 「N번 비교」도 그 수다. */
+        for (const v of [...values.slice(0, 5), 0, 100, sorted[0] + 0.5]) {
+            const out = runTreeOperation(opOf('search'), state, {v});
+            exactTree++;
+            const want = pathLen(state, v);
+            if (out.counts.compare !== want) {
+                bad(`${spec.name} · 탐색(${v}) — ${out.counts.compare}번 비교했다. 루트에서 내려가면 ${want}번이다`);
+            }
+            const said = numIn(out.frames.at(-1).say, /(\d+)번 비교/);
+            if (said !== out.counts.compare) {
+                bad(`${spec.name} · 탐색(${v}) — 끝 장은 「${said}번 비교」인데 계수기는 ${out.counts.compare}`);
+            }
+        }
+
+        /* 삽입 — 비교 횟수는 떨어질 때까지 들른 노드 수다(「비교한 횟수가 곧 내려간 깊이」). */
+        for (const v of [0, 100, sorted[Math.floor(sorted.length / 2)] + 0.5]) {
+            const out = runTreeOperation(opOf('insert'), state, {v});
+            exactTree++;
+            const want = pathLen(state, v);
+            if (out.counts.compare !== want) {
+                bad(`${spec.name} · 삽입(${v}) — ${out.counts.compare}번 비교했다. 내려간 깊이는 ${want}이다`);
+            }
+            if (!spec.balanced) {
+                const added = out.state.nodes.find((n) => n.v === v);
+                let depth = 0;
+                for (let p = added; p && p.parent !== null; p = out.state.nodes.find((n) => n.id === p.parent)) depth++;
+                if (depth !== want) bad(`${spec.name} · 삽입(${v}) — 새 노드의 깊이가 ${depth}인데 비교는 ${want}번이다`);
+            }
+        }
+
+        /* 삭제 — 자식이 둘이면 **오른쪽 가지에서 가장 작은 값(바로 다음 값)** 이 그 노드에 올라온다.
+           화면이 그렇게 말하므로, 왼쪽에서 가장 큰 값을 올려도 트리는 성하지만 말과 어긋난다. */
+        for (const nd of state.nodes) {
+            if (nd.left === null || nd.right === null) continue;
+            const out = runTreeOperation(opOf('remove'), state, {v: nd.v});
+            exactTree++;
+            const next = sorted[sorted.indexOf(nd.v) + 1];
+            const same = out.state.nodes.find((n) => n.id === nd.id);
+            if (!same || same.v !== next) {
+                bad(`${spec.name} · 삭제(${nd.v}) — 두 자식 노드에 ${same ? same.v : '(없음)'}이 올라왔다. `
+                    + `바로 다음 값 ${next}이어야 한다`);
+            }
+            if (out.counts.move !== 2) bad(`${spec.name} · 삭제(${nd.v}) — 값을 맞바꾸는데 이동이 ${out.counts.move}번이다`);
+            break;
+        }
+
+        /* 순회 — 「세는 횟수가 모두 0」이라고 말한다. */
+        for (const id of ['pre', 'in', 'post']) {
+            const op = opOf(id);
+            if (!op) continue;
+            const c = runTreeOperation(op, state, {}).counts;
+            if (c.compare || c.move || c.link) bad(`${spec.name} · ${op.name} — 세는 값이 0이 아니다 ${JSON.stringify(c)}`);
+        }
+
+        /* 균형 인수를 말하는 장 — 그 장의 트리에서 **링크만 보고** 잰 값과 같아야 한다. */
+        if (spec.balanced) {
+            for (const v of [0, 100, ...values.slice(0, 3)]) {
+                const op = values.includes(v) ? opOf('remove') : opOf('insert');
+                const out = runTreeOperation(op, state, {v});
+                for (const f of out.frames) {
+                    if (f.act.kind !== 'visit') continue;
+                    const m = plain(f.say).match(/^(\d+(?:\.\d+)?)의 균형 인수(?:는|가) (-?\d+)입니다/);
+                    if (!m) continue;
+                    exactTree++;
+                    const nd = f.state.nodes.find((n) => n.v === Number(m[1]));
+                    const b = nd ? ownHeight(f.state, nd.left) - ownHeight(f.state, nd.right) : NaN;
+                    if (b !== Number(m[2])) {
+                        bad(`AVL · ${op.name}(${v}) — 「${m[1]}의 균형 인수 ${m[2]}」인데 왼쪽−오른쪽 높이는 ${b}다`);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* AVL 회전 네 가지 — 곧게 기울면 한 번, 꺾여 기울면 두 번. 어느 쪽이든 가운데 값이 루트로 온다.
+   회전 한 번에 링크 세 줄(화면의 말), 새 노드를 거는 링크 한 줄. */
+for (const [seq, turns] of [[[10, 20, 30], 1], [[30, 20, 10], 1], [[10, 30, 20], 2], [[30, 10, 20], 2]]) {
+    const out = runTreeOperation(avlOps[0], avlBuild(seq.slice(0, 2)), {v: seq[2]});
+    exactTree++;
+    const spins = out.frames.filter((f) => f.act.kind === 'rotate').length;
+    const root = out.state.nodes.find((n) => n.id === out.state.root);
+    if (spins !== turns) bad(`AVL 회전 ${seq.join('·')} — ${spins}번 회전했다(${turns}번이어야 한다)`);
+    if (!root || root.v !== 20) bad(`AVL 회전 ${seq.join('·')} — 루트가 ${root && root.v}이다(20이어야 한다)`);
+    if (out.counts.link !== 1 + 3 * turns) bad(`AVL 회전 ${seq.join('·')} — 링크를 ${out.counts.link}번 고쳤다(${1 + 3 * turns}번이어야 한다)`);
+    if (numIn(out.frames.at(-1).say, /(\d+)번 회전/) !== turns) bad(`AVL 회전 ${seq.join('·')} — 끝 장이 「${out.frames.at(-1).say}」`);
+}
+
+/* 「넣을 때의 균형 잡기 · 많아야 한 곳」 — 무작위로 넣어 가며 한 회차에 바로잡은 노드를 센다. */
+for (let trial = 0; trial < 20; trial++) {
+    let st = treeLinkedState([], {balanced: true});
+    for (const v of distinct(20)) {
+        const out = runTreeOperation(avlOps[0], st, {v});
+        const sites = out.frames.filter((f) => f.act.kind === 'visit' && plain(f.say).includes('회전해야 합니다')).length;
+        if (sites > 1) { bad(`AVL 삽입(${v}) — 한 번 넣었는데 ${sites}곳을 바로잡았다(카드: 많아야 한 곳)`); break; }
+        st = out.state;
+    }
+}
+
+/* 힙 — 평범한 배열로 올리기·내리기를 따로 해 본 결과와 칸마다 맞춘다. */
+function ownSiftUp(a) {
+    let i = a.length - 1;
+    let swaps = 0;
+    let cmps = 0;
+    while (i > 0) {
+        const p = Math.floor((i - 1) / 2);
+        cmps++;
+        if (a[i] < a[p]) break;
+        [a[i], a[p]] = [a[p], a[i]];
+        swaps++;
+        i = p;
+    }
+    return {swaps, cmps};
+}
+function ownSiftDown(a) {
+    let i = 0;
+    let swaps = 0;
+    for (;;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        if (l >= a.length) break;
+        const big = r < a.length && a[r] > a[l] ? r : l;
+        if (a[big] < a[i]) break;
+        [a[i], a[big]] = [a[big], a[i]];
+        swaps++;
+        i = big;
+    }
+    return swaps;
+}
+const heapArr = (s) => s.slots.slice(0, s.size).map((it) => it.v);
+
+for (let trial = 0; trial < 30; trial++) {
+    const values = distinct(1 + Math.floor(rnd() * (HEAP_CAP - 1)));
+    const st = heapBuild(values, HEAP_CAP);
+    const v = 100 + trial;   // 늘 새 값이고 대개 가장 크다 — 끝까지 올라가는 판
+    for (const x of [v, 0.5, values[0] + 0.5]) {
+        if (st.size >= HEAP_CAP) break;
+        const a = [...heapArr(st), x];
+        const want = ownSiftUp(a);
+        const out = runTreeOperation(heapOps[0], st, {v: x});
+        exactTree++;
+        if (heapArr(out.state).join(',') !== a.join(',')) {
+            bad(`힙 · 삽입(${x}) — [${heapArr(out.state).join(' ')}]. 따로 올려 본 결과 [${a.join(' ')}]`);
+        }
+        if (out.counts.compare !== want.cmps) bad(`힙 · 삽입(${x}) — ${out.counts.compare}번 비교했다(${want.cmps}번이어야 한다)`);
+        if (numIn(out.frames.at(-1).say, /(\d+)번 올라갔/) !== want.swaps) {
+            bad(`힙 · 삽입(${x}) — 끝 장이 「${plain(out.frames.at(-1).say)}」인데 ${want.swaps}번 올라가야 한다`);
+        }
+    }
+    {
+        const a = heapArr(st);
+        const top = a[0];
+        const lastV = a.pop();
+        let swaps = 0;
+        if (a.length) { a[0] = lastV; swaps = ownSiftDown(a); }
+        const out = runTreeOperation(heapOps[1], st, {});
+        exactTree++;
+        if (heapArr(out.state).join(',') !== a.join(',')) {
+            bad(`힙 · 꺼내기 — [${heapArr(out.state).join(' ')}]. 따로 내려 본 결과 [${a.join(' ')}]`);
+        }
+        const said = numIn(out.frames.at(-1).say, /(\d+)번 내려갔/);
+        if (st.size > 1 && said !== swaps) bad(`힙 · 꺼내기(${top}) — 끝 장은 ${said}번 내려갔다는데 ${swaps}번이어야 한다`);
+    }
+    heapArr(st).forEach((x, i) => {
+        const out = runTreeOperation(heapOps[2], st, {v: x});
+        if (out.counts.compare !== i + 1) bad(`힙 · 값 찾기(${x}) — ${i}번 칸인데 ${out.counts.compare}번 비교했다`);
+    });
+}
+console.log(`센 값과 끝 장의 말 ${exactTree}판 — 링크와 평범한 배열로 따로 구한 값과 맞췄다`);
+
+/* ================================================================
    6. 페이지를 띄워 **트리마다 실제로 눌러 본다**
    ================================================================ */
 

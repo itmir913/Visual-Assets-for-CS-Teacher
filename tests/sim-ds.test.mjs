@@ -437,6 +437,131 @@ for (const row of measured.rows) {
 console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽이 싼지 대조했다`);
 
 /* ================================================================
+   4-1. **센 값과 끝 장의 말이 실제로 일어난 일과 같은가** (2026-09-26)
+
+   1절은 «담긴 값»이 맞는지만 본다. 그런데 이 페이지가 가르치는 것은 «몇 번»이다 —
+   「밀어낸 것이 3개」「노드를 4개 지나왔습니다」「2번 확인했습니다」. 결과가 맞아도
+   세는 줄 하나가 어긋나면 그 수만 조용히 틀린다. 기대값은 평범한 배열의 인덱스로 따로 구한다.
+   ================================================================ */
+
+{
+    const plain = (say) => say.replace(/\*\*/g, '');
+    const numIn = (say, re) => { const m = plain(say).match(re); return m ? Number(m[1]) : null; };
+    const kinds = (out, kind) => out.frames.filter((f) => f.act.kind === kind).length;
+    let exact = 0;
+
+    for (const id of POSITIONAL) {
+        const struct = DS_STRUCTS.find((s) => s.id === id);
+        const opOf = (oid) => struct.ops.find((o) => o.id === oid);
+        const isArray = id === 'array';
+        for (const start of [[], [9], [...DS_START], [4, 8, 15, 16, 23]]) {
+            const n = start.length;
+            const probe = struct.makeState(start);
+
+            /* k번째에 삽입 — 배열은 뒤의 n−i개를 민다. 리스트는 앞 노드까지 i개를 지나고
+               (tail 포인터로 곧장 가는 끝 삽입은 하나), 링크는 개수와 상관없이 몇 줄뿐이다. */
+            for (let i = 0; i <= n; i++) {
+                if (isArray && n >= DS_CAP) break;
+                const out = runDsOperation(opOf('insert-at'), probe, {v: 77, i});
+                exact++;
+                const say = out.frames.at(-1).say;
+                if (isArray) {
+                    if (kinds(out, 'shift') !== n - i) bad(`${struct.name} · ${i}번에 삽입(n=${n}) — ${kinds(out, 'shift')}번 밀었다(${n - i}번이어야 한다)`);
+                    if (out.counts.move !== n - i + 1) bad(`${struct.name} · ${i}번에 삽입(n=${n}) — 이동 ${out.counts.move}(${n - i + 1}이어야 한다)`);
+                    const said = numIn(say, /밀어낸 것이 (\d+)개/) ?? 0;
+                    if (said !== n - i) bad(`${struct.name} · ${i}번에 삽입(n=${n}) — 끝 장은 ${said}개를 밀었다고 한다(${n - i}개)`);
+                } else {
+                    const want = i === 0 ? 0 : (i === n && probe.hasTail ? 1 : i);
+                    if (kinds(out, 'walk') !== want) bad(`${struct.name} · ${i}번에 삽입(n=${n}) — 노드를 ${kinds(out, 'walk')}개 지났다(${want}개여야 한다)`);
+                    if (out.counts.link < 2 || out.counts.link > 5) bad(`${struct.name} · ${i}번에 삽입 — 링크를 ${out.counts.link}번 고쳤다`);
+                }
+            }
+
+            for (let i = 0; i < n; i++) {
+                /* k번째 삭제 — 배열은 뒤의 n−1−i개를 당긴다. 리스트는 앞 노드까지 i개 + 뺄 노드 하나를
+                   지난다. 이중 연결 리스트의 맨 뒤는 tail 과 역방향 링크로 곧장 간다. */
+                const out = runDsOperation(opOf('remove-at'), probe, {i});
+                exact++;
+                const say = out.frames.at(-1).say;
+                if (isArray) {
+                    if (kinds(out, 'shift') !== n - 1 - i) bad(`${struct.name} · ${i}번 삭제(n=${n}) — ${kinds(out, 'shift')}번 당겼다(${n - 1 - i}번이어야 한다)`);
+                    const said = numIn(say, /당긴 것이 (\d+)개/) ?? 0;
+                    if (said !== n - 1 - i) bad(`${struct.name} · ${i}번 삭제(n=${n}) — 끝 장은 ${said}개를 당겼다고 한다(${n - 1 - i}개)`);
+                } else {
+                    const want = i === n - 1 && probe.doubly ? Math.min(2, n) : (i === 0 ? 0 : i + 1);
+                    if (kinds(out, 'walk') !== want) bad(`${struct.name} · ${i}번 삭제(n=${n}) — 노드를 ${kinds(out, 'walk')}개 지났다(${want}개여야 한다)`);
+                }
+                if (!plain(say).startsWith(`${start[i]}`)) bad(`${struct.name} · ${i}번 삭제 — ${start[i]}을 빼야 하는데 끝 장은 「${plain(say)}」`);
+
+                /* k번째 읽기 — 값이 맞고, 배열은 접근 한 번, 리스트는 i+1개를 지난다. */
+                const rd = runDsOperation(opOf('read-at'), probe, {i});
+                exact++;
+                if (!plain(rd.frames.at(-1).say).startsWith(`${i}번은 ${start[i]}입니다`)) {
+                    bad(`${struct.name} · ${i}번 읽기 — ${start[i]}이어야 하는데 「${plain(rd.frames.at(-1).say)}」`);
+                }
+                const wantAcc = isArray ? 1 : i + 1;
+                if (rd.counts.access !== wantAcc) bad(`${struct.name} · ${i}번 읽기 — 접근 ${rd.counts.access}번(${wantAcc}번이어야 한다)`);
+                if (!isArray && numIn(rd.frames.at(-1).say, /노드를 (\d+)개/) !== i + 1) {
+                    bad(`${struct.name} · ${i}번 읽기 — 끝 장의 지나온 노드 수가 ${i + 1}이 아니다`);
+                }
+            }
+
+            /* 값 찾기 — 처음 나오는 자리에서 멈추고, 확인한 수는 그 인덱스 + 1(없으면 n). */
+            for (const v of [...new Set(start), 100]) {
+                const at = start.indexOf(v);
+                const want = at < 0 ? n : at + 1;
+                const out = runDsOperation(opOf('find'), probe, {v});
+                exact++;
+                const say = out.frames.at(-1).say;
+                if (out.counts.access !== want) bad(`${struct.name} · ${v} 찾기 — 접근 ${out.counts.access}번(${want}번이어야 한다)`);
+                const said = numIn(say, isArray ? /(\d+)번 확인/ : /노드를? (\d+)개/);
+                if (said !== want) bad(`${struct.name} · ${v} 찾기 — 끝 장은 ${said}인데 ${want}여야 한다`);
+                if (at >= 0 && numIn(say, /^(\d+)번(?:째)?에서 찾았/) !== at) bad(`${struct.name} · ${v} 찾기 — ${at}번에 있는데 「${plain(say)}」`);
+            }
+        }
+    }
+
+    /* 스택·큐·덱·원형 큐 — 「보기」가 말하는 값이 규칙대로의 끝 값인가, 원형 큐의 rear 가
+       늘 front + 개수(칸 수로 나눈 나머지)인가. 2절의 흉내 모형을 다시 쓴다. */
+    for (const spec of ADT) {
+        const struct = DS_STRUCTS.find((s) => s.id === spec.id);
+        for (const implId of spec.impls) {
+            const plan = dsPlanOf(struct, implId);
+            let state = struct.makeState([], implId);
+            const mirror = mirrorOf(spec.id);
+            for (let step = 0; step < 80; step++) {
+                const op = plan.ops[Math.floor(rnd() * plan.ops.length)];
+                const v = Math.floor(rnd() * 90) + 5;
+                const before = mirror.values(spec.id);
+                const out = runDsOperation(op, state, {v, i: 0});
+                exact++;
+                const blocked = out.frames.some((f) => f.marks.banner);
+                if (!blocked) mirror.apply(op.id, v);
+                if (['top', 'front'].includes(op.id) && before.length) {
+                    const want = op.id === 'top' ? before[before.length - 1] : before[0];
+                    if (numIn(out.frames.at(-1).say, /(\d+)입니다/) !== want) {
+                        bad(`${struct.name}(${implId || '-'}) · ${op.name} — ${want}이어야 하는데 「${plain(out.frames.at(-1).say)}」`);
+                    }
+                }
+                if (['pop', 'dequeue', 'pop-front', 'pop-back'].includes(op.id) && before.length) {
+                    const want = ['pop', 'pop-back'].includes(op.id) ? before[before.length - 1] : before[0];
+                    if (!plain(out.frames.at(-1).say).startsWith(`${want}`)) {
+                        bad(`${struct.name}(${implId || '-'}) · ${op.name} — ${want}을 꺼내야 하는데 「${plain(out.frames.at(-1).say)}」`);
+                    }
+                }
+                const s = out.state;
+                if (s.ring && s.rear !== (s.front + s.size) % s.cap) {
+                    bad(`원형 큐 · ${op.name} — rear ${s.rear}인데 front ${s.front} + 개수 ${s.size}는 ${(s.front + s.size) % s.cap}번 칸이다`);
+                    break;
+                }
+                state = out.state;
+            }
+        }
+    }
+    console.log(`센 값과 끝 장의 말 ${exact}판 — 평범한 배열의 인덱스로 따로 구한 값과 맞췄다`);
+}
+
+/* ================================================================
    5. 페이지를 띄워 **구조마다 실제로 눌러 본다**
 
    위쪽 검사는 계산만 본다. 그런데 구조마다 그림이 다르고(노드 그림·동그라미·나란히

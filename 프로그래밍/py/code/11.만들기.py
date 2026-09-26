@@ -3,7 +3,7 @@
 # ---
 scores = {"학생 A": 90, "학생 B": 85, "학생 C": 72}
 
-print(scores["학생 B"])      # 85     번호가 아니라 «이름»으로 꺼낸다
+print(scores["학생 B"])      # 85     인덱스가 아니라 «키»로 꺼낸다
 print(len(scores))          # 3
 
 scores["학생 D"] = 68        # 없던 키면 «새로 생긴다»

@@ -1,7 +1,7 @@
 // ---
 // check: none
 // ---
-// 스마트홈 보안 에이전트의 작동 흐름
+// 스마트홈 보안 에이전트의 작동 흐름 (C 문법을 빌린 의사코드)
 
 void runSecurityAgent() {
     while (true) {

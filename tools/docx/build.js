@@ -1,8 +1,13 @@
 // build.js
-// 실행: 저장소 어디서든  node tools/docx/build.js   (-v를 주면 생성기별 출력까지 보인다)
+// make/ 아래의 .js 를 **재귀로** 전부 실행해 .docx 를 생성한다. 하나라도 실패하면 종료 코드 1.
 //
-// make/ 아래의 .js 를 전부 실행해 .docx 를 생성한다.
+//     npm run docx                           저장소 어디서든. dist/ 안, 강의노트 옆 docx/ 로 나간다
+//     npm run docx -- -v                     생성기별 출력까지 보인다
+//     DOCX_OUT_ROOT=<폴더> npm run docx      다른 자리에 뽑아 볼 때만(outpath.js)
+//
+// `npm run build` 가 vite build 뒤에 부르므로 배포 빌드는 아무것도 넘기지 않는다.
 // 산출물이 어느 폴더로 나가는지는 outpath.js 의 DEST 표 한 곳에서만 정한다.
+// 출력은 검사와 같은 로거 모양이다(tools/lib/repo.mjs 머리).
 const fs = require('fs');
 const path = require('path');
 const {execSync} = require('child_process');

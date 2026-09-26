@@ -6,7 +6,7 @@
 // **옛 파이썬 검사의 출력과 한 줄씩 대조해 같음을 확인한 것**이다. 규칙을 일부러 바꿨다면
 // `npx vitest run tests/fixtures.test.mjs -u` 로 기록을 다시 쓰고, 달라진 줄을 눈으로 확인한다.
 //
-// 이 조각들은 저장소 전체를 도는 검사에서 빠진다(`verbs` · `classes` · `hover` 가 `tests/fixtures/` 를 뺀다).
+// 이 조각들은 저장소 전체를 도는 검사에서 빠진다(`verbs` · `classes` · `hover` · `grid` 가 `tests/fixtures/` 를 뺀다).
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, test} from 'vitest';
@@ -18,6 +18,7 @@ import {check as prose} from '../tools/checks/prose.mjs';
 import {check as classes} from '../tools/checks/classes.mjs';
 import {check as code} from '../tools/checks/code.mjs';
 import {check as hover} from '../tools/checks/hover.mjs';
+import {check as grid} from '../tools/checks/grid.mjs';
 import {check as formSync} from '../tools/checks/form-sync.mjs';
 
 const F = 'tests/fixtures';
@@ -34,6 +35,7 @@ const CASES = [
     ['prose-report', (a) => prose([...a, '--report']), [`${F}/prose-report.html`], 'warn'],
     ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
     ['hover', hover, [`${F}/hover.html`]],
+    ['grid', grid, [`${F}/grid.html`]],
     // 배부 양식과 화면판 보고서 — 문항 수 · 번호 · 지시문 · 체크리스트
     ['form-sync', formSync, [`${F}/form-sync.html`]],
     ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],

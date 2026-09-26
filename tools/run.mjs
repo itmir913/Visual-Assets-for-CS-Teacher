@@ -31,6 +31,8 @@ const CHECKS = {
     'privacy': 'tests/privacy.test.mjs',
     'classes': 'tests/classes.test.mjs',
     'hover': 'tests/hover.test.mjs',
+    // 격자 트랙 목록의 `fr` 옆 `auto` — 옛 사파리에서 그 트랙이 0으로 접힌다
+    'grid': 'tests/grid.test.mjs',
     'code': 'tests/code.test.mjs',
     // 배부 양식(.docx)의 문항 지시문 · 체크리스트가 화면판 보고서와 같은가
     'form-sync': 'tests/form-sync.test.mjs',

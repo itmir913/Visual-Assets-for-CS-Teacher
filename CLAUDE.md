@@ -11,7 +11,7 @@
 | 처음 손대는 사람이 볼 것 (개발 서버·구조·문서 안내) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | 그 규칙이 **어떤 실패에서 나왔는지**, X / O 예시 | [`docs/강의노트-작성-사례집.md`](docs/강의노트-작성-사례집.md) |
 | 새 차시·새 과목·새 배부 양식을 **추가하는 순서** | [`docs/강의노트-추가하기.md`](docs/강의노트-추가하기.md) |
-| 도구 사용법, 미리보기, 코드 주입 | [`tools/README.md`](tools/README.md) |
+| 도구 목록(사용법은 각 스크립트 머리 주석) | [`tools/README.md`](tools/README.md) |
 | 배부 양식 생성기 | [`tools/docx/README.md`](tools/docx/README.md) |
 | 한 번 풀어 본 문제의 해법 | [`docs/수정-레시피.md`](docs/수정-레시피.md) |
 
@@ -125,6 +125,9 @@
   **어긋난 것을 아무도 알려 주지 않는다.**
   **자리가 아니라 이름을 가리킨다** — 파일 · 클래스 · 함수 · 속성 이름.
   이름은 바꾸면 코드가 먼저 깨지므로 **고치지 않고는 지나갈 수가 없다.**
+- **도구 사용법은 그 스크립트의 머리 주석 한 곳에만 적는다**(2026-09-26 사용자 확정).
+  README에는 어떤 파일이 무엇을 하는지만 둔다. 두 군데에 적으면 **반드시 갈라진다** —
+  정리해 보니 README가 코드와 이미 어긋난 곳이 둘 있었다.
 
 ---
 
@@ -213,7 +216,7 @@
   알려 주지 않는다.** 학생은 세어 보다가 틀린다. **자리가 아니라 이름을 가리킨다** —
   「『규칙과 키』 절에서 봅니다」. 같은 검사가 본다.
 - 파일을 고칠 때마다 `npm run check -- html <파일>`.
-  **이 검사가 못 잡는 것이 있다** → [`tools/README.md`](tools/README.md).
+  **이 검사가 못 잡는 것이 있다** → [`tools/checks/html.mjs`](tools/checks/html.mjs) 머리 주석.
   인자 없이 돌리면 저장소 전체를 보고, `npm run ci`가 그렇게 부른다 —
   **그러니 위반을 남긴 채로 두면 CI가 빨간불이 된다.**
 
@@ -408,7 +411,7 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
 ### 코드 자체는 HTML에 쓰지 않는다
 
 `.py`·`.c`는 **강의노트 옆 `code/`에 실파일로** 두고, HTML에는 마커만 둔다.
-문법과 절차 → [`tools/README.md`](tools/README.md)의 「코드는 HTML에 넣지 않는다」.
+문법과 절차 → [`tools/vite/inject-code.js`](tools/vite/inject-code.js) 머리 주석.
 
 ```html
 <pre><code class="language-c" data-src="code/1-2.조건.c#비교"></code></pre>

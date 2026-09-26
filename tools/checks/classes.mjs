@@ -54,6 +54,7 @@ const SKIP = (n) => ['node_modules', '.git', '.venv', '.idea'].includes(n) || n.
 /** 클래스가 적히는 자리. 그 밖의 문자열(`display: 'flex'` 같은 스타일 값)은 보지 않는다. */
 const JS_SITES = [
     /class=\\?["']([^"']*)/g,                                                  // HTML 조각 속 class="…"
+    /class=\\?"[^"'`]*['`]\s*\+[^\n]*?\+\s*['`]([^'"`<>]*)"/g,              // '<i class="a ' + x + ' mr-2">' 의 꼬리
     /className\s*=\s*[`'"]([^`'"]*)/g,                                           // el.className = '…'
     /classList\.(?:add|remove|toggle|contains|replace)\(\s*[`'"]([^`'"]*)/g,    // classList.add('…')
     /\b\w*Class\s*=\s*[`'"]([^`'"]*)/g,                                         // strongClass = '…'

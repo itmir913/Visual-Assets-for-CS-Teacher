@@ -161,11 +161,11 @@ export function treeStateFault(s) {
         if (filled !== s.size) return `칸에 든 것이 ${filled}개인데 크기는 ${s.size}이다`;
         /* **힙은 «빈틈이 없어야» 한다.** 완전 이진 트리라는 성질이 곧 「배열로 담을 수
            있다」의 근거라, 가운데가 비면 트리 그림과 배열이 어긋난다. */
-        for (let i = 0; i < s.size; i++) if (!s.slots[i]) return `${i}번 칸이 비었다`;
+        for (let i = 0; i < s.size; i++) if (!s.slots[i]) return `인덱스 ${i} 칸이 비었다`;
         for (let i = 1; i < s.size; i++) {
             const p = Math.floor((i - 1) / 2);
             if (s.slots[p].v < s.slots[i].v) {
-                return `${p}번(${s.slots[p].v})이 자식 ${i}번(${s.slots[i].v})보다 작다`;
+                return `인덱스 ${p}(${s.slots[p].v})이 자식 인덱스 ${i}(${s.slots[i].v})보다 작다`;
             }
         }
         return null;

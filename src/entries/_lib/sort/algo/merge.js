@@ -38,7 +38,7 @@ export const mergeSortAlgo = {
                 {lo, hi: mid, depth, state: 'active'},
                 {lo: mid + 1, hi, depth, state: 'right'},
             ]);
-            rec.say(`${lo}~${hi}번 칸을 반으로 쪼갭니다.`);
+            rec.say(`인덱스 ${lo}~${hi} 구간을 반으로 쪼갭니다.`);
             rec.mark('split');
 
             msort(lo, mid, depth + 1);
@@ -84,7 +84,7 @@ export const mergeSortAlgo = {
             rec.auxClose();
             rec.cursor('쓸 자리', null);
             rec.setRanges([{lo, hi, depth, state: 'merged'}]);
-            rec.say(`${lo}~${hi}번 칸이 정렬되었습니다.`);
+            rec.say(`인덱스 ${lo}~${hi} 구간이 정렬되었습니다.`);
             rec.mark('merged');
         };
 

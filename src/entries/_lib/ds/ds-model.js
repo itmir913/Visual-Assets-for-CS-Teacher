@@ -14,7 +14,7 @@
  *   `array`  칸이 «미리 정해진 수»만큼 있고 원소는 그 안에 앉는다.
  *            앞에 넣으려면 뒤에 있는 것을 전부 밀어야 한다 — 그 밀기가 곧 비용이다.
  *   `list`   노드가 각자 떨어져 있고 **링크로만** 이어진다. 넣고 빼는 것은 링크를
- *            고쳐 쓰는 일이라 비용이 작지만, k번째를 보려면 처음부터 링크를 따라가야 한다.
+ *            고쳐 쓰는 일이라 비용이 작지만, 인덱스 k의 노드를 보려면 처음부터 링크를 따라가야 한다.
  *
  * **세는 횟수가 셋이다.** 하나로 뭉뚱그리면 두 방식의 차이가 사라진다 —
  * 연결 리스트의 「이동 0」과 배열의 「링크 0」은 각각 그 방식의 성질 그 자체다.
@@ -255,7 +255,7 @@ export function createDsRecorder(state) {
         },
 
         /** 링크를 **따라간다.** 노드 하나를 지나는 것이 한 번이다 —
-         *  k번째에 닿으려면 k번 걸리는 것이 곧 연결 리스트의 비용이다. */
+         *  인덱스 k에 닿으려면 k번 걸리는 것이 곧 연결 리스트의 비용이다. */
         walk(id, name = 'p') {
             counts.access++;
             s.cursors[name] = id;
@@ -367,7 +367,7 @@ export function dsStateFault(s) {
     if (s.doubly) {
         for (let i = 0; i < chain.length; i++) {
             const want = i === 0 ? null : chain[i - 1].id;
-            if (chain[i].prev !== want) return `${i}번째 노드의 역방향 링크가 어긋났다`;
+            if (chain[i].prev !== want) return `인덱스 ${i} 노드의 역방향 링크가 어긋났다`;
         }
     }
     return null;

@@ -161,7 +161,7 @@ export function createFindRecorder(state) {
            `ruled` — 이진 탐색이 버린 자리는 그 회차가 끝날 때까지 버려진 채로 있어야
              「반씩 줄어든다」가 눈에 쌓인다.
            `hit`   — 찾아낸 칸이 한 장만 반짝이고 꺼지면, 회차를 끝까지 재생한 뒤 **어디서 찾았는지가
-             화면에 남지 않는다.** 맺음말은 「4번에서 찾았습니다」라고 하는데 그 4번이
+             화면에 남지 않는다.** 맺음말은 「인덱스 4에서 찾았습니다」라고 하는데 그 칸이
              다른 칸과 똑같아 보이는 것이다. 찾은 것은 찾은 채로 둔다. */
         focus = [];
     }
@@ -316,15 +316,15 @@ export function findStateFault(s) {
     for (let i = 0; i < s.cap; i++) {
         const b = s.buckets[i];
         if (s.mode === 'chain') {
-            if (!Array.isArray(b)) return `${i}번 칸이 줄이 아니다`;
+            if (!Array.isArray(b)) return `인덱스 ${i} 칸이 줄이 아니다`;
             for (const it of b) {
                 /* **체이닝은 자리가 곧 해시값이다.** 여기가 어긋나면 화면은 그럴듯한데
                    찾기가 엉뚱한 칸을 뒤지게 된다 — 눈으로는 못 잡는다. */
-                if (findHash(it.v, s.cap) !== i) return `${i}번에 있는 ${it.v}의 해시값이 ${findHash(it.v, s.cap)}이다`;
+                if (findHash(it.v, s.cap) !== i) return `인덱스 ${i}에 있는 ${it.v}의 해시값이 ${findHash(it.v, s.cap)}이다`;
             }
             n += b.length;
         } else {
-            if (Array.isArray(b)) return `${i}번 칸에 줄이 들어 있다(개방 주소법인데)`;
+            if (Array.isArray(b)) return `인덱스 ${i}에 줄이 들어 있다(개방 주소법인데)`;
             if (b && b !== TOMB) n += 1;
         }
     }

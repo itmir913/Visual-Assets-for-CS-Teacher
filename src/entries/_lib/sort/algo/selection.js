@@ -26,7 +26,7 @@ export const selectionSortAlgo = {
             let min = i;
             rec.cursor('i', i);
             rec.cursor('최솟값', min);
-            rec.say(`${i}번 칸에 올 값을 남은 구간에서 찾습니다.`);
+            rec.say(`인덱스 ${i}에 올 값을 남은 구간에서 찾습니다.`);
             rec.mark('scan-start');
 
             for (let j = i + 1; j < n; j++) {

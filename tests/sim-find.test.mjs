@@ -386,7 +386,7 @@ function refBinary(arr, t, lo = 0, hi = arr.length - 1, seen = []) {
             }
             if (seq.counts.access !== seq.counts.compare) bad(`순차 ${t} — 접근 ${seq.counts.access}과 비교 ${seq.counts.compare}이 갈렸다`);
             const seqEnd = plain(seq.frames.at(-1).say);
-            if (n && truth >= 0 && !seqEnd.startsWith(`${truth}번에서 찾았습니다. ${truth + 1}번 비교했습니다.`)) {
+            if (n && truth >= 0 && !seqEnd.startsWith(`인덱스 ${truth}에서 찾았습니다. ${truth + 1}번 비교했습니다.`)) {
                 bad(`순차 ${t} — 끝 장 「${seqEnd}」`);
             }
             if (n && truth < 0 && !seqEnd.includes(`끝까지 ${n}번 비교했습니다`)) bad(`순차 ${t} 없음 — 끝 장 「${seqEnd}」`);
@@ -405,7 +405,7 @@ function refBinary(arr, t, lo = 0, hi = arr.length - 1, seen = []) {
                 bad(`이진 — [${vals}]에서 가장 큰 값보다 큰 ${t}를 찾는데 ${bin.counts.compare}번(${bound}번이어야 한다)`);
             }
             const binEnd = plain(bin.frames.at(-1).say);
-            if (n && truth >= 0 && !binEnd.startsWith(`${truth}번에서 찾았습니다. ${ref.seen.length}번 비교했습니다.`)) {
+            if (n && truth >= 0 && !binEnd.startsWith(`인덱스 ${truth}에서 찾았습니다. ${ref.seen.length}번 비교했습니다.`)) {
                 bad(`이진 ${t} — 끝 장 「${binEnd}」`);
             }
             if (n && truth < 0 && !binEnd.includes(`${ref.seen.length}번 만에 볼 곳이 없어졌습니다`)) bad(`이진 ${t} 없음 — 끝 장 「${binEnd}」`);
@@ -521,22 +521,22 @@ const cellsOf = (st) => st.buckets.map((b) => (Array.isArray(b) ? b.map((it) => 
                         const hitCell = hitAt(out);
                         const wantCell = mode === 'chain' ? want.h : want.pos;
                         if (hitCell !== wantCell) bad(`${where} — ${hitCell}번 칸을 찾았다고 표시했다(정답 ${wantCell}번)`);
-                        if (mode === 'chain' && !end.startsWith(`${want.h}번 칸 리스트의 ${want.pos + 1}번째에서 찾았습니다. 계산 한 번에 비교 ${want.pos + 1}번입니다.`)) {
+                        if (mode === 'chain' && !end.startsWith(`인덱스 ${want.h}의 리스트에서 ${want.pos + 1}번째 값으로 찾았습니다. 계산 한 번에 비교 ${want.pos + 1}번입니다.`)) {
                             bad(`${where} — 끝 장 「${end}」`);
                         }
                         if (mode === 'open') {
                             const tail = want.shift > 0 ? `계산한 자리에서 ${want.shift}칸 밀린 곳입니다.` : '계산한 자리에 바로 있었습니다.';
-                            if (end !== `${want.pos}번에서 찾았습니다. ${tail}`) bad(`${where} — 끝 장 「${end}」`);
+                            if (end !== `인덱스 ${want.pos}에서 찾았습니다. ${tail}`) bad(`${where} — 끝 장 「${end}」`);
                         }
                     }
                     if (kind === 'find' && want.pos < 0 && hitAt(out) >= 0) bad(`${where} — 없는 값을 찾았다고 표시했다`);
                     if (mode === 'open' && kind === 'put' && want.wrapped) {
                         /* 한 바퀴를 다 돌도록 빈 칸이 없었다 — 지나온 첫 묘비에 앉는다. */
-                        if (!end.includes(`묘비 자리인 ${want.spot}번에 넣었습니다`)) bad(`${where} — 끝 장 「${end}」`);
+                        if (!end.includes(`묘비 자리인 인덱스 ${want.spot}에 넣었습니다`)) bad(`${where} — 끝 장 「${end}」`);
                     } else if (mode === 'open' && kind === 'put' && want.spot !== undefined) {
                         const dist = (want.spot - want.h + cap) % cap;
-                        if (dist > 0 && !end.includes(`계산한 자리(${want.h}번)에서 ${dist}칸 밀렸습니다`)) bad(`${where} — 끝 장 「${end}」`);
-                        if (dist === 0 && !end.includes(`계산한 자리 그대로 ${want.spot}번에 넣었습니다`) && !end.includes(`묘비 자리인 ${want.spot}번`)) {
+                        if (dist > 0 && !end.includes(`계산한 자리(인덱스 ${want.h})에서 ${dist}칸 밀렸습니다`)) bad(`${where} — 끝 장 「${end}」`);
+                        if (dist === 0 && !end.includes(`계산한 자리 그대로 인덱스 ${want.spot}에 넣었습니다`) && !end.includes(`묘비 자리인 인덱스 ${want.spot}에`)) {
                             bad(`${where} — 끝 장 「${end}」`);
                         }
                         if (want.looked > dist + 1 && want.looked < cap && !end.includes(`${want.looked}칸을 확인했습니다`)) bad(`${where} — 끝 장 「${end}」`);

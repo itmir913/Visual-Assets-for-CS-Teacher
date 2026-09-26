@@ -14,7 +14,10 @@
  */
 
 import {dsItem} from './ds-model.js';
-import {withJosa} from '../josa.js';
+import {josa, withJosa} from '../josa.js';
+
+/** 자료 안의 위치는 「인덱스 3」으로 말한다 — 「3번」「3번째」는 횟수·차례와 섞인다. */
+const dsIdx = (i) => `인덱스 ${i}`;
 
 /** 넣는 값의 천장. 세 자리가 되면 좁은 칸에서 글자가 넘친다. */
 export const DS_VALUE_MAX = 99;
@@ -36,19 +39,19 @@ function arrayInsertAt(rec, i, v) {
 
     const pushed = rec.size - i;
     if (pushed > 0) {
-        rec.say(`${i}번 자리를 비우려면 **뒤에 있는 원소 ${pushed}개를 한 칸씩 뒤로** 밀어야 합니다.`);
+        rec.say(`${withJosa(dsIdx(i), '을를')} 비우려면 **뒤에 있는 원소 ${pushed}개를 한 칸씩 뒤로** 밀어야 합니다.`);
         for (let j = rec.size - 1; j >= i; j--) {
-            rec.say(`${j}번의 ${withJosa(rec.peek(j).v, '을를')} ${j + 1}번으로 밉니다.`);
+            rec.say(`${dsIdx(j)}의 ${withJosa(rec.peek(j).v, '을를')} ${withJosa(dsIdx(j + 1), '으로')} 밉니다.`);
             rec.shift(j, j + 1);
         }
     }
-    rec.say(`빈 ${i}번 자리에 ${withJosa(v, '을를')} 씁니다.`);
+    rec.say(`비워 둔 ${dsIdx(i)}에 ${withJosa(v, '을를')} 씁니다.`);
     rec.write(i, dsItem(v));
     rec.setSize(rec.size + 1);
     rec.cursor('i', null);
     return pushed > 0
-        ? `${withJosa(v, '을를')} ${i}번에 넣었습니다. **밀어낸 것이 ${pushed}개**입니다.`
-        : `${withJosa(v, '을를')} ${i}번에 넣었습니다. **아무것도 밀지 않았습니다.**`;
+        ? `${withJosa(v, '을를')} ${dsIdx(i)}에 넣었습니다. **밀어낸 것이 ${pushed}개**입니다.`
+        : `${withJosa(v, '을를')} ${dsIdx(i)}에 넣었습니다. **아무것도 밀지 않았습니다.**`;
 }
 
 /** 자리 `i`의 값을 뺀다. **뒤에 있는 것을 앞에서부터 하나씩 당긴다.** */
@@ -61,7 +64,7 @@ function arrayRemoveAt(rec, i) {
     rec.clearFlag();
     rec.cursor('i', i);
 
-    rec.say(`${i}번 자리를 읽습니다.`);
+    rec.say(`${withJosa(dsIdx(i), '을를')} 읽습니다.`);
     const gone = rec.at(i);
     rec.say(`${withJosa(gone.v, '을를')} 꺼내 그 자리를 비웁니다.`);
     rec.clear(i);
@@ -70,7 +73,7 @@ function arrayRemoveAt(rec, i) {
     if (pulled > 0) {
         rec.say(`빈 자리가 가운데 남으면 안 되므로 **뒤에 있는 원소 ${pulled}개를 한 칸씩 당깁니다.**`);
         for (let j = i + 1; j < rec.size; j++) {
-            rec.say(`${j}번의 ${withJosa(rec.peek(j).v, '을를')} ${j - 1}번으로 당깁니다.`);
+            rec.say(`${dsIdx(j)}의 ${withJosa(rec.peek(j).v, '을를')} ${withJosa(dsIdx(j - 1), '으로')} 당깁니다.`);
             rec.shift(j, j - 1);
         }
     }
@@ -81,32 +84,32 @@ function arrayRemoveAt(rec, i) {
         : `${withJosa(gone.v, '을를')} 뺐습니다. **아무것도 당기지 않았습니다.**`;
 }
 
-/** 인덱스로 바로 접근한다. **몇 번째든 한 번이다.** */
+/** 인덱스로 바로 접근한다. **어느 인덱스든 한 번이다.** */
 function arrayReadAt(rec, i) {
     if (i >= rec.size) {
-        rec.flag(`${i}번은 아직 아무것도 들어 있지 않은 자리입니다.`);
+        rec.flag(`${withJosa(dsIdx(i), '은는')} 아직 아무것도 들어 있지 않은 자리입니다.`);
         rec.mark('empty');
         return '빈 자리라 읽을 것이 없습니다.';
     }
     rec.clearFlag();
-    rec.say(`${i}번 자리에 **바로 접근합니다.** 앞에서부터 세어 갈 것 없이`
+    rec.say(`${dsIdx(i)}에 **바로 접근합니다.** 앞에서부터 세어 갈 것 없이`
         + ' 시작 주소에 인덱스를 더하면 그 칸이 어디인지 곧바로 나옵니다.');
     const it = rec.at(i);
-    return `${i}번은 ${it.v}입니다. **몇 번째를 묻든 접근은 한 번**입니다.`;
+    return `${dsIdx(i)}의 값은 ${it.v}입니다. **어느 인덱스를 묻든 접근은 한 번**입니다.`;
 }
 
 /** 값을 앞에서부터 찾는다. */
 function arrayFind(rec, v) {
     rec.clearFlag();
     for (let i = 0; i < rec.size; i++) {
-        rec.say(`${i}번과 ${withJosa(v, '을를')} 비교해 봅니다.`);
+        rec.say(`${dsIdx(i)}의 값과 ${withJosa(v, '을를')} 비교해 봅니다.`);
         const it = rec.at(i);
         if (it.v === v) {
             rec.cursor('i', i);
-            rec.say(`${i}번에서 ${withJosa(v, '을를')} 찾았습니다.`);
+            rec.say(`${dsIdx(i)}에서 ${withJosa(v, '을를')} 찾았습니다.`);
             rec.mark('found');
             rec.cursor('i', null);
-            return `${i}번에서 찾았습니다. **${i + 1}번 확인했습니다.**`;
+            return `${dsIdx(i)}에서 찾았습니다. **${i + 1}번 확인했습니다.**`;
         }
     }
     rec.say(`${withJosa(v, '은는')} 없습니다.`);
@@ -128,7 +131,7 @@ function outOfRange(rec, i, last, what) {
     if (i <= last) return false;
     rec.flag(rec.size === 0
         ? `비어 있어서 ${what} 자리가 없습니다.`
-        : `${i}번은 쓸 수 있는 자리가 아닙니다. 지금 ${what} 수 있는 자리는 **0번부터 ${last}번까지**입니다.`);
+        : `${withJosa(dsIdx(i), '은는')} 쓸 수 있는 자리가 아닙니다. 지금 ${what} 수 있는 자리는 **인덱스 0부터 ${last}까지**입니다.`);
     rec.mark('out-of-range');
     return true;
 }
@@ -137,7 +140,7 @@ function outOfRange(rec, i, last, what) {
    노드(연결 리스트) 쪽
    --------------------------------------------------------------- */
 
-/** 머리에서 `k`번째 노드까지 링크를 따라간다. 닿은 노드를 돌려준다. */
+/** 머리에서 인덱스 `k` 노드까지 링크를 따라간다. 닿은 노드를 돌려준다. */
 function walkTo(rec, k, name = 'p') {
     let nd = rec.nodeById(rec.head);
     if (!nd) return null;
@@ -185,7 +188,7 @@ function listInsertAt(rec, i, v) {
     rec.link(nd.id, after ? after.id : null, 'next');
 
     if (before) {
-        rec.say(`${i - 1}번 노드의 링크를 새 노드로 바꿉니다. **이 한 줄이 「삽입」의 전부입니다.**`);
+        rec.say(`${dsIdx(i - 1)} 노드의 링크를 새 노드로 바꿉니다. **이 한 줄이 「삽입」의 전부입니다.**`);
         rec.link(before.id, nd.id, 'next');
     } else {
         rec.say('맨 앞에 넣는 것이므로 **head 포인터**를 새 노드로 바꿉니다.');
@@ -205,7 +208,7 @@ function listInsertAt(rec, i, v) {
     rec.say('링크가 다 걸렸습니다. 새 노드가 리스트에 들어왔습니다.');
     rec.settle(nd.id);
     rec.setSize(rec.size + 1);
-    return `${withJosa(v, '을를')} ${i}번 노드 자리에 넣었습니다. **원소는 하나도 움직이지 않았습니다** — 고친 것은 링크뿐입니다.`;
+    return `${withJosa(v, '을를')} ${dsIdx(i)} 자리에 넣었습니다. **원소는 하나도 움직이지 않았습니다** — 고친 것은 링크뿐입니다.`;
 }
 
 /** 자리 `i`의 노드를 뺀다. */
@@ -243,7 +246,7 @@ function listRemoveAt(rec, i) {
     }
 
     if (!target) {
-        rec.flag(`${i}번 노드가 없습니다.`);
+        rec.flag(`${dsIdx(i)} 노드가 없습니다.`);
         rec.mark('empty');
         return '그 자리에는 노드가 없습니다.';
     }
@@ -274,19 +277,19 @@ function listRemoveAt(rec, i) {
     return `${withJosa(target.v, '을를')} 뺐습니다. **밀거나 당긴 것은 하나도 없습니다.**`;
 }
 
-/** `k`번째 노드를 읽는다. **처음부터 링크를 따라가는 수밖에 없다.** */
+/** 인덱스 `k` 노드를 읽는다. **처음부터 링크를 따라가는 수밖에 없다.** */
 function listReadAt(rec, k) {
     if (k >= rec.size) {
-        rec.flag(`${k}번 노드가 없습니다.`);
+        rec.flag(`${dsIdx(k)} 노드가 없습니다.`);
         rec.mark('empty');
         return '그 자리에는 노드가 없습니다.';
     }
     rec.clearFlag();
-    rec.say(`${k}번 노드를 보려 합니다. 노드들이 **여기저기 떨어져 있어** 인덱스로`
+    rec.say(`${dsIdx(k)} 노드를 보려 합니다. 노드들이 **여기저기 떨어져 있어** 인덱스로`
         + ' 바로 접근할 수가 없습니다. 처음부터 링크를 따라갑니다.');
     const nd = walkTo(rec, k);
     rec.cursor('p', null);
-    return `${k}번 노드는 ${nd.v}입니다. **노드를 ${k + 1}개 지나왔습니다** —`
+    return `${dsIdx(k)} 노드는 ${nd.v}입니다. **노드를 ${k + 1}개 지나왔습니다** —`
         + ' 뒤로 갈수록 더 걸립니다.';
 }
 
@@ -300,10 +303,10 @@ function listFind(rec, v) {
         rec.walk(nd.id, 'p');
         seen++;
         if (nd.v === v) {
-            rec.say(`${seen - 1}번 노드에서 ${withJosa(v, '을를')} 찾았습니다.`);
+            rec.say(`${dsIdx(seen - 1)} 노드에서 ${withJosa(v, '을를')} 찾았습니다.`);
             rec.mark('found');
             rec.cursor('p', null);
-            return `${seen - 1}번 노드에서 찾았습니다. **노드를 ${seen}개 지나왔습니다.**`;
+            return `${dsIdx(seen - 1)} 노드에서 찾았습니다. **노드를 ${seen}개 지나왔습니다.**`;
         }
         nd = rec.nodeById(nd.next);
     }
@@ -321,41 +324,41 @@ function listFind(rec, v) {
 export const dsArrayOps = {
     insertFront: {
         id: 'insert-front', name: '앞에 삽입', arg: 'value',
-        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 앞(0번)**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 앞(인덱스 0)**에 넣으려 합니다.`,
         run: (rec, {v}) => arrayInsertAt(rec, 0, v),
     },
     insertBack: {
         id: 'insert-back', name: '뒤에 삽입', arg: 'value',
-        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 뒤(${rec.size}번)**에 넣으려 합니다.`,
+        opening: (rec, {v}) => `${withJosa(v, '을를')} **맨 뒤(인덱스 ${rec.size})**에 넣으려 합니다.`,
         run: (rec, {v}) => arrayInsertAt(rec, rec.size, v),
     },
     insertAt: {
-        id: 'insert-at', name: 'k번째에 삽입', arg: 'valueIndex',
-        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번 자리**에 넣으려 합니다.`,
+        id: 'insert-at', name: '인덱스 k에 삽입', arg: 'valueIndex',
+        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${dsIdx(i)}**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : arrayInsertAt(rec, i, v)),
     },
     removeFront: {
         id: 'remove-front', name: '앞에서 삭제', arg: null,
-        opening: () => '**맨 앞(0번)**을 빼려 합니다.',
+        opening: () => '**맨 앞(인덱스 0)**을 빼려 합니다.',
         run: (rec) => arrayRemoveAt(rec, 0),
     },
     removeBack: {
         id: 'remove-back', name: '뒤에서 삭제', arg: null,
-        opening: (rec) => `**맨 뒤(${Math.max(0, rec.size - 1)}번)**를 빼려 합니다.`,
+        opening: (rec) => `**맨 뒤(인덱스 ${Math.max(0, rec.size - 1)})**를 빼려 합니다.`,
         run: (rec) => arrayRemoveAt(rec, Math.max(0, rec.size - 1)),
     },
     removeAt: {
-        id: 'remove-at', name: 'k번째 삭제', arg: 'index',
-        opening: (rec, {i}) => `**${i}번 자리**를 빼려 합니다.`,
+        id: 'remove-at', name: '인덱스 k 삭제', arg: 'index',
+        opening: (rec, {i}) => `**${dsIdx(i)}**${josa(i, '을를')} 빼려 합니다.`,
         run: (rec, {i}) => (outOfRange(rec, i, rec.size - 1, '뺄')
             ? '그 자리에는 뺄 것이 없습니다.'
             : arrayRemoveAt(rec, i)),
     },
     readAt: {
-        id: 'read-at', name: 'k번째 읽기', arg: 'index',
-        opening: (rec, {i}) => `**${i}번 자리**의 값을 보려 합니다.`,
+        id: 'read-at', name: '인덱스 k 읽기', arg: 'index',
+        opening: (rec, {i}) => `**${dsIdx(i)}**의 값을 보려 합니다.`,
         run: (rec, {i}) => arrayReadAt(rec, i),
     },
     find: {
@@ -379,8 +382,8 @@ export const dsListOps = {
         run: (rec, {v}) => listInsertAt(rec, rec.size, v),
     },
     insertAt: {
-        id: 'insert-at', name: 'k번째에 삽입', arg: 'valueIndex',
-        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${i}번 노드 자리**에 넣으려 합니다.`,
+        id: 'insert-at', name: '인덱스 k에 삽입', arg: 'valueIndex',
+        opening: (rec, {v, i}) => `${withJosa(v, '을를')} **${dsIdx(i)}**에 넣으려 합니다.`,
         run: (rec, {v, i}) => (outOfRange(rec, i, rec.size, '넣을')
             ? '쓸 수 없는 자리라 넣지 않았습니다.'
             : listInsertAt(rec, i, v)),
@@ -396,15 +399,15 @@ export const dsListOps = {
         run: (rec) => listRemoveAt(rec, Math.max(0, rec.size - 1)),
     },
     removeAt: {
-        id: 'remove-at', name: 'k번째 삭제', arg: 'index',
-        opening: (rec, {i}) => `**${i}번 노드**를 빼려 합니다.`,
+        id: 'remove-at', name: '인덱스 k 삭제', arg: 'index',
+        opening: (rec, {i}) => `**${dsIdx(i)} 노드**를 빼려 합니다.`,
         run: (rec, {i}) => (outOfRange(rec, i, rec.size - 1, '뺄')
             ? '그 자리에는 뺄 것이 없습니다.'
             : listRemoveAt(rec, i)),
     },
     readAt: {
-        id: 'read-at', name: 'k번째 읽기', arg: 'index',
-        opening: (rec, {i}) => `**${i}번 노드**의 값을 보려 합니다.`,
+        id: 'read-at', name: '인덱스 k 읽기', arg: 'index',
+        opening: (rec, {i}) => `**${dsIdx(i)} 노드**의 값을 보려 합니다.`,
         run: (rec, {i}) => listReadAt(rec, i),
     },
     find: {
@@ -426,7 +429,7 @@ function emptyPeek(rec) {
 }
 
 /** 끝을 들여다본다. **끝이 어디인지 늘 알고 있으므로 한 번이면 된다** —
- *  인덱스를 받아 따라가는 「k번째 읽기」와 다른 점이다. */
+ *  인덱스를 받아 따라가는 「인덱스 k 읽기」와 다른 점이다. */
 function peekEnd(rec, i, where) {
     if (rec.size === 0) return emptyPeek(rec);
     rec.clearFlag();
@@ -639,16 +642,16 @@ export const dsRingOps = [
             }
             rec.clearFlag();
             const at = s.rear;
-            rec.say(`rear가 가리키는 ${at}번 칸에 ${withJosa(v, '을를')} 씁니다.`);
+            rec.say(`rear가 가리키는 ${dsIdx(at)}에 ${withJosa(v, '을를')} 씁니다.`);
             rec.write(at, dsItem(v));
             rec.setSize(rec.size + 1);
             const next = (at + 1) % rec.cap;
             s.rear = next;
             if (next === 0 && at === rec.cap - 1) {
-                rec.say(`rear가 마지막 칸을 지났으므로 **0번으로 돌아옵니다.**`
+                rec.say(`rear가 마지막 칸을 지났으므로 **인덱스 0으로 돌아옵니다.**`
                     + ' 나머지 연산(`% 칸수`)이 하는 일이 이것입니다.');
             } else {
-                rec.say(`rear를 ${next}번으로 옮깁니다.`);
+                rec.say(`rear를 ${withJosa(dsIdx(next), '으로')} 옮깁니다.`);
             }
             rec.mark('ring');
             return `${withJosa(v, '을를')} 넣었습니다. **아무것도 밀지 않았습니다.**`;
@@ -656,7 +659,7 @@ export const dsRingOps = [
     },
     {
         id: 'dequeue', name: '삭제 (dequeue)', arg: null,
-        opening: (rec) => `**front 자리(${rec.state.front}번)**에서 빼려 합니다.`,
+        opening: (rec) => `**front 자리(인덱스 ${rec.state.front})**에서 빼려 합니다.`,
         run: (rec) => {
             const s = rec.state;
             if (rec.size === 0) {
@@ -666,7 +669,7 @@ export const dsRingOps = [
             }
             rec.clearFlag();
             const at = s.front;
-            rec.say(`front가 가리키는 ${at}번 칸을 읽습니다.`);
+            rec.say(`front가 가리키는 ${withJosa(dsIdx(at), '을를')} 읽습니다.`);
             const gone = rec.at(at);
             rec.say(`${withJosa(gone.v, '을를')} 꺼내고 그 칸을 비웁니다.`);
             rec.clear(at);
@@ -674,9 +677,9 @@ export const dsRingOps = [
             const next = (at + 1) % rec.cap;
             s.front = next;
             if (next === 0 && at === rec.cap - 1) {
-                rec.say('front도 마지막 칸을 지나 **0번으로 돌아옵니다.**');
+                rec.say('front도 마지막 칸을 지나 **인덱스 0으로 돌아옵니다.**');
             } else {
-                rec.say(`front를 ${next}번으로 옮깁니다.`);
+                rec.say(`front를 ${withJosa(dsIdx(next), '으로')} 옮깁니다.`);
             }
             rec.mark('ring');
             return `${withJosa(gone.v, '을를')} 뺐습니다. **당긴 것이 하나도 없습니다** —`

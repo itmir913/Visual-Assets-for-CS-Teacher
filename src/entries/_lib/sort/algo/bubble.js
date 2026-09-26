@@ -34,7 +34,7 @@ export const bubbleSortAlgo = {
             }
 
             rec.fix(end);
-            rec.say(`남은 구간에서 가장 큰 값이 맨 뒤에 놓였습니다. ${end}번 칸이 확정됩니다.`);
+            rec.say(`남은 구간에서 가장 큰 값이 맨 뒤인 인덱스 ${end}에 놓여 확정됩니다.`);
             rec.mark('fix');
             end--;
 

@@ -30,7 +30,7 @@ export const cocktailSortAlgo = {
                 if (rec.cmp(i, i + 1) > 0) { rec.swap(i, i + 1); swapped = true; }
             }
             rec.fix(hi);
-            rec.say(`가장 큰 값이 ${hi}번 칸에 놓였습니다.`);
+            rec.say(`가장 큰 값이 인덱스 ${hi}에 놓였습니다.`);
             rec.mark('fix');
             hi--;
 
@@ -44,7 +44,7 @@ export const cocktailSortAlgo = {
                 if (rec.cmp(i - 1, i) > 0) { rec.swap(i - 1, i); swapped = true; }
             }
             rec.fix(lo);
-            rec.say(`가장 작은 값이 ${lo}번 칸에 놓였습니다.`);
+            rec.say(`가장 작은 값이 인덱스 ${lo}에 놓였습니다.`);
             rec.mark('fix');
             lo++;
 

@@ -7,3 +7,4 @@ const b = {title: 'English only', body: '설명 지우기'};
 // 드는 값이 싸다. 노드 2이(가) ___은(는) 지도를 폈다 펼쳐 펴서 펼 수
 const html = `<button onclick="go()">바꾸기</button><button onclick="checkAnswer(1)">고르기</button>
 <a title="지우기" href="#">x</a><svg title="고르기"></svg><option>되돌리기</option><summary>더하기 빼기</summary>`;
+// 위치는 인덱스로: 3번 칸 · ${i}번 노드 · k번째 읽기. 횟수·순서는 걸리지 않는다: 3번 비교했다 · 두 번째 회차

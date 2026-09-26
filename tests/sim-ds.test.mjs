@@ -415,7 +415,7 @@ for (const op of DS_COMPARE.ops) {
 }
 console.log(`비용 비교 ${raceChecks}판 — 끝나는 순서가 작업량의 순서와 같은지 대조했다`);
 
-/* **표가 실제로 가르치려는 것을 보이는가.** 「앞에 삽입은 리스트가 싸고 k번째 읽기는
+/* **표가 실제로 가르치려는 것을 보이는가.** 「앞에 삽입은 리스트가 싸고 인덱스 k 읽기는
    배열이 싸다」가 이 페이지의 요점인데, 재어 보니 그렇지 않다면 표가 거짓말을 한다. */
 const measured = measureDsWork(DS_COMPARE.ops);
 const lastCol = measured.sizes.length - 1;
@@ -458,7 +458,7 @@ console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽
             const n = start.length;
             const probe = struct.makeState(start);
 
-            /* k번째에 삽입 — 배열은 뒤의 n−i개를 민다. 리스트는 앞 노드까지 i개를 지나고
+            /* 인덱스 k에 삽입 — 배열은 뒤의 n−i개를 민다. 리스트는 앞 노드까지 i개를 지나고
                (tail 포인터로 곧장 가는 끝 삽입은 하나), 링크는 개수와 상관없이 몇 줄뿐이다. */
             for (let i = 0; i <= n; i++) {
                 if (isArray && n >= DS_CAP) break;
@@ -478,7 +478,7 @@ console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽
             }
 
             for (let i = 0; i < n; i++) {
-                /* k번째 삭제 — 배열은 뒤의 n−1−i개를 당긴다. 리스트는 앞 노드까지 i개 + 뺄 노드 하나를
+                /* 인덱스 k 삭제 — 배열은 뒤의 n−1−i개를 당긴다. 리스트는 앞 노드까지 i개 + 뺄 노드 하나를
                    지난다. 이중 연결 리스트의 맨 뒤는 tail 과 역방향 링크로 곧장 간다. */
                 const out = runDsOperation(opOf('remove-at'), probe, {i});
                 exact++;
@@ -493,10 +493,10 @@ console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽
                 }
                 if (!plain(say).startsWith(`${start[i]}`)) bad(`${struct.name} · ${i}번 삭제 — ${start[i]}을 빼야 하는데 끝 장은 「${plain(say)}」`);
 
-                /* k번째 읽기 — 값이 맞고, 배열은 접근 한 번, 리스트는 i+1개를 지난다. */
+                /* 인덱스 k 읽기 — 값이 맞고, 배열은 접근 한 번, 리스트는 i+1개를 지난다. */
                 const rd = runDsOperation(opOf('read-at'), probe, {i});
                 exact++;
-                if (!plain(rd.frames.at(-1).say).startsWith(`${i}번${isArray ? '은' : ' 노드는'} ${start[i]}입니다`)) {
+                if (!plain(rd.frames.at(-1).say).startsWith(`인덱스 ${i}${isArray ? '의 값은' : ' 노드는'} ${start[i]}입니다`)) {
                     bad(`${struct.name} · ${i}번 읽기 — ${start[i]}이어야 하는데 「${plain(rd.frames.at(-1).say)}」`);
                 }
                 const wantAcc = isArray ? 1 : i + 1;
@@ -516,7 +516,7 @@ console.log(`비용 표 — 개수 ${measured.sizes.join('·')}에서 어느 쪽
                 if (out.counts.access !== want) bad(`${struct.name} · ${v} 찾기 — 접근 ${out.counts.access}번(${want}번이어야 한다)`);
                 const said = numIn(say, isArray ? /(\d+)번 확인/ : /노드를? (\d+)개/);
                 if (said !== want) bad(`${struct.name} · ${v} 찾기 — 끝 장은 ${said}인데 ${want}여야 한다`);
-                if (at >= 0 && numIn(say, /^(\d+)번(?: 노드)?에서 찾았/) !== at) bad(`${struct.name} · ${v} 찾기 — ${at}번에 있는데 「${plain(say)}」`);
+                if (at >= 0 && numIn(say, /^인덱스 (\d+)(?: 노드)?에서 찾았/) !== at) bad(`${struct.name} · ${v} 찾기 — ${at}번에 있는데 「${plain(say)}」`);
             }
         }
     }

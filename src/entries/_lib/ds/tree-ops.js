@@ -324,7 +324,7 @@ function heapInsert(rec, v) {
         return `${withJosa(v, '은는')} 이미 있습니다.`;
     }
     const at = rec.size;
-    rec.say(`새 값은 **배열의 맨 끝(${at}번 칸)**에 놓습니다. 트리로 보면 마지막 자리입니다.`);
+    rec.say(`새 값은 **배열의 맨 끝(인덱스 ${at})**에 놓습니다. 트리로 보면 마지막 자리입니다.`);
     rec.heapWrite(at, v);
     rec.heapSetSize(rec.size + 1);
 
@@ -332,7 +332,7 @@ function heapInsert(rec, v) {
     let swaps = 0;
     while (i > 0) {
         const p = parentOf(i);
-        rec.say(`부모는 **(${i} − 1) ÷ 2 = ${p}번 칸**입니다. 링크를 따라가는 것이 아니라 `
+        rec.say(`부모는 **인덱스 (${i} − 1) ÷ 2 = ${p}**입니다. 링크를 따라가는 것이 아니라 `
             + '**인덱스를 계산**해서 찾습니다.');
         if (rec.heapCompare(i, p) <= 0) {
             rec.say('부모가 더 크므로 **여기가 제자리입니다.**');
@@ -356,7 +356,7 @@ function heapExtract(rec) {
         return '비어 있어 뺄 것이 없습니다.';
     }
     const top = rec.heapAt(0).v;
-    rec.say(`**가장 큰 값은 늘 루트(0번 칸)**에 있습니다. 찾을 것도 없이 꺼내면 됩니다.`);
+    rec.say(`**가장 큰 값은 늘 루트(인덱스 0)**에 있습니다. 찾을 것도 없이 꺼내면 됩니다.`);
     rec.heapFocus([0]);
 
     const last = rec.size - 1;
@@ -378,7 +378,7 @@ function heapExtract(rec) {
         const l = 2 * i + 1;
         const r = 2 * i + 2;
         if (l >= rec.size) break;
-        rec.say(`자식은 **2 × ${i} + 1 = ${l}번**${r < rec.size ? `과 ${r}번` : ''} 칸입니다.`);
+        rec.say(`자식은 **인덱스 2 × ${i} + 1 = ${l}**${r < rec.size ? `, 인덱스 ${r}` : ''}입니다.`);
         let big = l;
         if (r < rec.size && rec.heapCompare(r, l) > 0) big = r;
         if (rec.heapCompare(big, i) <= 0) {
@@ -406,10 +406,10 @@ function heapFind(rec, v) {
         + '있는지는 정해져 있지 않으므로, 가지를 버릴 수가 없습니다.');
     for (let i = 0; i < rec.size; i++) {
         if (rec.heapCompareValue(i, v) === 0) {
-            rec.say(`${i}번 칸에서 찾았습니다.`);
+            rec.say(`인덱스 ${i}에서 찾았습니다.`);
             rec.mark('found');
             /* **일찍 찾은 경우에 「다 봐야 한다」고 말하지 않는다.** 학생이 맨 먼저 찾아보는
-               값은 대개 화면에서 가장 큰 값인데, 그것은 늘 0번 칸이라 한 번에 걸린다.
+               값은 대개 화면에서 가장 큰 값인데, 그것은 늘 인덱스 0이라 한 번에 걸린다.
                계수기에 「비교 1」이 떠 있는데 글이 「다 봐야 합니다」라고 하면 어긋난다. */
             return i === 0
                 ? '루트에 있어 한 번에 찾았습니다. **가장 큰 값이라서 그렇습니다** — '
@@ -502,7 +502,7 @@ export const heapOps = [
     },
     {
         id: 'extract', name: '가장 큰 값 꺼내기', arg: null,
-        opening: () => '**루트(0번 칸)**를 꺼내고 빈자리를 메웁니다.',
+        opening: () => '**루트(인덱스 0)**를 꺼내고 빈자리를 메웁니다.',
         run: (rec) => heapExtract(rec),
         cost: () => 'O(log n)',
     },

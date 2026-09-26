@@ -55,7 +55,7 @@ export const radixSortAlgo = {
             }
             rec.cursor('i', null);
 
-            rec.say('0번 칸부터 차례로, **넣은 순서 그대로** 꺼내 다시 씁니다.');
+            rec.say('0 칸부터 9 칸까지 차례로, **넣은 순서 그대로** 꺼내 다시 씁니다.');
             let out = 0;
             for (const k of keys) {
                 while (rec.stripCell(k).count > 0) {

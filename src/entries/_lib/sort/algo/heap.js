@@ -19,7 +19,7 @@ export const heapSortAlgo = {
     complexity: {best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(1)'},
     stable: false,
     inPlace: true,
-    watch: '트리와 배열은 **같은 것**입니다. i번 칸의 자식은 2i+1번과 2i+2번 칸입니다 — '
+    watch: '트리와 배열은 **같은 것**입니다. 인덱스 i의 자식은 인덱스 2i+1과 2i+2입니다 — '
         + '트리에서 아래로 내려갈 때 배열에서 인덱스가 어떻게 뛰는지 함께 보세요. '
         + '병합 정렬과 달리 추가 메모리를 쓰지 않으면서도 최악이 O(n log n)입니다.',
 

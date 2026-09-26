@@ -142,7 +142,7 @@ for (const algo of SORT_ALGOS) {
             for (let k = 0; k < fr.length; k++) {
                 if (fr[k].act.kind !== 'fix') continue;
                 for (const e of newlyDone(fr, k)) {
-                    if (!fr[k].say.includes(`${e}번 칸`)) bad2(`${tag} — ${e}번 칸을 확정했는데 설명은 「${fr[k].say}」`);
+                    if (!fr[k].say.includes(`인덱스 ${e}에`)) bad2(`${tag} — ${e}번 칸을 확정했는데 설명은 「${fr[k].say}」`);
                 }
             }
             break;
@@ -194,7 +194,7 @@ for (const algo of SORT_ALGOS) {
                 if (!v.slice(lo, w).every((x) => x < pv) || !v.slice(w + 1, hi + 1).every((x) => x >= pv)) {
                     bad2(`${tag} — 피벗 ${pv}를 ${w}번에 확정했는데 ${lo}~${hi} 구간의 좌우가 나뉘지 않았다: ${v.slice(lo, hi + 1).join(' ')}`);
                 }
-                if (!f.say.includes(`${w}번 칸`)) bad2(`${tag} — 피벗을 ${w}번에 확정했는데 설명은 「${f.say}」`);
+                if (!f.say.includes(`인덱스 ${w}에`)) bad2(`${tag} — 피벗을 ${w}번에 확정했는데 설명은 「${f.say}」`);
             }
             break;
         case 'merge': {

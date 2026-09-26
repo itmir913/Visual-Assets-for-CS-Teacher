@@ -12,6 +12,9 @@
 import {TOMB, findHash} from './find-model.js';
 import {withJosa} from '../josa.js';
 
+/** 자료 안의 위치는 「인덱스 3」으로 말한다 — 「3번」은 비교 횟수와 섞인다. */
+const findIdx = (i) => `인덱스 ${i}`;
+
 /** 값의 범위. 해시 계산을 학생이 암산할 수 있는 크기로 묶어 둔다. */
 export const FIND_VALUE_MAX = 99;
 
@@ -42,10 +45,10 @@ function seqFind(rec, v) {
         rec.cursor('i', i);
         /* **두 수를 반드시 갈라 놓는다.** `${앞값}${찾는값}`으로 이어 붙이면 3과 41이
            「341」이라는 없는 수가 되어, 「비교한다」를 가르치는 자리에서 대상이 사라진다. */
-        rec.say(`${i}번을 봅니다. ${withJosa(rec.peek(i).v, '은는')} ${v}입니까?`);
+        rec.say(`${withJosa(findIdx(i), '을를')} 봅니다. ${withJosa(rec.peek(i).v, '은는')} ${v}입니까?`);
         if (rec.probe(i, v) === 0) {
             rec.cursor('i', null);
-            return `${i}번에서 찾았습니다. **${i + 1}번 비교했습니다.**`;
+            return `${findIdx(i)}에서 찾았습니다. **${i + 1}번 비교했습니다.**`;
         }
     }
     rec.cursor('i', null);
@@ -83,21 +86,21 @@ function binFind(rec, v) {
     while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
         rec.cursor('mid', mid);
-        rec.say(`남은 ${hi - lo + 1}칸의 가운데는 ${mid}번입니다. `
+        rec.say(`남은 ${hi - lo + 1}칸의 가운데는 ${findIdx(mid)}입니다. `
             + `${withJosa(rec.peek(mid).v, '은는')} ${v}입니까?`);
         const cmp = rec.probe(mid, v);
         looked += 1;
 
         if (cmp === 0) {
             rec.clearCursors();
-            return `${mid}번에서 찾았습니다. **${looked}번 비교했습니다.**`;
+            return `${findIdx(mid)}에서 찾았습니다. **${looked}번 비교했습니다.**`;
         }
         if (cmp < 0) {
-            rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 작으니 **${mid}번까지는 볼 것 없습니다.**`);
+            rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 작으니 **${findIdx(mid)}까지는 볼 것 없습니다.**`);
             rec.ruleOut(lo, mid);
             lo = mid + 1;
         } else {
-            rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 크니 **${mid}번부터 뒤는 볼 것 없습니다.**`);
+            rec.say(`${withJosa(rec.peek(mid).v, '이가')} ${v}보다 크니 **${findIdx(mid)}부터 뒤는 볼 것 없습니다.**`);
             rec.ruleOut(mid, hi);
             hi = mid - 1;
         }
@@ -129,7 +132,7 @@ function binFind(rec, v) {
 function walkChain(rec, at, v) {
     const chain = rec.state.buckets[at];
     for (let k = 0; k < chain.length; k++) {
-        rec.say(`${at}번 칸 리스트의 ${k + 1}번째는 ${chain[k].v}입니다. ${v}입니까?`);
+        rec.say(`${findIdx(at)}의 리스트에서 ${k + 1}번째 값은 ${chain[k].v}입니다. ${v}입니까?`);
         if (rec.test(at, v, k)) return k;
     }
     return -1;
@@ -139,7 +142,7 @@ function chainPut(rec, v) {
     rec.clearFlag();
     rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const at = rec.hashOf(v);
-    rec.say(`${at}번 칸으로 갑니다. **어디로 갈지 「보지 않고 계산해서」 정했습니다.**`);
+    rec.say(`${withJosa(findIdx(at), '으로')} 갑니다. **어디로 갈지 「보지 않고 계산해서」 정했습니다.**`);
     rec.visit(at);
 
     if (walkChain(rec, at, v) >= 0) {
@@ -147,31 +150,31 @@ function chainPut(rec, v) {
         return '이미 들어 있어 넣지 않았습니다.';
     }
     const before = rec.state.buckets[at].length;
-    rec.say(`${at}번 칸의 리스트 끝에 연결합니다.`);
+    rec.say(`${findIdx(at)}의 리스트 끝에 연결합니다.`);
     rec.place(at, v, before);
     return before > 0
-        ? `${withJosa(v, '을를')} ${at}번에 넣었습니다. **이미 있던 ${before}개 뒤에 연결했습니다** — 충돌입니다.`
-        : `${withJosa(v, '을를')} ${at}번에 넣었습니다. **그 칸은 비어 있었습니다.**`;
+        ? `${withJosa(v, '을를')} ${findIdx(at)}에 넣었습니다. **이미 있던 ${before}개 뒤에 연결했습니다** — 충돌입니다.`
+        : `${withJosa(v, '을를')} ${findIdx(at)}에 넣었습니다. **그 칸은 비어 있었습니다.**`;
 }
 
 function chainFind(rec, v) {
     rec.clearFlag();
     rec.say(`${withJosa(v, '을를')} ${withJosa(rec.cap, '으로')} 나눈 나머지를 구합니다.`);
     const at = rec.hashOf(v);
-    rec.say(`${at}번 칸만 봅니다. **다른 칸은 볼 까닭이 없습니다.**`);
+    rec.say(`${findIdx(at)}만 봅니다. **다른 칸은 볼 까닭이 없습니다.**`);
     rec.visit(at);
 
     const k = walkChain(rec, at, v);
     const len = rec.state.buckets[at].length;
     if (k >= 0) {
-        return `${at}번 칸 리스트의 ${k + 1}번째에서 찾았습니다. `
+        return `${findIdx(at)}의 리스트에서 ${k + 1}번째 값으로 찾았습니다. `
             + `**계산 한 번에 비교 ${k + 1}번입니다.**`;
     }
     if (len === 0) {
-        return `${withJosa(v, '은는')} 없습니다. **${at}번 칸이 비어 있으니 그것으로 끝입니다** — `
+        return `${withJosa(v, '은는')} 없습니다. **${withJosa(findIdx(at), '이가')} 비어 있으니 그것으로 끝입니다** — `
             + '없다는 것을 알아내는 데도 계산 한 번뿐입니다.';
     }
-    return `${withJosa(v, '은는')} 없습니다. ${at}번 칸 리스트의 ${len}개를 다 보았습니다 — `
+    return `${withJosa(v, '은는')} 없습니다. ${findIdx(at)}의 리스트에 있는 ${len}개를 다 보았습니다 — `
         + '**다른 칸은 보지 않고 그 칸의 리스트만 봅니다.**';
 }
 
@@ -185,7 +188,7 @@ function chainRemove(rec, v) {
         rec.flag(`${withJosa(v, '은는')} 들어 있지 않습니다.`);
         return '없어서 아무것도 빼지 않았습니다.';
     }
-    rec.say(`${at}번 칸 리스트에서 ${withJosa(v, '을를')} 제거합니다.`);
+    rec.say(`${findIdx(at)}의 리스트에서 ${withJosa(v, '을를')} 제거합니다.`);
     rec.erase(at, k);
     return `${withJosa(v, '을를')} 뺐습니다. **리스트에서 하나만 제거하면 끝입니다** — `
         + '뒤에 있는 원소를 당길 일이 없습니다.';
@@ -204,7 +207,7 @@ function openPut(rec, v) {
     let tombAt = -1;
     for (let k = 0; k < rec.cap; k++) {
         const at = (home + k) % rec.cap;
-        rec.say(k === 0 ? `${at}번 칸을 봅니다.` : `${at}번 칸으로 **한 칸 옆으로 밀어** 봅니다.`);
+        rec.say(k === 0 ? `${withJosa(findIdx(at), '을를')} 봅니다.` : `**한 칸 옆으로 밀어** ${withJosa(findIdx(at), '을를')} 봅니다.`);
         const cell = rec.visit(at);
         if (cell === null) {
             /* **앉을 자리는 「지금 본 칸」이 아니라 「지나온 첫 묘비」다.** 묘비를 다시 쓰는
@@ -215,14 +218,14 @@ function openPut(rec, v) {
             const dist = (spot - home + rec.cap) % rec.cap;
             const looked = k + 1;
             rec.say(tombAt >= 0
-                ? `${spot}번 묘비 자리를 되씁니다.`
-                : `${spot}번이 비었으니 여기에 씁니다.`);
+                ? `${findIdx(spot)}의 묘비 자리를 되씁니다.`
+                : `${withJosa(findIdx(spot), '이가')} 비었으니 여기에 씁니다.`);
             rec.place(spot, v);
 
             const head = dist > 0
-                ? `${withJosa(v, '을를')} ${spot}번에 넣었습니다. `
-                  + `**계산한 자리(${home}번)에서 ${dist}칸 밀렸습니다** — 충돌입니다.`
-                : `${withJosa(v, '을를')} 계산한 자리 그대로 ${spot}번에 넣었습니다.`;
+                ? `${withJosa(v, '을를')} ${findIdx(spot)}에 넣었습니다. `
+                  + `**계산한 자리(인덱스 ${home})에서 ${dist}칸 밀렸습니다** — 충돌입니다.`
+                : `${withJosa(v, '을를')} 계산한 자리 그대로 ${findIdx(spot)}에 넣었습니다.`;
             /* 묘비를 지나쳐 왔으면 «앉은 자리»보다 «살펴본 칸»이 많다. 그 차이가
                「묘비가 쌓이면 느려진다」는 이야기의 알맹이라 숨기지 않고 적는다. */
             return looked > dist + 1
@@ -232,7 +235,7 @@ function openPut(rec, v) {
         }
         if (cell === TOMB) {
             if (tombAt < 0) tombAt = at;
-            rec.say(`${at}번은 **묘비**입니다. 쓸 수는 있지만 **찾기가 여기서 멈추면 안 되므로** 계속 봅니다.`);
+            rec.say(`${withJosa(findIdx(at), '은는')} **묘비**입니다. 쓸 수는 있지만 **찾기가 여기서 멈추면 안 되므로** 계속 봅니다.`);
             rec.mark('tomb');
             continue;
         }
@@ -244,7 +247,7 @@ function openPut(rec, v) {
 
     if (tombAt >= 0) {
         rec.place(tombAt, v);
-        return `${withJosa(v, '을를')} 묘비 자리인 ${tombAt}번에 넣었습니다.`;
+        return `${withJosa(v, '을를')} 묘비 자리인 ${findIdx(tombAt)}에 넣었습니다.`;
     }
     rec.flag(`칸 ${rec.cap}개가 모두 찼습니다. 개방 주소법은 **칸 안에서만** 자리를 찾으므로 `
         + '더 넣으려면 더 큰 표를 새로 만들어 전부 다시 계산해 옮겨야 합니다.');
@@ -258,22 +261,22 @@ function openFind(rec, v) {
 
     for (let k = 0; k < rec.cap; k++) {
         const at = (home + k) % rec.cap;
-        rec.say(k === 0 ? `${at}번 칸을 봅니다.` : `${at}번 칸으로 **한 칸 옆으로 밀어** 봅니다.`);
+        rec.say(k === 0 ? `${withJosa(findIdx(at), '을를')} 봅니다.` : `**한 칸 옆으로 밀어** ${withJosa(findIdx(at), '을를')} 봅니다.`);
         const cell = rec.visit(at);
         if (cell === null) {
-            return `${withJosa(v, '은는')} 없습니다. **${at}번이 비어 있으므로 더 볼 것도 없습니다** — `
+            return `${withJosa(v, '은는')} 없습니다. **${withJosa(findIdx(at), '이가')} 비어 있으므로 더 볼 것도 없습니다** — `
                 + '넣을 때도 빈 칸에서 멈췄을 테니까요.';
         }
         if (cell === TOMB) {
-            rec.say(`${at}번은 묘비입니다. **여기서 멈추면 안 됩니다** — 뒤에 밀려난 값이 있을 수 있습니다.`);
+            rec.say(`${withJosa(findIdx(at), '은는')} 묘비입니다. **여기서 멈추면 안 됩니다** — 뒤에 밀려난 값이 있을 수 있습니다.`);
             rec.mark('tomb');
             continue;
         }
         rec.say(`${withJosa(cell.v, '은는')} ${v}입니까?`);
         if (rec.test(at, v)) {
             return k > 0
-                ? `${at}번에서 찾았습니다. **계산한 자리에서 ${k}칸 밀린 곳입니다.**`
-                : `${at}번에서 찾았습니다. **계산한 자리에 바로 있었습니다.**`;
+                ? `${findIdx(at)}에서 찾았습니다. **계산한 자리에서 ${k}칸 밀린 곳입니다.**`
+                : `${findIdx(at)}에서 찾았습니다. **계산한 자리에 바로 있었습니다.**`;
         }
     }
     return `${withJosa(v, '은는')} 없습니다. 칸을 한 바퀴 다 돌았습니다.`;
@@ -286,11 +289,11 @@ function openRemove(rec, v) {
 
     for (let k = 0; k < rec.cap; k++) {
         const at = (home + k) % rec.cap;
-        rec.say(k === 0 ? `${at}번 칸을 봅니다.` : `${at}번 칸으로 **한 칸 옆으로 밀어** 봅니다.`);
+        rec.say(k === 0 ? `${withJosa(findIdx(at), '을를')} 봅니다.` : `**한 칸 옆으로 밀어** ${withJosa(findIdx(at), '을를')} 봅니다.`);
         const cell = rec.visit(at);
         if (cell === null) break;
         if (cell === TOMB) {
-            rec.say(`${at}번은 묘비입니다. 지나칩니다.`);
+            rec.say(`${withJosa(findIdx(at), '은는')} 묘비입니다. 지나칩니다.`);
             rec.mark('tomb');
             continue;
         }

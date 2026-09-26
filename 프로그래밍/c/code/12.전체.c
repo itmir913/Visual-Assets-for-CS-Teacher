@@ -34,7 +34,7 @@ int main(void) {
         }
     }
 
-    printf("가장 높은 점수 %d — %d번 모둠의 %d번째 차례\n", best, best_row, best_col);
+    printf("가장 높은 점수 %d — %d번 모둠의 %d번 차례\n", best, best_row, best_col);
 
     return 0;
 }

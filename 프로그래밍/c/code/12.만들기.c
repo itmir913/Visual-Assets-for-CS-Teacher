@@ -10,11 +10,11 @@ int main(void) {
     // endregion
 
     // region: 칸
-    printf("0번 모둠의 첫 차례: %d\n", score[0][0]);   // 80
-    printf("1번 모둠의 세 번째: %d\n", score[1][2]);   // 95
+    printf("0번 모둠의 0번 차례: %d\n", score[0][0]);   // 80
+    printf("1번 모둠의 2번 차례: %d\n", score[1][2]);   // 95
 
     score[2][3] = 100;                                 // 칸 하나만 바꾼다
-    printf("2번 모둠의 마지막: %d\n", score[2][3]);    // 100
+    printf("2번 모둠의 3번 차례: %d\n", score[2][3]);   // 100
     // endregion
 
     return 0;

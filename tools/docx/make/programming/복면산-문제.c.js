@@ -117,7 +117,7 @@ makeDocument({
         ],
         improvements: [
             "수학적으로 a+b==c 조건만 확인해도 동치이므로 조건식을 단순화할 수 있다.",
-            "변수 ab, ba, cc를 미리 계산해두면 출력문이 간결해진다.",
+            "변수 ab, ba, cc를 미리 계산해 두면 출력문이 간결해진다.",
         ],
         testCases: [
             {input: "(없음)", expected: "36쌍 출력, 첫 번째: A=1,B=2,C=3", actual: "36쌍 출력, 첫 번째: A=1,B=2,C=3", pass: "O"},

@@ -3,6 +3,7 @@
 //     npm run check -- prose                 # 모든 과목 + 시뮬레이터 (CI가 쓰는 방식)
 //     npm run check -- prose <파일>…         # 짚은 파일만 — 정제 중에 쓴다
 //     npm run check -- prose --report        # 정제 전 파일까지 과목별로 센다 (통과로 끝난다)
+//                                            # + 감사 목록(막지 않는 유형, `audit()`)을 줄마다 내놓는다
 //
 // ## 왜 있는가 — 한 번 배운 것을 다음 과목이 공짜로 받게
 //
@@ -246,6 +247,42 @@ const PATTERNS = [
     ['의 그 (?:<strong>)?[A-Za-z]+(?:</strong>)?-?입니다', '「~의 그 X-입니다」 어원 틀',
         '예시는 한 번만, 「~가 그 예입니다」',
         ['preview(미리 보기)의 그 pre-입니다', '의 그 <strong>dependent</strong>입니다'], []],
+
+    // ── 2026-09-26 전문 감수(강의노트 197편)에서 되풀이해 고친 꼴 ──────────────────────────
+    // 기준서 6 — 「자리」를 대목 · 분야 · 경우의 뜻으로 쓴 꼴 가운데 **위치 · 좌석 · 자릿수로
+    // 읽힐 수 없는 것만** 막는다. 「두 자리 · 네 자리 · ~하는 자리입니다 · 자리마다」는 자릿수와
+    // 메모리 칸에도 똑같이 쓰여 기계가 가를 수 없다 — `--report` 가 따로 센다.
+    ['(?:쓰이는|쓰일|비교하는|비교할|어긋나는|어긋난|대표적인|다투는|다투고 있는) 자리|쓸 자리가 아니|' +
+        '(?<![일십백천만])의 자리에서|(?:기계학습|학습|사람|융합|분석)의 자리(?:입니다|이다|다\\.)',
+    '「자리」(대목 · 분야 · 경우의 뜻)', '대목 · 분야 · 경우 · 부분',
+    ['쓰이는 자리를 찾아', '비교할 자리', '어긋난 자리를 적어', '대표적인 자리입니다', '다투고 있는 자리입니다',
+        '선형 회귀를 쓸 자리가 아니다', '공공의 자리에서는', '이때가 기계학습의 자리입니다'],
+    ['일의 자리에서 올림', '무엇으로 쓸 자리인지', '빈 자리에 놓는다', '두 자리 수', '앞자리에서']],
+    // 표 · 목록의 칸을 차례나 위치로 가리키는 말. 표에 칸을 하나 끼우거나 좁은 화면에서 칸이
+    // 아래로 떨어지면 「오른쪽 칸 · 네 번째 칸」은 다른 칸을 가리킨다. 칸의 이름(머리글)을 적는다.
+    // 배열의 「첫 칸 · 마지막 칸」은 자료 구조의 위치라 막지 않는다 — 표를 가리킬 때만 막는다.
+    ['(?:오른쪽|왼쪽)\\s?(?:위\\s|아래\\s)?(?:칸|열)(?!\\s?짜리)|' +
+        '표(?:의|에서)\\s(?:첫|첫째|둘째|셋째|넷째|다섯째|마지막|[두세네]\\s?번째)\\s?(?:칸|열|줄|행)|' +
+        '(?:첫|첫째|둘째|셋째|넷째|다섯째|마지막|[두세네]\\s?번째|가운데)\\s?(?:칸|열|줄|행)[을를]\\s(?:특히\\s|꼭\\s)?(?:눈여겨|보세요|읽어)',
+    '표의 칸을 차례 · 위치로 가리킴', '칸의 이름(머리글)을 「 」로 적는다',
+    ['오른쪽 칸을 눈여겨보세요', '위 표의 오른쪽 칸', '오른쪽 열이 중요합니다', '왼쪽 위 칸', '아래 표에서 두 번째 열에는',
+        '네 번째 칸을 특히 눈여겨보세요', '마지막 줄을 눈여겨보세요'],
+    ['오른쪽으로 한 칸', '첫 칸의 주소', '마지막 칸의 인덱스', '오른쪽 칸짜리', '첫 줄에 항목 이름']],
+    // 위치를 「0번째 · i번째」로 적은 말 — 교과 용어는 인덱스다. 시뮬레이터는 `terms` 가 막는다.
+    // 사람이 1부터 세는 차례(「두 번째 비교 · 3번째 회차」)는 막지 않는다.
+    ['(?<![0-9])0\\s?번째|(?<![A-Za-z0-9_])[ijkn]\\s?번째', '위치를 「0번째 · i번째」로 적음', '인덱스 0 · 인덱스 i',
+        ['0번째 글자', 'i번째 값', 'k 번째'], ['10번째', '두 번째 비교', 'pi번째']],
+    // 기준서 1 — 본문은 합니다체. 해요체 맺음(「~지요 · ~죠 · ~해요 · ~같아요 · ~겠어요」)은
+    // 인용 「 」 속 말(면담 물음 · 학생 말)만 둔다. 설명문에 섞이면 한 자리에서 문체가 갈린다.
+    ['(?<!「[^」]{0,120})(?:[가-힣](?:지요|죠|해요|겠어요)|같아요|이에요|예요)(?=[.?!])', '해요체 맺음', '합니다체(「~입니다 · ~습니다」)',
+        ['뜻이지요.', '어떻게 건네죠?', '받아쓰기와 같아요.', '큰 문제겠지요.', '행동이에요.', '불가능해요!'],
+        ['「쉽죠?」', '「이런 게 있으면 쓰시겠어요?」라고', '「그럼요, 좋겠네요」']],
+    // 기관명이 바뀌었다(통계청 → 국가데이터처). 옛 이름은 「옛 통계청」으로 곁들일 때만 쓴다.
+    ['(?<!옛\\s?)통계청|kostat\\.go\\.kr', '옛 기관명 · 도메인(통계청)', '국가데이터처(옛 통계청) · mods.go.kr',
+        ['출처: 통계청, 나라통계', 'https://mdis.kostat.go.kr'], ['국가데이터처(옛 통계청)', 'mdis.mods.go.kr']],
+    ['자켓', '자켓', '재킷', ['자켓이 나옵니다'], ['재킷']],
+    // 컴퓨터는 적어 준 것만 한다 — 「알아서」는 사람의 판단을 빌려 준다(정보 3-2-1 과 부딪힌다).
+    ['컴퓨터가 알아서', '「컴퓨터가 알아서」', '「정해 둔 규칙대로 · 자동으로」', ['컴퓨터가 알아서 네 번 돌고'], ['사람은 알아서 메웁니다']],
 ];
 
 // ── 문체 기준서: 곧바로 막는 것 ──────────────────────────────────────────────
@@ -267,6 +304,19 @@ const STYLE_NOW = [
         "checkAnswer(this, false, '옳은 설명입니다."],
     ["checkAnswer(this, true, '표본이 작으면", "checkAnswer(this, true, '정답 없이 묶는다",
         "checkAnswer(this, false, '넣은 이유를 검토하는 것은 올바른 태도입니다."]],
+    // 기준서 2 의 다른 꼴(2026-09-26 전문 감수에서 되풀이해 고쳤다) — 정답 해설을 「이것이 옳지
+    // 않습니다.」로 열거나, 오답 해설을 판정 한 마디(「아닙니다. · 반대입니다.」)나 「~이 맞습니다.」로
+    // 연다. 판정은 버튼 색이 이미 말해 준다. 「~므로 ~이 맞습니다」처럼 까닭을 앞세운 문장은 둔다.
+    ["checkAnswer\\(this,\\s*true,\\s*'이것이 (?:옳지 않|알맞지 않|맞지 않|틀린|잘못된)|" +
+    "checkAnswer\\(this,\\s*false,\\s*'(?:아닙니다|반대입니다|거꾸로입니다|틀렸습니다)[.!]|" +
+    "checkAnswer\\(this,\\s*false,\\s*'(?:(?!므로|라서|때문|니까)[^'.!?]){1,60}[이가] 맞습니다[.!]",
+    '해설 첫머리 판정(되받기)', '판정 문장을 빼고 첫 문장에서 그 선택지의 내용이나 까닭을 말한다',
+    ["checkAnswer(this, true, '이것이 옳지 않습니다. 세 이름", "checkAnswer(this, true, '이것이 알맞지 않은 설명입니다.",
+        "checkAnswer(this, false, '반대입니다. 큰 쪽이", "checkAnswer(this, false, '아닙니다. 둘은",
+        "checkAnswer(this, false, '센서는 외부 환경을 인식하는 역할이 맞습니다. 틀린"],
+    ["checkAnswer(this, true, '정렬하는 데도 시간이 들므로 옳지 않은 설명입니다.",
+        "checkAnswer(this, false, '과정을 가리키는 말이 들어가야 하므로 프로그래밍이 맞습니다.",
+        "checkAnswer(this, false, '빈 중괄호는 집합이 아닙니다."]],
     // 기준서 3 — 인용·강조 부호는 「 」 하나.
     ['[‘’“”«»]|&[lr][sd]quo;|&[lr]aquo;', '굽은 따옴표 · 겹화살괄호', '「 」',
         ['&lsquo;안다&rsquo;', '“네”', '«자리»'], ['「자리」', "'a'"]],
@@ -527,10 +577,93 @@ const STYLE_LATER_NOT = ['<p>가 — 나</p>', '<p><strong>가</strong>입니다
     '<table><tr><td><p><strong>가</strong><b>나</b></p></td></tr></table>',
     '<section id="quiz"><p><strong>가</strong><b>나</b></p></section>'];
 
+// ── 감사 목록: `--report` 에서만 센다 ─────────────────────────────────────────────
+// 2026-09-26 전문 감수(강의노트 197편)에서 되풀이해 찾은 유형 가운데 **기계가 옳고 그름을 가를 수
+// 없는 것**이다. 막으면 맞는 글까지 걸린다 — 자릿수의 「네 자리」, 프로그램 출력을 적은 표 칸의
+// 「대출되었습니다」, 근거를 단 「대부분」. 그래서 CI 를 막지 않고 `npm run check -- prose --report`
+// 가 사람이 읽을 목록으로 내놓는다. 강의노트에만 건다. 막을 수 있는 꼴은 위의 목록(`PATTERNS` ·
+// `STYLE_NOW`)에 있다.
+const AUDIT_TEXT = [
+    // 오개념 9 — 출처를 댈 수 없는 최상급 · 빈도.
+    ['A 최상급 · 빈도', /가장 흔한|가장 자주|대부분(?:의)?\s|경우가 (?:많습니다|많다)/gu,
+        '근거가 없으면 「~하기도 합니다」로 낮추거나 출처를 단다'],
+    // 기준서 6 — 막는 꼴 밖의 「자리」. 자릿수 · 메모리 칸 · 좌석이면 그대로 둔다.
+    ['A 자리', /(?<![가-힣])(?:두|세|네|다섯|여러)\s자리(?!\s?(?:수|숫자|정수|씩))|(?<=[가-힣]) 자리(?:입니다|이다|다\.)/gu,
+        '위치 · 자릿수가 아니라 대목 · 분야 · 경우의 뜻이면 그 낱말로'],
+    // 위치를 「3번 칸 · 0번 자리」로 적은 말. 메모리 주소 · 사람이 1부터 센 차례면 둔다.
+    ['A 인덱스', /(?<![0-9])[0-9]+\s?번\s?(?:칸|자리)/gu, '0부터 센 위치면 「인덱스 N」으로'],
+];
+// 오답 해설의 첫 문장이 판정(「~가 아닙니다.」)뿐인 것. 까닭이 든 부정문(「~이지 ~이 아닙니다 ·
+// ~므로 ~이 아닙니다」)은 뺀다.
+const AUDIT_NEG_HEAD = /checkAnswer\(this,\s*false,\s*'([^'.!?]{1,60}아닙니다\.)/g;
+const AUDIT_NEG_REASON = /므로|이지|뿐|아니라|때문|라서|지만|으로,|로,/;
+// 기준서 1 — 표 셀은 해라체. 프로그램 출력 · 대화를 옮긴 칸은 합니다체가 맞다.
+const AUDIT_TD = /<td\b[^>]*>((?:(?!<\/td>)[\s\S])*?)<\/td>/g;
+// 정의되지 않은 동작(UB)을 한 가지 결과로 단정한 문장. 낱말이 C 의 것이라 과목을 가리지 않고 건다.
+const AUDIT_UB = /(?:초기화하지 않은|범위를 벗어난|범위 밖|배열 밖|해제한 뒤|해제한 메모리|두 번 해제)[^.?!]{0,80}(?:나옵니다|납니다|멈춥니다|죽습니다|찍힙니다)\./gu;
+const AUDIT_UB_HEDGE = /수 있|모릅니다|정해져 있지 않|보장/;
+
+/** 합니다체 맺음인가 — 「니다」 앞 글자에 ㅂ 받침(습니다 · 입니다 · 합니다). 「아니다」는 해라체다. */
+const politeEnd = (t) => { const m = t.match(/([가-힣])니다[.!?]?$/); return !!m && (m[1].charCodeAt(0) - 0xAC00) % 28 === 17; };
+
+const norm = (s) => unescape(s.replace(/<[^>]+>/g, '')).replace(/[^0-9A-Za-z가-힣]/g, '');
+
+/** 「스스로 확인」이 같은 파일의 퀴즈 문항을 그대로 되묻는가 — 겹치는 글(16자 이상)을 돌려준다. */
+function selfQuizDup(src) {
+    const q = src.indexOf('id="quiz"');
+    if (q < 0) return [];
+    const quiz = norm(src.slice(q).replace(/onclick="[^"]*"/g, ''));
+    const out = [];
+    for (const m of src.slice(0, q).matchAll(/스스로 확인/g)) {
+        const end = src.indexOf('</section>', m.index);
+        const seg = norm(src.slice(m.index + m[0].length, end > 0 ? Math.min(end, m.index + 1500) : m.index + 1500));
+        for (let i = 0; i + 16 <= seg.length; i++) {
+            if (!quiz.includes(seg.slice(i, i + 16))) continue;
+            let j = i + 16;
+            while (j < seg.length && quiz.includes(seg.slice(i, j + 1))) j++;
+            out.push([m.index, seg.slice(i, j)]);
+            break;
+        }
+    }
+    return out;
+}
+
+/** 감사 목록 — [줄, 갈래, 알림]. 강의노트 HTML 에만. */
+function audit(p, src) {
+    const out = [];
+    const body = proseText(src);
+    for (const [label, rx, msg] of AUDIT_TEXT) {
+        for (const m of body.matchAll(rx)) out.push([lineOf(body, m.index), label, `「${m[0].trim()}」 — ${msg}`]);
+    }
+    for (const m of src.matchAll(AUDIT_NEG_HEAD)) {
+        if (!AUDIT_NEG_REASON.test(m[1])) out.push([lineOf(src, m.index), 'A 오답 해설 판정 머리', `「${m[1]}」 — 판정만 한 첫 문장. 까닭을 첫 문장에`]);
+    }
+    for (const m of src.matchAll(AUDIT_TD)) {
+        const t = text(m[1]);
+        if (politeEnd(t)) out.push([lineOf(src, m.index), 'A 표 셀 합니다체', `「${t.slice(-24)}」 — 표 셀은 해라체(출력 · 대화를 옮긴 칸이면 둔다)`]);
+    }
+    // 본문 문단이 통째로 해라체인 파일(인공지능기초 2-1-7 이 그랬다). 상자 · 표 · 퀴즈 안은 뺀다.
+    const boxes = boxSpans(src);
+    let polite = 0, plainEnd = 0;
+    for (const m of src.matchAll(P_BLOCK)) {
+        if (boxes.some(([a, b]) => a <= m.index && m.index < b)) continue;
+        const t = text(m[1]);
+        if (politeEnd(t)) polite++;
+        else if (/다\.$/.test(t)) plainEnd++;
+    }
+    if (plainEnd >= 8 && plainEnd > polite) out.push([1, 'A 해라체 본문', `본문 문단 ${polite + plainEnd}개 가운데 ${plainEnd}개가 해라체 — 본문은 합니다체`]);
+    for (const [pos, dup] of selfQuizDup(src)) out.push([lineOf(src, pos), 'A 스스로 확인 = 퀴즈', `「${dup}」 — 같은 파일의 퀴즈와 겹친다. 본문에 없는 새 상황으로`]);
+    for (const m of body.matchAll(AUDIT_UB)) {
+        if (!AUDIT_UB_HEDGE.test(m[0])) out.push([lineOf(body, m.index), 'A UB 단정', `「${m[0]}」 — 정의되지 않은 동작은 결과를 단정하지 않는다`]);
+    }
+    return out.sort((a, b) => a[0] - b[0] || cmp(a[1], b[1]));
+}
+
 // 강의노트에만 거는 규칙(쓴 말로 가리킨다). 시뮬레이터는 강의노트가 아니므로 다른
-// 시뮬레이터 페이지로 거는 링크가 앞 차시 바로가기가 되지 않는다. 나머지 규칙은
+// 시뮬레이터 페이지로 거는 링크가 앞 차시 바로가기가 되지 않는다. 표의 칸 · 위치 표기는
+// 시뮬레이터에서는 화면의 칸이고, 인덱스 표기는 `terms` 가 따로 막는다. 나머지 규칙은
 // 둘 다에 건다 — 같은 기준으로 막아야 강의노트와 시뮬레이터의 말이 갈라지지 않는다.
-const LECTURE_ONLY = new Set(['다른 강의노트로 가는 링크']);
+const LECTURE_ONLY = new Set(['다른 강의노트로 가는 링크', '표의 칸을 차례 · 위치로 가리킴', '위치를 「0번째 · i번째」로 적음']);
 
 /** 목록의 정규식이 제 예시를 잡는지, 잡으면 안 되는 것을 비껴가는지. */
 export function selfTest() {
@@ -752,7 +885,7 @@ export function check(args = []) {
     // 짚은 파일은 정제 중인 것이므로 DONE 이 아니어도 막는다.
     const files = picked.length ? picked.map((a) => path.resolve(ROOT, a)) : [...lectureNotes(), ...simScope()];
     let total = 0;
-    const pending = new Map(), stylePending = new Map();
+    const pending = new Map(), stylePending = new Map(), audits = new Map();
     for (const f of files) {
         const bad = checkFile(f, isSim(f));
         const shown = rel(f);
@@ -776,6 +909,13 @@ export function check(args = []) {
             const c = stylePending.get(subj);
             for (const [, rule] of later) c.set(rule, (c.get(rule) || 0) + 1);
         }
+        // 감사 목록 — `--report` 에서만. 판정하지 않고 사람이 읽을 자리를 내놓는다.
+        if (report && !isSim(f) && path.extname(f) === '.html') {
+            for (const [n, label, m] of audit(f, read(f))) {
+                r.warn(`${shown}:${n} 감사(${label}) ${m}`);
+                audits.set(label, (audits.get(label) || 0) + 1);
+            }
+        }
     }
     const left = [...pending].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ') || '없음';
     let summary = `완료 — 파일 ${files.length}, 위반 ${total}, 정제 전 자리 ${left}`;
@@ -786,6 +926,8 @@ export function check(args = []) {
             const byRule = [...c].sort((a, b) => cmp(a[0], b[0])).map(([k, v]) => `${k} ${v}`).join(', ');
             summary += `\n문체 정제 전 — ${subj} ${sum(c)} (${byRule || '없음'})`;
         }
+        const auditLine = [...audits].sort((a, b) => cmp(a[0], b[0])).map(([k, v]) => `${k} ${v}`).join(', ');
+        summary += `\n감사 목록 — ${auditLine || '없음'}`;
         // 세기만 한다 — 위반을 경고로 내려 통과시킨다.
         r.warnings.push(...r.errors);
         r.errors.length = 0;

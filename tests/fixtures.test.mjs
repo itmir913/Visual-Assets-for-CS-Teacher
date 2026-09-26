@@ -27,16 +27,19 @@ const CASES = [
     ['verbs', verbs, [`${F}/verbs-terms.js`]],
     ['prose', prose, [`${F}/prose.html`]],
     ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
+    // 감사 목록은 `--report` 에서만 나오고 전부 경고다 — 막지 않는 유형이라 경고가 곧 «잡았다»는 뜻이다.
+    ['prose-report', (a) => prose([...a, '--report']), [`${F}/prose-report.html`], 'warn'],
     ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],
 ];
 
 describe('일부러 틀린 조각을 검사가 잡는가', () => {
-    for (const [name, fn, args] of CASES) {
+    for (const [name, fn, args, kind] of CASES) {
         test(name, async () => {
             const r = await fn(args);
             // 순서가 아니라 «무엇이 걸렸는가»를 본다.
             const lines = [...r.errors.map((e) => 'ERROR ' + e), ...r.warnings.map((w) => 'WARN  ' + w)].sort();
-            expect(r.errors.length, `${name}: 틀린 조각에서 아무것도 못 잡았다 — 검사가 헛돈다`).toBeGreaterThan(0);
+            const caught = kind === 'warn' ? r.warnings.length : r.errors.length;
+            expect(caught, `${name}: 틀린 조각에서 아무것도 못 잡았다 — 검사가 헛돈다`).toBeGreaterThan(0);
             await expect(lines.join('\n') + '\n').toMatchFileSnapshot(`fixtures/__expected__/${name}.txt`);
         });
     }

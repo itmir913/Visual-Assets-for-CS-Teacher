@@ -8,6 +8,7 @@
 // `data-src` 마커여야 한다.
 //
 // 파일 이름이 규약을 지키는지도 함께 본다 → `CLAUDE.md` 의 「코드 파일 이름」.
+// `.c` 에서 홀수를 `% 2 == 1` 로 묻지 않는지도 본다(`checkOddTest`).
 //
 // 조각 모음처럼 홀로 서지 않는 파일은 맨 위 주석 프론트매터로 뺀다.
 //
@@ -150,6 +151,22 @@ function checkNames(files, r) {
 }
 
 /**
+ * C 에서 홀수를 `n % 2 == 1` 로 묻지 않는가(2026-09-26 전문 감수에서 찾았다).
+ *
+ * C 의 `%` 는 나눠지는 수의 부호를 따라 `-3 % 2` 가 `-1` 이다. 그래서 음수 홀수가 「짝수」로
+ * 빠진다 — 강의노트(C 03)는 `n % 2 != 0` 으로 묻는 편이 안전하다고 가르친다. 파이썬의 `%` 는
+ * 나누는 수의 부호를 따라 `-3 % 2` 가 `1` 이므로 `.py` 는 보지 않는다.
+ */
+function checkOddTest(files, r) {
+    for (const p of files.filter((f) => ext(f) === '.c')) {
+        const src = read(p);
+        for (const m of src.matchAll(/%\s*2\s*==\s*1(?!\d)/g)) {
+            r.error(`${rel(p)}:${lineOf(src, m.index)} \`${m[0]}\` — 음수 홀수는 나머지가 -1 이라 빠진다. \`% 2 != 0\` 으로 묻는다`);
+        }
+    }
+}
+
+/**
  * 강의노트 HTML 에 코드 본문이 직접 들어 있지 않은가 — `CLAUDE.md` 「코드 자체는 HTML에 쓰지 않는다」.
  *
  * `<pre>` 안의 `<code>` 는 반드시 `data-src` 마커이고 속이 비어 있어야 한다. `<code>` 없는
@@ -217,6 +234,7 @@ export function check(args = []) {
     const files = picked.length ? picked.map((a) => path.resolve(ROOT, a)).filter((p) => fs.existsSync(p)) : codeFiles();
     const {checked, skipped} = checkSyntax(files.filter((f) => !f.endsWith('.html')), r);
     checkNames(files.filter((f) => !f.endsWith('.html')), r);
+    checkOddTest(files.filter((f) => !f.endsWith('.html')), r);
     if (!picked.length) checkInline(r);
     checkHighlight(r, picked.length ? files.filter((f) => f.endsWith('.html'))
         : SUBJECTS.flatMap((s) => walk(path.join(ROOT, s.dir), {ext: ['.html']})));

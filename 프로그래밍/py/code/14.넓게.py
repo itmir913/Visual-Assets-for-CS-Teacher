@@ -5,7 +5,7 @@ nums = [10, 20, 30]
 
 # 넓게 잡으면 «무엇이 잘못됐는지»가 사라진다
 try:
-    i = int(input("자리 번호: "))
+    i = int(input("인덱스: "))
     print(100 / nums[i])
 except:
     print("오류가 났습니다")       # 어느 오류인지 알 수 없다

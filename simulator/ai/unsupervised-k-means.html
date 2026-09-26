@@ -421,7 +421,7 @@
             this.centroids = [];
             this.data.resetAssignments();
 
-            // [논리 오류 수정] 데이터 수보다 k 값이 클 경우 빈 군집 예외를 방지 및 중복되지 않는 위치(실제 데이터 위)에 생성
+            // 중심점은 서로 다른 데이터 점 위에 놓는다. k가 데이터 수보다 크면 데이터 수만큼만 놓아 빈 군집을 만들지 않는다
             let availablePoints = [...this.data.points];
             let actualK = Math.min(k, availablePoints.length);
 
@@ -482,7 +482,7 @@
             this.data = data;
             this.kmeans = kmeans;
             this.isAnimatingCentroids = false;
-            this.needsRedraw = true; // [성능 최적화] 무한 렌더링을 막기 위한 플래그
+            this.needsRedraw = true; // 바뀐 것이 있을 때만 다시 그린다
             this.actualWidth = 0;
             this.actualHeight = 0;
 
@@ -570,7 +570,7 @@
         draw() {
             this.ctx.clearRect(0, 0, this.actualWidth, this.actualHeight);
 
-            // [교육용 시각화 추가] ASSIGN 단계일 때 각 데이터 포인트와 중심점 간의 연결선(거리) 렌더링
+            // ASSIGN 단계에서는 각 데이터 점과 그 점이 속한 중심점을 선(거리)으로 잇는다
             if (window.currentPhase === 'ASSIGN') {
                 this.data.points.forEach(p => {
                     if (p.cluster !== -1) {
@@ -640,7 +640,7 @@
     const spreadLabel = document.getElementById('spreadLabel');
 
     window.currentPhase = 'IDLE'; // Renderer가 접근 가능하도록 window 객체에 등록
-    let autoRunTimer = null; // [비동기 오류 수정] setInterval 대신 재귀형 setTimeout 사용
+    let autoRunTimer = null; // 자동 실행 타이머. setInterval 대신 한 단계가 끝날 때마다 setTimeout 을 다시 건다
 
     // 단계 줄의 순서와 단계마다 상태 줄 바탕색의 뜻 이름 → _sim-ui.css 의 `sim-status`.
     const PHASES = ['IDLE', 'ASSIGN', 'UPDATE', 'DONE'];
@@ -680,7 +680,7 @@
         if (window.currentPhase === 'IDLE' || window.currentPhase === 'UPDATE') {
             const changed = kmeans.assignPoints();
             if (!changed && window.currentPhase === 'UPDATE') {
-                updateFlowUI('DONE', '수렴 완료! 데이터 소속이 더 이상 변하지 않아 알고리즘이 종료됩니다.', 'fa-flag-checkered');
+                updateFlowUI('DONE', '수렴 완료. 데이터 소속이 더 이상 변하지 않아 알고리즘이 종료됩니다.', 'fa-flag-checkered');
                 stopAutoRun();
                 btnStep.disabled = true;
                 btnRun.disabled = true;
@@ -693,7 +693,7 @@
         }
     }
 
-    // [비동기 오류 수정] 애니메이션 완료를 기다린 후 다음 Step 진행
+    // 애니메이션이 끝나기를 기다린 뒤 다음 단계로 넘어간다
     function runLoop() {
         if (!autoRunTimer) return; // stopped
         if (window.currentPhase === 'DONE') {
@@ -750,7 +750,7 @@
 
         if (kmeans.centroids.length > 0) {
             resetAlgorithm();
-            updateFlowUI('IDLE', '데이터가 변경되어 알고리즘이 초기화되었습니다. [중심점 생성]을 눌러주세요.', 'fa-rotate-left');
+            updateFlowUI('IDLE', '데이터가 변경되어 알고리즘이 초기화되었습니다. [중심점 생성]을 눌러 주세요.', 'fa-rotate-left');
         } else {
             updateFlowUI('IDLE', '데이터가 추가되었습니다. [중심점 생성] 버튼을 누르세요.', 'fa-seedling');
             renderer.requestDraw();
@@ -787,7 +787,7 @@
         renderer.requestDraw();
     });
 
-    // [이벤트 오류 수정] 슬라이더 드래그 중(input)에는 숫자만 바꾸고, 마우스를 뗄 때(change) 로직을 실행하도록 최적화
+    // 슬라이더를 움직이는 동안(input)은 숫자만 바꾸고, 놓을 때(change) 알고리즘을 초기화한다
     sliderK.addEventListener('input', (e) => {
         labelK.innerText = e.target.value;
     });
@@ -795,13 +795,13 @@
     sliderK.addEventListener('change', (e) => {
         if (kmeans.centroids.length > 0 || dataManager.points.some(p => p.cluster !== -1)) {
             resetAlgorithm();
-            updateFlowUI('IDLE', 'k 값이 변경되어 알고리즘이 초기화되었습니다. [중심점 생성]을 다시 눌러주세요.', 'fa-rotate-left');
+            updateFlowUI('IDLE', 'k 값이 변경되어 알고리즘이 초기화되었습니다. [중심점 생성]을 다시 눌러 주세요.', 'fa-rotate-left');
         }
     });
 
     btnInit.addEventListener('click', () => {
         if (dataManager.points.length === 0) {
-            alert("먼저 캔버스에 데이터를 생성해주세요!");
+            alert("먼저 캔버스에 데이터를 생성해 주세요.");
             return;
         }
         stopAutoRun();
@@ -809,7 +809,7 @@
         kmeans.initCentroids(parseInt(sliderK.value));
         updatePhase('IDLE');
         toggleAlgControls(true);
-        updateFlowUI('IDLE', '0단계: 초기 중심점이 데이터 위치에 생성되었습니다. [다음 단계]를 눌러보세요.', 'fa-location-crosshairs');
+        updateFlowUI('IDLE', '0단계: 초기 중심점이 데이터 위치에 생성되었습니다. [다음 단계]를 눌러 보세요.', 'fa-location-crosshairs');
         renderer.requestDraw();
     });
 

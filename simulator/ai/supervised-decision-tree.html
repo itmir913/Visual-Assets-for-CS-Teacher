@@ -612,7 +612,7 @@
             feature: bestFeature,
             value: bestVal,
             gini: bestGini,
-            // [논리 오류 수정] '아니오' 분기(right)에서는 다중 카테고리를 위해 해당 특징을 다시 물어볼 수 있도록 소진시키지 않음.
+            // '아니오' 분기(right)에는 같은 특징의 다른 값이 남아 있을 수 있으므로(범주가 셋 이상) 그 특징을 다 쓴 것으로 치지 않는다.
             left: buildTreeCat(bestSplits.left, [...usedFeatures, bestFeature], depth + 1),
             right: buildTreeCat(bestSplits.right, [...usedFeatures], depth + 1)
         };
@@ -678,7 +678,7 @@
         }
 
         if (!treeCat) {
-            container.innerHTML = '<div class="sim-dt-empty"><i class="fa-solid fa-tree sim-dt-empty-ico"></i>데이터가 변경되었습니다. [트리 생성] 버튼을 다시 눌러주세요.</div>';
+            container.innerHTML = '<div class="sim-dt-empty"><i class="fa-solid fa-tree sim-dt-empty-ico"></i>데이터가 변경되었습니다. [트리 생성] 버튼을 다시 눌러 주세요.</div>';
             return;
         }
         container.innerHTML = '';
@@ -742,7 +742,7 @@
 
         const btn = document.getElementById('btnCatPred');
 
-        // [상태 오류 방지] UI 버튼들 잠금 처리
+        // 예측 경로를 따라가는 동안 다른 버튼을 잠근다
         const controls = [document.getElementById('btnCatAdd'), document.getElementById('btnCatTrain'), document.getElementById('btnCatReset')];
         controls.forEach(c => c.classList.add('sim-dim'));
 
@@ -765,7 +765,7 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
         while (current) {
-            // [예외 처리] 중간에 트리가 소멸되거나 데이터가 비정상 변경되었는지 확인
+            // 따라가는 도중에 트리가 사라졌으면(초기화 등) 멈춘다
             if (!catView) break;
 
             setCatNodeState(current.visId, 'visiting');
@@ -887,7 +887,7 @@
 
         points2D.push({x, y, cls: currentClass2D});
 
-        // [사용자 UX/UI 경험 개선] 점을 찍었을 때 기존 경계선이 사라지는 당혹감을 없애기 위해 즉시 재학습
+        // 트리가 있으면 점을 찍자마자 다시 학습한다. 경계선이 사라진 채로 남지 않게 한다
         if (tree2D) {
             run2DTraining();
         } else {

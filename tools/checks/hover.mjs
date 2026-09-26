@@ -23,7 +23,8 @@ import path from 'node:path';
 import postcss from 'postcss';
 import {ROOT, Report, lineOf, read, rel, walk} from '../lib/repo.mjs';
 
-const SKIP = (n) => ['node_modules', '.git', '.venv', '.idea', 'scratchpad', 'public'].includes(n) ||
+// `privacy/` 는 바깥에 내놓은 확정본이라 이 검사를 위해 고치지 않는다(사용자 확정).
+const SKIP = (n) => ['node_modules', '.git', '.venv', '.idea', 'scratchpad', 'public', 'privacy'].includes(n) ||
     n.startsWith('dist') || n.startsWith('.tmp') || n === 'fixtures';
 
 /** 호버가 되는 기기로 좁힌 `@media` 인가. */

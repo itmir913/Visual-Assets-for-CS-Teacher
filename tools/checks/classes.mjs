@@ -19,7 +19,7 @@
 //     npm run check -- classes <파일>…            # 짚은 파일만
 import fs from 'node:fs';
 import path from 'node:path';
-import {ROOT, Report, lineOf, read, rel, walk} from '../lib/repo.mjs';
+import {ROOT, Report, SUBJECTS, lineOf, read, rel, walk} from '../lib/repo.mjs';
 
 // 값이 있는 Tailwind 유틸리티 접두사. 조립되면 CSS에서 빠지는 것들이다.
 const PREFIX =
@@ -64,12 +64,15 @@ const JS_SITES = [
  *  HTML 에 늘 있으므로 Tailwind 가 반드시 굽는다. */
 const JS_ALLOWED = new Set(['hidden']);
 
-/** 인라인 `<script>` 까지 보는 HTML — 시뮬레이터 페이지와 틀린 조각.
- *  강의노트의 인라인 스크립트는 아직 이 검사 밖이다(메뉴 여닫기 같은 공통 조각이 걸린다).
+/** 인라인 `<script>` 까지 보는 HTML — 시뮬레이터 페이지 · 강의노트 · 틀린 조각.
+ *  강의노트는 퀴즈 스크립트(`checkAnswer` · `showToast`)와 조작 몇 곳이 Tailwind 를 적고 있어서
+ *  2026-09-26 에 뜻 이름으로 옮기고 이 검사 안에 넣었다 — 퀴즈 모양은 src/styles/_quiz.css,
+ *  한 페이지에만 있는 조작의 모양은 그 페이지 `<style>` 에 둔다.
  *  `simulator/index.html` 은 루트 `index.html` 에서 구워 낸 입구라 뺀다. */
 const INLINE_SCOPE = (p) => {
     const r = rel(p);
-    return (r.startsWith('simulator/') && !r.endsWith('/index.html')) || r.startsWith('tests/fixtures/');
+    return (r.startsWith('simulator/') && !r.endsWith('/index.html')) || r.startsWith('tests/fixtures/') ||
+        SUBJECTS.some((s) => r.startsWith(s.dir + '/'));
 };
 
 /** 인라인 스크립트의 Tailwind 를 아직 옮기지 못한 시뮬레이터. **비어 있는 것이 목표다** —
@@ -184,6 +187,6 @@ export async function check(args = []) {
         }
     }
     if (r.errors.some((e) => e.includes('[런타임'))) r.error('완성된 클래스 문자열을 리터럴로 넣도록 고칠 것 (자세한 설명은 tools/checks/classes.mjs 머리 주석)');
-    if (r.errors.some((e) => e.includes('[JS 속'))) r.error('JS 에는 뜻을 가진 이름만 적고 모양은 src/styles/_sim-ui.css 에서 @apply 로 줄 것');
+    if (r.errors.some((e) => e.includes('[JS 속'))) r.error('JS 에는 뜻을 가진 이름만 적고 모양은 CSS 에서 @apply 로 줄 것 (시뮬레이터는 src/styles/_sim-ui.css, 강의노트 퀴즈는 src/styles/_quiz.css)');
     return r.done(`완료 — HTML ${files.length} · JS ${jsFiles.length}, 위반 ${r.errors.filter((e) => e.includes('[런타임') || e.includes('[JS 속')).length}`);
 }

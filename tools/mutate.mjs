@@ -58,6 +58,7 @@ const MUTANTS = [
     ['classes', NOTE, ...afterH1('<div class="bg-${x}-50"></div>'), '조립한 클래스'],
     ['classes', 'simulator/ai/search-bfs-dfs.html', "classList.toggle('on', mode === 'free');", "className = 'px-3 py-1 text-base';", '시뮬레이터 인라인 스크립트가 className 을 클래스 뭉치로 덮어씀'],
     ['classes', 'simulator/ai/supervised-k-nn.html', "toast.classList.add('shown')", "toast.classList.add('shown', 'translate-y-0')", '인라인 스크립트 classList 둘째 인자에 Tailwind'],
+    ['classes', NOTE, "' quiz-mark\"></i>'", "' mr-2\"></i>'", '강의노트 퀴즈 스크립트의 아이콘에 Tailwind'],
     ['fixtures', 'tools/checks/classes.mjs', 'for (const [code, base] of inlineScripts(text)) scan(p, text, code, base);', '', 'classes: 인라인 스크립트를 보지 않음'],
     ['fixtures', 'tools/checks/classes.mjs', 'if (ts.length >= 2) bundles.push([ts, p, at(m.index)]);', '', 'classes: 변수에 담은 클래스 뭉치를 보지 않음'],
     ['code', '데이터과학/code/2-3-2.영을-결측치로.py', '\n', '\ndef (:\n', '.py 구문 오류'],

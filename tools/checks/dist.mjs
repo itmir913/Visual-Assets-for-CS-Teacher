@@ -20,6 +20,8 @@
 //    전문이 산출물에 함께 나가는지. **오프라인 zip 은 명백한 재배포**라서, 고지가 빠지면
 //    사이트는 멀쩡해 보이는 채로 남의 라이선스를 어긴 배포본이 나간다
 //    → `tools/vite/third-party-notices.js`.
+// 7. **사이트 아이콘(파비콘)이 모든 페이지에 들어갔는지** — 빌드가 넣는다(`tools/vite/site-favicon.js`).
+//    정본 주소를 가리키는지까지 본다. 사본을 두면 디자인이 갈라진다.
 //
 // 사용법:
 //     npm run check -- dist                 # dist/
@@ -28,6 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {ROOT, Report, read, rel, walk} from '../lib/repo.mjs';
 import {Checker} from './html.mjs';
+import {FAVICON_SVG, APPLE_TOUCH_ICON} from '../vite/site-favicon.js';
 
 const DOCX_HREF_RE = /href="([^"]+\.docx)"/g;
 
@@ -86,6 +89,16 @@ export function check(args = []) {
     for (const [h, html] of src) {
         const found = [...new Set(html.match(CDN_RE) || [])].sort();
         if (found.length) r.error(`로컬화되지 않은 CDN 참조: ${shown(h)} -> ${found.slice(0, 3).join(', ')}`);
+    }
+
+    // 7. 사이트 아이콘 — 정본 두 줄이 모든 페이지에
+    for (const [h, html] of src) {
+        const head = (html.match(/<head[\s\S]*?<\/head>/i) || [''])[0];
+        for (const [what, href] of [['icon', FAVICON_SVG], ['apple-touch-icon', APPLE_TOUCH_ICON]]) {
+            const ok = [...head.matchAll(/<link\b[^>]*>/g)].some((m) =>
+                new RegExp(`rel="${what}"`).test(m[0]) && m[0].includes(`href="${href}"`));
+            if (!ok) r.error(`사이트 아이콘 빠짐: ${shown(h)} — <head> 에 rel="${what}" href="${href}" 가 없다(tools/vite/site-favicon.js)`);
+        }
     }
 
     // 3. 태그 중첩

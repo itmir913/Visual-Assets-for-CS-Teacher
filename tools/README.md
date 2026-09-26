@@ -128,6 +128,7 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | `strip-crossorigin.js` | 원본에 없던 속성 제거 |
 | `classic-scripts.js` | 페이지가 받던 청크를 **평범한 `<script defer>` 하나로** 눌러 담는다 |
 | `copy-code-button.js` | 모든 `<pre>` 오른쪽 위에 복사 버튼을 얹는다 |
+| `site-favicon.js` | 모든 페이지 `<head>`에 사이트 아이콘 두 줄을 넣는다. **정본은 `luminousky.com`의 절대 주소** — 사본을 두지 않는다. 빠짐없는지는 `check -- dist`가 본다 |
 | `drop-ttf-fallback.js` | 아무도 받지 않는 `ttf` 대체 경로를 지운다 (PostCSS) |
 | `subset-icon-font.js` | 아이콘 폰트를 **실제로 쓰는 글자만 남기고** 깎는다 |
 | `third-party-notices.js` | 번들에 실제로 들어간 패키지의 라이선스 고지를 `THIRD-PARTY-NOTICES.txt`로 굽는다 |

@@ -42,6 +42,7 @@ import copyCodeButton from './tools/vite/copy-code-button.js';
 import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
 import subsetIconFont from './tools/vite/subset-icon-font.js';
 import thirdPartyNotices from './tools/vite/third-party-notices.js';
+import siteFavicon from './tools/vite/site-favicon.js';
 import { playwright } from '@vitest/browser-playwright';
 
 /**
@@ -86,6 +87,7 @@ export default {
         // 별도의 code/ 폴더로 원본 코드를 작성하고, 빌드할 때 코드 주입 단계에서 치환한다.
         injectCode(), // pre 코드 주입
         copyCodeButton(), // 주입이 끝난 뒤에 Copy 버튼을 감싼다 — 주입된 코드에도 버튼이 붙어야 한다.
+        siteFavicon(), // 모든 페이지에 사이트 아이콘 두 줄 — 정본은 luminousky.com, 사본을 두지 않는다.
         // Vite 빌드
         vendorPublic(),
         copyLectureAssets(),

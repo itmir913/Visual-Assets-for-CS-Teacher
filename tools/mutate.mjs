@@ -48,6 +48,8 @@ const MUTANTS = [
     ['privacy', 'src/entries/_lib/josa.js', '\n', '\nlocalStorage.setItem("a", "b");\n', '브라우저 저장소 사용'],
     ['sim-index', 'simulator/index.html', '</body>', '<!-- 손으로 고침 --></body>', '구운 입구를 손으로 고침'],
     ['dist', 'dist/index.html', '</body>', '<script type="module" src="x.js"></script></body>', '산출물에 모듈 스크립트'],
+    ['dist', 'dist/index.html', '<link rel="icon" href="https://luminousky.com/favicon.svg" type="image/svg+xml">', '', '산출물에 파비콘 빠짐'],
+    ['dist', 'dist/index.html', 'href="https://luminousky.com/apple-touch-icon.png"', 'href="/apple-touch-icon.png"', '파비콘이 정본 대신 사본을 가리킴'],
 
     // ── 검사 규칙 자체 — 규칙 하나를 끄면 틀린 조각 기록이 달라져야 한다 ──────
     ['fixtures', 'tools/checks/html.mjs', 'for (const m of src.matchAll(FORWARD_LESSON))', 'for (const m of [])', 'html: 뒤 차시 규칙 끔'],

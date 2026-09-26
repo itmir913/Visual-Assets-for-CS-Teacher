@@ -1,7 +1,7 @@
 // 강의안 HTML 검증: 태그 중첩 + 최소 글자 크기(CSS·SVG) + 테이블 래퍼 + 제목·금지 요소 + 중복 id.
 //
 //     npm run check -- html                           # 저장소 전체 (CI가 쓰는 방식)
-//     npm run check -- html 인공지능기초/1-1-2.….html  # 인자만 검사. 글롭을 여럿 이어도 된다
+//     npm run check -- html 인공지능기초/1-1-2.….html  # 인자만 검사. 글롭을 여럿 이어도 된다(Git Bash 에서 — PowerShell · cmd 는 글롭을 펴 주지 않는다)
 //     npm run check -- html -v                        # 전체를 돌면서 항목별 결과까지
 //
 // 위반이 하나라도 있으면 실패한다(경고는 통과). 경로는 현재 폴더 → 저장소 루트 순으로 찾는다.

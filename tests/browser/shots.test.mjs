@@ -2,6 +2,8 @@
 //
 //     VITE_SHOTS=<폴더> npx vitest run --project browser tests/browser/shots.test.mjs
 //
+// 폴더는 `dist-shots/`처럼 저장소 안이어야 한다 — Vite 가 바깥 쓰기를 막는다.
+//
 // 레이아웃 검사(`sim-layout.test.mjs`)는 겹침 · 넘침처럼 기계가 판정할 수 있는 것만 본다.
 // 「그림이 화면을 넉넉히 쓰는가 · 보기 좋은가」는 찍어서 사람이 본다.
 import {test} from 'vitest';

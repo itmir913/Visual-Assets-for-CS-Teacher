@@ -54,6 +54,10 @@ const MUTANTS = [
     ['fixtures', 'tools/checks/prose.mjs', "const RAW_ONLY = new Set(['「vs」 비교 표기']);", 'const RAW_ONLY = new Set([]);', 'prose: 「vs」가 <code> 속까지 잡음(vs0926)'],
     ['prose', NOTE, ...afterH1('<p>알고보니 쉬웠습니다.</p>'), '강의노트에 「-고 보다」 붙여 씀(vs0926)'],
     ['fixtures', 'tools/checks/prose.mjs', "'(?<=[가-힣])(?<!원)고(?:보(?:니|", "'(?<=[가-힣])(?<!원)고(?:보(?:", 'prose: 「-고 보다」가 「알고보니」를 흘림(vs0926)'],
+    // 배부 양식과 화면판 보고서 — 한쪽만 고친 꼴
+    ['form-sync', '인공지능기초/실습/loan-approval.html', '입력과 출력을 중심으로', '입력과 출력을 위주로', '화면판 지시문만 고침(양식0926)'],
+    ['form-sync', 'tools/docx/make/make_ai_template.js', '            "자신의 경험을 바탕으로 진솔하게 작성되어 있다.",\n', '', '배부 양식 체크리스트 항목만 뺌(양식0926)'],
+    ['fixtures', 'tools/checks/form-sync.mjs', 'if (screen !== paper) {', 'if (false) {', 'form-sync: 지시문을 맞대지 않음(양식0926)'],
     ['code', '프로그래밍/c/code/01.변수.c', '\n', '\n// if (n % 2 == 1)\n', 'C 에서 홀수를 % 2 == 1 로 물음(감수0926)'],
     ['fixtures', 'tools/checks/code.mjs', "checkOddTest(files.filter((f) => !f.endsWith('.html')), r);", '', 'code: 홀수 판별 규칙 끔(감수0926)'],
     ['fixtures', 'tools/checks/prose.mjs', 'for (const [label, rx, msg] of AUDIT_TEXT) {', 'for (const [label, rx, msg] of []) {', 'prose: 감사 목록 최상급 · 자리 · 인덱스 끔(감수0926)'],

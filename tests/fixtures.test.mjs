@@ -18,6 +18,7 @@ import {check as prose} from '../tools/checks/prose.mjs';
 import {check as classes} from '../tools/checks/classes.mjs';
 import {check as code} from '../tools/checks/code.mjs';
 import {check as hover} from '../tools/checks/hover.mjs';
+import {check as formSync} from '../tools/checks/form-sync.mjs';
 
 const F = 'tests/fixtures';
 const codeFiles = fs.readdirSync(path.join(ROOT, F, 'codefiles')).map((n) => `${F}/codefiles/${n}`);
@@ -33,6 +34,8 @@ const CASES = [
     ['prose-report', (a) => prose([...a, '--report']), [`${F}/prose-report.html`], 'warn'],
     ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
     ['hover', hover, [`${F}/hover.html`]],
+    // 배부 양식과 화면판 보고서 — 문항 수 · 번호 · 지시문 · 체크리스트
+    ['form-sync', formSync, [`${F}/form-sync.html`]],
     ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],
 ];
 

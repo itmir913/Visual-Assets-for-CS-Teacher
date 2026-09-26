@@ -32,6 +32,8 @@ const CHECKS = {
     'classes': 'tests/classes.test.mjs',
     'hover': 'tests/hover.test.mjs',
     'code': 'tests/code.test.mjs',
+    // 배부 양식(.docx)의 문항 지시문 · 체크리스트가 화면판 보고서와 같은가
+    'form-sync': 'tests/form-sync.test.mjs',
     // 글
     'html': 'tests/html.test.mjs',
     'terms': 'tests/terms.test.mjs',

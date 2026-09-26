@@ -1,3 +1,10 @@
+// make_ai_template.js — AI 기계학습 보고서의 «틀». make/ai/ 의 내용 파일이 데이터만 넘긴다.
+//
+//     const {makeDocument} = require('../make_ai_template');
+//     const out = require('../../outpath');
+//     makeDocument({topic, mlType, tool, career, …}, out('ai', '….docx'));
+//
+// 첫 인자로 출력 경로 문자열 하나만 넘기면 빈 양식이 나온다 — 아래 makeDocument.
 const {
     Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
     AlignmentType, BorderStyle, WidthType, ShadingType,

@@ -1,3 +1,15 @@
+// make_sw_template.js — 프로그래밍 프로젝트 보고서의 «틀». make/programming/ 의 내용 파일이 데이터만 넘긴다.
+//
+//     const {makeDocument} = require('../make_sw_template');
+//     const out = require('../../outpath');
+//     makeDocument({s1, s2, s3, s4, s5}, out('programming', '비만도-측정.py.docx'));
+//
+// 프로그램 개발 4단계를 따라 섹션 다섯 개를 넘긴다. programName 은 섹션마다 넣는다(각 쪽 머리).
+//     s1 기획           programName purpose targetUser features screenExample
+//     s2 설계·입출력    programName inputDesign inputExample outputDesign outputExample constraints
+//     s3 설계·알고리즘  programName flowchart pseudocode
+//     s4 구현           programName code explanation
+//     s5 테스트         programName errors improvements testCases  ({input, expected, actual, pass} 배열)
 const {
     Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
     AlignmentType, BorderStyle, WidthType, ShadingType,

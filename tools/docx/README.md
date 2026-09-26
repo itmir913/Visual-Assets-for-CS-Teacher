@@ -1,11 +1,8 @@
 # 배부 문서 생성기
 
 학생에게 나눠 주는 보고서 양식 `.docx`를 만든다. **산출물은 저장소에 담지 않는다** —
-배포 빌드가 매번 새로 만든다.
-
-```bash
-npm run docx      # 저장소 어디서든
-```
+배포 빌드가 매번 새로 만든다. 부르는 법(`npm run docx` · `-v` · `DOCX_OUT_ROOT`)은
+[`build.js`](build.js) 머리에 있다.
 
 **의존성은 루트 `package.json`에 있다.** `npm ci` 한 번이면 끝이고 이 폴더에는
 `node_modules`도 락파일도 없다.
@@ -78,22 +75,13 @@ makeDocument({
 
 ### 3. 돌려서 확인한다
 
-```bash
-npm run docx
-```
-
-**산출물은 커밋하지 않는다.** `.gitignore`가 `*.docx`를 무시하고, 애초에 `dist/`로 나간다.
+`npm run docx`로 전체를 한 번 돌린다. **산출물은 커밋하지 않는다.** `.gitignore`가 `*.docx`를 무시하고, 애초에 `dist/`로 나간다.
 
 ---
 
 ## 출력 경로 — `outpath.js` 한 곳에서만 정한다
 
-```javascript
-const DEST = {
-    ai: '인공지능기초/실습/docx',
-    실습: '프로그래밍/실습/docx',
-};
-```
+그룹과 폴더의 짝은 [`outpath.js`](outpath.js)의 `DEST` 표에만 있다.
 
 **출력 루트는 기본이 `dist/`다.** 소스 트리에 산출물 폴더를 두지 않는다 —
 생성기가 필요한 폴더를 스스로 만든다.
@@ -134,40 +122,11 @@ const DEST = {
 | 만들었는데 아무도 안 가리킨다 | 링크를 빠뜨렸는지 물어본다. 일부러면 표에 적는다 |
 | 표에 있는데 안 만들어졌다 | **이름이나 자리가 바뀌었다. 주소가 죽는다** |
 
-기본이 `dist/`이므로 **배포 빌드는 아무것도 넘기지 않는다.**
-`DOCX_OUT_ROOT`는 다른 자리에 뽑아 볼 때만 쓴다.
-
-```bash
-npm run docx                        # dist/인공지능기초/실습/docx/…
-DOCX_OUT_ROOT=/tmp/확인 npm run docx   # 다른 자리에 뽑아 볼 때만
-```
-
 ---
 
 ## 틀이 받는 데이터
 
-### `make_sw_template` — 프로그래밍 프로젝트 보고서
-
-프로그램 개발 4단계를 그대로 따른다. 섹션 다섯 개를 `s1`~`s5`로 넘긴다.
-
-| 키 | 단계 | 필드 |
-|---|---|---|
-| `s1` | 기획 | `programName` `purpose` `targetUser` `features` `screenExample` |
-| `s2` | 설계 · 입출력 | `programName` `inputDesign` `inputExample` `outputDesign` `outputExample` `constraints` |
-| `s3` | 설계 · 알고리즘 | `programName` `flowchart` `pseudocode` |
-| `s4` | 구현 | `programName` `code` `explanation` |
-| `s5` | 테스트 | `programName` `errors` `improvements` `testCases` |
-
-`testCases`는 `{input, expected, actual, pass}` 객체의 배열이다.
-`programName`은 섹션마다 반복해서 넣는다 — 각 쪽 머리에 들어간다.
-
-### `make_ai_template` — AI 기계학습 보고서
-
-```javascript
-makeDocument({ topic, mlType, tool, career }, out('ai', '…docx'));
-```
-
-`makeDocument`에 **문자열 하나만** 넘기면 빈 양식이 나온다(`make_ai_template.js` 맨 아래 참고).
+틀마다 받는 필드는 그 틀 파일(`make/make_sw_template.js` · `make/make_ai_template.js`) 머리에 있다.
 
 ---
 
@@ -189,4 +148,4 @@ AI 양식 8개가 **두 달 동안** 어긋나 있었다(스크립트는 `오렌
 
 ---
 
-규칙의 전체 그림은 [`tools/README.md`](../README.md)의 「배부 문서 생성기」 절에 있다.
+저장소 도구 전체의 안내는 [`tools/README.md`](../README.md)에 있다.

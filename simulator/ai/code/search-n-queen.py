@@ -1,7 +1,7 @@
 # DFS(깊이 우선 탐색)를 이용한 N-Queen 백트래킹
 def solve_n_queens(row, n, state):
     if row == n:
-        return True # 트리 끝단 도달! 정답을 찾음
+        return True # 트리 끝단 도달 정답을 찾음
 
     for col in range(n):
         # 1. 시도 (Try) 및 가지치기(Pruning) 검사

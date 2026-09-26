@@ -418,7 +418,7 @@ const makeSection3 = (d = {}) => {
                         width: {size: halfW2, type: WidthType.DXA},
                         shading: {fill: GRAY_HEADER, type: ShadingType.CLEAR},
                         margins: {top: 80, bottom: 80, left: 120, right: 120},
-                        children: [pCenter("의사 코드", {size: FONT_TITLE})],
+                        children: [pCenter("의사코드", {size: FONT_TITLE})],
                     }),
                 ],
             }),
@@ -645,7 +645,7 @@ const makeSection5 = (d = {}) => {
         alignment: AlignmentType.RIGHT,
         spacing: {before: 40, after: 0},
         children: [new TextRun({
-            text: "※ 테스트 케이스가 더 필요한 경우 행을 추가하여 작성하세요.",
+            text: "테스트 케이스가 더 필요한 경우 행을 추가하여 작성하세요.",
             font: FONT,
             size: 18,
             color: "888888",
@@ -686,7 +686,7 @@ const makeSection5 = (d = {}) => {
             "입력값과 출력값이 모두 기록된 테스트 케이스가 3개 이상 있다.",
             "정상적인 값으로 테스트한 케이스가 2개 이상 있다.",
             "경계값(최솟값·최댓값) 또는 예외 입력을 사용한 테스트 케이스가 있다.",
-            "발견한 오류 또는 개선할 점이 1문장 이상 서술되어 있다. (없으면 '없음'과 이유)",
+            "발견한 오류 또는 개선할 점이 1문장 이상 서술되어 있다. (없으면 「없음」과 이유)",
         ]),
     ];
 };

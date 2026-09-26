@@ -29,7 +29,7 @@ makeDocument({
         programName: "순위 데이터 정렬: 3등 찾기",
         inputDesign: [
             "1행: 정수 n (학생 수)",
-            "2행~n+1행: '이름 점수' 형식으로 n줄 입력 (공백 구분)",
+            "2행~n+1행: 「이름 점수」 형식으로 n줄 입력 (공백 구분)",
             "자료형: 이름 char[], 점수 int (scanf(\"%s %d\", name, &score))",
         ],
         inputExample: ["4", "학생A 98", "학생B 95", "학생C 92", "학생D 88"],

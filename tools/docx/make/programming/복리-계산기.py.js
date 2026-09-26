@@ -36,7 +36,7 @@ makeDocument({
         inputExample: ["100000", "1.0"],
         outputDesign: [
             "총 24줄 출력",
-            "형식: 'N개월 후 잔액: X.XX 원' (소수점 2자리 고정)",
+            "형식: 「N개월 후 잔액: X.XX 원」 (소수점 2자리 고정)",
         ],
         outputExample: [
             "1개월 후 잔액: 101000.00 원",

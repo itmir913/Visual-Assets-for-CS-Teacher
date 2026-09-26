@@ -216,6 +216,25 @@
         .details-chevron {
             transition: transform 0.2s ease;
         }
+        /* 도메인 이름 고르기 — 스크립트가 만드는 버튼과 켜지는 단계 */
+        .dns-name-btn {
+            min-height: 44px; padding: 0.5rem 1rem; border-radius: 0.75rem;
+            border: 2px solid #cbd5e1; background-color: #fff; color: #334155;
+            font-weight: 700; font-size: 1rem; line-height: 1.5rem;
+            transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms;
+        }
+        .dns-name-btn.is-picked { background-color: #0d9488; color: #fff; border-color: #0d9488; }
+        @media (hover: hover) and (pointer: fine) {
+            .dns-name-btn:not(.is-picked):hover { background-color: #f1f5f9; }
+        }
+        #dns-step1.is-on, #dns-step2.is-on, #dns-step3.is-on {
+            opacity: 1;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        #dns-step1.is-on { border-color: #38bdf8; }
+        #dns-step2.is-on { border-color: #2dd4bf; }
+        #dns-step3.is-on { border-color: #a78bfa; }
     </style>
 </head>
 <body class="text-slate-900">
@@ -564,23 +583,17 @@
                     const 출력 = [1, 2, 3].map(n => document.getElementById('dns-out' + n));
                     const 실행버튼 = document.getElementById('dns-go');
                     const 되돌리기 = document.getElementById('dns-reset');
-                    const 강조 = ['border-sky-400', 'border-teal-400', 'border-violet-400'];
                     let 고른것 = null, 타이머 = [];
 
                     목록.forEach((항목, i) => {
                         const b = document.createElement('button');
                         b.type = 'button';
                         b.textContent = 항목.이름;
-                        b.className = 'dns-name-btn min-h-[44px] px-4 py-2 rounded-xl border-2 border-slate-300 ' +
-                            'bg-white text-slate-700 font-bold text-base hover:bg-slate-100 transition';
+                        b.className = 'dns-name-btn';
                         b.addEventListener('click', () => {
                             고른것 = 항목;
-                            이름칸.querySelectorAll('.dns-name-btn').forEach(o => {
-                                o.classList.remove('bg-teal-600', 'text-white', 'border-teal-600');
-                                o.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
-                            });
-                            b.classList.remove('bg-white', 'text-slate-700', 'border-slate-300');
-                            b.classList.add('bg-teal-600', 'text-white', 'border-teal-600');
+                            이름칸.querySelectorAll('.dns-name-btn').forEach(o => o.classList.remove('is-picked'));
+                            b.classList.add('is-picked');
                             초기화(false);
                         });
                         이름칸.appendChild(b);
@@ -590,25 +603,19 @@
                     function 초기화(버튼도) {
                         타이머.forEach(clearTimeout);
                         타이머 = [];
-                        단계.forEach((el, i) => {
-                            el.classList.add('opacity-40');
-                            el.classList.remove(강조[i], 'shadow-md');
-                            el.classList.add('border-slate-200');
+                        단계.forEach(el => {
+                            el.classList.remove('is-on');
                         });
                         출력.forEach(p => p.innerHTML = '&nbsp;');
                         실행버튼.disabled = false;
                         if (버튼도) {
-                            이름칸.querySelectorAll('.dns-name-btn').forEach(o => {
-                                o.classList.remove('bg-teal-600', 'text-white', 'border-teal-600');
-                                o.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
-                            });
+                            이름칸.querySelectorAll('.dns-name-btn').forEach(o => o.classList.remove('is-picked'));
                             이름칸.querySelector('.dns-name-btn').click();
                         }
                     }
 
                     function 켜기(i, 글) {
-                        단계[i].classList.remove('opacity-40', 'border-slate-200');
-                        단계[i].classList.add(강조[i], 'shadow-md');
+                        단계[i].classList.add('is-on');
                         출력[i].textContent = 글;
                     }
 
@@ -1025,23 +1032,20 @@
         const container = btn.closest('[id^="q"]');
         const buttons = container.querySelectorAll('.quiz-btn');
 
-        buttons.forEach(b => b.classList.add('disabled'));
+        buttons.forEach(b => {
+            if (!('html' in b.dataset)) b.dataset.html = b.innerHTML;
+            b.classList.add('disabled');
+        });
 
-        if (isCorrect) {
-            btn.classList.add('correct');
-            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
-            showToast('✅ ' + message, 'success');
-        } else {
-            btn.classList.add('wrong');
-            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
-            showToast('❌ ' + message, 'error');
-        }
+        const mark = isCorrect ? 'fa-circle-check' : 'fa-circle-xmark';
+        btn.classList.add(isCorrect ? 'correct' : 'wrong');
+        btn.innerHTML = '<i class="fa-solid ' + mark + ' quiz-mark"></i>' + btn.dataset.html.trim();
+        showToast(message, isCorrect ? 'success' : 'error');
 
         setTimeout(() => {
             buttons.forEach(b => {
                 b.classList.remove('disabled', 'correct', 'wrong');
-                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
-                b.innerHTML = text;
+                b.innerHTML = b.dataset.html;
             });
         }, 3000);
     }
@@ -1061,7 +1065,9 @@
             ? 'background: #0d9488; color: white;'
             : 'background: #f43f5e; color: white;'}
         `;
-        toast.textContent = message;
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid quiz-mark ' + (type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark');
+        toast.append(icon, message);
         document.body.appendChild(toast);
 
         requestAnimationFrame(() => {

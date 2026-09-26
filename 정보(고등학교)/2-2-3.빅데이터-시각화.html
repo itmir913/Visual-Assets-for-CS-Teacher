@@ -216,6 +216,8 @@
         .details-chevron {
             transition: transform 0.2s ease;
         }
+        /* 시각화 고르기 — 켠 버튼 */
+        .vis-btn.is-on { border-color: #14b8a6; background-color: #f0fdfa; color: #134e4a; }
     </style>
 </head>
 <body class="text-slate-900">
@@ -891,19 +893,11 @@
         if (!버튼들.length) return;
 
         const 판들 = document.querySelectorAll('.vis-panel');
-        const 켠버튼 = ['border-teal-500', 'bg-teal-50', 'text-teal-900'];
-        const 끈버튼 = ['border-slate-300', 'bg-white', 'text-slate-700'];
 
         function 보이기(이름) {
             판들.forEach(p => p.classList.toggle('hidden', p.id !== 'vis-' + 이름));
             버튼들.forEach(b => {
-                const 켬 = b.dataset.vis === 이름;
-                b.classList.toggle('border-teal-500', 켬);
-                b.classList.toggle('bg-teal-50', 켬);
-                b.classList.toggle('text-teal-900', 켬);
-                b.classList.toggle('border-slate-300', !켬);
-                b.classList.toggle('bg-white', !켬);
-                b.classList.toggle('text-slate-700', !켬);
+                b.classList.toggle('is-on', b.dataset.vis === 이름);
             });
         }
 
@@ -917,23 +911,20 @@
         const container = btn.closest('[id^="q"]');
         const buttons = container.querySelectorAll('.quiz-btn');
 
-        buttons.forEach(b => b.classList.add('disabled'));
+        buttons.forEach(b => {
+            if (!('html' in b.dataset)) b.dataset.html = b.innerHTML;
+            b.classList.add('disabled');
+        });
 
-        if (isCorrect) {
-            btn.classList.add('correct');
-            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
-            showToast('✅ ' + message, 'success');
-        } else {
-            btn.classList.add('wrong');
-            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
-            showToast('❌ ' + message, 'error');
-        }
+        const mark = isCorrect ? 'fa-circle-check' : 'fa-circle-xmark';
+        btn.classList.add(isCorrect ? 'correct' : 'wrong');
+        btn.innerHTML = '<i class="fa-solid ' + mark + ' quiz-mark"></i>' + btn.dataset.html.trim();
+        showToast(message, isCorrect ? 'success' : 'error');
 
         setTimeout(() => {
             buttons.forEach(b => {
                 b.classList.remove('disabled', 'correct', 'wrong');
-                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
-                b.innerHTML = text;
+                b.innerHTML = b.dataset.html;
             });
         }, 3000);
     }
@@ -953,7 +944,9 @@
             ? 'background: #0d9488; color: white;'
             : 'background: #f43f5e; color: white;'}
         `;
-        toast.textContent = message;
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid quiz-mark ' + (type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark');
+        toast.append(icon, message);
         document.body.appendChild(toast);
 
         requestAnimationFrame(() => {

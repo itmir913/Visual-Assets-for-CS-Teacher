@@ -801,23 +801,20 @@
         const container = btn.closest('[id^="q"]');
         const buttons = container.querySelectorAll('.quiz-btn');
 
-        buttons.forEach(b => b.classList.add('disabled'));
+        buttons.forEach(b => {
+            if (!('html' in b.dataset)) b.dataset.html = b.innerHTML;
+            b.classList.add('disabled');
+        });
 
-        if (isCorrect) {
-            btn.classList.add('correct');
-            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
-            showToast('✅ ' + message, 'success');
-        } else {
-            btn.classList.add('wrong');
-            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
-            showToast('❌ ' + message, 'error');
-        }
+        const mark = isCorrect ? 'fa-circle-check' : 'fa-circle-xmark';
+        btn.classList.add(isCorrect ? 'correct' : 'wrong');
+        btn.innerHTML = '<i class="fa-solid ' + mark + ' quiz-mark"></i>' + btn.dataset.html.trim();
+        showToast(message, isCorrect ? 'success' : 'error');
 
         setTimeout(() => {
             buttons.forEach(b => {
                 b.classList.remove('disabled', 'correct', 'wrong');
-                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
-                b.innerHTML = text;
+                b.innerHTML = b.dataset.html;
             });
         }, 3000);
     }
@@ -837,7 +834,9 @@
             ? 'background: #ea580c; color: white;'
             : 'background: #f43f5e; color: white;'}
         `;
-        toast.textContent = message;
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid quiz-mark ' + (type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark');
+        toast.append(icon, message);
         document.body.appendChild(toast);
 
         requestAnimationFrame(() => {

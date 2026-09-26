@@ -216,6 +216,10 @@
         .details-chevron {
             transition: transform 0.2s ease;
         }
+        /* 압축률 — 줄었으면 초록 계열, 늘었으면 붉은 계열 */
+        .rle-rate { font-weight: 900; color: #1e293b; }
+        .rle-rate.gain { color: #0f766e; }
+        .rle-rate.loss { color: #be123c; }
     </style>
 </head>
 <body class="text-slate-900">
@@ -956,7 +960,7 @@
                 결과.textContent = '—';
                 원본길이.textContent = 부호길이.textContent = '0';
                 압축률.textContent = '0%';
-                압축률.className = 'font-black text-slate-800';
+                압축률.className = 'rle-rate';
                 안내.textContent = '글자를 넣으면 부호화한 결과가 나타납니다.';
                 return;
             }
@@ -971,13 +975,13 @@
             압축률.textContent = r + '%';
 
             if (r > 0) {
-                압축률.className = 'font-black text-teal-700';
+                압축률.className = 'rle-rate gain';
                 안내.textContent = '이어지는 글자가 있어 줄어들었습니다.';
             } else if (r === 0) {
-                압축률.className = 'font-black text-slate-800';
+                압축률.className = 'rle-rate';
                 안내.textContent = '줄지도 늘지도 않았습니다.';
             } else {
-                압축률.className = 'font-black text-rose-700';
+                압축률.className = 'rle-rate loss';
                 안내.textContent = '이어지는 글자가 적어 오히려 길어졌습니다. 압축이 늘 이득은 아닙니다.';
             }
         }
@@ -998,23 +1002,20 @@
         const container = btn.closest('[id^="q"]');
         const buttons = container.querySelectorAll('.quiz-btn');
 
-        buttons.forEach(b => b.classList.add('disabled'));
+        buttons.forEach(b => {
+            if (!('html' in b.dataset)) b.dataset.html = b.innerHTML;
+            b.classList.add('disabled');
+        });
 
-        if (isCorrect) {
-            btn.classList.add('correct');
-            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
-            showToast('✅ ' + message, 'success');
-        } else {
-            btn.classList.add('wrong');
-            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
-            showToast('❌ ' + message, 'error');
-        }
+        const mark = isCorrect ? 'fa-circle-check' : 'fa-circle-xmark';
+        btn.classList.add(isCorrect ? 'correct' : 'wrong');
+        btn.innerHTML = '<i class="fa-solid ' + mark + ' quiz-mark"></i>' + btn.dataset.html.trim();
+        showToast(message, isCorrect ? 'success' : 'error');
 
         setTimeout(() => {
             buttons.forEach(b => {
                 b.classList.remove('disabled', 'correct', 'wrong');
-                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
-                b.innerHTML = text;
+                b.innerHTML = b.dataset.html;
             });
         }, 3000);
     }
@@ -1034,7 +1035,9 @@
             ? 'background: #0d9488; color: white;'
             : 'background: #f43f5e; color: white;'}
         `;
-        toast.textContent = message;
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid quiz-mark ' + (type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark');
+        toast.append(icon, message);
         document.body.appendChild(toast);
 
         requestAnimationFrame(() => {

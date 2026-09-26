@@ -354,6 +354,16 @@
         .bg-black-cell {
             background-color: #94a3b8;
         }
+        /* 탐색 트리 그리기(renderTree)가 붙이는 이름 */
+        .tn-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-weight: 700; }
+        .tn-badge.goal { background-color: #10b981; color: #fff; }
+        .tn-badge.cur { background-color: #fbbf24; color: #0f172a; }
+        .tn-badge.plain { background-color: #334155; color: #f1f5f9; }
+        .tn-depth { color: #94a3b8; margin-left: 0.5rem; }
+        .tn-goal { color: #6ee7b7; font-weight: 700; margin-left: 0.5rem; }
+        .tn-leaf { color: #64748b; margin-left: 0.5rem; }
+        .tn-kids { margin-top: 0.25rem; }
+        .tn-edge { color: #94a3b8; }
     </style>
 </head>
 <body class="text-slate-900">
@@ -2045,17 +2055,17 @@
     function renderTree(node) {
         const isGoal = node === key(...GOAL);
         const isCur = node === cur;
-        const cls = isGoal ? 'bg-emerald-500 text-white' : (isCur ? 'bg-amber-400 text-slate-900' : 'bg-slate-700 text-slate-100');
+        const cls = isGoal ? 'goal' : (isCur ? 'cur' : 'plain');
         const kids = children[node] || [];
         const leaf = !kids.length;
-        let html = `<div><span class="inline-block px-2 py-1 rounded-lg font-bold ${cls}">(${node})</span>` +
-            `<span class="text-slate-400 ml-2">깊이 ${depth[node]}</span>` +
-            (isGoal ? '<span class="text-emerald-300 font-bold ml-2">목표!</span>' : '') +
-            (leaf && !isGoal ? '<span class="text-slate-500 ml-2">잎</span>' : '');
+        let html = `<div><span class="tn-badge ${cls}">(${node})</span>` +
+            `<span class="tn-depth">깊이 ${depth[node]}</span>` +
+            (isGoal ? '<span class="tn-goal">목표!</span>' : '') +
+            (leaf && !isGoal ? '<span class="tn-leaf">잎</span>' : '');
         if (kids.length) {
-            html += '<div class="mt-1">';
+            html += '<div class="tn-kids">';
             for (const [k, name] of kids) {
-                html += `<div class="tree-node"><span class="text-slate-400">${name} →</span> ` + renderTree(k) + '</div>';
+                html += `<div class="tree-node"><span class="tn-edge">${name} →</span> ` + renderTree(k) + '</div>';
             }
             html += '</div>';
         }
@@ -2095,16 +2105,16 @@
         const container = btn.parentElement;
         const buttons = container.querySelectorAll('.quiz-btn');
         buttons.forEach(b => {
-            if (!b.dataset.label) b.dataset.label = b.textContent;
+            if (!b.dataset.label) b.dataset.label = b.innerHTML;
             b.classList.remove('correct', 'wrong');
             b.classList.add('disabled');
         });
         if (isCorrect) {
             btn.classList.add('correct');
-            btn.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>${btn.dataset.label}`;
+            btn.innerHTML = `<i class="fa-solid fa-circle-check quiz-mark"></i>${btn.dataset.label}`;
         } else {
             btn.classList.add('wrong');
-            btn.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2"></i>${btn.dataset.label}`;
+            btn.innerHTML = `<i class="fa-solid fa-circle-xmark quiz-mark"></i>${btn.dataset.label}`;
         }
         showToast(message, isCorrect ? 'success' : 'error');
         setTimeout(() => {
@@ -2120,18 +2130,17 @@
         existingToasts.forEach(t => t.remove());
         const toast = document.createElement('div');
         const icon = type === 'success'
-            ? '<i class="fa-solid fa-circle-check mr-2 text-xl"></i>'
-            : '<i class="fa-solid fa-circle-xmark mr-2 text-xl"></i>';
-        toast.className = `toast-message fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 opacity-0 z-[1000] flex items-center ${type === 'success' ? 'bg-blue-600' : 'bg-rose-600'}`;
+            ? '<i class="fa-solid fa-circle-check quiz-toast-icon"></i>'
+            : '<i class="fa-solid fa-circle-xmark quiz-toast-icon"></i>';
+        toast.className = 'toast-message quiz-toast';
+        toast.style.backgroundColor = type === 'success' ? '#2563eb' : '#e11d48';
         toast.innerHTML = `${icon} <span>${message}</span>`;
         document.body.appendChild(toast);
         setTimeout(() => {
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
+            toast.classList.add('quiz-toast-show');
         }, 10);
         setTimeout(() => {
-            toast.classList.remove('translate-y-0', 'opacity-100');
-            toast.classList.add('translate-y-20', 'opacity-0');
+            toast.classList.remove('quiz-toast-show');
             setTimeout(() => toast.remove(), 300);
         }, 4000);
     }

@@ -1036,6 +1036,7 @@
 
         // 다른 버튼 비활성화
         buttons.forEach(b => {
+            if (!('label' in b.dataset)) b.dataset.label = b.innerHTML;
             b.classList.add('disabled');
             if (b !== btn) {
                 b.style.opacity = '0.5';
@@ -1045,11 +1046,11 @@
         // 정답/오답 표시
         if (isCorrect) {
             btn.classList.add('correct');
-            btn.innerHTML = `<i class="fa-solid fa-check-circle mr-2"></i> ${btn.innerText}`;
+            btn.innerHTML = `<i class="fa-solid fa-check-circle quiz-mark"></i> ${btn.dataset.label.trim()}`;
             showToast(feedback, 'success');
         } else {
             btn.classList.add('wrong');
-            btn.innerHTML = `<i class="fa-solid fa-times-circle mr-2"></i> ${btn.innerText}`;
+            btn.innerHTML = `<i class="fa-solid fa-times-circle quiz-mark"></i> ${btn.dataset.label.trim()}`;
             showToast(feedback, 'error');
         }
 
@@ -1058,12 +1059,8 @@
             buttons.forEach(b => {
                 b.classList.remove('correct', 'wrong', 'disabled');
                 b.style.opacity = '1';
-                // 텍스트 초기화
-                const icon = b.querySelector('i');
-                if (icon) {
-                    b.removeChild(icon);
-                }
-                b.innerText = b.innerText.trim();
+                // 원래 HTML 로 되돌린다
+                b.innerHTML = b.dataset.label;
             });
         }, 3000);
     }
@@ -1074,22 +1071,21 @@
         existingToasts.forEach(t => t.remove());
 
         const toast = document.createElement('div');
-        const icon = type === 'success' ? '<i class="fa-solid fa-circle-check mr-2 text-xl"></i>' : '<i class="fa-solid fa-circle-xmark mr-2 text-xl"></i>';
+        const icon = type === 'success' ? '<i class="fa-solid fa-circle-check quiz-toast-icon"></i>' : '<i class="fa-solid fa-circle-xmark quiz-toast-icon"></i>';
 
-        toast.className = `toast-message fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white font-bold shadow-2xl transition-all transform translate-y-20 opacity-0 z-[1000] flex items-center ${type === 'success' ? 'bg-indigo-600' : 'bg-rose-600'}`;
+        toast.className = 'toast-message quiz-toast';
+        toast.style.backgroundColor = type === 'success' ? '#4f46e5' : '#e11d48';
         toast.innerHTML = `${icon} <span>${message}</span>`;
         document.body.appendChild(toast);
 
         // 애니메이션 실행 (등장)
         setTimeout(() => {
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
+            toast.classList.add('quiz-toast-show');
         }, 10);
 
         // 애니메이션 실행 (퇴장)
         setTimeout(() => {
-            toast.classList.remove('translate-y-0', 'opacity-100');
-            toast.classList.add('translate-y-20', 'opacity-0');
+            toast.classList.remove('quiz-toast-show');
             setTimeout(() => toast.remove(), 300);
         }, 2500);
     }

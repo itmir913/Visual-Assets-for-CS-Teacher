@@ -9,6 +9,8 @@ import { readFileSync } from 'node:fs';
 const cfg = JSON.parse(readFileSync(new URL('../../subjects.json', import.meta.url), 'utf-8'));
 
 export default {
+    // hover: 는 마우스처럼 호버가 되는 기기에서만 켠다 — 터치 기기에서는 누른 뒤 호버 색이 붙어 남는다.
+    future: { hoverOnlyWhenSupported: true },
     content: [
         ...cfg.subjects.map((s) => `./${s.dir}/**/*.html`),
         ...cfg.standalone.map((s) => `./${s.dir}/**/*.html`),

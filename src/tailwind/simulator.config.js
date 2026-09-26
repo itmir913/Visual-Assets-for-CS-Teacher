@@ -4,5 +4,7 @@
 // `simulator/index.html`은 시뮬레이터가 아니라 **입구**다. index.css를 링크하므로
 // 여기서 빼지 않으면 그 페이지의 클래스가 시뮬레이터 스물셋의 CSS에 얹혀 나간다.
 export default {
+    // hover: 는 마우스처럼 호버가 되는 기기에서만 켠다 — 터치 기기에서는 누른 뒤 호버 색이 붙어 남는다.
+    future: { hoverOnlyWhenSupported: true },
     content: ['./simulator/**/*.html', '!./simulator/index.html'],
 };

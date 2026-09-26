@@ -5,5 +5,7 @@
 // 굳이 함께 적는 것은 **같은 CSS를 링크하는 페이지를 여기에 다 적어 두기 위해서다** —
 // 나중에 구운 쪽에만 있는 클래스가 생겨도 저절로 굽힌다. → tools/checks/sim-index.mjs
 export default {
+    // hover: 는 마우스처럼 호버가 되는 기기에서만 켠다 — 터치 기기에서는 누른 뒤 호버 색이 붙어 남는다.
+    future: { hoverOnlyWhenSupported: true },
     content: ['./index.html', './simulator/index.html', './privacy/index.html'],
 };

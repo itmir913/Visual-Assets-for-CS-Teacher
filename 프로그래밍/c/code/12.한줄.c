@@ -19,7 +19,7 @@ int main(void) {
     for (int i = 0; i < 12; i = i + 1) {
         printf("%d ", *(p + i));       // 줄을 나누지 않고 열두 칸을 내리 읽는다
     }
-    printf("\n");
+    printf("\n");                    // 80 92 75 88 60 71 95 84 90 85 70 77
     // endregion
 
     printf("배열 전체 %d칸, 한 줄 %d칸\n",

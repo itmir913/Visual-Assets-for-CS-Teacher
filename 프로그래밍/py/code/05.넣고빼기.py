@@ -6,7 +6,7 @@ scores = [90, 85]
 scores.append(72)          # 맨 뒤에 붙인다
 print(scores)              # [90, 85, 72]
 
-scores.insert(1, 100)      # 1번 자리에 끼워 넣는다
+scores.insert(1, 100)      # 인덱스 1에 끼워 넣는다
 print(scores)              # [90, 100, 85, 72]
 
 scores.remove(85)          # «값» 85를 찾아 지운다

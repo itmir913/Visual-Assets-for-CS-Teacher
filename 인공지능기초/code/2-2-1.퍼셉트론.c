@@ -17,10 +17,10 @@ int main(void) {
     float threshold = 70.0;   // 고양이라고 판단하는 기준 점수
 
     // 2. 기준 점수를 넘는지 판단합니다. (활성화 함수 역할)
-    if (total_score >= threshold) {
-        printf("고양이일 확률이 높습니다!\n");
+    if (total_score > threshold) {
+        printf("고양이라고 판단합니다.\n");
     } else {
-        printf("고양이가 아닌 것 같습니다.\n");
+        printf("고양이가 아니라고 판단합니다.\n");
     }
     // endregion
     return 0;

@@ -25,14 +25,14 @@
 | `checks/html.mjs` | 태그 중첩 · 최소 글자 크기(CSS · SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 · **금지 낱말**(`BANNED_WORDS`) · 중복 id. **못 잡는 것도 머리에 적혀 있다** |
 | `checks/classes.mjs` | 코드로 조립되는 Tailwind 클래스 · JS(진입점 · 시뮬레이터와 강의노트의 인라인 스크립트)에 적은 Tailwind 클래스 |
 | `checks/hover.mjs` | 손으로 쓴 CSS(페이지 `<style>` · `src/styles`)의 `:hover` 가 `@media (hover: hover)` 안에 있는가 |
-| `checks/code.mjs` | 강의노트가 끌어다 쓰는 `.py` · `.c`의 구문 오류 · 파일 이름의 공백 · `<pre><code>`에 직접 적은 코드 |
-| `checks/prose.mjs` | 정제에서 물러난 말과 문체 기준서 |
+| `checks/code.mjs` | 강의노트가 끌어다 쓰는 `.py` · `.c`의 구문 오류 · 파일 이름의 공백 · `.c` 의 홀수 판별(`% 2 == 1`) · `<pre><code>`에 직접 적은 코드 · Prism 진입점 |
+| `checks/prose.mjs` | 정제에서 물러난 말과 문체 기준서. `--report` 는 막지 않는 감사 목록까지 내놓는다 |
 | `checks/verbs.mjs` | 동작의 이름이 한자어인가 |
 | `checks/terms.mjs` | 시뮬레이터의 말이 교과 용어인가(진입점의 `import` 를 따라간다) |
 | `checks/index-links.mjs` | 첫 화면과 강의노트가 서로를 놓치지 않았는가 |
 | `checks/privacy.mjs` | 개인정보 처리방침이 아직 참인가 |
 | `checks/sim-index.mjs` | `simulator/index.html`을 루트 `index.html`에서 굽고, 검사로 부르면 같은지만 본다 |
-| `checks/dist.mjs` | 산출물 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 · 제3자 라이선스 고지 |
+| `checks/dist.mjs` | 산출물 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 · 제3자 라이선스 고지 · 사이트 아이콘 |
 | `audits/pre.mjs` · `svg.mjs` · `lemma.mjs` … | 판정 없이 목록만 내놓는 감사. `ci` 밖이다 |
 | `mutate.mjs` | 돌연변이 검사 — 검사가 지키는 대상에 버그를 심고 빨간불이 켜지는지 본다. `ci` 밖이다 |
 | `_sim-harness.mjs` | 시뮬레이터 페이지를 원문 그대로 node(jsdom)에서 돌리는 받침대. 직접 부르지 않는다 |
@@ -102,14 +102,8 @@ d3 · p5 · ml5 · chart · vis를 전부 받게 된다. 페이지마다 두면 
 [`vite/classic-scripts.js`](vite/classic-scripts.js) 머리에 있고, 모듈이 남지 않았는지는
 `npm run check -- dist`가 지킨다.
 
-**옮기며 밟은 함정 넷.** 새 라이브러리를 넣을 때 같은 것을 겪을 수 있다.
-
-| | |
-|---|---|
-| **npm 판과 CDN 판의 API가 다를 수 있다** | lucide는 UMD 판이 `createIcons()`만으로 됐지만 npm 판은 아이콘 목록을 받는다. 호출부를 다 고치는 대신 진입점에서 감쌌다 |
-| **최상위 `await`를 쓰지 않는다** | 모듈 완료가 `window.onload`보다 늦어져 그때 부르는 코드가 조용히 실패한다. Prism 하이라이팅이 그렇게 죽었다 |
-| **전역에 얹는 순서** | Prism 언어 확장은 전역 `Prism`이 선 뒤에 평가되어야 한다. `_lib/prism.js`를 먼저 `import` 하는 정적 순서로 맞춘다 |
-| **라이브러리 스크립트는 defer다** | dev에서는 모듈이라, 빌드에서는 `defer`를 달아서 그렇다. 어느 쪽이든 body 끝 인라인 스크립트가 **먼저** 돈다 — 거기서 라이브러리를 바로 부르면 깨지므로 `DOMContentLoaded`로 미룬다 |
+새 라이브러리를 넣을 때 밟기 쉬운 함정(npm 판 API 차이 · 최상위 `await` · 전역에 얹는 순서 · defer)은
+[사례집 「CDN에서 npm + Vite로」](../docs/강의노트-작성-사례집.md)에 있다.
 
 **이름이 그대로여야 하는 파일만 `public/`에 둔다.** MathJax는 실행 중에 글꼴 이름을 조립해
 받아오므로 해시된 자산으로 바꾸면 못 찾는다. `public/`은 저장소에 담지 않고 빌드와 dev가

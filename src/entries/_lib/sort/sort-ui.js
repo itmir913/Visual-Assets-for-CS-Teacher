@@ -71,6 +71,11 @@ export function mountSortSimulator() {
     let n = SORT_N_DEFAULT;
     let seed = 20260825;
     let values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
+    /** 직접 적어 넣은 자료. **알고리즘 비교도 이것으로 돈다** — 예전에는 개수만 가져가고 자료는
+     *  프리셋으로 새로 만들어, 입력 칸이 보이는데도 넣은 값이 비교에 쓰이지 않았다.
+     *  `values` 와 따로 둔다: 한 알고리즘 탭이 받지 못하는 값이면 `values` 를 그 범위로 새로 만드는데,
+     *  그 뒤에 비교 탭으로 가도 학생이 넣은 값 그대로 비교해야 한다. 프리셋 · 섞기 · 개수를 바꾸면 비운다. */
+    let typed = null;
     let player = null;
 
     /* ---- 위쪽: 분류 탭과 알고리즘 칩 ---- */
@@ -326,15 +331,43 @@ export function mountSortSimulator() {
         $('btn-play').disabled = false;
 
         const raceN = Math.min(n, RACE_MAX_N);
-        const raceValues = makeSortData(presetId, raceN, seed, null);
-        const {frames} = buildSortRace(raceValues, chosen);
+        const raceValues = typed
+            ? typed.slice(0, RACE_MAX_N)
+            : makeSortData(presetId, raceN, seed, null);
+
+        /* **받지 못하는 자료면 그 알고리즘만 뺀다.** 직접 넣은 값에 음수나 큰 값이 있으면 계수 · 기수
+           정렬은 돌 수 없다. 비교 전체를 막지 않고 뺀 까닭을 알고리즘 탭과 같은 문장으로 알린다.
+           프리셋 자료는 음수가 없고 비교용으로 늘 열한 가지가 다 돌아 왔으므로 거르지 않는다. */
+        const refused = typed ? chosen.filter((a) => checkSortInput(a, raceValues)) : [];
+        const runnable = chosen.filter((a) => !refused.includes(a));
+        $('input-error').textContent = refused.length
+            ? `${refused.map((a) => checkSortInput(a, raceValues)).join(' ')} 그래서 이번 비교에서 뺐습니다.`
+            : ' ';
+        if (!runnable.length) {
+            ensureView('race');
+            view.setup([{race: []}], null);
+            $('read-notes').textContent = '';
+            setRich($('say'), '고른 알고리즘이 **모두 이 자료를 받지 못합니다.** 다른 알고리즘을 골라 주세요.');
+            $('record-note').textContent = ' ';
+            $('step-label').textContent = '0 / 0 단계';
+            const sc = $('scrub');
+            sc.max = '0';
+            sc.value = '0';
+            for (const id of ['btn-prev', 'btn-first', 'btn-next', 'btn-last', 'btn-play']) {
+                $(id).disabled = true;
+            }
+            return;
+        }
+        const {frames} = buildSortRace(raceValues, runnable);
 
         ensureView('race');
-        view.setup(frames, raceWork(chosen));
+        view.setup(frames, raceWork(runnable));
         paintReadNotes(frames, 'race');
         $('record-note').textContent = n > RACE_MAX_N
             ? `알고리즘 비교는 ${RACE_MAX_N}개까지만 합니다. 걸음을 하나라도 건너뛰면 비교가 공정하지 않기 때문입니다`
-              + ` (지금 고른 ${n}개 대신 ${raceN}개로 실행했습니다).`
+              + (typed
+                  ? ` (넣은 ${n}개 가운데 앞의 ${RACE_MAX_N}개로 실행했습니다).`
+                  : ` (지금 고른 ${n}개 대신 ${raceN}개로 실행했습니다).`)
             : ' ';
 
         const scrub = $('scrub');
@@ -426,6 +459,7 @@ export function mountSortSimulator() {
 
     function reshuffle() {
         seed = (seed * 1103515245 + 12345) >>> 0;
+        typed = null;
         values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
         paintPresets();
         rebuild();
@@ -477,6 +511,7 @@ export function mountSortSimulator() {
             $('n-label').textContent = String(n);
         });
         slider.addEventListener('change', () => {
+            typed = null;
             values = makeSortData(presetId, n, seed, algo.valueMax ?? null);
             rebuild();
         });
@@ -489,6 +524,7 @@ export function mountSortSimulator() {
             const {values: got, error} = parseSortInput($('input-text').value);
             if (error) { $('input-error').textContent = error; return; }
             values = got;
+            typed = got.slice();
             n = got.length;
             $('n-slider').value = String(SORT_SIZES.indexOf(nearestSortSize(n)));
             $('n-label').textContent = String(n);

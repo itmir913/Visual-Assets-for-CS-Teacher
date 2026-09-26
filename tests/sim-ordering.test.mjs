@@ -407,24 +407,48 @@ const KO_NUM = {둘: 2, 셋: 3, 넷: 4, 다섯: 5, 여섯: 6, 아홉: 9, 열: 10
         }
     }
 
-    /* 알고리즘 비교 줄마다 붙는 「끝 · 작업량」이 따로 센 작업량과 같은가. */
+    /* 알고리즘 비교 줄마다 붙는 「끝 · 작업량」이 따로 센 작업량과 같은가.
+       **직접 넣은 값으로 비교해야 한다** — 예전에는 개수만 가져가고 프리셋 자료로 돌았다. */
     const raceTab = [...page.el('group-tabs').children].find((b) => b.textContent === '알고리즘 비교');
-    raceTab.click();
-    page.el('btn-last').click();
-    const raceValues = makeSortData('random', mine.length, 20260825, null);
-    const expectWork = SORT_ALGOS.map((algo) => {
-        const o = runSortAlgorithm(algo, raceValues, {countOnly: true});
+    const workOf = (algos, v) => algos.map((algo) => {
+        const o = runSortAlgorithm(algo, v, {countOnly: true});
         return o.counts.compare + o.counts.move + o.counts.access;
     });
-    const tallies = [];
-    const walk = (el) => {
-        const t = el.children.length === 0 ? el.textContent : '';
-        const m = t.match(/^끝 · ([\d,]+)$/);
-        if (m) tallies.push(Number(m[1].replace(/,/g, '')));
-        for (const c of el.children) walk(c);
+    const readTallies = () => {
+        const out = [];
+        const walk = (el) => {
+            const t = el.children.length === 0 ? el.textContent : '';
+            const m = t.match(/^끝 · ([\d,]+)$/);
+            if (m) out.push(Number(m[1].replace(/,/g, '')));
+            for (const c of el.children) walk(c);
+        };
+        walk(page.el('bars-host'));
+        return out;
     };
-    walk(page.el('bars-host'));
-    if (tallies.join() !== expectWork.join()) bad2(`알고리즘 비교 — 줄마다 적힌 작업량 ${tallies.join(' ')}이 따로 센 ${expectWork.join(' ')}과 다르다`);
+    raceTab.click();
+    page.el('btn-last').click();
+    let tallies = readTallies();
+    let expectWork = workOf(SORT_ALGOS, mine);
+    if (tallies.join() !== expectWork.join()) bad2(`알고리즘 비교 — 줄마다 적힌 작업량 ${tallies.join(' ')}이 넣은 값으로 따로 센 ${expectWork.join(' ')}과 다르다`);
+
+    /* 음수를 넣으면 계수 · 기수 정렬만 빠지고 나머지는 넣은 값으로 돈다. 뺀 까닭을 알린다. */
+    const withNeg = [4, -2, 7, 0, -5, 3];
+    page.el('input-text').value = withNeg.join(' ');
+    page.el('btn-apply-input').click();
+    page.el('btn-last').click();
+    const ok = SORT_ALGOS.filter((a) => !checkSortInput(a, withNeg));
+    tallies = readTallies();
+    expectWork = workOf(ok, withNeg);
+    if (tallies.join() !== expectWork.join()) bad2(`알고리즘 비교(음수) — 작업량 ${tallies.join(' ')}이 받을 수 있는 ${ok.length}개로 따로 센 ${expectWork.join(' ')}과 다르다`);
+    if (ok.length === SORT_ALGOS.length) bad2('음수 자료인데 빠진 알고리즘이 없다 — 검사 자료가 틀렸다');
+    const err = page.el('input-error').textContent;
+    if (!err.includes('이번 비교에서 뺐습니다')) bad2(`알고리즘 비교(음수) — 뺀 까닭을 알리지 않는다: 「${err}」`);
+
+    /* 섞기를 누르면 입력값을 버리고 프리셋 자료로 돌아간다. */
+    page.el('btn-shuffle').click();
+    page.el('btn-last').click();
+    tallies = readTallies();
+    if (tallies.length !== SORT_ALGOS.length) bad2(`섞기 뒤 알고리즘 비교 — 줄이 ${tallies.length}개, 열한 줄이어야 한다(입력값이 남아 있다)`);
     for (const e of page.errors) bad2(`페이지 — ${e}`);
 }
 

@@ -118,7 +118,7 @@ const MUTANTS = [
     // 정렬의 세는 값 · 단계 불변식 · 화면 문장은 `sim-ordering` 이 본다(`sim-sort` 는 몇 분이 걸려 나눴다)
     // 줄바꿈이 든 글은 심지 않는다 — 작업 사본의 줄 끝(CRLF · LF)에 따라 자리를 못 찾는다.
     ['sim-ordering', 'src/entries/_lib/sort/sort-model.js', 'counts.move += 2;', 'counts.move += 1;', '정렬: 교환을 옮김 하나로 셈'],
-    // 첫 `counts.compare++` 는 `cmp` 의 것이다
+    ['sim-ordering', 'src/entries/_lib/sort/sort-ui.js', '? typed.slice(0, RACE_MAX_N)', '? makeSortData(presetId, raceN, seed, null)', '정렬 비교: 직접 넣은 값 대신 프리셋 자료로 돎'],    // 첫 `counts.compare++` 는 `cmp` 의 것이다
     ['sim-ordering', 'src/entries/_lib/sort/sort-model.js', 'counts.compare++;', '', '정렬: 두 자리 비교를 안 셈'],
     ['sim-ordering', 'src/entries/_lib/sort/sort-model.js', 'auxBlocks[blockIdx].items.push(a[i]);', 'auxBlocks[blockIdx].items.push(a[i]); counts.move--;', '정렬: 병합의 복사를 옮김으로 안 셈'],
     ['sim-ordering', 'src/entries/_lib/sort/sort-model.js', 'const item = cell.items.shift();', 'const item = cell.items.pop();', '정렬: 칸에서 뒤부터 꺼냄(분배 정렬 불안정)'],

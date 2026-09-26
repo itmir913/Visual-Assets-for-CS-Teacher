@@ -62,7 +62,7 @@ function replacePieces(text, piece, symbol) {
  * «더 큰» 이득에서만 갈아 끼우므로 그렇게 된다. 회차마다 답이 흔들리면 학생이 두 번
  * 돌려 다른 그림을 본다.
  *
- * **동점 규칙은 검사가 값으로 댄다** — 글자 두 가지짜리 글에서 이득이 같은 조각이 자주 겨룬다
+ * **동점 규칙은 검사가 값으로 댄다** — 글자 두 가지짜리 글에서 이득이 같은 조각이 자주 경쟁한다
  * → `tests/sim-compress.test.mjs` 의 `따로고르기`.
  *
  * @returns {{piece: string, times: number, gain: number}|null}

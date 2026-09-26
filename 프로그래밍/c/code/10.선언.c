@@ -2,7 +2,7 @@
 
 int main(void) {
     int n = 10;
-    int *p = &n;                      // n이 «있는 자리»를 담는다
+    int *p = &n;                      // n이 「있는 자리」를 담는다
 
     printf("n  = %d\n", n);           // 10   n에 담긴 값
     printf("&n = %p\n", (void *) &n); // n이 있는 자리

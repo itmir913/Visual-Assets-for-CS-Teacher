@@ -13,7 +13,7 @@ int mul(int a, int b) {
 }
 
 int main(void) {
-    int (*op[3])(int, int) = {add, sub, mul};   // 함수의 자리를 담는 «배열»
+    int (*op[3])(int, int) = {add, sub, mul};   // 함수의 자리를 담는 「배열」
     char name[3] = {'+', '-', '*'};
 
     int a = 12;

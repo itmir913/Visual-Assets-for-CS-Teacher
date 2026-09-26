@@ -15,7 +15,7 @@ int main(void) {
     int *bigger = (int *) realloc(data, 6 * sizeof(int));   // 담긴 것까지 옮겨 준다
 
     if (bigger == NULL) {
-        free(data);                 // 늘리지 못했어도 «원래 자리는 그대로» 살아 있다
+        free(data);                 // 늘리지 못했어도 「원래 자리는 그대로」 살아 있다
         return 1;
     }
     data = bigger;                  // 옮겨진 자리로 갈아 끼운다

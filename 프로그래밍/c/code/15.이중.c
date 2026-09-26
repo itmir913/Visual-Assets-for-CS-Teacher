@@ -3,7 +3,7 @@
 int main(void) {
     int num = 60;
     int *p = &num;
-    int **q = &p;                  // p가 «있는 자리»를 담는다
+    int **q = &p;                  // p가 「있는 자리」를 담는다
 
     printf("num = %d\n", num);     // 60
     printf("*p  = %d\n", *p);      // 60   한 번 따라간다

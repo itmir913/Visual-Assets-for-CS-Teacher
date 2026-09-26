@@ -6,7 +6,7 @@ int main(void) {
     for (int i = 1; i <= 5; i = i + 1) {
         printf("%d번째 안녕하세요\n", i);
     }
-    // while로 쓴 것과 «완전히 같은 일»을 한다. 셋을 한 줄에 모아 둔 것뿐이다
+    // while로 쓴 것과 「완전히 같은 일」을 한다. 셋을 한 줄에 모아 둔 것뿐이다
     // endregion
 
     return 0;

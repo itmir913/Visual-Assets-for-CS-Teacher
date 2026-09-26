@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-void change(int *p) {              // 값이 아니라 «자리»를 받는다
+void change(int *p) {              // 값이 아니라 「자리」를 받는다
     *p = 100;                      // 받은 자리로 찾아가 값을 넣는다
 }
 

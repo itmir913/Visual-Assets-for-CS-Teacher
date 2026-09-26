@@ -2,7 +2,7 @@
 # check: none
 # ---
 def min_max(scores):
-    return min(scores), max(scores)     # 쉼표를 찍으면 «묶음 하나»가 돌아온다
+    return min(scores), max(scores)     # 쉼표를 찍으면 「묶음 하나」가 돌아온다
 
 
 result = min_max([90, 85, 72])

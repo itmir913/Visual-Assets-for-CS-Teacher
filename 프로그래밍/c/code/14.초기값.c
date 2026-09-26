@@ -13,7 +13,7 @@ int main(void) {
 
     printf("malloc: ");
     for (int i = 0; i < 5; i = i + 1) {
-        printf("%d ", a[i]);        // 무엇이 들어 있을지 «정해져 있지 않다»
+        printf("%d ", a[i]);        // 무엇이 들어 있을지 「정해져 있지 않다」
     }
 
     printf("\ncalloc: ");

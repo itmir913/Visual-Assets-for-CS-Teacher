@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-void change(int n) {                 // 여기 n은 «사본»이다
+void change(int n) {                 // 여기 n은 「사본」이다
     n = 100;
     printf("함수 안: %d\n", n);      // 100
 }

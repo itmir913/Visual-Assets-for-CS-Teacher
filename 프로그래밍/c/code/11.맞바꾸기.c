@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 void swap(int *a, int *b) {
-    int temp = *a;                 // a가 «가리키는 곳»의 값을 빼 둔다
+    int temp = *a;                 // a가 「가리키는 곳」의 값을 빼 둔다
     *a = *b;
     *b = temp;
 }

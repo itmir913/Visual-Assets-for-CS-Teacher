@@ -7,7 +7,7 @@ class Student:
         self.kor = kor
         self.eng = eng
 
-    def average(self):                          # 값과 «하는 일»을 함께 둔다
+    def average(self):                          # 값과 「하는 일」을 함께 둔다
         return round((self.kor + self.eng) / 2, 1)
 
     def passed(self):

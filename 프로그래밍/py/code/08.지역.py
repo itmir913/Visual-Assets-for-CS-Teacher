@@ -2,7 +2,7 @@
 # check: none
 # ---
 def average(scores):
-    total = sum(scores)         # total은 함수 «안에서만» 산다
+    total = sum(scores)         # total은 함수 「안에서만」 산다
     return total / len(scores)
 
 print(average([90, 85, 72]))    # 82.33333333333333

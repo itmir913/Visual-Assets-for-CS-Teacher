@@ -6,7 +6,7 @@ int main(void) {
     char word[10] = "hello";
 
     for (int i = 0; i < 10; i = i + 1) {
-        printf("%d번 칸에 담긴 수: %d\n", i, word[i]);   // 글자는 사실 «수»로 담겨 있다
+        printf("%d번 칸에 담긴 수: %d\n", i, word[i]);   // 글자는 사실 「수」로 담겨 있다
     }
     // endregion
 

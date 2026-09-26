@@ -1,7 +1,7 @@
 # ---
 # check: none
 # ---
-# 값이 있는지 «묻기만» 한다면 집합이 훨씬 빠르다
+# 값이 있는지 「묻기만」 한다면 집합이 훨씬 빠르다
 numbers = list(range(1000000))
 checked = set(numbers)
 

@@ -14,7 +14,7 @@ int main(void) {
     // region: 간접
     field = 5;                           // 이번에도 명령에 적힌 번호
 
-    int real = memory[field];            // 5번 칸을 열었더니 «또 번호»(7)가 있다
+    int real = memory[field];            // 5번 칸을 열었더니 「또 번호」(7)가 있다
     printf("간접: %d\n", memory[real]);  // 그 번호로 다시 가서 2022를 꺼낸다
     // endregion
 

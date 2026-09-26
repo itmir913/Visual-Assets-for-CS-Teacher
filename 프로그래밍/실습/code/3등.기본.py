@@ -9,5 +9,5 @@ for _ in range(n):
 # 점수를 기준으로 큰 것부터 늘어놓는다
 students.sort(key=lambda s: s[1], reverse=True)
 
-# 0번이 1등이므로 3등은 2번이다
+# 인덱스 0이 1등이므로 3등은 인덱스 2다
 print(students[2][0])

@@ -5,6 +5,6 @@ if temp >= 28:
 elif temp >= 20:
     print('얇은 겉옷')
 elif temp >= 10:
-    print('자켓')
+    print('재킷')
 else:
     print('두꺼운 외투')

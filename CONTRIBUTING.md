@@ -25,8 +25,8 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 **위 셋이 실행점의 전부입니다.** GitHub Actions도 IDE 실행 구성도 이 이름을 부릅니다.
 나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
 [`package.json`](./package.json) 하나뿐입니다** — 스크립트 경로를 직접 치지 않습니다.
-검사는 `npm run check` 하나로 부르고, 이름을 주면 그것만 돕니다 —
-인자는 `--` 뒤에 넘깁니다(`npm run check -- html <파일>`). 검사 목록은 `tools/run.mjs`에만 있습니다.
+검사 · 감사의 목록과 부르는 법은 [`tools/run.mjs`](./tools/run.mjs) 머리에,
+검사마다의 인자는 그 스크립트 머리에 있습니다.
 
 ## 어디에 무엇이 있나
 
@@ -50,12 +50,12 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 | **새 차시·새 과목·새 배부 양식 추가** | [`docs/강의노트-추가하기.md`](./docs/강의노트-추가하기.md) |
 | 지켜야 할 규칙 | [`CLAUDE.md`](./CLAUDE.md) |
 | 그 규칙이 어떤 실패에서 나왔는지 | [`docs/강의노트-작성-사례집.md`](./docs/강의노트-작성-사례집.md) |
-| 도구·미리보기·코드 주입 | [`tools/README.md`](./tools/README.md) |
+| 도구가 어디 있는지(사용법은 각 스크립트 머리) | [`tools/README.md`](./tools/README.md) |
 | 배부 양식 생성기 | [`tools/docx/README.md`](./tools/docx/README.md) |
 | 한 번 풀어 본 문제의 해법 | [`docs/수정-레시피.md`](./docs/수정-레시피.md) |
 
-**고친 파일마다 `npm run check -- html <파일>`을 돌립니다.** 인자 없이 돌리면
-저장소 전체를 보고, `npm run ci`가 그렇게 부릅니다 — 규칙 위반시 CI가 빨간불이 됩니다.
+**고친 파일마다 `npm run check -- html <파일>`을 돌립니다** — `npm run ci`가 저장소 전체로
+같은 검사를 돌므로, 위반을 남기면 CI가 빨간불이 됩니다.
 
 ## 기여와 저작권
 

@@ -3,7 +3,7 @@
 # ---
 point = (3, 7)          # 소괄호로 묶는다
 print(point)            # (3, 7)
-print(point[0])         # 3      자리 번호로 꺼내는 것은 리스트와 같다
+print(point[0])         # 3      인덱스로 꺼내는 것은 리스트와 같다
 print(len(point))       # 2
 
 one = (5,)              # 값이 하나면 «쉼표»를 빠뜨리지 않는다

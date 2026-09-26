@@ -63,6 +63,10 @@ const MUTANTS = [
     ['hover', 'src/styles/_quiz.css', '/* 누른 선택지', '.quiz-mark:hover { color: red; }\n/* 누른 선택지', '단위 CSS 에 감싸지 않은 :hover'],
     ['fixtures', 'tools/checks/hover.mjs', 'export const HOVER_MEDIA = (params) =>', 'export const HOVER_MEDIA = (params) => true ||', 'hover: 어떤 @media 안이든 감싼 것으로 봄'],
     ['fixtures', 'tools/checks/hover.mjs', " && !/^\\s*not\\b/.test(params)", '', 'hover: not 으로 뒤집은 @media 를 감싼 것으로 봄'],
+    ['fixtures', 'tools/checks/classes.mjs', "    /class=\\\\?\"[^\"'`]*['`]\\s*\\+[^\\n]*?\\+\\s*['`]([^'\"`<>]*)\"/g,", '', 'classes: 이어 붙인 class="… \' + x + \' 꼬리\" 를 보지 않음(감수0926)'],
+    // 물러난 말 목록의 활용형 — 옛 정규식으로 되돌리면 selfTest 가 「다듬은」을 못 잡아 멈춘다
+    ['fixtures', 'tools/checks/prose.mjs', "[H + '다듬(?!이)',", "[H + '다듬(?:[다고는어었을으지기]|습)',", 'prose: 「다듬다」가 「다듬은」을 흘림(감수0926)'],
+    ['fixtures', 'tools/checks/prose.mjs', "[H + '따(?:지(?!막)|져|졌|질|진|집)',", "[H + '따(?:지[다고는며면자지]|져|졌|질 |진 |집)',", 'prose: 「따지다」가 「따진다 · 따지므로」를 흘림(감수0926)'],
     ['fixtures', 'tools/checks/classes.mjs', 'for (const [code, base] of inlineScripts(text)) scan(p, text, code, base);', '', 'classes: 인라인 스크립트를 보지 않음'],
     ['fixtures', 'tools/checks/classes.mjs', 'if (ts.length >= 2) bundles.push([ts, p, at(m.index)]);', '', 'classes: 변수에 담은 클래스 뭉치를 보지 않음'],
     ['code', '데이터과학/code/2-3-2.영을-결측치로.py', '\n', '\ndef (:\n', '.py 구문 오류'],

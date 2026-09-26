@@ -1,7 +1,6 @@
 # ---
 # check: none
 # ---
-rows = []
 with open("성적.csv", "r", encoding="utf-8") as f:
     rows = [line.strip().split(",") for line in f]
 

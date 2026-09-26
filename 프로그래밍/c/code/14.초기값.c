@@ -6,6 +6,8 @@ int main(void) {
     int *b = (int *) calloc(5, sizeof(int));       // 개수와 크기를 따로 적는다
 
     if (a == NULL || b == NULL) {
+        free(a);                    // 하나만 빌렸어도 돌려준다. free(NULL)은 아무 일도 하지 않는다
+        free(b);
         return 1;
     }
 

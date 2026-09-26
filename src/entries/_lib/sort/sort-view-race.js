@@ -52,8 +52,10 @@ export function createSortRaceView(host) {
     host.textContent = '';
 
     const grid = raceBox('div', {});
-    grid.className = 'sim-lanes sim-lanes-2';
+    grid.className = 'sim-lanes sim-lanes-2 sim-race';
     const lanesBox = raceBox('div', {position: 'relative', width: '100%', minWidth: '0'});
+    /* 전체 화면에서 세로가 모자라면 **줄 목록만** 스크롤한다 → simulator.css 의 `sim-race`. */
+    lanesBox.className = 'sim-race-lanes';
     /* 곡선과 범례는 한 칸에 묶는다. 격자 칸으로 따로 놓으면 좁은 화면에서
        범례가 곡선과 갈라져 다른 줄에 앉는다. */
     const chartCol = raceBox('div', {minWidth: '0'});

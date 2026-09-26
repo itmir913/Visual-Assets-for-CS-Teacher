@@ -6,7 +6,7 @@
 // **옛 파이썬 검사의 출력과 한 줄씩 대조해 같음을 확인한 것**이다. 규칙을 일부러 바꿨다면
 // `npx vitest run tests/fixtures.test.mjs -u` 로 기록을 다시 쓰고, 달라진 줄을 눈으로 확인한다.
 //
-// 이 조각들은 저장소 전체를 도는 검사에서 빠진다(`verbs` · `classes` 가 `tests/fixtures/` 를 뺀다).
+// 이 조각들은 저장소 전체를 도는 검사에서 빠진다(`verbs` · `classes` · `hover` 가 `tests/fixtures/` 를 뺀다).
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, test} from 'vitest';
@@ -17,6 +17,7 @@ import {check as verbs} from '../tools/checks/verbs.mjs';
 import {check as prose} from '../tools/checks/prose.mjs';
 import {check as classes} from '../tools/checks/classes.mjs';
 import {check as code} from '../tools/checks/code.mjs';
+import {check as hover} from '../tools/checks/hover.mjs';
 
 const F = 'tests/fixtures';
 const codeFiles = fs.readdirSync(path.join(ROOT, F, 'codefiles')).map((n) => `${F}/codefiles/${n}`);
@@ -26,9 +27,10 @@ const CASES = [
     ['terms', terms, [`${F}/verbs-terms.js`]],
     ['verbs', verbs, [`${F}/verbs-terms.js`]],
     ['prose', prose, [`${F}/prose.html`]],
-    ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
     // 감사 목록은 `--report` 에서만 나오고 전부 경고다 — 막지 않는 유형이라 경고가 곧 «잡았다»는 뜻이다.
     ['prose-report', (a) => prose([...a, '--report']), [`${F}/prose-report.html`], 'warn'],
+    ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],
+    ['hover', hover, [`${F}/hover.html`]],
     ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],
 ];
 

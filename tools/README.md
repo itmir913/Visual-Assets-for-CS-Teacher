@@ -24,6 +24,7 @@
 | `run.mjs` | **검사 · 감사 러너.** 목록(`CHECKS` · `SIMS` · `AUDITS`)이 여기에만 있다 |
 | `checks/html.mjs` | 태그 중첩 · 최소 글자 크기(CSS · SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 · **금지 낱말**(`BANNED_WORDS`) · 중복 id. **못 잡는 것도 머리에 적혀 있다** |
 | `checks/classes.mjs` | 코드로 조립되는 Tailwind 클래스 · JS(진입점 · 시뮬레이터와 강의노트의 인라인 스크립트)에 적은 Tailwind 클래스 |
+| `checks/hover.mjs` | 손으로 쓴 CSS(페이지 `<style>` · `src/styles`)의 `:hover` 가 `@media (hover: hover)` 안에 있는가 |
 | `checks/code.mjs` | 강의노트가 끌어다 쓰는 `.py` · `.c`의 구문 오류 · 파일 이름의 공백 · `<pre><code>`에 직접 적은 코드 |
 | `checks/prose.mjs` | 정제에서 물러난 말과 문체 기준서 |
 | `checks/verbs.mjs` | 동작의 이름이 한자어인가 |

@@ -30,6 +30,7 @@ const CHECKS = {
     'index-links': 'tests/index-links.test.mjs',
     'privacy': 'tests/privacy.test.mjs',
     'classes': 'tests/classes.test.mjs',
+    'hover': 'tests/hover.test.mjs',
     'code': 'tests/code.test.mjs',
     // 글
     'html': 'tests/html.test.mjs',

@@ -27,6 +27,8 @@ const CASES = [
     ['terms', terms, [`${F}/verbs-terms.js`]],
     ['verbs', verbs, [`${F}/verbs-terms.js`]],
     ['prose', prose, [`${F}/prose.html`]],
+    // 배부 양식 생성기 — 문자열 리터럴 속만, 코드인 칸(code · pseudocode · flowchart)은 빼고 본다.
+    ['prose-docx', prose, [`${F}/docx/make/prose.js`]],
     // 감사 목록은 `--report` 에서만 나오고 전부 경고다 — 막지 않는 유형이라 경고가 곧 «잡았다»는 뜻이다.
     ['prose-report', (a) => prose([...a, '--report']), [`${F}/prose-report.html`], 'warn'],
     ['classes', classes, [`${F}/classes.html`, `${F}/classes.js`]],

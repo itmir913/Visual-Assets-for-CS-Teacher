@@ -26,7 +26,7 @@
 | `checks/classes.mjs` | 코드로 조립되는 Tailwind 클래스 · JS(진입점 · 시뮬레이터와 강의노트의 인라인 스크립트)에 적은 Tailwind 클래스 |
 | `checks/hover.mjs` | 손으로 쓴 CSS(페이지 `<style>` · `src/styles`)의 `:hover` 가 `@media (hover: hover)` 안에 있는가 |
 | `checks/code.mjs` | 강의노트가 끌어다 쓰는 `.py` · `.c`의 구문 오류 · 파일 이름의 공백 · `.c` 의 홀수 판별(`% 2 == 1`) · `<pre><code>`에 직접 적은 코드 · Prism 진입점 |
-| `checks/prose.mjs` | 정제에서 물러난 말과 문체 기준서. `--report` 는 막지 않는 감사 목록까지 내놓는다 |
+| `checks/prose.mjs` | 정제에서 물러난 말과 문체 기준서 — 강의노트 · 시뮬레이터 · 배부 양식 생성기(`docx/make/`)의 문장. `--report` 는 막지 않는 감사 목록까지 내놓는다 |
 | `checks/verbs.mjs` | 동작의 이름이 한자어인가 |
 | `checks/terms.mjs` | 시뮬레이터의 말이 교과 용어인가(진입점의 `import` 를 따라간다) |
 | `checks/index-links.mjs` | 첫 화면과 강의노트가 서로를 놓치지 않았는가 |

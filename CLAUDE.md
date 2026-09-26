@@ -471,6 +471,7 @@ body pre { overflow-x: auto; max-width: 100%; min-width: 0; }
   사용자 확인이 끝난 파일을 올리고, 한 번 올린 파일은 되돌리지 않는다.
 - **시뮬레이터도 같은 목록으로 막는다.** 범위는 `check -- terms`와 같은 import 그래프이고,
   JS는 문자열 리터럴 속만 본다.
+- **배부 양식 생성기(`tools/docx/make/`)의 문장도 같은 목록으로 막는다.** 문자열 속만 보고, 코드인 칸은 뺀다.
 - `npm run check -- prose`가 본다. `ci`에 들어 있다.
 
 ## 개인정보 처리방침은 코드에 매여 있다

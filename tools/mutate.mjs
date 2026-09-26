@@ -32,6 +32,7 @@ const MUTANTS = [
     ['verbs', 'simulator/cs/sort.html', '</body>', "<button>지우기</button></body>", '버튼 이름 「지우기」'],  // verbs: 예시
     ['prose', NOTE, ...afterH1('<p>짚어 보면 알 수 있습니다.</p>'), '물러난 말 「짚다」'],
     ['prose', NOTE, ...afterH1('<p>앞 시간에 배운 대로</p>'), '앞 차시 참조'],
+    ['prose', NOTE, ...afterH1('<p>한 일을 되짚어 보면 됩니다.</p>'), '물러난 말 「되짚다」(「짚다」 규칙이 낱말 첫머리로만 걸려 새던 꼴)'],
     ['prose', NOTE, ...afterH1('<p>결정계수는 0에 가깝습니다.</p>'), '과목 간 표기 「결정계수」'],
     ['prose', 'simulator/ai/unsupervised-k-means.html', '</main>', '<p>리스트의 자리 번호로 꺼냅니다.</p></main>', '시뮬레이터에 「자리 번호」'],
     ['prose', 'simulator/cs/sort.html', '</main>', '<p><b>가</b>와 <b>나</b>를 봅니다.</p></main>', '시뮬레이터 문단에 볼드 둘(문체 기준서)'],
@@ -95,6 +96,10 @@ const MUTANTS = [
     ['fixtures', 'tools/checks/terms.mjs', '[/(?:[0-9}]|\\b[ijkn])번째? ?(?:칸|노드|자리)|\\b[ijk]번째/g', '[/(?!)/g', 'terms: 위치 표기(인덱스) 규칙 뺌'],
     ['fixtures', 'tools/checks/verbs.mjs', '[/지우[기고는며]|지웁|지웠|지울|지워/g', '[/(?!)/g', 'verbs: 「지우다」 뺌'],
     ['fixtures', 'tools/checks/verbs.mjs', 'if (QUIZ.test(m[2])) continue;', '', 'verbs: 퀴즈 선택지 예외 뺌'],
+    ['prose', 'tools/docx/make/ai/loan-approval.js', 'tool: "오렌지",', 'tool: "오렌지를 돌렸다",', '배부 양식 생성기 문장에 물러난 말 「돌리다」'],
+    ['fixtures', 'tools/checks/prose.mjs', "[H + '(?:되|헛|넘겨\\\\s?)짚',", "[H + '(?!)',", 'prose: 「되짚다 · 헛짚다 · 넘겨짚다」 뺌'],
+    ['fixtures', 'tools/checks/prose.mjs', 'const isGen = (p) =>', 'const isGen = (p) => false &&', 'prose: 배부 양식 생성기를 알아보지 못함(금지 낱말 · 코드 칸 빼기가 꺼짐)'],
+    ['fixtures', 'tools/checks/prose.mjs', 'const genSource = (src) => src.replace(GEN_CODE, blank);', 'const genSource = (src) => src;', 'prose: 생성기의 코드 칸까지 문장으로 봄'],
     ['fixtures', 'tools/checks/prose.mjs', 'for (const [pos, e] of straightQuotes(p, src))', 'for (const [pos, e] of [])', 'prose: 곧은따옴표 끔'],
     ['fixtures', 'tools/checks/prose.mjs', "const later = path.extname(f) === '.html' ? checkLater(f) : [];", 'const later = [];', 'prose: 문체 기준서(사람 몫) 끔'],
     ['fixtures', 'tools/checks/classes.mjs', "'템플릿 리터럴로 조립'],", "'템플릿 리터럴로 조립'].slice(0, 0),", 'classes: 템플릿 규칙 끔'],

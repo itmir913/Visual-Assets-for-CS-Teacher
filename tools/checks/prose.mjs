@@ -1,6 +1,6 @@
 // 강의노트와 시뮬레이터의 문장 정제에서 물러난 말이 다시 들어오지 않았는가.
 //
-//     npm run check -- prose                 # 모든 과목 + 시뮬레이터 (CI가 쓰는 방식)
+//     npm run check -- prose                 # 모든 과목 + 시뮬레이터 + 배부 양식 생성기 (CI가 쓰는 방식)
 //     npm run check -- prose <파일>…         # 짚은 파일만 — 정제 중에 쓴다
 //     npm run check -- prose --report        # 정제 전 파일까지 과목별로 센다 (통과로 끝난다)
 //                                            # + 감사 목록(막지 않는 유형, `audit()`)을 줄마다 내놓는다
@@ -19,6 +19,12 @@
 // 진입점에서 `import` 로 닿는 JS 다. **JS 와 인라인 `<script>` 는 문자열 리터럴 속만 본다.**
 // 주석 · 식별자 · 코드는 학생 화면에 나오지 않는다. HTML 주석과 `<style>` 도 같은 까닭으로
 // 뺀다. 강의노트에만 맞는 규칙은 `LECTURE_ONLY` 에 적는다.
+//
+// ## 배부 양식 생성기도 같은 목록으로 막는다
+//
+// `tools/docx/make/**/*.js` 의 문자열은 학생이 받는 .docx 의 문장이 된다(2026-09-26 사용자
+// 지시). 시뮬레이터 JS 처럼 문자열 리터럴 속만 보고, 코드인 칸은 뺀다 — 무엇을 걸고 무엇을
+// 빼는지는 `isGen` 옆 주석에 있다. 짝 실습 HTML 의 답안 상자와 문구가 같아야 하므로 둘을 함께 고친다.
 //
 // `verbs` 검사와 나뉘는 자리 — 그쪽은 **누르는 것의 이름**을 보고, 이쪽은 **강의노트와
 // 시뮬레이터의 문장**을 본다. 「고르다」는 버튼 이름으로는 물러났지만 문장에서는 그대로 쓴다.
@@ -57,6 +63,7 @@ import path from 'node:path';
 import {ROOT, SUBJECTS, Report, lineOf, read, rel, walk} from '../lib/repo.mjs';
 import {proseText, unescape} from '../lib/prose-text.mjs';
 import {simScope} from './terms.mjs';
+import {BANNED_WORDS} from './html.mjs';
 
 const SKIP_LINE = 'prose: 예시';
 
@@ -88,6 +95,11 @@ const VERBS = [
     // 「짚은 · 짚음 · 짚자」는 프로그래밍에서 새어 나간 꼴이다.
     [H + '짚(?:[다고어었는을으은음자지게기]|습|읍)', '짚다', '파악하다 · 지적하다 · 확인하다',
         ['짚다', '짚어 보면', '짚을 수', '짚고', '짚습니다', '앞서 짚은', '짚음', '짚자'], ['짚신']],
+    // 「되짚다 · 헛짚다 · 넘겨짚다」는 위 줄이 낱말 첫머리로만 걸려 새어 나갔다(2026-09-26 사용자 지시).
+    // 판단의 까닭을 거슬러 확인하는 뜻이면 추적하다, 지난 일이면 되돌아보다 · 성찰하다로 쓴다.
+    [H + '(?:되|헛|넘겨\\s?)짚', '되짚다 · 헛짚다 · 넘겨짚다', '되돌아보다 · 추적하다 · 다시 확인하다 · 잘못 판단하다 · 짐작하다',
+        ['되짚기', '되짚어 보면', '되짚은 것', '되짚을 수', '되짚습니다', '되짚는 단계', '되짚었다', '헛짚는 것', '넘겨짚는다', '넘겨 짚지'],
+        ['되돌아보기', '헛수고', '넘겨주다', '앞서 짚은']],
     ['뜯어\\s?(?:보|봅|봐|봤|볼|본)', '뜯어보다', '분석하다 · 하나씩 살펴보다',
         ['뜯어봅시다', '뜯어 보면', '뜯어본'], []],
     ['펼(?:치|쳐|쳤|칠|친|침|칩)|' + H + '(?:펴[다고서며면는지도야기려]|폈|폅)', '펼치다 · 펴다', '확장하다 · 전개하다 · 나열하다',  // verbs: 예시
@@ -848,9 +860,22 @@ export const visibleText = (p, src) => (path.extname(p) === '.js' ? jsStrings(sr
 
 const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
+// ── 배부 양식 생성기 ────────────────────────────────────────────────────────────
+// `tools/docx/make/**/*.js` 의 문자열은 학생이 받는 .docx 의 문장이 된다(2026-09-26 사용자 지시).
+// 시뮬레이터 JS 와 같이 **문자열 리터럴 속만** 보고, 강의노트에 거는 기계 규칙(물러난 말 ·
+// 인용 부호 · 이모지 · 라벨)과 `html` 검사의 금지 낱말(`BANNED_WORDS`)을 건다. 문단 · 절로
+// 가르는 사람 몫 규칙(`styleLater`)은 걸지 않는다 — 생성기에는 <p> · <section> 이 없다.
+// **코드인 칸은 뺀다** — 프로그래밍 양식의 `code` · `pseudocode` · `flowchart` 는 프로그램의
+// 문자열(「print('정상')」)을 그대로 적는 자리이고, `new Error(…)` 는 생성기를 돌리는 사람에게
+// 가는 말이다. 조각은 `tests/fixtures/docx/make/` 에 있다(경로의 `docx/make/` 로 알아본다).
+const isGen = (p) => /(?:^|\/)docx\/make\/.+\.js$/.test(rel(p));
+const GEN_CODE = /^([ \t]*)(?:code|pseudocode|flowchart):\s*\[[\s\S]*?^\1\]|new Error\((["'`])(?:\\.|(?!\2)[^\\])*\2\)/gm;
+const genSource = (src) => src.replace(GEN_CODE, blank);
+const generators = () => walk(path.join(ROOT, 'tools', 'docx', 'make'), {ext: ['.js']});
+
 function checkFile(p, sim) {
-    const src = read(p);
-    const lines = src.split('\n');
+    const src = isGen(p) ? genSource(read(p)) : read(p);
+    const lines = read(p).split('\n');
     // 태그나 개체(&nbsp;)가 낱말을 끊으면(「갈라</strong> 준다」) 원문으로는 못 잡는다.
     // 본문도 함께 본다. 무엇이 본문인지는 `proseText` 가 정한다 — `npm run prose` 와 같은 판단이다.
     // 원문 패스는 남긴다 — 링크 규칙처럼 태그 속을 봐야 하는 규칙이 있다.
@@ -864,6 +889,9 @@ function checkFile(p, sim) {
         if (sim && LECTURE_ONLY.has(쓴)) continue;
         for (const body of bodies) for (const m of body.matchAll(rx)) add(body, m.index, `「${m[0]}」(${쓴}) — 「${쓸}」로 쓴다`);
     }
+    if (isGen(p)) {
+        for (const [rx, 쓴, 쓸] of BANNED_WORDS) for (const m of bodies[0].matchAll(rx)) add(bodies[0], m.index, `「${m[0]}」(${쓴}) — 「${쓸}」로 쓴다`);
+    }
     for (const [pos, e] of emojiHits(p, bodies[0])) {
         // 퀴즈 알림의 ✅/❌ 는 글이 아니라 정답·오답 표시다. 감탄사를 뺀 뒤로는 이것이
         // 알림에 남은 유일한 표지라 지우면 맞혔는지 알 수 없다(2026-09-24 되살림).
@@ -871,8 +899,7 @@ function checkFile(p, sim) {
         add(bodies[0], pos, `「${e}」(이모지) — 지우고 문장으로 쓴다`);
     }
     for (const [pos, msg] of badgeHead(bodies[0])) add(bodies[0], pos, msg);
-    for (const [pos, e] of straightQuotes(p, src)) add(src, pos, `${e}(곧은따옴표) — 「 」로 쓴다`);
-    if (!sim) for (const [pos, msg] of quizHead(bodies[0])) add(bodies[0], pos, msg);
+    for (const [pos, e] of straightQuotes(p, src)) add(src, pos, `${e}(곧은따옴표) — 「 」로 쓴다`);    if (!sim) for (const [pos, msg] of quizHead(bodies[0])) add(bodies[0], pos, msg);
     return [...bad.values()].sort((a, b) => a[0] - b[0] || cmp(a[1], b[1]));
 }
 
@@ -914,7 +941,7 @@ const isSimStyleDone = (p) => SIM_STYLE_DONE.some((g) => pathMatch(rel(p), g));
 
 // 시뮬레이터는 전부 정제를 마쳤다(2026-09-24). 범위가 import 그래프라 글롭으로
 // 적을 수 없으므로 DONE 에 올리지 않고 통째로 막는다.
-const isDone = (p) => isSim(p) || DONE.some((g) => pathMatch(rel(p), g));
+const isDone = (p) => isSim(p) || isGen(p) || DONE.some((g) => pathMatch(rel(p), g));
 
 const lectureNotes = () => SUBJECTS.flatMap((s) => walk(path.join(ROOT, s.dir), {ext: ['.html']}));
 
@@ -928,7 +955,7 @@ export function check(args = []) {
     if (errs.length) return r;
 
     // 짚은 파일은 정제 중인 것이므로 DONE 이 아니어도 막는다.
-    const files = picked.length ? picked.map((a) => path.resolve(ROOT, a)) : [...lectureNotes(), ...simScope()];
+    const files = picked.length ? picked.map((a) => path.resolve(ROOT, a)) : [...lectureNotes(), ...simScope(), ...generators()];
     let total = 0;
     const pending = new Map(), stylePending = new Map(), audits = new Map();
     for (const f of files) {

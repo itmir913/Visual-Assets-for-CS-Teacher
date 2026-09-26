@@ -9,7 +9,7 @@ int main(void) {
 
     printf("int  : %p %p %p\n", (void *) pi, (void *) (pi + 1), (void *) (pi + 2));
     printf("char : %p %p %p\n", (void *) pc, (void *) (pc + 1), (void *) (pc + 2));
-    // int는 네 칸씩, char는 한 칸씩 건너뛴다
+    // 한 걸음에 int는 4바이트, char는 1바이트씩 번호가 는다
 
     return 0;
 }

@@ -37,7 +37,7 @@ int main(void) {
     }
 
     printf("0번 줄 %p\n", (void *) grid[0]);
-    printf("1번 줄 %p\n", (void *) grid[1]);   // 이어 붙어 있지 않다
+    printf("1번 줄 %p\n", (void *) grid[1]);   // 이어 붙어 있지 않을 수 있다
 
     for (int r = 0; r < rows; r = r + 1) {     // 줄들을 «먼저» 돌려준다
         free(grid[r]);

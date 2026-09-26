@@ -93,10 +93,10 @@ Vite가 **같은 파일을 읽어야** 해서 JSON으로 두었다. 예전에는
 | `check -- dist` | 산출물 검사. **이름으로만 부른다** — 빌드가 있어야 하므로 `ci`가 빌드 뒤에 부른다 |
 | `check -- layout` | **시뮬레이터 화면을 진짜 브라우저(headless Chromium)로 잰다** — 375px에서 페이지 넘침 · 조작이 화면 밖 · 조작끼리 겹침, 전체 화면(1366×768 · 1920×1080)에서 무대 넘침 · 조작 겹침 · **스크롤해도 닿지 않는 조작**. 본체는 `tests/browser/sim-layout.test.mjs`, 받침대는 `tests/browser/_frame.mjs`. 처음 한 번 `npx playwright install chromium`이 필요하다 |
 | `tests/browser/shots.test.mjs` | 판정 없이 **화면을 찍기만** 한다. `VITE_SHOTS=<저장소 안 폴더>`가 있을 때만 돈다. 그림이 화면을 넉넉히 쓰는가처럼 기계가 판정할 수 없는 것을 눈으로 볼 때 |
-| `audit -- pre` · `audit -- svg` | 가로 넘침 · SVG 글자 크기 감사 |
+| `audit -- pre` · `audit -- svg [폴더]` | 가로 넘침 · SVG 글자 크기 감사. `svg` 는 정적 목록 뒤에 **진짜 브라우저로** 그림 속 글자가 겹치거나 화면에서 12px 보다 작게 그려지는 것을 잰다(폴더를 주면 그 폴더만 — 전체는 1~2분). **SVG 의 글자 · 좌표를 고쳤으면 돌린다** — `ci` 밖이라 고친 사람이 안 돌리면 아무도 잡지 않는다 |
 | `audit -- narrow` | 375px에서 본문 글자에 남는 폭. **`ci` 밖이다** — 추정이라 몇 px씩 어긋난다 |
 | `audit -- josa` | 값 뒤에 손으로 적어 둔 조사. **`ci` 밖이다** — 나올 값이 다 같은 받침이면 맞는 코드다 |
-| `audit -- lemma` | 본문이 실제로 쓴 **용언 표제어**를 빈도순으로. **`ci` 밖이다.** 형태소 분석기만은 파이썬 꾸러미라 `pip install kiwipiepy`가 필요하다(바깥 도구로만 부른다) |
+| `audit -- lemma` | 본문이 실제로 쓴 **용언 표제어**를 빈도순으로. **`ci` 밖이다.** 형태소 분석기만은 파이썬 꾸러미라 `pip install kiwipiepy`가 필요하다(바깥 도구로만 부른다). **어색한 말은 빈도가 낮은 쪽에 숨는다** — 빈도 10 이하의 표제어만 한 줄로 뽑아 훑는다: `npm run audit -- lemma 2>/dev/null \| grep "audit_lemma: *[0-9]" \| awk '$3<=10{printf "%s:%s ", $4, $3}'` |
 | `mutate [-- <이름>…]` | **돌연변이 검사.** 검사가 지키는 대상에 버그를 하나씩 심고 그 검사가 빨간불을 켜는지 본다. 목록은 `tools/mutate.mjs`. **`ci` 밖이다** — 오래 걸린다 |
 | `gen:graph` | 그래프 시뮬레이터의 지도를 다시 뽑는다. **`check -- sim graph`와 짝이다** |
 | `gen:sim-index` | `simulator/index.html`을 루트 `index.html`에서 다시 굽는다. **`check -- sim-index`와 짝이다** |

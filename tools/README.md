@@ -22,7 +22,7 @@
 | 파일 | 하는 일 |
 |---|---|
 | `run.mjs` | **검사 · 감사 러너.** 목록(`CHECKS` · `SIMS` · `AUDITS`)이 여기에만 있다 |
-| `checks/html.mjs` | 태그 중첩 · 최소 글자 크기(CSS · SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소 · **금지 낱말**(`BANNED_WORDS`) · 중복 id. **못 잡는 것도 머리에 적혀 있다** |
+| `checks/html.mjs` | 태그 중첩 · 최소 글자 크기(CSS · SVG) · 테이블 래퍼 · 제목 일치 · 금지 요소(마우스를 올려야 보이는 `title=` 포함) · **금지 낱말**(`BANNED_WORDS`) · 중복 id. **못 잡는 것도 머리에 적혀 있다** |
 | `checks/classes.mjs` | 코드로 조립되는 Tailwind 클래스 · JS(진입점 · 시뮬레이터와 강의노트의 인라인 스크립트)에 적은 Tailwind 클래스 |
 | `checks/hover.mjs` | 손으로 쓴 CSS(페이지 `<style>` · `src/styles`)의 `:hover` 가 `@media (hover: hover)` 안에 있는가 |
 | `checks/inline-css.mjs` | 페이지 HTML이 스스로 CSS를 정하지 않았는가(`<style>` · `style=""` · 섬 밖 임의 색 클래스 · 강의노트 스크립트의 `style` 쓰기) |
@@ -36,12 +36,13 @@
 | `checks/form-sync.mjs` | 인공지능기초 실습 보고서의 문항 지시문 · 체크리스트가 배부 양식(`docx/make/make_ai_template.js`)과 화면판에서 같은가 |
 | `checks/privacy.mjs` | 개인정보 처리방침이 아직 참인가 |
 | `checks/sim-index.mjs` | `simulator/index.html`을 루트 `index.html`에서 굽고, 검사로 부르면 같은지만 본다 |
+| `checks/mutate-targets.mjs` | `mutate.mjs`의 돌연변이가 아직 과녁(대상 파일의 글자)을 겨누는가. 테스트는 돌리지 않는다 |
 | `checks/dist.mjs` | 산출물 검사 — `.docx` 링크 · CDN 잔존 · 태그 중첩 · 제3자 라이선스 고지 · 사이트 아이콘 |
-| `audits/pre.mjs` · `svg.mjs` · `lemma.mjs` … | 판정 없이 목록만 내놓는 감사. `ci` 밖이다 |
+| `audits/pre.mjs` · `svg.mjs` · `lemma.mjs` · `narrow.mjs` · `josa.mjs` · `shots.mjs` | 판정 없이 목록만 내놓는 감사. `ci` 밖이다. 무엇을 보는지는 각 파일 머리 |
 | `audits/styles.mjs` | CSS를 옮기기 전후의 계산된 스타일 견주기(`save` → 고친다 → `diff`). 재는 것은 `tests/browser/style-snapshot.test.mjs` |
 | `mutate.mjs` | 돌연변이 검사 — 검사가 지키는 대상에 버그를 심고 빨간불이 켜지는지 본다. `ci` 밖이다 |
 | `_sim-harness.mjs` | 시뮬레이터 페이지를 원문 그대로 node(jsdom)에서 돌리는 받침대. 직접 부르지 않는다 |
-| `gen_graph_presets.mjs` | 그래프 시뮬레이터의 지도를 새로 뽑는다(`gen:graph`) |
+| `gen_graph_presets.mjs` · `gen_graph_presets_emit.mjs` | 그래프 시뮬레이터의 지도를 새로 뽑는다(`gen:graph`). 뒤엣것은 고른 지도를 JS 모듈 글자로 적는다 |
 | `extract-prose.mjs` | HTML 에서 학생이 읽는 글자만 뽑는다(`prose`) |
 | `lib/repo.mjs` | `subjects.json` 을 읽는 얇은 층 · 파일 목록 · 결과 모양(`Report`) |
 | `lib/html-tokens.mjs` | HTML 을 **적힌 그대로** 태그 조각으로 가른다(틀린 중첩을 고쳐 버리는 파서를 피한다) |

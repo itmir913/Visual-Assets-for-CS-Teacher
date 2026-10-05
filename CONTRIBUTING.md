@@ -22,8 +22,8 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 결과에 매여 있습니다. 까닭은
 [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) 머리말에 있습니다.
 
-**위 셋이 실행점의 전부입니다.** GitHub Actions도 IDE 실행 구성도 이 이름을 부릅니다.
-나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
+**CI와 배포가 부르는 실행점은 `npm run ci` 하나이고, 손으로 쓰는 것은 `dev` · `build`입니다.**
+IDE 실행 구성도 이 셋만 부릅니다. 나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
 [`package.json`](./package.json) 하나뿐입니다** — 스크립트 경로를 직접 치지 않습니다.
 검사 · 감사의 목록과 부르는 법은 [`tools/run.mjs`](./tools/run.mjs) 머리에,
 검사마다의 인자는 그 스크립트 머리에 있습니다.
@@ -40,7 +40,7 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 | `tests/` | 검사. **Vitest 가 돕니다** — `npm run check`가 부릅니다. `fixtures/`는 일부러 틀리게 쓴 조각입니다 |
 | `simulator/` | 시뮬레이터. 여러 교과가 함께 쓰므로 루트에 둡니다. `ai/`는 인공지능기초가, `cs/`는 정보 · 프로그래밍이 주로 씁니다 |
 | `src/styles/<단위>.css` · `src/entries/<페이지>.js` | 단위별 스타일 진입점(그 단위의 색 변수와 그 단위만 쓰는 틀)과 페이지별 라이브러리 진입점 |
-| `src/styles/_note.css` · `_sim-cs.css` | 여러 단위가 함께 쓰는 틀(강의노트 · CS 시뮬레이터). 라이트 규칙 바로 아래에 다크 짝이 있습니다 |
+| `src/styles/_note.css` · `_quiz.css` · `_code-copy.css` · `_sim-cs.css` · `_sim-ai.css` · `_sim-ui.css` | 여러 단위가 함께 쓰는 틀(강의노트 · 퀴즈 · 코드 복사 단추 · CS · AI 시뮬레이터 · 시뮬레이터 조작). 시뮬레이터 한 편만 쓰는 틀은 `src/styles/sim-ai/<편>.css`. 라이트 규칙 바로 아래에 다크 짝이 있습니다 |
 | `src/styles/_theme.css` · `src/tailwind/theme.js` | 라이트 · 다크 테마의 장치와 다크의 색 이름 · 색 유틸리티의 짝 |
 | `src/tailwind/<단위>.config.js` | 단위별 Tailwind 설정(`content`를 그 단위로 좁힙니다) |
 | `privacy/` | 개인정보 처리방침. 폴더에 `index.html`이라야 `…/privacy/` 주소로 열립니다 |

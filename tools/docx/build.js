@@ -15,7 +15,7 @@ const {execSync} = require('child_process');
 const makeDir = path.join(__dirname, 'make');
 const VERBOSE = process.argv.includes('-v') || process.argv.includes('--verbose');
 
-// 로그 모양은 tools/logs.py와 맞춘다. **이모지를 쓰지 않는다** —
+// **이모지를 쓰지 않는다** —
 // 로그는 사람이 읽는 만큼 grep으로도 읽힌다.
 const log = {
     debug: (m) => { if (VERBOSE) console.log(`DEBUG docx: ${m}`); },

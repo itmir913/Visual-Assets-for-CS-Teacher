@@ -13,7 +13,7 @@
 // 실패해도 **나머지를 다 돌고** 끝에 실패한 것을 모아 보인다. 한 번 돌려서 고칠 것을 다 알아야
 // CI 를 한 번에 초록으로 되돌릴 수 있다.
 //
-// `package.json` 에 검사마다 이름을 붙여 두었더니 이름이 서른을 넘었고, 새 검사를 만들면
+// `package.json` 에 검사마다 이름을 붙여 두었더니 이름이 너무 많아졌고, 새 검사를 만들면
 // `check` 줄에 잇는 것을 잊기 쉬웠다. 목록을 **여기 한 곳**에 두면 새 검사는 표에 한 줄을
 // 더하는 것으로 끝나고 `npm run ci` 가 저절로 부른다.
 import {spawnSync} from 'node:child_process';
@@ -59,7 +59,7 @@ const CHECKS = {
     'dist': 'tests/dist.test.mjs',
 };
 
-// 시뮬레이터 동작 검사. `check -- sim [이름…]` 으로만 부른다 — 이름이 서른 가까이라
+// 시뮬레이터 동작 검사. `check -- sim [이름…]` 으로만 부른다 — 이름이 많아
 // 최상위에 늘어놓으면 `sim` 과 `sims` 처럼 헷갈리는 이름이 생긴다(실제로 생겼다).
 // 테스트 파일은 `tests/sim-<이름>.test.mjs` 다.
 const SIMS = [
@@ -75,8 +75,8 @@ const SIMS = [
 const BY_NAME_ONLY = new Set(['dist']);
 
 // 이름으로만 부르는 시뮬레이터 검사 — `check -- sim` 을 이름 없이 부르면(= `npm run ci`) 빠진다.
-// `sort` 는 한 번에 7~8분이 걸린다(큰 배열 화면 · n=64 비교 장). 정렬 로직을 건드리는 일은 드물어
-// 매번 `ci` 에서 기다릴 까닭이 없다(2026-09-26 사용자 확정). 단계 불변식 · 세는 값 · 화면 문장은
+// `sort` 는 한 번에 몇 분이 걸린다(큰 배열 화면 · n=64 비교 장). 정렬 로직을 건드리는 일은 드물어
+// 매번 `ci` 에서 기다릴 까닭이 없다(사용자가 정함). 단계 불변식 · 세는 값 · 화면 문장은
 // 빠른 `ordering` 이 `ci` 에서 지킨다. **정렬을 고쳤으면 `npm run check -- sim sort` 를 손으로 돌린다.**
 const SIM_BY_NAME_ONLY = new Set(['sort']);
 
@@ -89,6 +89,8 @@ const AUDITS = {
     narrow: 'tools/audits/narrow.mjs',
     josa: 'tools/audits/josa.mjs',
     lemma: 'tools/audits/lemma.mjs',
+    // 시뮬레이터 화면을 찍어 사람이 본다(판정 없음)
+    shots: 'tools/audits/shots.mjs',
 };
 
 const die = (m) => { console.error(`run: ${m}`); process.exit(2); };

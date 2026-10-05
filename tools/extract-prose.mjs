@@ -36,7 +36,7 @@ import {ARIA, DROP, QUIZ, SVG, TAG, clean} from './lib/prose-text.mjs';
 import {ROOT, SUBJECTS, walk} from './lib/repo.mjs';
 
 const HEADING = /<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/g;
-const SECTION = /<section\b[^>]*\bid="([^"]+)"/g;
+const SECTION = /<section\b[^>]*\bid="([^"]+)"[^>]*>/g;
 const SUMMARY = /<summary\b[^>]*>([\s\S]*?)<\/summary>/g;
 
 /** [본문, 원본 길이] */

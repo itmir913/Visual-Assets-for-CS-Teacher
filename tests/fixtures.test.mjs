@@ -22,6 +22,7 @@ import {check as inlineCss} from '../tools/checks/inline-css.mjs';
 import {check as grid} from '../tools/checks/grid.mjs';
 import {check as formSync} from '../tools/checks/form-sync.mjs';
 import {check as docs} from '../tools/checks/docs.mjs';
+import {check as steps} from '../tools/checks/steps.mjs';
 
 const F = 'tests/fixtures';
 const codeFiles = fs.readdirSync(path.join(ROOT, F, 'codefiles')).map((n) => `${F}/codefiles/${n}`);
@@ -44,6 +45,8 @@ const CASES = [
     ['form-sync', formSync, [`${F}/form-sync.html`]],
     // 문서 — 규칙 문서의 날짜 · 판례 머리와 가리키는 규칙 · 결정 번호와 상태 · 끊긴 링크
     ['docs', docs, [`${F}/docs/시험-규칙.md`, `${F}/docs/cases/시험.md`, `${F}/docs/cases/결정.md`]],
+    // 기계학습 단계 줄 — 단계를 묶은 줄, 다음 단계까지 켠 줄
+    ['steps', steps, [`${F}/steps/2-1-1.묶은-단계.html`, `${F}/steps/2-1-2.다음-단계를-켬.html`]],
     ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],
 ];
 

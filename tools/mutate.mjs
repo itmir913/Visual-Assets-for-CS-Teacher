@@ -80,6 +80,8 @@ export const MUTANTS = [
     ['classes', 'simulator/ai/search-bfs-dfs.html', "classList.toggle('on', mode === 'free');", "className = 'px-3 py-1 text-base';", '시뮬레이터 인라인 스크립트가 className 을 클래스 뭉치로 덮어씀'],
     ['classes', 'simulator/ai/supervised-k-nn.html', "toast.classList.add('shown')", "toast.classList.add('shown', 'translate-y-0')", '인라인 스크립트 classList 둘째 인자에 Tailwind'],
     ['classes', NOTE, "' quiz-mark\"></i>'", "' mr-2\"></i>'", '강의노트 퀴즈 스크립트의 아이콘에 Tailwind'],
+    ['steps', '인공지능기초/2-1-5.데이터-전처리.html', 'bg-slate-100 text-slate-500">STEP4', 'bg-violet-600 text-white">STEP4', '단계 줄에서 다음 단계까지 켬'],
+    ['steps', '인공지능기초/2-1-5.데이터-전처리.html', '<span class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-500">STEP6 성능 평가</span>', '', '단계 줄에서 마지막 단계를 뺌'],
     ['hover', NOTE, '</head>', '<style>.quiz-btn:hover { background: #eee; }</style>\n</head>', '강의노트 <style> 에 감싸지 않은 :hover'],
     ['hover', 'src/styles/_quiz.css', '/* 누른 선택지', '.quiz-mark:hover { color: red; }\n/* 누른 선택지', '단위 CSS 에 감싸지 않은 :hover'],
     ['fixtures', 'tools/checks/hover.mjs', 'export const HOVER_MEDIA = (params) =>', 'export const HOVER_MEDIA = (params) => true ||', 'hover: 어떤 @media 안이든 감싼 것으로 봄'],

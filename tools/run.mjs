@@ -38,6 +38,8 @@ const CHECKS = {
     'code': 'tests/code.test.mjs',
     // 배부 양식(.docx)의 문항 지시문 · 체크리스트가 화면판 보고서와 같은가
     'form-sync': 'tests/form-sync.test.mjs',
+    // 인공지능 기초 2-1 노트의 기계학습 단계 줄 — 여섯 단계를 다 적고 그 노트의 단계만 켠다
+    'steps': 'tests/steps.test.mjs',
     // 문서 — 규칙 문서의 줄 수 상한 · 날짜 금지, 판례 · 결정 기록의 형식, 문서 안 링크
     'docs': 'tests/docs.test.mjs',
     // 글

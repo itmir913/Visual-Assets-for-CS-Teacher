@@ -22,7 +22,7 @@
 
 - **과목은 `subjects.json`, 명령은 `package.json`, 검사 · 감사 목록은 `tools/run.mjs`에서만 정한다.**
   스크립트 경로를 직접 치지 않는다. CI도 IDE 실행 구성도 같은 `npm run` 이름만 부른다.
-- **실행점은 `npm run ci` 하나다.** `ci:full` 같은 두 번째 실행점을 만들지 않는다.
+- **실행점은 `npm run ci` 하나다.** `ci:full` 같은 두 번째 실행점을 만들지 않는다. 액션은 그 조각을 병렬 잡으로 나눠 부르되, 묶음은 `tools/run.mjs`가 정하고 합은 `check -- ci-plan`이 지킨다.
 - **빌드 설정은 `vite.config.js` 하나다.** 별도 `postcss.config.js`를 두지 않는다.
 - **시뮬레이터는 루트 `simulator/`에 둔다.** 어느 교과에도 딸리지 않는다.
 - **문서는 모두 `docs/` 아래에 둔다.** 루트에는 `README.md` · `CONTRIBUTING.md` · `CLAUDE.md`만 두고, 루트 폴더를 늘리지 않는다.

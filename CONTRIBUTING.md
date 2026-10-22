@@ -11,8 +11,11 @@ npm run build     # 배포와 같은 빌드 → dist/
 npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 같다
 ```
 
-**푸시하면 검사가 자동으로 돕니다**(2026-09-09부터) — `npm run ci` 와 같은 한 줄을
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)이 돌립니다. 그래도
+**푸시하면 검사가 자동으로 돕니다**(2026-09-09부터) — `npm run ci` 가 부르는 **같은 조각을**
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)이 **잡 여럿에 나눠** 돌립니다(2026-10-22부터).
+기다리는 시간이 조각의 합이 아니라 가장 긴 조각이 됩니다. 어떻게 나누는지는
+[`tools/run.mjs`](./tools/run.mjs)의 `ciJobs()`가 정하고, 나눈 합이 한 줄로 돈 것과 같은지는
+`npm run check -- ci-plan`이 봅니다. 그래도
 **올리기 전에 손으로 한 번 돌리는 편이 빠릅니다** — 러너에서 빨간불을 보고 고치는 것보다
 낫습니다.
 
@@ -22,7 +25,8 @@ npm run ci        # 검사 → 빌드 → 산출물 검사. CI가 하는 일과 
 결과에 매여 있습니다. 까닭은
 [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) 머리말에 있습니다.
 
-**CI와 배포가 부르는 실행점은 `npm run ci` 하나이고, 손으로 쓰는 것은 `dev` · `build`입니다.**
+**손으로 치는 실행점은 `npm run ci` 하나이고**(배포 워크플로도 이 한 줄을 부릅니다)**, 곁에 쓰는 것은 `dev` · `build`입니다.**
+검사 워크플로만 그 한 줄이 부르는 조각을 병렬로 나눠 부릅니다 — 조각의 이름은 `npm run plan`이 찍어 줍니다.
 IDE 실행 구성도 이 셋만 부릅니다. 나머지 명령은 이 셋이 조립해 쓰는 조각이고, **정의하는 곳은
 [`package.json`](./package.json) 하나뿐입니다** — 스크립트 경로를 직접 치지 않습니다.
 검사 · 감사의 목록과 부르는 법은 [`tools/run.mjs`](./tools/run.mjs) 머리에,

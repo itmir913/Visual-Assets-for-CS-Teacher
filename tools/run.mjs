@@ -7,6 +7,7 @@
 //     npm run check -- sim sort tree        그 가운데 이름을 준 것만
 //     npm run check -- dist                 산출물 검사. 빌드 뒤에만 뜻이 있다
 //     npm run audit -- lemma …              감사 도구 하나. 이름이 반드시 있어야 한다
+//     npm run plan                          액션이 잡을 나눌 묶음을 JSON 으로 찍는다(검사는 돌리지 않는다)
 //
 // **검사는 Vitest 가 돈다.** 검사 하나가 `tests/` 의 테스트 파일 하나다 — 이 러너는 이름을
 // 파일로 바꾸어 Vitest 에 넘기고, 이름 뒤의 인자는 `CHECK_ARGS` 로 건넨다. Vitest 는 파일 하나가
@@ -51,6 +52,8 @@ const CHECKS = {
     'fixtures': 'tests/fixtures.test.mjs',
     // 돌연변이가 아직 과녁을 겨누는가(글자만 본다 — 돌연변이를 돌리는 것은 `npm run mutate`)
     'mutate-targets': 'tests/mutate-targets.test.mjs',
+    // 액션이 잡으로 나눠 돈 합이 `npm run ci` 와 같은가(아래 `ciJobs()`)
+    'ci-plan': 'tests/ci-plan.test.mjs',
     // 진짜 브라우저(Chromium)에서 잰 화면 — 겹침 · 넘침 · 닿지 않는 조작
     'layout': 'tests/browser/sim-layout.test.mjs',
     // 다크 테마 — 토글이 도는가 · 글자가 AAA 대비를 넘는가 · 밝은 칸이 남지 않았는가(진짜 브라우저)
@@ -74,7 +77,7 @@ const SIMS = [
 ];
 
 // 이름으로만 부르는 검사. `npm run ci` 가 빌드 뒤에 따로 부른다.
-const BY_NAME_ONLY = new Set(['dist']);
+export const BY_NAME_ONLY = new Set(['dist']);
 
 // 이름으로만 부르는 시뮬레이터 검사 — `check -- sim` 을 이름 없이 부르면(= `npm run ci`) 빠진다.
 // `sort` 는 한 번에 몇 분이 걸린다(큰 배열 화면 · n=64 비교 장). 정렬 로직을 건드리는 일은 드물어
@@ -117,7 +120,12 @@ async function audit(argv) {
     await mod.run(rest);
 }
 
-function check(argv) {
+/**
+ * `check` 에 준 낱말 → Vitest 에 넘길 테스트 파일과 검사에 건넬 인자.
+ * **`check` 와 `plan` 이 같은 길로 간다** — 묶음의 합이 한 줄로 돈 것과 같은지를
+ * `check -- ci-plan` 이 이 함수로 견준다.
+ */
+export function filesFor(argv) {
     let picked = parse(argv, CHECKS);
     if (!picked.length) picked = Object.keys(CHECKS).filter((n) => !BY_NAME_ONLY.has(n)).map((n) => [n, []]);
 
@@ -138,6 +146,11 @@ function check(argv) {
             }
         }
     }
+    return {files, args};
+}
+
+function check(argv) {
+    const {files, args} = filesFor(argv);
     // Vitest 는 위치 인자를 «경로에 들어 있는 글자»로 걸러 낸다. 테스트 파일 이름이 서로의 일부가
     // 되지 않게 지어야 한다 — `sim-graph.test.mjs` 는 `sim-graph-sim.test.mjs` 에 들어 있지 않다.
     const proc = spawnSync(process.execPath, [
@@ -147,7 +160,48 @@ function check(argv) {
     process.exit(proc.status ?? 1);
 }
 
-const [kind, ...rest] = process.argv.slice(2);
-if (kind === 'check') check(rest);
-else if (kind === 'audit') await audit(rest);
-else die('쓰는 법 — run.mjs check|audit [이름 [인자…]]…');
+// 액션이 **잡을 나누는 데 쓰는 묶음.** 러너에서는 벽시계가 합이 아니라 가장 긴 묶음이 되고,
+// 사람이 치는 입구는 그대로 `npm run ci` 한 줄이다(그쪽은 묶음을 모르고 전부를 차례로 돈다).
+//
+// **이름을 늘어놓지 않고 규칙으로 가른다** — 새 검사를 `CHECKS` 에 더하면 저절로 어느 묶음에
+// 들어가므로 워크플로 파일은 고칠 것이 없다. 묶음의 합이 `npm run check` 와 같은지,
+// 워크플로가 이 묶음을 실제로 부르는지는 `check -- ci-plan` 이 지킨다.
+//
+//   static            정적 검사 — 다 합쳐도 짧다
+//   layout · dark     진짜 브라우저가 필요한 검사. **하나가 곧 한 잡이다**(둘 다 오래 걸린다).
+//                     이 잡만 Chromium 을 깐다
+//   sim-<이름>        혼자 한 잡을 차지할 만큼 오래 걸리는 시뮬레이터 검사(`SIM_HEAVY`)
+//   sim-1 · sim-2 …   나머지 시뮬레이터 검사를 `SIM_SHARDS` 개로 돌려 가며 나눈다
+//
+// **파일 하나는 더 나뉘지 않는다** — 가장 오래 걸리는 검사 하나가 벽시계의 바닥이다.
+// 묶음을 늘려도 잡마다 checkout · 의존성 설치를 다시 하므로, 가른 만큼 그대로 빨라지지는 않는다.
+const SIM_SHARDS = 2;
+
+// 혼자 한 잡을 차지할 시뮬레이터 검사. **고르게 나누기 위한 눈금일 뿐**이라, 낡아도 러너는
+// 같은 것을 다 돌고 벽시계만 나빠진다. 다시 재려면 `npm run check -- sim <이름>` 을 하나씩 돌려 견준다.
+export const SIM_HEAVY = new Set(['nqueen', 'gridworld', 'least-squares', 'deep-learning', 'compress', 'pages']);
+
+export function ciJobs() {
+    const named = Object.keys(CHECKS).filter((n) => n !== 'sim' && !BY_NAME_ONLY.has(n));
+    const isBrowser = (n) => CHECKS[n].startsWith('tests/browser/');
+    const sims = SIMS.filter((s) => !SIM_BY_NAME_ONLY.has(s));
+    const jobs = [['static', named.filter((n) => !isBrowser(n)), false]];
+    for (const n of named.filter(isBrowser)) jobs.push([n, [n], true]);
+    for (const n of sims.filter((s) => SIM_HEAVY.has(s))) jobs.push([`sim-${n}`, ['sim', n], false]);
+    const light = sims.filter((s) => !SIM_HEAVY.has(s));
+    for (let i = 0; i < SIM_SHARDS; i++) {
+        const mine = light.filter((_, j) => j % SIM_SHARDS === i);
+        if (mine.length) jobs.push([`sim-${i + 1}`, ['sim', ...mine], false]);
+    }
+    return jobs.filter(([, names]) => names.length).map(([job, names, browser]) => ({job, args: names.join(' '), browser}));
+}
+
+const invoked = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invoked) {
+    const [kind, ...rest] = process.argv.slice(2);
+    if (kind === 'check') check(rest);
+    else if (kind === 'audit') await audit(rest);
+    // 액션의 매트릭스가 그대로 받아 쓴다 — `{include:[…]}` 한 줄이어야 한다.
+    else if (kind === 'plan') console.log(JSON.stringify({include: ciJobs()}));
+    else die('쓰는 법 — run.mjs check|audit [이름 [인자…]]… | plan');
+}

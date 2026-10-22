@@ -8,8 +8,13 @@ name: CI
 # 돌려야만 확인이 되었고, 안 돌리고 올리면 아무도 빨간불을 켜 주지 않았다.
 # 여기서 검사만 되살린다 — **푸시는 검사를 부르고, 배포는 여전히 손으로만 눌린다.**
 #
-# 하는 일은 `npm run ci` 한 줄이다. 무엇을 돌릴지는 **`package.json` 과 그것이 부르는 `tools/run.mjs` 에만** 적혀 있으므로
-# 검사를 더해도 이 파일은 고칠 것이 없다.
+# **여기서는 `npm run ci` 를 조각으로 나눠 잡 여럿에 흩는다** — 벽시계가 조각의 합이 아니라
+# 가장 긴 조각이 된다. 사람이 치는 입구는 그대로 `npm run ci` 한 줄이고(로컬 · 배포),
+# 이 파일은 그것이 부르는 같은 조각을 같은 `npm run` 이름으로 부른다.
+#
+# **무엇을 어떻게 나눌지는 이 파일에 없다** — `tools/run.mjs` 의 `ciJobs()` 가 정하고
+# `npm run plan` 이 매트릭스로 찍어 준다. 그래서 **검사를 더해도 이 파일은 고칠 것이 없다.**
+# 나눈 합이 한 줄로 돈 것과 같은지는 검사가 본다(`check -- ci-plan`, static 잡에서 돈다).
 #
 # **배포가 이 워크플로의 결과를 보지는 않는다.** 볼 필요가 없다 — `deploy.yml` 의 build 잡이
 # **제 손으로 같은 `npm run ci` 를 돌리고**, deploy-pages 는 그 잡이 성공해야만 돈다.
@@ -31,14 +36,42 @@ on:
 permissions:
   contents: read
 
+# 같은 가지에 잇달아 푸시하면 앞엣것은 끊는다. 마지막 것만 초록이면 된다.
+# **잡이 아니라 워크플로에 건다** — 잡마다 같은 이름을 걸면 형제 잡끼리 서로를 끊는다.
+# (배포 쪽은 반대로 끊지 않는다 — 끊긴 배포는 사이트를 반쯤 갱신된 채로 남긴다.)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  # 어떤 묶음으로 나눌지 받아 온다. 의존성을 깔지 않는다 — `run.mjs` 는 Node 기본 모듈만 쓴다.
+  plan:
     runs-on: ubuntu-latest
-    # 같은 가지에 잇달아 푸시하면 앞엣것은 끊는다. 마지막 것만 초록이면 된다.
-    # (배포 쪽은 반대로 끊지 않는다 — 끊긴 배포는 사이트를 반쯤 갱신된 채로 남긴다.)
-    concurrency:
-      group: ci-${{ github.ref }}
-      cancel-in-progress: true
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Split npm run ci into jobs (npm run plan)
+        id: plan
+        run: echo "matrix=$(npm run --silent plan)" >> "$GITHUB_OUTPUT"
+
+  # 검사. 묶음 하나가 잡 하나다 — 이름과 인자는 위 plan 이 준다.
+  check:
+    needs: plan
+    name: check (${{ matrix.job }})
+    runs-on: ubuntu-latest
+    strategy:
+      # **하나가 빨간불이어도 나머지를 다 돌린다.** 한 번 돌려서 고칠 것을 다 알아야 다음 푸시에서
+      # 한 번에 초록으로 되돌릴 수 있다 — Vitest 가 파일 하나 실패에도 나머지를 도는 것과 같은 뜻이다.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -57,14 +90,42 @@ jobs:
       # ⚠ 아래 두 줄은 이름만 닮았지 다른 명령이다. 중복이 아니므로 지우지 말 것.
       #   `npm ci`     — npm의 **설치** 명령(락파일대로 node_modules를 새로 깐다)
       #   `npm run ci` — 이 저장소의 **검사** 스크립트(package.json에 정의)
+      #
+      # `--no-audit` — 설치마다 취약점 감사를 기다릴 까닭이 없다. **검사의 판정은 감사 결과와 상관없고**,
+      # 의존성 경보는 Dependabot 이 따로 맡는다. 잡이 여럿이라 설치도 그만큼 돈다.
       - name: Install dependencies (npm clean-install)
-        run: npm ci
+        run: npm ci --no-audit
 
-      # 레이아웃 검사(`check -- layout`)가 진짜 브라우저로 잰다. 락파일이 정한 Playwright 판에 맞는
-      # Chromium 과 그것이 쓰는 시스템 라이브러리를 깐다.
-      - name: Install Chromium for layout checks
+      # 레이아웃 · 다크 검사가 진짜 브라우저로 잰다. 락파일이 정한 Playwright 판에 맞는 Chromium 과
+      # 그것이 쓰는 시스템 라이브러리를 깐다. **브라우저가 필요한 묶음에서만** 깐다 — 설치가 짧지 않다.
+      - name: Install Chromium for browser checks
+        if: matrix.browser
         run: npx playwright install --with-deps chromium
 
-      # 검사 → 빌드 → 산출물 검사. 로컬에서 치는 것과 **같은 한 줄**이다.
-      - name: Check, build, verify (npm run ci)
-        run: npm run ci
+      - name: Run checks (npm run check)
+        run: npm run check -- ${{ matrix.args }}
+
+  # 빌드와 산출물 검사. 한 잡에 둔다 — 산출물 검사는 그 빌드가 있어야 뜻이 있다.
+  # **검사 잡을 기다리지 않는다.** 어느 잡이든 빨간불이면 워크플로가 빨간불이고,
+  # 기다리게 하면 벽시계가 다시 합이 된다.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (npm clean-install)
+        run: npm ci --no-audit
+
+      - name: Build (npm run build)
+        run: npm run build
+
+      - name: Verify the built site (npm run check -- dist)
+        run: npm run check -- dist

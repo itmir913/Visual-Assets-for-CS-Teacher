@@ -96,11 +96,31 @@ jobs:
       - name: Install dependencies (npm clean-install)
         run: npm ci --no-audit
 
-      # 레이아웃 · 다크 검사가 진짜 브라우저로 잰다. 락파일이 정한 Playwright 판에 맞는 Chromium 과
+      # 레이아웃 · 다크 · 찾기 검사가 진짜 브라우저로 잰다. 락파일이 정한 Playwright 판에 맞는 Chromium 과
       # 그것이 쓰는 시스템 라이브러리를 깐다. **브라우저가 필요한 묶음에서만** 깐다 — 설치가 짧지 않다.
-      - name: Install Chromium for browser checks
+      #
+      # **Chromium 은 캐시에 담아 둔다.** 락파일이 그대로면 같은 판을 다시 받을 까닭이 없다.
+      # 2026-10-27 배포에서 이 설치가 8분을 넘겨 멈춘 적이 있다 — 미러가 느린 날의 바닥을 낮춘다.
+      # **캐시가 담는 것은 브라우저뿐이다** — 시스템 라이브러리는 apt 가 러너에 까는 것이라 담기지 않는다.
+      # 그래서 `install-deps` 는 캐시가 맞든 틀리든 늘 돈다(맞으면 대개 할 일이 없어 금방 끝난다).
+      - name: Cache Chromium (Playwright)
         if: matrix.browser
-        run: npx playwright install --with-deps chromium
+        id: chromium-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      # 멈춘 설치를 여섯 시간 기다리지 않는다 — 걸리면 빨리 빨간불을 켜고 다시 돌리는 편이 낫다.
+      - name: Install Chromium for browser checks
+        if: matrix.browser && steps.chromium-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: npx playwright install chromium
+
+      - name: Install Chromium system libraries
+        if: matrix.browser
+        timeout-minutes: 10
+        run: npx playwright install-deps chromium
 
       - name: Run checks (npm run check)
         run: npm run check -- ${{ matrix.args }}

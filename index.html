@@ -14,7 +14,7 @@
          넣으므로(tools/vite/theme-toggle.js) 눈으로는 왼쪽이지만 Tab 순서로는 토글 다음이다.
          색인이 오기 전에는 숨는다. 모양과 자리는 src/styles/index.css 「전 과목 찾기」. -->
     <button id="search-open" type="button" class="search-open"
-            aria-label="강의노트에서 찾기" aria-haspopup="dialog" hidden>
+            aria-label="강의노트 검색" aria-haspopup="dialog" hidden>
         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
     </button>
     <div class="max-w-7xl mx-auto text-center">
@@ -1365,7 +1365,7 @@
 <dialog id="site-search" class="search-modal" aria-labelledby="search-modal-title">
     <div class="search-modal-panel">
         <div class="search-modal-head">
-            <h2 id="search-modal-title" class="search-modal-title">강의노트에서 찾기</h2>
+            <h2 id="search-modal-title" class="search-modal-title">강의노트 검색</h2>
             <button id="search-close" type="button" class="search-close" aria-label="닫기">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
@@ -1378,7 +1378,7 @@
             <input id="search-input" type="text" inputmode="search" enterkeyhint="search"
                    autocomplete="off" spellcheck="false"
                    role="combobox" aria-expanded="false" aria-controls="search-results"
-                   aria-autocomplete="list" aria-label="강의노트 전체에서 찾기"
+                   aria-autocomplete="list" aria-label="전체 강의노트 검색"
                    placeholder="검색할 키워드를 입력하세요.">
             <button id="search-clear" type="button" class="search-clear" aria-label="입력 삭제" hidden>
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -1396,18 +1396,8 @@
         </div>
 
         <p class="search-status" id="search-status" role="status" aria-live="polite"></p>
-        <ul class="search-results" id="search-results" role="listbox" aria-label="찾은 절" hidden></ul>
+        <ul class="search-results" id="search-results" role="listbox" aria-label="검색 결과" hidden></ul>
         <button id="search-more" type="button" class="search-more" hidden>더 보기</button>
-
-        <!-- 입력 전에 보이는 자리. 자리 글에 예시를 욱여넣지 않고 여기서 눌러 볼 수 있게 둔다. -->
-        <div class="search-empty" id="search-empty">
-            <p class="search-empty-note">제목만이 아니라 <b>본문까지</b> 찾습니다. 수업에서 들은 말을 그대로 쳐 보세요.</p>
-            <div class="search-examples">
-                <button type="button" class="search-example" data-example="과적합">과적합</button>
-                <button type="button" class="search-example" data-example="편향">편향</button>
-                <button type="button" class="search-example" data-example="재귀">재귀</button>
-            </div>
-        </div>
     </div>
 </dialog>
 
@@ -1601,7 +1591,6 @@
         const more = document.getElementById('search-more');
         const clear = document.getElementById('search-clear');
         const scope = document.getElementById('search-scope');
-        const empty = document.getElementById('search-empty');
         if (!dlg || !opener || !window.LN_SEARCH_PARTS) return;
 
         // 과목 이름과 색 클래스. **리터럴로 적는다** — 조립하면 Tailwind가 못 찾는다(`check -- classes`).
@@ -1767,8 +1756,8 @@
             input.setAttribute('aria-expanded', show.length ? 'true' : 'false');
             more.hidden = found.length <= show.length || limit >= SHOWN_MORE;
             status.textContent = found.length
-                ? (loading ? '찾은 절 ' + found.length + '개 — 본문까지 찾는 중…' : '찾은 절 ' + found.length + '개')
-                : (loading ? '본문까지 찾는 중…' : '찾은 것이 없다');
+                ? (loading ? '검색 결과 ' + found.length + '개 · 본문을 검색하는 중…' : '검색 결과 ' + found.length + '개')
+                : (loading ? '본문을 검색하는 중…' : '검색 결과가 없습니다.');
         }
 
         // ── 과목 조각 받기 ── 하나씩 꽂고, 도착할 때마다 다시 그린다.
@@ -1783,7 +1772,7 @@
                 el.src = parts[slug];
                 el.addEventListener('error', function () {
                     asked[slug] = false;
-                    status.textContent = '본문 색인을 받지 못했다 · 제목으로만 찾는다';
+                    status.textContent = '본문 색인을 받지 못했습니다 · 제목만 검색합니다.';
                 });
                 document.head.appendChild(el);
             }
@@ -1803,12 +1792,10 @@
                 list.hidden = true;
                 list.textContent = '';
                 more.hidden = true;
-                empty.hidden = false;
                 input.setAttribute('aria-expanded', 'false');
-                status.textContent = q.length ? '두 글자 이상' : '';
+                status.textContent = q.length ? '두 글자 이상 입력하세요.' : '';
                 return;
             }
-            empty.hidden = true;
             load();
             const mine = ++gen;
             const re = regex(q);
@@ -1912,16 +1899,6 @@
         // 바탕(패널 바깥)을 누르면 닫는다. **폰에서는 이 길이 없다** — 패널이 화면을 다 덮어
         // `e.target`이 `<dialog>` 자신이 되는 자리가 남지 않는다. 폰에서 나가는 길은 닫기 단추와 Esc다.
         dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
-
-        // 예시 단추 — 입력 전 빈 자리에서 눌러 보게 한다.
-        empty.addEventListener('click', function (e) {
-            const btn = e.target.closest('.search-example');
-            if (!btn) return;
-            input.value = btn.dataset.example;
-            limit = SHOWN;
-            run(input.value);
-            input.focus();
-        });
 
         // `/` 로 모달을 연다. 글을 치고 있는 중이면 가로채지 않는다.
         document.addEventListener('keydown', function (e) {

@@ -42,7 +42,7 @@ export async function openSearch(doc, q = QUERY, {timeout = 15000} = {}) {
     const until = Date.now() + timeout;
     while (Date.now() < until) {
         await sleep(100);
-        if (list.children.length && !status.textContent.includes('찾는 중')) break;
+        if (list.children.length && !status.textContent.includes('검색하는 중')) break;
     }
     return {dlg, input, list, status, chips: [...doc.getElementById('search-scope').children]};
 }

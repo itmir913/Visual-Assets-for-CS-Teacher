@@ -33,7 +33,7 @@ test('폰 폭에서 모달이 가로로 넘치지 않고 글자가 본문 크기
     const problems = [];
     // **숨긴 것이 정말 안 보이는가.** `[hidden]`과 닫힌 `<dialog>`는 브라우저 기본 스타일이라
     // 페이지 CSS의 `display` 선언에 진다 — 속성만 보면 숨긴 줄 알지만 화면에는 그대로 남는다.
-    for (const id of ['search-clear', 'search-results', 'search-more', 'search-empty']) {
+    for (const id of ['search-clear', 'search-results', 'search-more']) {
         const el = doc.getElementById(id);
         if (el.hasAttribute('hidden') && win.getComputedStyle(el).display !== 'none') {
             problems.push(`#${id}: hidden인데 display가 ${win.getComputedStyle(el).display}다 — 화면에 남는다`);

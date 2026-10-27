@@ -476,7 +476,12 @@ export const MUTANTS = [
     // 진짜 브라우저 검사가 과녁이라 이름에 폴더가 붙는다(`tests/browser/<이름>.test.mjs`).
     ['browser/search', 'tools/lib/search-index.mjs', "out.push({i, s: chunk.match(ID)?.[1] ?? ''", "out.push({i, s: ''", '절 앵커를 담지 않음(결과가 파일 맨 위로 간다)'],
     // `hidden`이 페이지 CSS의 display에 지는 꼴 — 속성만 보는 검사는 못 잡고 화면에만 남는다.
-    ['browser/search', 'src/styles/index.css', '#site-search[hidden],\n#site-search [hidden] {\n    display: none;\n}', '#site-search[hidden] {\n    display: none;\n}', '숨긴 결과 · 지우기 단추가 화면에 남음'],
+    ['browser/search', 'src/styles/index.css', '#site-search [hidden],\n#search-open[hidden] {\n    display: none;\n}', '#search-open[hidden] {\n    display: none;\n}', '숨긴 결과 · 지우기 단추가 화면에 남음'],
+    // 스크롤 잠금을 스크롤 주인이 아닌 곳에 거는 꼴 — 화면에서는 뒤 본문이 그대로 구른다.
+    ['browser/search', 'src/styles/index.css', 'html.search-modal-open {\n    overflow: hidden;\n}', 'body.search-modal-open {\n    overflow: hidden;\n}', '모달 잠금을 body에 걸어 뒤 본문이 구름'],
+    // 닫을 때 잠금을 풀지 않는 꼴 — 첫 화면이 영영 구르지 않는다.
+    ['browser/search', 'index.html', "            document.documentElement.classList.remove('search-modal-open');\n", '', '모달을 닫아도 잠금이 풀리지 않음'],
+    ['browser/search', 'index.html', '            opener.focus({preventScroll: true});\n', '', '모달을 닫아도 포커스가 허공에 남음'],
     // 찾기 결과는 스크립트가 만든다 — 다크 검사가 패널을 열어 두고 재는지(prepare)를 이 돌연변이가 지킨다.
     ['browser/dark', 'src/styles/index.css', ':root[data-theme="dark"] .search-hit-snippet {\n    color: var(--ink-body);', ':root[data-theme="dark"] .search-hit-snippet {\n    color: var(--surface-line);', '찾기 발췌의 다크 글자색을 짙은 선 색으로'],
     ['search-index', 'tools/lib/search-index.mjs', "export const normalize = (s) => s.normalize('NFC').replace(/\\s+/g, ' ').trim();", "export const normalize = (s) => s.normalize('NFC').trim();", '색인과 질의의 공백을 다르게 고름'],

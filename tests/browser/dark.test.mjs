@@ -153,15 +153,26 @@ function measure(doc, win) {
  *  (기다리는 시간을 정해 두면 검사가 한꺼번에 돌아 CPU가 바쁠 때 어긋난다). 그래서 잴 frame 에서만
  *  전이를 끄고 곧바로 끝 색을 잰다. 애니메이션은 그대로 둔다 — 끄면 들어오며 나타나는 요소가
  *  처음 모양에 멈춘다. 화면의 CSS는 건드리지 않는다. */
-function setTheme(doc, theme) {
+function setTheme(doc, theme, where = '') {
     if (!doc.getElementById('dark-test-still')) {
         const s = doc.createElement('style');
         s.id = 'dark-test-still';
         s.textContent = '*,*::before,*::after{transition:none!important}';
         doc.head.append(s);
     }
+    // **열린 모달을 먼저 닫는다.** `showModal()`로 연 `<dialog>`는 뒤 본문을 비활성으로 만들어
+    // 토글 누름이 먹지 않는다 — 그러면 테마가 바뀌지 않은 채로 라이트를 두 번 재고 **조용히 초록**이 된다.
+    // 첫 화면 말고는 `<dialog>`가 없어 빈 동작이다.
+    doc.querySelector('dialog[open]')?.close();
     // 페이지가 실제로 쓰는 길(토글)로 바꾼다 — 스크립트가 <html>에 주는 색 체계 · 바탕까지 함께 바뀐다.
-    if (doc.documentElement.dataset.theme !== theme) doc.querySelector('[data-theme-toggle]').click();
+    if (doc.documentElement.dataset.theme !== theme) {
+        doc.querySelector('[data-theme-toggle]').click();
+        // **눌렀는데 그대로면 실패다.** 안 누른 경우(이미 그 테마)는 여기 오지 않는다.
+        if (doc.documentElement.dataset.theme !== theme) {
+            throw new Error(`${where}: 토글을 눌렀는데 테마가 ${theme}로 바뀌지 않았다` +
+                ' — 눌림이 먹지 않았다면 이 검사는 같은 테마를 두 번 재고 조용히 초록이 된다');
+        }
+    }
     doc.defaultView.getComputedStyle(doc.body).color;
 }
 
@@ -169,11 +180,11 @@ function setTheme(doc, theme) {
  * `prepare` 는 테마를 바꾼 **뒤마다** 돈다. 스크립트가 만드는 칸(첫 화면의 찾기 결과)을 다시 여는
  * 자리다 — `setTheme`이 테마 토글을 누르는데, 그 누름이 패널 바깥이라 결과가 접힌다.
  */
-async function inspect(doc, win, prepare) {
-    await setTheme(doc, 'light');
+async function inspect(doc, win, prepare, where) {
+    await setTheme(doc, 'light', where);
     await prepare?.();
     const light = new Map(measure(doc, win).texts.map((t) => [t.el, t]));
-    await setTheme(doc, 'dark');
+    await setTheme(doc, 'dark', where);
     await prepare?.();
     const {texts, bright} = measure(doc, win);
     const out = [...bright];
@@ -212,7 +223,7 @@ function ownBackdrop(el, k, win) {
  * 필터가 걸리지 않고, 안쪽 요소의 글자색 · 바탕색 · 채움색이 라이트 때와 하나도 다르지 않아야 하며,
  * 글자 뒤에 깔린 바탕이 섬 안에서 와야 한다.
  */
-async function keepProblems(doc, win) {
+async function keepProblems(doc, win, where = '') {
     const keeps = [...doc.querySelectorAll('[data-keep-color]')];
     if (!keeps.length) return [];
     const PROPS = ['color', 'backgroundColor', 'fill', 'stroke'];
@@ -220,9 +231,9 @@ async function keepProblems(doc, win) {
         const cs = win.getComputedStyle(el);
         return PROPS.map((p) => cs[p]);
     }));
-    await setTheme(doc, 'light');
+    await setTheme(doc, 'light', where);
     const light = snap();
-    await setTheme(doc, 'dark');
+    await setTheme(doc, 'dark', where);
     const dark = snap();
     const out = [];
     keeps.forEach((k, i) => {
@@ -244,7 +255,7 @@ async function keepProblems(doc, win) {
         out.push(`${where(k)}[data-keep-color] 안 ${where(els[j])}의 ${PROPS[m]}이 다크에서 ${light[i][j][m]} → ${dark[i][j][m]}` +
             ' (바깥에서 물려받는 색이면 keep 요소에 글자색 클래스를 단다)');
     });
-    await setTheme(doc, 'light');
+    await setTheme(doc, 'light', where);
     return out;
 }
 
@@ -273,7 +284,7 @@ test('강의노트 · 시뮬레이터 · 첫 화면마다 hero에 토글이 하�
                     if (i === 0) btns[0].click();
                 }
                 problems.push(...heroProblems(doc, frame.contentWindow).map((m) => `${p.slice(1)} — ${m}`));
-                problems.push(...(await keepProblems(doc, frame.contentWindow)).map((m) => `${p.slice(1)} — ${m}`));
+                problems.push(...(await keepProblems(doc, frame.contentWindow, p.slice(1))).map((m) => `${p.slice(1)} — ${m}`));
             }
             frame.remove();
         }
@@ -292,7 +303,7 @@ test('다크에서 글자가 AAA 대비를 넘고 밝은 칸이 남지 않는다
             // 첫 화면의 찾기 결과는 **스크립트가 만들고 패널은 접혀 있다** — 쳐서 열어 두지 않으면
             // 과목 칩 · 발췌 · 표시(<mark>)의 다크 짝을 이 검사가 한 번도 보지 못한다.
             const prepare = p === '/index.html' ? () => openSearch(doc) : undefined;
-            for (const m of await inspect(doc, win, prepare)) {
+            for (const m of await inspect(doc, win, prepare, p.slice(1))) {
                 if (!found.has(m)) found.set(m, []);
                 found.get(m).push(p.slice(1));
             }

@@ -247,27 +247,178 @@ body {
 /* ── 전 과목 찾기 ────────────────────────────────────────────
    학생이 폰으로 복습하며 쓴다 — **폭 375px을 먼저 정하고 넓은 화면이 그것을 늘린다.**
    글자는 어느 칸이든 본문 크기 이상으로 둔다(교실 뒷자리 기준 · `check -- html`).
-   마크업은 index.html, 동작은 거기 인라인 스크립트, 색인은 빌드가 굽는다(tools/vite/search-index.js).
-   다크 짝은 규칙마다 바로 아래에 둔다. 결과 줄은 스크립트가 만들고 패널은 두 글자 미만이면
-   접혀 있어, **쳐서 열어야 보인다** — `check -- dark`와 `check -- search`가 같은 길로 연다
-   (tests/browser/_search.mjs). */
+   마크업은 index.html(hero의 단추와 `<dialog>`), 동작은 거기 인라인 스크립트,
+   색인은 빌드가 굽는다(tools/vite/search-index.js).
+
+   **검사가 보지 못하는 것** — `::backdrop`의 다크 짝(`check -- dark`의 바탕 추적은 부모만 거슬러
+   올라간다), 뒤 본문이 실제로 안 구르는지, iOS의 `dvh` · 키보드 · 터치 스크롤. 실측으로만 보인다.
+   결과 줄은 스크립트가 만들고 모달은 닫혀 있으므로 **열어야 보인다** — `check -- dark`와
+   `check -- search`가 같은 길로 연다(tests/browser/_search.mjs). */
+
 /* **`hidden`을 아래 `display` 선언들보다 세게 둔다.** `[hidden]`은 브라우저 기본 스타일이라
    `.search-results { display: flex }` 같은 이 파일의 선언에 진다 — 그러면 스크립트가 숨긴 칸이
-   화면에 그대로 남는다(빈 입력에 지우기 단추가 뜨고, 바깥을 눌러도 결과가 접히지 않는다).
-   **속성만 보는 검사는 이것을 못 잡는다** — 계산된 `display`를 재는 tests/browser/search.test.mjs가 지킨다. */
-#site-search[hidden],
-#site-search [hidden] {
+   화면에 그대로 남는다(빈 입력에 지우기 단추가 뜨고, 색인이 오기 전에 단추가 보인다).
+   **속성만 보는 검사는 이것을 못 잡는다** — 계산된 `display`를 재는 tests/browser/search.test.mjs가 지킨다.
+   아래 자손 규칙에 `#site-search[open]`을 붙이지 않는 까닭도 이것이다 — 붙이면 특정도가 올라
+   이 보호 규칙을 다시 이긴다. `[open]`에 가두는 것은 `<dialog>` 자신의 `display` 하나뿐이다. */
+#site-search [hidden],
+#search-open[hidden] {
     display: none;
 }
 
-.search-band {
-    background-color: #f1f5f9;
-    border-bottom: 1px solid #e2e8f0;
+/* hero 오른쪽 위 토글과 **같은 모양**이되 자리는 폭에 따라 다르다. 좁은 화면에서는 왼쪽 위다 —
+   가운데 정렬된 제목의 첫 줄이 오른쪽 위 띠를 지나가 단추 밑에 깔린다(375px에서 글자 x 75~300).
+   토글 쪽 모양의 정본은 _theme.css 「2 토글 단추」이고, 여기서는 그 모양을 이 단추에 맞춰 적는다. */
+.search-open {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    /* 44px — 손가락으로 누를 수 있는 가장 작은 크기 */
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+    color: #ffffff;
+    background: rgb(255 255 255 / 0.15);
+    border: 1px solid rgb(255 255 255 / 0.4);
+    backdrop-filter: blur(4px);
+    font-size: 1.125rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
 }
 
-:root[data-theme="dark"] .search-band {
+/* 넓은 화면에서는 토글 바로 왼쪽에 나란히 선다(토글 44px + 사이 8px). */
+@media (min-width: 768px) {
+    .search-open {
+        left: auto;
+        right: 4.25rem;
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .search-open:hover {
+        background: rgb(255 255 255 / 0.3);
+    }
+}
+
+.search-open:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+/* ── 모달 ──
+   네이티브 `<dialog>`라 **UA 기본값을 걷어야 한다** — 흰 바탕 · `2px groove` 테두리 · `1em` 여백 ·
+   `max-width/height: calc(100% - 6px)`가 기본으로 깔린다. 바탕을 투명하게 두지 않는다:
+   `check -- dark`는 `::backdrop`을 보지 못해 화면과 다른 바탕으로 대비를 재게 된다. */
+#site-search {
+    display: none;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+}
+
+#site-search[open] {
+    display: block;
+}
+
+.search-modal {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;      /* iOS에서 100vh는 주소창 높이를 빼지 않아 바닥이 잘린다 */
+    max-height: none;
+    margin: 0;
+}
+
+.search-modal::backdrop {
+    background: rgb(15 23 42 / 0.55);
+}
+
+:root[data-theme="dark"] .search-modal::backdrop {
+    background: rgb(2 6 23 / 0.7);
+}
+
+.search-modal-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 100%;
+    padding: 1rem;
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+:root[data-theme="dark"] .search-modal-panel {
     background-color: var(--surface-card);
-    border-bottom-color: var(--surface-raised);
+}
+
+/* 넓은 화면에서는 가운데 뜬 패널. 폰에서는 전면이다. */
+@media (min-width: 768px) {
+    .search-modal {
+        width: min(48rem, calc(100% - 4rem));
+        height: auto;
+        max-height: 85dvh;
+        margin: 4rem auto;
+        border-radius: 1.5rem;
+        overflow: hidden;
+    }
+
+    .search-modal-panel {
+        padding: 1.5rem;
+    }
+}
+
+.search-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.search-modal-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+:root[data-theme="dark"] .search-modal-title {
+    color: var(--ink-strong);
+}
+
+.search-close {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+    font-size: 1.125rem;
+    color: #475569;
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .search-close {
+    color: var(--ink-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .search-close:hover {
+        color: #0f172a;
+        background-color: #e2e8f0;
+    }
+
+    :root[data-theme="dark"] .search-close:hover {
+        color: var(--ink-strong);
+        background-color: var(--surface-line);
+    }
+}
+
+/* 모달이 열린 동안 뒤 본문을 잡아 둔다. **스크롤 주인은 `html`이다** — `_theme.css` 「0 페이지 바탕」이
+   `overflow-y: scroll`로 그렇게 정했으므로 `body`에 걸면 아무 일도 하지 않는다.
+   사라지는 스크롤바 자리는 그 절의 `scrollbar-gutter: stable`이 잡아 준다. */
+html.search-modal-open {
+    overflow: hidden;
 }
 
 .search-box {
@@ -311,11 +462,6 @@ body {
     outline-color: var(--ink-soft);
 }
 
-/* 검색 입력의 기본 지우기 단추를 지운다 — 우리 단추와 겹친다. */
-.search-box input::-webkit-search-cancel-button {
-    appearance: none;
-}
-
 .search-icon {
     position: absolute;
     left: 1rem;
@@ -356,22 +502,11 @@ body {
 }
 
 /* 과목 좁히기 — 좁은 화면에서는 한 줄로 두고 옆으로 민다(칩 줄과 같은 몸짓). */
+/* 모달 안에서는 폭이 넉넉하므로 **줄바꿈한다** — 띠로 둘 때는 옆으로 밀어야 끝 과목이 보였다. */
 .search-scope {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.375rem;
-    margin-top: 0.5rem;
-    overflow-x: auto;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-.search-scope::-webkit-scrollbar {
-    display: none;
-}
-
-@media (min-width: 768px) {
-    .search-scope { flex-wrap: wrap; }
 }
 
 .search-chip {
@@ -416,14 +551,16 @@ body {
     color: var(--ink-soft);
 }
 
+/* 높이는 패널이 맡고 목록이 남는 자리를 채운다. `min-height: 0`이라야 flex 안에서 줄어든다.
+   `overscroll-behavior: contain` — 목록 끝에서 더 밀어도 뒤 본문으로 넘어가지 않게. */
 .search-results {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    margin-top: 0.5rem;
-    /* 폰에서 목록이 화면을 다 먹지 않게 — 안에서 구른다. */
-    max-height: 60vh;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .search-hit {
@@ -499,6 +636,58 @@ body {
     background-color: #fcd34d;
 }
 
+/* 입력 전에 보이는 자리. 자리 글에 예시를 욱여넣는 대신 여기서 눌러 보게 한다. */
+.search-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.search-empty-note {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #475569;
+}
+
+:root[data-theme="dark"] .search-empty-note {
+    color: var(--ink-soft);
+}
+
+.search-examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.search-example {
+    min-height: 2rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #334155;
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 9999px;
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .search-example {
+    color: var(--ink-body);
+    background-color: var(--surface-raised);
+    border-color: var(--surface-line);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .search-example:hover {
+        border-color: #94a3b8;
+    }
+
+    :root[data-theme="dark"] .search-example:hover {
+        border-color: var(--surface-edge);
+    }
+}
+
 .search-more {
     min-height: 2.75rem;
     margin-top: 0.5rem;
@@ -530,7 +719,7 @@ body {
 
 /* 종이에는 찾기 칸이 쓸 데가 없다. */
 @media print {
-    .page-home .search-band { display: none; }
+    .page-home .search-open { display: none; }
 }
 
 /* 좁은 화면의 가로 알약 줄 — 스크롤바를 감춘다 */

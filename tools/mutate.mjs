@@ -477,6 +477,10 @@ export const MUTANTS = [
     ['browser/search', 'tools/lib/search-index.mjs', "out.push({i, s: chunk.match(ID)?.[1] ?? ''", "out.push({i, s: ''", '절 앵커를 담지 않음(결과가 파일 맨 위로 간다)'],
     // `hidden`이 페이지 CSS의 display에 지는 꼴 — 속성만 보는 검사는 못 잡고 화면에만 남는다.
     ['browser/search', 'src/styles/index.css', '#site-search [hidden],\n#search-open[hidden] {\n    display: none;\n}', '#search-open[hidden] {\n    display: none;\n}', '숨긴 결과 · 지우기 단추가 화면에 남음'],
+    // 본문을 세우지 않고 `overflow: hidden`만 믿는 꼴 — iOS에서 손가락 스크롤이 그대로 흘러 뒤 본문이 구른다.
+    ['browser/search', 'src/styles/index.css', 'html.search-modal-open body {\n    position: fixed;', 'html.search-modal-open body {\n    position: static;', '모달을 열어도 뒤 본문이 고정되지 않음'],
+    // 되돌아가는 길이 애니메이션이 되는 꼴 — 닫으면 맨 위를 스쳐 간다.
+    ['browser/search', 'index.html', "window.scrollTo({top: lockedAt, behavior: 'instant'});", 'window.scrollTo(0, lockedAt);', '모달을 닫으면 보던 자리로 못 돌아감'],
     // 스크롤 잠금을 스크롤 주인이 아닌 곳에 거는 꼴 — 화면에서는 뒤 본문이 그대로 구른다.
     ['browser/search', 'src/styles/index.css', 'html.search-modal-open {\n    overflow: hidden;\n}', 'body.search-modal-open {\n    overflow: hidden;\n}', '모달 잠금을 body에 걸어 뒤 본문이 구름'],
     // 닫을 때 잠금을 풀지 않는 꼴 — 첫 화면이 영영 구르지 않는다.

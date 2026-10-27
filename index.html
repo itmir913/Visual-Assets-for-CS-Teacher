@@ -1880,14 +1880,28 @@
         //
         // **잠금은 `<html>`에 건다.** 세로 스크롤바를 늘 띄우는 규칙(`_theme.css` 「0 페이지 바탕」)이
         // 스크롤 주인을 `<html>`로 정해 두어, `<body>`에 거는 잠금은 아무 일도 하지 않는다.
+        // 모달을 연 순간 보고 있던 자리. 닫을 때 그리로 되돌린다.
+        let lockedAt = 0;
+
         function open() {
             if (dlg.open) return;
             dlg.showModal();
+            // **본문을 `position: fixed`로 세워 잠근다**(index.css). 그냥 두면 폰에서 뒤 본문이
+            // 손가락을 따라 구른다 — `overflow: hidden`은 iOS에서 터치 스크롤을 막지 못한다.
+            // 고정하면 본문이 맨 위로 튀므로, 보고 있던 만큼 위로 올려 화면을 그대로 둔다.
+            // **CSS 변수로만 넘긴다** — 스크립트가 모양을 정하지 않는다(`check -- inline-css` R4).
+            lockedAt = window.scrollY;
+            document.documentElement.style.setProperty('--search-lock-top', -lockedAt + 'px');
             document.documentElement.classList.add('search-modal-open');
             input.focus();
         }
         dlg.addEventListener('close', function () {
             document.documentElement.classList.remove('search-modal-open');
+            document.documentElement.style.removeProperty('--search-lock-top');
+            // 고정을 풀면 브라우저가 맨 위를 보여 준다. 보던 자리로 되돌린다.
+            // **`instant`라야 한다** — 이 사이트는 `scroll-behavior: smooth`라(`index.css`) 그냥 부르면
+            // 되돌아가는 길이 애니메이션이 되고, 그 사이에 화면이 맨 위를 스쳐 간다.
+            window.scrollTo({top: lockedAt, behavior: 'instant'});
             // **포커스를 단추로 돌려준다.** `<dialog>`는 열기 전에 포커스가 있던 곳으로 돌려주는데,
             // `/` 키로 열었거나 눌러서 열었을 때는 그 자리가 본문이라 포커스가 허공에 남는다.
             // `preventScroll` — 글 한가운데서 열었다면 화면이 hero로 튀지 않아야 한다.

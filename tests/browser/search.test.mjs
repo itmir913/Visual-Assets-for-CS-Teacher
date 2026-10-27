@@ -27,18 +27,26 @@ const MIN_PX = 16;
 
 test('폰 폭에서 모달이 가로로 넘치지 않고 글자가 본문 크기 이상이다', async () => {
     const {frame, win, doc} = await openFrame(PAGE, ...PHONE);
-    const {list} = await openSearch(doc);
-    expect(list.children.length, `「${QUERY}」로 찾은 것이 없다`).toBeGreaterThan(0);
-
     const problems = [];
+
     // **숨긴 것이 정말 안 보이는가.** `[hidden]`과 닫힌 `<dialog>`는 브라우저 기본 스타일이라
     // 페이지 CSS의 `display` 선언에 진다 — 속성만 보면 숨긴 줄 알지만 화면에는 그대로 남는다.
+    // **아직 치기 전에 본다** — 결과가 뜬 뒤에는 이 셋이 숨겨져 있지 않아 볼 것이 없다.
+    openModal(doc);
+    await new Promise((r) => setTimeout(r, 200));
     for (const id of ['search-clear', 'search-results', 'search-more']) {
         const el = doc.getElementById(id);
-        if (el.hasAttribute('hidden') && win.getComputedStyle(el).display !== 'none') {
+        if (!el.hasAttribute('hidden')) {
+            problems.push(`#${id}: 치기 전인데 hidden이 아니다 — 이 검사가 볼 것을 잃는다`);
+            continue;
+        }
+        if (win.getComputedStyle(el).display !== 'none') {
             problems.push(`#${id}: hidden인데 display가 ${win.getComputedStyle(el).display}다 — 화면에 남는다`);
         }
     }
+
+    const {list} = await openSearch(doc);
+    expect(list.children.length, `「${QUERY}」로 찾은 것이 없다`).toBeGreaterThan(0);
     const root = doc.documentElement;
     if (root.scrollWidth > root.clientWidth + 1) {
         problems.push(`문서가 가로로 넘친다: ${root.scrollWidth} > ${root.clientWidth}`);
@@ -120,9 +128,21 @@ test('열면 포커스와 잠금이 가고, 닫으면 단추로 돌아오며 질
     expect(win.getComputedStyle(dlg).display, '닫힌 모달이 화면에 남는다').toBe('none');
     const before = win.getComputedStyle(root).overflowY;
 
+    // 글 한가운데서 연다 — 닫을 때 그 자리로 돌아와야 한다.
+    win.scrollTo(0, 400);
+    await new Promise((r) => setTimeout(r, 100));
+    const at = Math.round(win.scrollY);
+    expect(at, '스크롤이 되지 않아 잠금을 확인할 수 없다').toBeGreaterThan(0);
+
     const {input, list} = await openSearch(doc);
     expect(dlg.open, '모달이 열리지 않았다').toBe(true);
     expect(doc.activeElement, '열었는데 입력에 포커스가 가지 않는다').toBe(input);
+
+    // **본문이 `position: fixed`로 서야 한다** — `overflow: hidden`만으로는 폰에서 손가락 스크롤이
+    // 그대로 흘러 뒤 본문이 구른다. 화면이 튀지 않게 보던 자리만큼 위로 올라가 있어야 한다.
+    const bodyStyle = win.getComputedStyle(doc.body);
+    expect(bodyStyle.position, '모달을 열었는데 본문이 고정되지 않았다 — 폰에서 뒤 본문이 구른다').toBe('fixed');
+    expect(Math.round(parseFloat(bodyStyle.top)), '본문을 고정했는데 보던 자리만큼 올리지 않았다 — 화면이 맨 위로 튄다').toBe(-at);
     // **잠금은 스크롤 주인(`html`)에 걸려야 한다** — `body`에 걸면 `overflow-y: scroll`인 html 때문에
     // 아무 일도 하지 않는다. 여기서 보는 것은 「선언이 닿았는가」까지다.
     expect(win.getComputedStyle(root).overflowY, '모달을 열었는데 스크롤 주인이 잠기지 않았다').toBe('hidden');
@@ -135,6 +155,8 @@ test('열면 포커스와 잠금이 가고, 닫으면 단추로 돌아오며 질
     // `close` 이벤트는 **큐에 실려** 돈다(`close()` 호출 중에 바로 돌지 않는다) — 한 틱 기다린다.
     await new Promise((r) => setTimeout(r, 50));
     expect(win.getComputedStyle(root).overflowY, '닫았는데 잠금이 풀리지 않았다 — 첫 화면이 영영 구르지 않는다').toBe(before);
+    expect(win.getComputedStyle(doc.body).position, '닫았는데 본문이 고정된 채다').not.toBe('fixed');
+    expect(Math.round(win.scrollY), '닫았더니 보던 자리가 아니라 맨 위로 갔다').toBe(at);
 
     // 다시 열면 질의와 결과가 그대로다.
     openModal(doc);

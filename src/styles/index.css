@@ -244,6 +244,295 @@ body {
 :root[data-theme="dark"] .theme-rose   { --theme-color: #fb7185; --theme-text: #fecdd3; }
 :root[data-theme="dark"] .theme-lime   { --theme-color: #a3e635; --theme-text: #d9f99d; }
 
+/* ── 전 과목 찾기 ────────────────────────────────────────────
+   학생이 폰으로 복습하며 쓴다 — **폭 375px을 먼저 정하고 넓은 화면이 그것을 늘린다.**
+   글자는 어느 칸이든 본문 크기 이상으로 둔다(교실 뒷자리 기준 · `check -- html`).
+   마크업은 index.html, 동작은 거기 인라인 스크립트, 색인은 빌드가 굽는다(tools/vite/search-index.js).
+   다크 짝은 규칙마다 바로 아래에 둔다. 결과 줄은 스크립트가 만들고 패널은 두 글자 미만이면
+   접혀 있어, **쳐서 열어야 보인다** — `check -- dark`와 `check -- search`가 같은 길로 연다
+   (tests/browser/_search.mjs). */
+/* **`hidden`을 아래 `display` 선언들보다 세게 둔다.** `[hidden]`은 브라우저 기본 스타일이라
+   `.search-results { display: flex }` 같은 이 파일의 선언에 진다 — 그러면 스크립트가 숨긴 칸이
+   화면에 그대로 남는다(빈 입력에 지우기 단추가 뜨고, 바깥을 눌러도 결과가 접히지 않는다).
+   **속성만 보는 검사는 이것을 못 잡는다** — 계산된 `display`를 재는 tests/browser/search.test.mjs가 지킨다. */
+#site-search[hidden],
+#site-search [hidden] {
+    display: none;
+}
+
+.search-band {
+    background-color: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+:root[data-theme="dark"] .search-band {
+    background-color: var(--surface-card);
+    border-bottom-color: var(--surface-raised);
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-box input {
+    width: 100%;
+    /* 44px — 손가락으로 누를 수 있는 가장 작은 높이. 왼쪽은 돋보기, 오른쪽은 지우기 자리를 비운다. */
+    min-height: 2.75rem;
+    padding: 0.5rem 2.75rem;
+    font-size: 1rem;
+    color: #0f172a;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 9999px;
+}
+
+.search-box input::placeholder {
+    color: #64748b;
+}
+
+.search-box input:focus-visible {
+    outline: 2px solid #4338ca;
+    outline-offset: 1px;
+}
+
+:root[data-theme="dark"] .search-box input {
+    color: var(--ink-strong);
+    background-color: var(--surface-raised);
+    border-color: var(--surface-line);
+}
+
+:root[data-theme="dark"] .search-box input::placeholder {
+    color: var(--ink-faint);
+}
+
+:root[data-theme="dark"] .search-box input:focus-visible {
+    outline-color: var(--ink-soft);
+}
+
+/* 검색 입력의 기본 지우기 단추를 지운다 — 우리 단추와 겹친다. */
+.search-box input::-webkit-search-cancel-button {
+    appearance: none;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    color: #64748b;
+    pointer-events: none;
+}
+
+:root[data-theme="dark"] .search-icon {
+    color: var(--ink-soft);
+}
+
+.search-clear {
+    position: absolute;
+    right: 0.25rem;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    color: #475569;
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .search-clear {
+    color: var(--ink-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .search-clear:hover {
+        color: #0f172a;
+        background-color: #e2e8f0;
+    }
+
+    :root[data-theme="dark"] .search-clear:hover {
+        color: var(--ink-strong);
+        background-color: var(--surface-line);
+    }
+}
+
+/* 과목 좁히기 — 좁은 화면에서는 한 줄로 두고 옆으로 민다(칩 줄과 같은 몸짓). */
+.search-scope {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.search-scope::-webkit-scrollbar {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .search-scope { flex-wrap: wrap; }
+}
+
+.search-chip {
+    flex: none;
+    min-height: 2rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 9999px;
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .search-chip {
+    color: var(--ink-body);
+    background-color: var(--surface-raised);
+    border-color: var(--surface-line);
+}
+
+/* 고른 과목 — 과목 색으로 테두리와 글자를 세운다. 채우지 않는다(글자 대비를 잃지 않게). */
+.search-chip[aria-pressed="true"] {
+    color: var(--theme-text, #1e293b);
+    border-color: var(--theme-color, #475569);
+    box-shadow: inset 0 0 0 1px var(--theme-color, #475569);
+}
+
+:root[data-theme="dark"] .search-chip[aria-pressed="true"] {
+    color: var(--theme-text, var(--ink-strong));
+    border-color: var(--theme-color, var(--surface-edge));
+}
+
+.search-status {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: #475569;
+}
+
+:root[data-theme="dark"] .search-status {
+    color: var(--ink-soft);
+}
+
+.search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    /* 폰에서 목록이 화면을 다 먹지 않게 — 안에서 구른다. */
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.search-hit {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 1rem;
+    text-decoration: none;
+}
+
+:root[data-theme="dark"] .search-hit {
+    background-color: var(--surface-raised);
+    border-color: var(--surface-line);
+}
+
+.search-hit:focus-visible {
+    outline: 2px solid var(--theme-color, #4338ca);
+    outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .search-hit:hover {
+        border-color: var(--theme-color, #a855f7);
+    }
+}
+
+.search-hit-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+/* 과목 배지 — 과목 색 글자. 채움은 두지 않는다(라이트 · 다크 양쪽에서 대비를 지키기 쉽다). */
+.search-hit-subject {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--theme-text, #334155);
+}
+
+.search-hit-where {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+:root[data-theme="dark"] .search-hit-where {
+    color: var(--ink-strong);
+}
+
+.search-hit-snippet {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+:root[data-theme="dark"] .search-hit-snippet {
+    color: var(--ink-body);
+}
+
+.search-hit-snippet mark {
+    padding: 0 0.125rem;
+    color: #0f172a;
+    background-color: #fde68a;
+    border-radius: 0.25rem;
+}
+
+:root[data-theme="dark"] .search-hit-snippet mark {
+    color: #0f172a;
+    background-color: #fcd34d;
+}
+
+.search-more {
+    min-height: 2.75rem;
+    margin-top: 0.5rem;
+    padding: 0 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #334155;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 9999px;
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .search-more {
+    color: var(--ink-body);
+    background-color: var(--surface-raised);
+    border-color: var(--surface-line);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .search-more:hover {
+        border-color: #94a3b8;
+    }
+
+    :root[data-theme="dark"] .search-more:hover {
+        border-color: var(--surface-edge);
+    }
+}
+
+/* 종이에는 찾기 칸이 쓸 데가 없다. */
+@media print {
+    .page-home .search-band { display: none; }
+}
+
 /* 좁은 화면의 가로 알약 줄 — 스크롤바를 감춘다 */
 .no-scrollbar::-webkit-scrollbar {
     display: none;

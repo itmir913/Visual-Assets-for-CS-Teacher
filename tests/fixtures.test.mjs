@@ -23,6 +23,7 @@ import {check as grid} from '../tools/checks/grid.mjs';
 import {check as formSync} from '../tools/checks/form-sync.mjs';
 import {check as docs} from '../tools/checks/docs.mjs';
 import {check as steps} from '../tools/checks/steps.mjs';
+import {check as searchIndex} from '../tools/checks/search-index.mjs';
 
 const F = 'tests/fixtures';
 const codeFiles = fs.readdirSync(path.join(ROOT, F, 'codefiles')).map((n) => `${F}/codefiles/${n}`);
@@ -48,6 +49,8 @@ const CASES = [
     // 기계학습 단계 줄 — 단계를 묶은 줄, 다음 단계까지 켠 줄
     ['steps', steps, [`${F}/steps/2-1-1.묶은-단계.html`, `${F}/steps/2-1-2.다음-단계를-켬.html`]],
     ['code', code, [...codeFiles, `${F}/highlight-none.html`, `${F}/highlight-lang.html`]],
+    // 검색 색인 — <main> 밖의 본문, 제목 없는 절, <main> 안에 든 목차 · 푸터
+    ['search-index', searchIndex, [`${F}/search-index/main이-없다.html`, `${F}/search-index/절이-틀렸다.html`]],
 ];
 
 describe('일부러 틀린 조각을 검사가 잡는가', () => {

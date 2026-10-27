@@ -43,6 +43,41 @@
     </div>
 </header>
 
+<!-- ── 전 과목 찾기 ──
+     학생이 복습할 때 쓴다 — 제목을 기억하지 못하고 수업에서 들은 낱말만 기억하므로, 본문까지 찾는다.
+     **`<section class="scroll-mt-24">`로 두지 않는다** — 그 꼴은 nav의 스크롤 스파이가 과목 섹션으로
+     세고(칩이 전부 꺼진다), `gen:sim-index`의 섹션 정규식에도 걸린다.
+     색인은 저장소에 두지 않는다. 빌드가 머리 조각 태그와 과목 조각 주소를 <head>에 넣는다
+     → tools/vite/search-index.js. 조각이 없으면(색인 전 소스를 그대로 연 경우) 칸이 아예 뜨지 않는다. -->
+<div class="search-band px-4 py-3 sm:px-6 sm:py-4" id="site-search" hidden>
+    <div class="max-w-7xl mx-auto">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+            <input id="search-input" type="search" autocomplete="off" spellcheck="false"
+                   role="combobox" aria-expanded="false" aria-controls="search-results"
+                   aria-autocomplete="list" aria-label="강의노트 전체에서 찾기"
+                   placeholder="낱말로 찾기 — 과적합, 편향, 재귀…">
+            <button id="search-clear" type="button" class="search-clear" aria-label="입력 삭제" hidden>
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <!-- 과목 좁히기. 색은 `.theme-*`가 변수로 준다 — 클래스를 코드로 조립하지 않는다(`check -- classes`). -->
+        <div class="search-scope" id="search-scope" role="group" aria-label="과목 좁히기">
+            <button type="button" class="search-chip" data-scope="" aria-pressed="true">전체</button>
+            <button type="button" class="search-chip theme-purple" data-scope="ai-basics" aria-pressed="false">인공지능</button>
+            <button type="button" class="search-chip theme-indigo" data-scope="data-science" aria-pressed="false">데이터과학</button>
+            <button type="button" class="search-chip theme-teal" data-scope="informatics" aria-pressed="false">정보</button>
+            <button type="button" class="search-chip theme-lime" data-scope="software-life" aria-pressed="false">소프트웨어와 생활</button>
+            <button type="button" class="search-chip theme-orange" data-scope="programming" aria-pressed="false">프로그래밍</button>
+        </div>
+
+        <p class="search-status" id="search-status" role="status" aria-live="polite"></p>
+        <ul class="search-results" id="search-results" role="listbox" aria-label="찾은 절" hidden></ul>
+        <button id="search-more" type="button" class="search-more" hidden>더 보기</button>
+    </div>
+</div>
+
 <nav class="sticky-nav px-4 py-2 md:px-6 md:py-4">
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
 
@@ -1505,6 +1540,337 @@
     else window.addEventListener('resize', fitBrand);
     if (document.fonts) document.fonts.ready.then(fitBrand);
     fitBrand();
+</script>
+
+<script>
+    // ── 전 과목 찾기 ──
+    //
+    // **무엇을 찾는가.** 색인의 단위는 절이다(`<main>` 안의 `<section>`). 머리 색인(과목 · 파일 ·
+    // 문서 제목 · 절 제목)은 <head>의 `defer` 스크립트로 바로 오고, 본문은 과목 조각으로 나뉘어
+    // **학생이 처음 칠 때** 온다. 조각은 `<script>` 태그를 꽂아 받는다 — `file://`에서 fetch 와
+    // 모듈이 막히기 때문이다(오프라인 zip). 조각이 하나씩 도착할 때마다 결과를 다시 그려,
+    // 기다리지 않고 제목 결과부터 본다.
+    //
+    // **어떻게 찾는가.** 질의를 글자 사이에 공백을 허용하는 정규식으로 바꿔 대소문자를 눈감고
+    // 살펴본다(「기계 학습」으로 「기계학습」을 찾는다). 토막 낸 낱말 색인을 쓰지 않는 까닭은
+    // 한국어는 조사가 붙어(「탐색을」) 낱말 일치로는 못 찾기 때문이다.
+    // 규칙의 정본은 `tools/lib/search-index.mjs`의 `looseSource()`이고, 아래 사본이 그것과 같은
+    // 답을 내는지는 `check -- search-index`가 지킨다.
+    //
+    // **첫 질의를 위해 몸을 풀어 둔다** — 같은 일이 처음에는 열 배까지 느리다(JIT). 조각이
+    // 도착하면 보이지 않는 질의를 한 번 돌려 둔다.
+    (function () {
+        const band = document.getElementById('site-search');
+        const input = document.getElementById('search-input');
+        const list = document.getElementById('search-results');
+        const status = document.getElementById('search-status');
+        const more = document.getElementById('search-more');
+        const clear = document.getElementById('search-clear');
+        const scope = document.getElementById('search-scope');
+        if (!band || !window.LN_SEARCH_PARTS) return;
+
+        // 과목 이름과 색 클래스. **리터럴로 적는다** — 조립하면 Tailwind가 못 찾는다(`check -- classes`).
+        const SUBJECT = {
+            'ai-basics': {name: '인공지능 기초', theme: 'theme-purple'},
+            'data-science': {name: '데이터 과학', theme: 'theme-indigo'},
+            'informatics': {name: '정보', theme: 'theme-teal'},
+            'software-life': {name: '소프트웨어와 생활', theme: 'theme-lime'},
+            'programming': {name: '프로그래밍', theme: 'theme-orange'}
+        };
+        const MIN = 2;              // 한 글자로는 모든 편이 걸린다
+        const WAIT = 200;           // 디바운스
+        const PER_SUBJECT = 3;      // 폰에서 눈으로 고를 수 있는 만큼만
+        const SHOWN = 12;
+        const SHOWN_MORE = 40;
+        const AROUND = 40;          // 발췌에서 일치 앞뒤로 남기는 글자
+
+        let heads = [];
+        const bodies = {};          // 과목 slug → [[파일, 앵커, 본문], …]
+        const asked = {};           // 이미 꽂은 조각
+        let picked = '';            // 고른 과목(빈 문자열이면 전 과목)
+        let limit = SHOWN;
+        let gen = 0;                // 세대 — 늦게 온 결과가 새 질의를 덮지 않게
+        let active = -1;            // 키보드로 고른 줄
+
+        window.LN_SEARCH = {
+            drain: function () {
+                const q = window.LN_SEARCH_Q || [];
+                while (q.length) {
+                    const row = q.shift();
+                    if (row[0] === 'heads') heads = row[1];
+                    else bodies[row[0]] = row[1];
+                }
+                if (heads.length) band.removeAttribute('hidden');
+                warm();
+                if (input.value.trim().length >= MIN) run(input.value);
+            }
+        };
+
+        // ── 질의를 정규식으로 ──
+        const normalize = (s) => s.normalize('NFC').replace(/\s+/g, ' ').trim();
+        const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const looseSource = (q) => normalize(q).replace(/\s+/g, '').split('').map(escape).join('\\s*');
+        const regex = (q) => new RegExp(looseSource(q), 'gi');
+
+        let warmed = false;
+        function warm() {
+            if (warmed || !heads.length) return;
+            warmed = true;
+            score(regex('가나'));   // 결과를 쓰지 않는다. 처음 한 번의 느림만 여기서 치른다
+        }
+
+        function count(re, text) {
+            re.lastIndex = 0;
+            let n = 0;
+            while (re.exec(text)) { n++; if (re.lastIndex === 0) break; }
+            return n;
+        }
+
+        // ── 점수 ── 제목 > 절 제목 > 본문. 본문은 나온 횟수를 조금 얹는다.
+        function score(re) {
+            const out = [];
+            for (let i = 0; i < heads.length; i++) {
+                const h = heads[i];
+                if (picked && h.j !== picked) continue;
+                let s = 0;
+                if (count(re, h.t)) s += 100;
+                if (count(re, h.h)) s += 30;
+                out.push({h: h, s: s, body: null});
+            }
+            // 본문은 받은 과목 조각에서만 본다 — 덜 온 조각은 다음 도착 때 다시 그린다.
+            // 짝은 파일과 **절의 차례**로 맞춘다(앵커가 아니다 — 앵커 없는 절이 더러 있다).
+            const byKey = {};
+            for (let i = 0; i < out.length; i++) byKey[out[i].h.f + '#' + out[i].h.i] = out[i];
+            for (const slug in bodies) {
+                if (picked && slug !== picked) continue;
+                const rows = bodies[slug];
+                for (let i = 0; i < rows.length; i++) {
+                    const hit = count(re, rows[i][2]);
+                    if (!hit) continue;
+                    const rec = byKey[rows[i][0] + '#' + rows[i][1]];
+                    if (!rec) continue;
+                    rec.s += Math.min(hit, 10);
+                    rec.body = rows[i][2];
+                }
+            }
+            return out.filter((r) => r.s > 0).sort((a, b) =>
+                b.s - a.s || a.h.f.localeCompare(b.h.f, 'ko') || a.h.i - b.h.i);
+        }
+
+        /** 과목마다 앞의 몇 개만 남긴다 — 한 과목이 목록을 다 먹지 않게. */
+        function spread(found) {
+            const seen = {};
+            const keep = [];
+            const rest = [];
+            for (const r of found) {
+                seen[r.h.j] = (seen[r.h.j] || 0) + 1;
+                (seen[r.h.j] <= PER_SUBJECT ? keep : rest).push(r);
+            }
+            return keep.concat(rest);
+        }
+
+        // ── 발췌 ── 질의를 HTML로 이어 붙이지 않는다. 글자는 textContent로, 표시만 <mark>로.
+        function excerpt(re, text) {
+            const frag = document.createDocumentFragment();
+            re.lastIndex = 0;
+            const m = re.exec(text);
+            if (!m) {
+                frag.appendChild(document.createTextNode(text.slice(0, AROUND * 2)));
+                return frag;
+            }
+            const from = Math.max(0, m.index - AROUND);
+            const to = Math.min(text.length, m.index + m[0].length + AROUND);
+            if (from > 0) frag.appendChild(document.createTextNode('… '));
+            frag.appendChild(document.createTextNode(text.slice(from, m.index)));
+            const mark = document.createElement('mark');
+            mark.textContent = m[0];
+            frag.appendChild(mark);
+            frag.appendChild(document.createTextNode(text.slice(m.index + m[0].length, to)));
+            if (to < text.length) frag.appendChild(document.createTextNode(' …'));
+            return frag;
+        }
+
+        function draw(found, re, loading) {
+            list.textContent = '';
+            active = -1;
+            const show = found.slice(0, limit);
+            for (const r of show) {
+                const subject = SUBJECT[r.h.j] || {name: '', theme: ''};
+                const li = document.createElement('li');
+                li.setAttribute('role', 'option');
+                li.setAttribute('aria-selected', 'false');
+                const a = document.createElement('a');
+                a.className = 'search-hit ' + subject.theme;
+                a.href = r.h.f + (r.h.s ? '#' + r.h.s : '');
+                // 이 페이지의 다른 링크는 적재 때 돈 스크립트가 새 탭으로 만든다. 여기 링크는
+                // 그 뒤에 생기므로 **만들 때 직접 준다** — 안 주면 혼자 같은 탭에서 열린다.
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+
+                const chip = document.createElement('span');
+                chip.className = 'search-hit-subject';
+                chip.textContent = subject.name;
+                const where = document.createElement('span');
+                where.className = 'search-hit-where';
+                where.textContent = r.h.t + (r.h.h ? ' · ' + r.h.h : '');
+                const head = document.createElement('span');
+                head.className = 'search-hit-head';
+                head.appendChild(chip);
+                head.appendChild(where);
+                a.appendChild(head);
+
+                if (r.body) {
+                    const snip = document.createElement('span');
+                    snip.className = 'search-hit-snippet';
+                    snip.appendChild(excerpt(re, r.body));
+                    a.appendChild(snip);
+                }
+                li.appendChild(a);
+                list.appendChild(li);
+            }
+            list.hidden = show.length === 0;
+            input.setAttribute('aria-expanded', show.length ? 'true' : 'false');
+            more.hidden = found.length <= show.length || limit >= SHOWN_MORE;
+            status.textContent = found.length
+                ? (loading ? '찾은 절 ' + found.length + '개 — 본문까지 찾는 중…' : '찾은 절 ' + found.length + '개')
+                : (loading ? '본문까지 찾는 중…' : '찾은 것이 없다');
+        }
+
+        // ── 과목 조각 받기 ── 하나씩 꽂고, 도착할 때마다 다시 그린다.
+        function load() {
+            const parts = window.LN_SEARCH_PARTS || {};
+            const want = picked ? (parts[picked] ? [picked] : []) : Object.keys(parts);
+            const todo = want.filter((slug) => !asked[slug]);
+            if (!todo.length) return false;
+            for (const slug of todo) {
+                asked[slug] = true;
+                const el = document.createElement('script');
+                el.src = parts[slug];
+                el.addEventListener('error', function () {
+                    asked[slug] = false;
+                    status.textContent = '본문 색인을 받지 못했다 · 제목으로만 찾는다';
+                });
+                document.head.appendChild(el);
+            }
+            return true;
+        }
+
+        const pending = () => {
+            const parts = window.LN_SEARCH_PARTS || {};
+            const want = picked ? (parts[picked] ? [picked] : []) : Object.keys(parts);
+            return want.some((slug) => !bodies[slug]);
+        };
+
+        function run(raw) {
+            const q = raw.trim();
+            clear.hidden = q.length === 0;
+            if (q.length < MIN) {
+                list.hidden = true;
+                list.textContent = '';
+                more.hidden = true;
+                input.setAttribute('aria-expanded', 'false');
+                status.textContent = q.length ? '두 글자 이상' : '';
+                return;
+            }
+            load();
+            const mine = ++gen;
+            const re = regex(q);
+            const found = spread(score(re));
+            if (mine !== gen) return;
+            draw(found, re, pending());
+        }
+
+        let timer = 0;
+        input.addEventListener('input', function (e) {
+            // 한글은 조합 중에도 input이 튄다 — 낱자모 하나 · 「기게」 같은 중간 상태로 찾지 않게
+            // 조합이 끝나기를 기다린다(끝나면 compositionend가 한 번 더 부른다).
+            if (e.isComposing) return;
+            limit = SHOWN;
+            clearTimeout(timer);
+            timer = setTimeout(() => run(input.value), WAIT);
+        });
+        input.addEventListener('compositionend', function () {
+            limit = SHOWN;
+            clearTimeout(timer);
+            timer = setTimeout(() => run(input.value), WAIT);
+        });
+
+        more.addEventListener('click', function () {
+            limit = SHOWN_MORE;
+            run(input.value);
+            const first = list.children[SHOWN];
+            if (first) first.scrollIntoView({block: 'nearest'});
+        });
+
+        clear.addEventListener('click', function () {
+            input.value = '';
+            limit = SHOWN;
+            run('');
+            input.focus();
+        });
+
+        scope.addEventListener('click', function (e) {
+            const btn = e.target.closest('.search-chip');
+            if (!btn) return;
+            picked = btn.dataset.scope || '';
+            for (const b of scope.children) b.setAttribute('aria-pressed', String(b === btn));
+            limit = SHOWN;
+            run(input.value);
+        });
+
+        // ── 키보드 ──
+        function move(step) {
+            const items = list.children;
+            if (!items.length) return;
+            if (active >= 0) items[active].setAttribute('aria-selected', 'false');
+            active = (active + step + items.length) % items.length;
+            const li = items[active];
+            li.setAttribute('aria-selected', 'true');
+            li.firstChild.focus();
+            li.scrollIntoView({block: 'nearest'});
+        }
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+            else if (e.key === 'Escape') { input.value = ''; limit = SHOWN; run(''); }
+            else if (e.key === 'Enter' && list.children.length) {
+                const li = list.children[active < 0 ? 0 : active];
+                if (li) li.firstChild.click();
+            }
+        });
+
+        list.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+            else if (e.key === 'Escape') { input.focus(); }
+        });
+
+        // 바깥을 누르면 결과만 접는다(질의는 남긴다) — 폰에서는 목록이 화면을 거의 다 덮으므로
+        // 닫는 길이 Esc 하나뿐이면 손가락으로 빠져나올 수가 없다. 다시 칸을 누르면 돌아온다.
+        document.addEventListener('click', function (e) {
+            if (band.contains(e.target) || list.hidden) return;
+            list.hidden = true;
+            input.setAttribute('aria-expanded', 'false');
+        });
+        input.addEventListener('focus', function () {
+            if (input.value.trim().length >= MIN && list.children.length) {
+                list.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            }
+        });
+
+        // `/` 로 찾기 칸에 들어간다. 글을 치고 있는 중이면 가로채지 않는다.
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            e.preventDefault();
+            input.focus();
+        });
+
+        window.LN_SEARCH.drain();
+    })();
 </script>
 
 <script>

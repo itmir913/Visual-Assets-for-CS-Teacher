@@ -28,6 +28,7 @@
 //   tools/vite/drop-ttf-fallback.js   아무도 받지 않는 ttf 대체 경로를 지운다 (PostCSS)
 //   tools/vite/subset-icon-font.js    아이콘 폰트를 실제로 쓰는 글자만 남기고 깎는다
 //   tools/vite/third-party-notices.js 번들에 들어간 제3자 라이선스 고지를 굽는다
+//   tools/vite/search-index.js        첫 화면의 전 과목 검색이 받아 가는 색인 조각을 굽는다
 import { resolve } from 'node:path';
 
 import autoprefixer from 'autoprefixer';
@@ -44,6 +45,7 @@ import themeToggle from './tools/vite/theme-toggle.js';
 import dropTtfFallback from './tools/vite/drop-ttf-fallback.js';
 import subsetIconFont from './tools/vite/subset-icon-font.js';
 import thirdPartyNotices from './tools/vite/third-party-notices.js';
+import searchIndex from './tools/vite/search-index.js';
 import siteFavicon from './tools/vite/site-favicon.js';
 import { playwright } from '@vitest/browser-playwright';
 
@@ -104,6 +106,9 @@ export default {
         thirdPartyNotices(),
         // **정말 마지막이다.** 글꼴 이름을 다시 매긴 뒤라야 그 참조까지 눌러 담긴다.
         classicScripts(),
+        // 검색 색인은 **그보다도 뒤다** — classic-scripts가 아무도 가리키지 않는 청크를 지우므로,
+        // 먼저 쓰면 조각이 그 쓸기에 함께 지워진다. 산출물 HTML을 읽어 조각을 굽는다.
+        searchIndex(),
     ],
     build: {
         outDir: 'dist',

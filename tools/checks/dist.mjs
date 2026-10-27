@@ -25,6 +25,9 @@
 // 8. **`<meta charset>` 이 첫 1024바이트 안에 있는지** — 그 앞에 긴 머리 주석을 두면 밀려난다.
 //    밀려나도 대개 멀쩡해 보여서 눈으로는 못 잡는다. 테마 스크립트는 빌드가 그 **뒤**에
 //    끼운다(`tools/vite/theme-toggle.js`).
+// 9. **검색 색인 조각이 산출물에 있고 소스와 같은 절을 담았는지** — 색인은 산출물을 읽어
+//    구워지므로(`tools/vite/search-index.js`) 소스만 보아서는 알 수 없다. 플러그인 순서가
+//    뒤바뀌면 조각이 쓸려 나가 **첫 화면에 주소만 남고 파일이 없다.**
 //
 // 사용법:
 //     npm run check -- dist                 # dist/
@@ -34,6 +37,8 @@ import path from 'node:path';
 import {ROOT, Report, read, rel, walk} from '../lib/repo.mjs';
 import {Checker} from './html.mjs';
 import {FAVICON_SVG, APPLE_TOUCH_ICON} from '../vite/site-favicon.js';
+import {buildIndex, collect} from '../lib/search-index.mjs';
+import {readInjected} from '../vite/search-index.js';
 
 const DOCX_HREF_RE = /href="([^"]+\.docx)"/g;
 
@@ -156,5 +161,59 @@ export function check(args = []) {
         if (![...src.values()].some((html) => html.includes(NOTICE_FILE))) r.error(`아무 페이지도 고지를 링크하지 않는다: ${NOTICE_FILE}`);
     }
 
+    // 9. 검색 색인 — 소스에서 센 절과 산출물의 조각이 같은가.
+    searchIndex(r, root);
+
     return r.done(`완료 — HTML ${files.length}, docx 링크 ${docxTotal}, CSS 자산 참조 ${refTotal}, 스크립트 ${scriptTotal}, 문제 ${r.errors.length}`);
+}
+
+/**
+ * 색인은 **산출물의 HTML을 읽어** 구워진다(`tools/vite/search-index.js`) — 소스에는 없다.
+ * 그래서 두 가지가 소스만 보아서는 안 잡힌다.
+ *
+ *   · 조각이 지워졌는가 — `classic-scripts`가 아무도 가리키지 않는 청크를 쓸고 간다.
+ *     플러그인 순서가 뒤바뀌면 **첫 화면에 주소만 남고 파일이 없다.**
+ *   · 산출물에서 센 절이 소스에서 센 절과 같은가 — 주입 · 치환이 `<main>` · `<section>`을
+ *     건드리면 학생이 보는 글과 색인이 어긋난다.
+ */
+function searchIndex(r, root) {
+    const page = path.join(root, 'index.html');
+    if (!fs.existsSync(page)) return;
+    const html = read(page);
+    const manifest = html.match(/window\.LN_SEARCH_PARTS = (\{[^\n]*?\});/);
+    if (!manifest) {
+        r.error('첫 화면에 검색 색인 조각 주소가 없다 (tools/vite/search-index.js가 넣는다)');
+        return;
+    }
+    const heads = html.match(/<script defer src="(assets\/search-heads-[^"]+)"><\/script>/);
+    if (!heads) {
+        r.error('첫 화면에 머리 색인 태그가 없다 (tools/vite/search-index.js가 넣는다)');
+        return;
+    }
+    /** 조각 하나를 가짜 window 로 돌려 레코드를 꺼낸다. 평범한 스크립트라 그대로 돈다. */
+    const rows = (href) => {
+        const file = path.resolve(root, href);
+        if (!fs.existsSync(file)) { r.error(`검색 색인 조각이 없다: ${href} (classic-scripts보다 먼저 쓰면 함께 지워진다)`); return null; }
+        const win = {LN_SEARCH_Q: []};
+        new Function('window', read(file))(win);
+        return win.LN_SEARCH_Q.map(([, data]) => data).flat();
+    };
+    const got = rows(heads[1]);
+    let bodies = 0;
+    for (const href of Object.values(JSON.parse(manifest[1]))) {
+        const part = rows(href);
+        if (part) bodies += part.length;
+    }
+    if (!got) return;
+    // 소스 쪽 답. 같은 생성기이므로 **절의 수와 앵커가 같아야** 한다(본문은 주입 때문에 길어진다).
+    const want = buildIndex(collect(readInjected)).heads;
+    const key = (h) => `${h.f}#${h.i}`;
+    const missing = want.filter((w) => !new Set(got.map(key)).has(key(w)));
+    if (got.length !== want.length || missing.length) {
+        r.error(`검색 색인의 절이 소스와 다르다: 산출물 ${got.length} · 소스 ${want.length}`
+            + (missing.length ? ` — 빠진 절 ${missing.slice(0, 3).map(key).join(', ')}` : ''));
+    }
+    if (bodies !== got.length) {
+        r.error(`검색 색인의 본문이 머리 색인과 짝이 안 맞는다: 본문 ${bodies} · 절 ${got.length}`);
+    }
 }

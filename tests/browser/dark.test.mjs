@@ -24,6 +24,7 @@
 // 같은 (글자색, 바탕색, 자리)가 여러 번 나오면 한 줄로 묶는다 — 틀 하나가 어긋나면 수백 줄이 된다.
 import {expect, test} from 'vitest';
 import {label, openFrame, visible} from './_frame.mjs';
+import {openSearch} from './_search.mjs';
 import subjects from '/subjects.json';
 import {hasThemeToggle} from '/tools/vite/theme-pages.js';
 
@@ -164,10 +165,16 @@ function setTheme(doc, theme) {
     doc.defaultView.getComputedStyle(doc.body).color;
 }
 
-async function inspect(doc, win) {
+/**
+ * `prepare` 는 테마를 바꾼 **뒤마다** 돈다. 스크립트가 만드는 칸(첫 화면의 찾기 결과)을 다시 여는
+ * 자리다 — `setTheme`이 테마 토글을 누르는데, 그 누름이 패널 바깥이라 결과가 접힌다.
+ */
+async function inspect(doc, win, prepare) {
     await setTheme(doc, 'light');
+    await prepare?.();
     const light = new Map(measure(doc, win).texts.map((t) => [t.el, t]));
     await setTheme(doc, 'dark');
+    await prepare?.();
     const {texts, bright} = measure(doc, win);
     const out = [...bright];
     for (const {el, r, need, fg, bg} of texts) {
@@ -282,7 +289,10 @@ test('다크에서 글자가 AAA 대비를 넘고 밝은 칸이 남지 않는다
         while (queue.length) {
             const p = queue.shift();
             const {frame, win, doc} = await openFrame(encodeURI(p), W, H);
-            for (const m of await inspect(doc, win)) {
+            // 첫 화면의 찾기 결과는 **스크립트가 만들고 패널은 접혀 있다** — 쳐서 열어 두지 않으면
+            // 과목 칩 · 발췌 · 표시(<mark>)의 다크 짝을 이 검사가 한 번도 보지 못한다.
+            const prepare = p === '/index.html' ? () => openSearch(doc) : undefined;
+            for (const m of await inspect(doc, win, prepare)) {
                 if (!found.has(m)) found.set(m, []);
                 found.get(m).push(p.slice(1));
             }

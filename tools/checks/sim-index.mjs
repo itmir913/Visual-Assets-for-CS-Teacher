@@ -40,6 +40,11 @@ const BANNER = `<!-- ┌──────────────────�
 const SECTION_RE = /\n {4}<!--[^\n]*-->\n {4}<section class="scroll-mt-24" id="(?<id>[\w-]+)">[\s\S]*?\n {4}<\/section>\n/g;
 const NAV_LINK_RE = /\n *<a class="[^"]*"\n *href="#(?<id>[\w-]+)" data-target="\k<id>">[^<]*<\/a>/g;
 const SIM_HREF_RE = /href="simulator\//g;
+// 전 과목 찾기 칸과 그 스크립트. **시뮬레이터 입구에는 두지 않는다** — 색인에 드는 것은
+// 강의노트뿐이고(시뮬레이터는 목차도 차시도 없다), 빌드도 루트 첫 화면에만 조각 주소를 넣는다.
+const SEARCH_NOTE_RE = /\n<!-- ── 전 과목 찾기 ──[\s\S]*?-->\n/g;
+const SEARCH_BAND_RE = /<div class="search-band[\s\S]*?\n<\/div>\n\n/g;
+const SEARCH_SCRIPT_RE = /<script>\n {4}\/\/ ── 전 과목 찾기 ──[\s\S]*?<\/script>\n\n/g;
 // 머리말의 「시뮬레이터 모아보기」 버튼. **여기서는 제 페이지를 가리키게 된다.**
 const SHORTCUT_RE = /\n *<a id="simulator-shortcut"[\s\S]*?<\/a>/g;
 const SHORTCUT_NOTE_RE = /\n *<!-- 시뮬레이터만 모은 입구[\s\S]*?-->/g;
@@ -79,15 +84,20 @@ export function build(src) {
     if (!sameSet(navIds, ids)) throw new Stale(`nav 링크와 섹션이 짝이 안 맞는다: nav=${navIds} 섹션=${ids}`);
     out = out.replace(NAV_LINK_RE, (m, ...a) => (a.at(-1).id === KEEP_ID ? m : ''));
 
-    // 3. 제 페이지를 가리키게 되는 바로가기 버튼은 뺀다.
+    // 3. 전 과목 찾기 칸과 그 스크립트를 뺀다.
+    out = subOnce(SEARCH_NOTE_RE, '\n', out, '찾기 칸에 달린 주석');
+    out = subOnce(SEARCH_BAND_RE, '', out, '찾기 칸');
+    out = subOnce(SEARCH_SCRIPT_RE, '', out, '찾기 스크립트');
+
+    // 4. 제 페이지를 가리키게 되는 바로가기 버튼은 뺀다.
     out = subOnce(SHORTCUT_RE, '', out, '머리말의 시뮬레이터 바로가기');
     out = subOnce(SHORTCUT_NOTE_RE, '', out, '그 버튼에 달린 주석');
 
-    // 4. 링크는 한 단 안에서 본 주소가 된다. `simulator/cs/…` → `cs/…`
+    // 5. 링크는 한 단 안에서 본 주소가 된다. `simulator/cs/…` → `cs/…`
     if (!SIM_HREF_RE.test(out)) throw new Stale('시뮬레이터 링크를 하나도 못 찾았다');
     out = out.replace(SIM_HREF_RE, 'href="');
 
-    // 5. 루트를 기준으로 적힌 주소는 한 단 올라간다.
+    // 6. 루트를 기준으로 적힌 주소는 한 단 올라간다.
     for (const [from, to] of ROOT_HREFS) {
         const n = out.split(from).length - 1;
         if (n !== 1) throw new Stale(`${from}: ${n}곳을 찾았다 (1곳이어야 한다)`);

@@ -29,6 +29,8 @@ const CHECKS = {
     // 저장소 짜임
     'sim-index': 'tests/sim-index.test.mjs',
     'index-links': 'tests/index-links.test.mjs',
+    // 첫 화면의 전 과목 검색이 쓰는 색인 — 노트가 다 들었는가 · 앵커가 있는가 · 질의 변환이 같은가
+    'search-index': 'tests/search-index.test.mjs',
     'privacy': 'tests/privacy.test.mjs',
     'classes': 'tests/classes.test.mjs',
     'hover': 'tests/hover.test.mjs',
@@ -58,6 +60,8 @@ const CHECKS = {
     'layout': 'tests/browser/sim-layout.test.mjs',
     // 다크 테마 — 토글이 도는가 · 글자가 AAA 대비를 넘는가 · 밝은 칸이 남지 않았는가(진짜 브라우저)
     'dark': 'tests/browser/dark.test.mjs',
+    // 첫 화면의 전 과목 찾기 — 폰 폭 · 결과 줄 · 띄어쓰기 · 과목 좁히기(진짜 브라우저)
+    'search': 'tests/browser/search.test.mjs',
     // 시뮬레이터 동작 — 아래 SIMS 표를 차례로 돈다. 뒤에 SIMS 의 이름을 주면 그것만.
     'sim': null,
     // 산출물. 빌드가 있어야 하므로 기본 목록에서 빠지고 이름으로만 부른다.

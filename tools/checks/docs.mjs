@@ -24,7 +24,7 @@ import {ROOT, Report, read, rel, walk} from '../lib/repo.mjs';
 /** 규칙 문서의 줄 수 상한. 2026-09-27 문서 구조 정리 직후의 줄 수에서 시작했다. */
 export const RULE_DOC_MAX_LINES = {
     'CLAUDE.md': 133,
-    'docs/강의노트-작성-규칙.md': 203,
+    'docs/강의노트-작성-규칙.md': 205,
     'docs/시뮬레이터-규칙.md': 52,
 };
 

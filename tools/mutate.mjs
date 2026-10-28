@@ -193,6 +193,9 @@ export const MUTANTS = [
     ['browser/dark', 'src/styles/index.css', ':root[data-theme="dark"] .link-card span {\n    color: var(--ink-body);', ':root[data-theme="dark"] .link-card span {\n    color: #475569;', '첫 화면 링크 카드 글자가 다크에서 짙은 채로'],
     ['browser/dark', 'tools/vite/theme-toggle.js', '        label();\n    }\n    apply(chosen', '    }\n    apply(chosen', '토글 단추 이름이 테마를 따라가지 않음'],
 
+    // ── 차례 내비게이션 — 메뉴 이름을 늘려 줄을 접는다 ───────────────────────
+    ['browser/nav', '인공지능기초/2-1-7.모델-생성과-성능-평가.html', '>적용 문제</a>', '>기계학습으로 어떤 문제를 해결할까</a>', '메뉴 이름이 길어 차례가 두 줄로 접힘'],
+
     // ── 시뮬레이터 — 알고리즘에 그럴듯한 버그를 심는다 ────────────────────────
     ['sim-pages', 'src/entries/_lib/canvas-dpr.js', 'const dpr = window.devicePixelRatio || 1;', 'const dpr = 1;', '캔버스가 화면 배율을 무시'],
     ['sim-fullscreen', 'src/styles/simulator.css', '.fs-stage:is(:fullscreen, .fs-on) {', '.fs-stage:is(:fullscreen) {', '전체 화면 CSS 가 fs-on 을 안 봄'],

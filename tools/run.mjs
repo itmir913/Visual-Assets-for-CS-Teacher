@@ -60,6 +60,8 @@ const CHECKS = {
     'layout': 'tests/browser/sim-layout.test.mjs',
     // 다크 테마 — 토글이 도는가 · 글자가 AAA 대비를 넘는가 · 밝은 칸이 남지 않았는가(진짜 브라우저)
     'dark': 'tests/browser/dark.test.mjs',
+    // 강의노트 차례 메뉴 — 데스크톱에서 한 줄에 드는가(진짜 브라우저)
+    'nav': 'tests/browser/nav.test.mjs',
     // 첫 화면의 전 과목 찾기 — 폰 폭 · 결과 줄 · 띄어쓰기 · 과목 좁히기(진짜 브라우저)
     'search': 'tests/browser/search.test.mjs',
     // 시뮬레이터 동작 — 아래 SIMS 표를 차례로 돈다. 뒤에 SIMS 의 이름을 주면 그것만.

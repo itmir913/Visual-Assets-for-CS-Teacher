@@ -11,6 +11,8 @@
 //   6. 질의가 HTML로 들어가지 않는다 — 글자는 글자로만
 //   7. 열면 입력에 포커스가 가고 뒤 본문이 잠긴다 · 닫으면 단추로 돌아오고 잠금이 풀린다 · 질의는 남는다
 //   8. 찾기 단추가 토글과도 hero의 글자와도 겹치지 않는다
+//   9. 바탕을 눌러도 닫히지 않는다 — 나가는 길은 닫기 단추와 Esc뿐이다
+//  10. 폰 폭에서는 패널이 통째로 구른다 — 검색바도 함께 올라간다
 //
 // **이 검사가 보지 못하는 것** — 포커스 가두기(네이티브 `<dialog>`의 몫이고, 합성 Tab은 브라우저의
 // 포커스 이동을 일으키지 않아 잴 수 없다) · 뒤 본문이 실제로 굴러가지 않는지(`overflow: hidden`은
@@ -196,6 +198,46 @@ test('찾기 단추가 토글과도 hero의 글자와도 겹치지 않는다', a
             }
         }
     }
+    frame.remove();
+    expect(problems).toEqual([]);
+}, 300_000);
+
+test('바탕을 눌러도 모달이 닫히지 않는다', async () => {
+    const {frame, win, doc} = await openFrame(PAGE, ...DESK);
+    // 넓은 화면에서는 패널이 가운데 떠 바탕이 남는다 — 그 자리를 누른 꼴을 만든다
+    // (`<dialog>` 자신이 `e.target`인 클릭이다).
+    const dlg = openModal(doc);
+    await new Promise((r) => setTimeout(r, 200));
+    dlg.dispatchEvent(new win.MouseEvent('click', {bubbles: true}));
+    await new Promise((r) => setTimeout(r, 100));
+    const stillOpen = dlg.open;
+    dlg.close();
+    frame.remove();
+    expect(stillOpen, '바탕을 눌렀더니 모달이 닫혔다 — 질의가 함께 사라진다').toBe(true);
+}, 300_000);
+
+test('폰 폭에서는 패널이 통째로 구르고 검색바도 함께 올라간다', async () => {
+    const {frame, win, doc} = await openFrame(PAGE, ...PHONE);
+    const {dlg, list} = await openSearch(doc);
+    const panel = dlg.querySelector('.search-modal-panel');
+    const box = dlg.querySelector('.search-box');
+    const problems = [];
+
+    if (win.getComputedStyle(list).overflowY !== 'visible') {
+        problems.push('폰에서 결과 목록이 따로 구른다 — 검색바가 화면에 박혀 패널이 구르지 않는다');
+    }
+    if (panel.scrollHeight <= panel.clientHeight + 1) {
+        problems.push(`패널이 넘치지 않아 구르는지 볼 수 없다: ${panel.scrollHeight} <= ${panel.clientHeight}`);
+    } else {
+        const before = box.getBoundingClientRect().top;
+        panel.scrollTop = 200;
+        await new Promise((r) => setTimeout(r, 100));
+        if (Math.round(panel.scrollTop) === 0) problems.push('패널을 굴리려 해도 제자리다');
+        if (box.getBoundingClientRect().top >= before - 1) {
+            problems.push('패널을 굴렸는데 검색바가 그대로다 — 윗부분이 함께 올라가지 않는다');
+        }
+    }
+    dlg.close();
     frame.remove();
     expect(problems).toEqual([]);
 }, 300_000);

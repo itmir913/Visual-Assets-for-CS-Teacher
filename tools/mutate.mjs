@@ -489,6 +489,10 @@ export const MUTANTS = [
     // 닫을 때 잠금을 풀지 않는 꼴 — 첫 화면이 영영 구르지 않는다.
     ['browser/search', 'index.html', "            document.documentElement.classList.remove('search-modal-open');\n", '', '모달을 닫아도 잠금이 풀리지 않음'],
     ['browser/search', 'index.html', '            opener.focus({preventScroll: true});\n', '', '모달을 닫아도 포커스가 허공에 남음'],
+    // 바탕을 눌러도 닫는 길을 되살린 꼴 — 결과를 살펴보다 패널 바깥을 스치면 질의까지 사라진다.
+    ['browser/search', 'index.html', "        opener.addEventListener('click', open);", "        dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });\n        opener.addEventListener('click', open);", '바탕을 누르면 모달이 닫힘'],
+    // 폰에서도 결과만 구르게 하는 꼴 — 검색바와 과목 칩이 화면에 박힌다.
+    ['browser/search', 'src/styles/index.css', '.search-results {\n    display: flex;\n    flex-direction: column;\n    gap: 0.5rem;\n}', '.search-results {\n    display: flex;\n    flex-direction: column;\n    gap: 0.5rem;\n    flex: 1;\n    min-height: 0;\n    overflow-y: auto;\n}', '폰에서 결과만 구르고 검색바가 박힘'],
     // 찾기 결과는 스크립트가 만든다 — 다크 검사가 패널을 열어 두고 재는지(prepare)를 이 돌연변이가 지킨다.
     ['browser/dark', 'src/styles/index.css', ':root[data-theme="dark"] .search-hit-snippet {\n    color: var(--ink-body);', ':root[data-theme="dark"] .search-hit-snippet {\n    color: var(--surface-line);', '찾기 발췌의 다크 글자색을 짙은 선 색으로'],
     ['search-index', 'tools/lib/search-index.mjs', "export const normalize = (s) => s.normalize('NFC').replace(/\\s+/g, ' ').trim();", "export const normalize = (s) => s.normalize('NFC').trim();", '색인과 질의의 공백을 다르게 고름'],

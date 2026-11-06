@@ -75,7 +75,7 @@ export const radixSortAlgo = {
 
         rec.clearCursors();
         rec.fixRange(0, n - 1);
-        rec.say('자릿수를 다 돌았습니다. 여기서도 원소끼리 비교한 적이 없습니다.');
+        rec.say('자릿수를 모두 처리했습니다. 여기서도 원소끼리 비교한 적이 없습니다.');
         rec.mark('done');
     },
 };

@@ -12,9 +12,9 @@ export const bubbleSortAlgo = {
     complexity: {best: 'O(n)', avg: 'O(n²)', worst: 'O(n²)', space: 'O(1)'},
     stable: true,
     inPlace: true,
-    /** 「최선 O(n)」은 **한 바퀴 도는 동안 교환이 없으면 멈추는** 구현에서만 참이다.
+    /** 「최선 O(n)」은 **한 회차를 진행하는 동안 교환이 없으면 멈추는** 구현에서만 참이다.
      *  그 장치가 없는 구현은 이미 정렬된 자료에서도 끝까지 돈다. */
-    watch: '한 바퀴 도는 동안 한 번도 교환하지 않았다면 이미 정렬된 것이라 거기서 멈춥니다. '
+    watch: '한 회차를 진행하는 동안 한 번도 교환하지 않았다면 이미 정렬된 것이라 거기서 멈춥니다. '
         + '이 멈춤 장치가 없는 구현도 많고, 그런 구현은 이미 정렬된 자료에서도 끝까지 돕니다.',
 
     run(rec) {
@@ -40,7 +40,7 @@ export const bubbleSortAlgo = {
 
             if (!swapped) {
                 rec.fixRange(0, end);
-                rec.say('한 바퀴 도는 동안 한 번도 교환하지 않았습니다 — 이미 정렬되어 있으므로 멈춥니다.');
+                rec.say('한 회차를 진행하는 동안 한 번도 교환하지 않았습니다 — 이미 정렬되어 있으므로 멈춥니다.');
                 rec.mark('early-exit');
                 break;
             }

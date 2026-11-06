@@ -279,7 +279,7 @@ function openFind(rec, v) {
                 : `${findIdx(at)}에서 찾았습니다. **계산한 자리에 바로 있었습니다.**`;
         }
     }
-    return `${withJosa(v, '은는')} 없습니다. 칸을 한 바퀴 다 돌았습니다.`;
+    return `${withJosa(v, '은는')} 없습니다. 칸을 모두 확인했습니다.`;
 }
 
 function openRemove(rec, v) {

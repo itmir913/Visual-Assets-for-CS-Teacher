@@ -1,4 +1,4 @@
-// 「소프트웨어와생활/3-1-5.글에서-낱말-세기.html」가 쓰는 라이브러리만 담는다.
+// 「소프트웨어와생활/3-1-5.텍스트의-단어-빈도-분석.html」가 쓰는 라이브러리만 담는다.
 // 폴더 이름은 subjects.json 의 slug 를 쓴다 — 까닭은 src/entries/informatics 진입점에 있다.
 import Prism from '../_lib/prism-python.js';
 

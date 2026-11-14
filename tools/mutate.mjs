@@ -140,6 +140,7 @@ export const MUTANTS = [
     ['dist', 'dist/index.html', '<link rel="icon" href="https://luminousky.com/favicon.svg" type="image/svg+xml">', '', '산출물에 파비콘 빠짐'],
     ['dist', 'dist/index.html', 'href="https://luminousky.com/apple-touch-icon.png"', 'href="/apple-touch-icon.png"', '파비콘이 정본 대신 사본을 가리킴'],
     ['dist', 'dist/index.html', '<!DOCTYPE html>', `<!DOCTYPE html><!--${'주'.repeat(400)}-->`, '긴 머리 주석이 <meta charset>을 첫 1024바이트 밖으로 밈'],
+    ['dist', 'dist/index.html', '</body>', '</BODY>', '산출물의 글이 바뀌어 산출물 돌연변이가 과녁을 잃음'],
 
     // ── 검사 규칙 자체 — 규칙 하나를 끄면 틀린 조각 기록이 달라져야 한다 ──────
     ['fixtures', 'tools/checks/html.mjs', 'for (const m of src.matchAll(FORWARD_LESSON))', 'for (const m of [])', 'html: 뒤 차시 규칙 끔'],

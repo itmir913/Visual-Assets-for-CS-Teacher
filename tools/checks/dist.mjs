@@ -28,6 +28,8 @@
 // 9. **검색 색인 조각이 산출물에 있고 소스와 같은 절을 담았는지** — 색인은 산출물을 읽어
 //    구워지므로(`tools/vite/search-index.js`) 소스만 보아서는 알 수 없다. 플러그인 순서가
 //    뒤바뀌면 조각이 쓸려 나가 **첫 화면에 주소만 남고 파일이 없다.**
+// 10. **산출물을 겨누는 돌연변이가 아직 과녁을 찾는지** — 빌드 앞에 도는 `mutate-targets`는
+//    지난 빌드의 찌꺼기를 읽게 되므로 이 몫을 여기로 넘긴다(`mutate-targets.mjs`의 `distTargets`).
 //
 // 사용법:
 //     npm run check -- dist                 # dist/
@@ -39,6 +41,7 @@ import {Checker} from './html.mjs';
 import {FAVICON_SVG, APPLE_TOUCH_ICON} from '../vite/site-favicon.js';
 import {buildIndex, collect} from '../lib/search-index.mjs';
 import {readInjected} from '../vite/search-index.js';
+import {distTargets} from './mutate-targets.mjs';
 
 const DOCX_HREF_RE = /href="([^"]+\.docx)"/g;
 
@@ -163,6 +166,9 @@ export function check(args = []) {
 
     // 9. 검색 색인 — 소스에서 센 절과 산출물의 조각이 같은가.
     searchIndex(r, root);
+
+    // 10. 산출물을 겨누는 돌연변이가 과녁을 찾는가 — 돌연변이는 `dist/`만 겨누므로 기본 폴더일 때만.
+    if (root === path.join(ROOT, 'dist')) distTargets(r);
 
     return r.done(`완료 — HTML ${files.length}, docx 링크 ${docxTotal}, CSS 자산 참조 ${refTotal}, 스크립트 ${scriptTotal}, 문제 ${r.errors.length}`);
 }

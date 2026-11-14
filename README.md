@@ -7,7 +7,7 @@
 프로그래밍과 컴퓨터 과학 개념을 수업에서 직관적으로 설명할 수 있도록 만든 웹 강의노트입니다. 모든 자료는 웹페이지 형태로 제공되며, 별도의 설치 없이 브라우저에서 바로 수업에 사용할 수 있습니다.
 
 ## 🔗 바로가기
-* **단축 링크:** [https://bit.ly/정보교과](https://bit.ly/정보교과)
+* **단축 링크:** [https://4edu.cc/swnote](https://4edu.cc/swnote)
 * **웹 페이지:** [https://luminousky.com/Visual-Assets-for-CS-Teacher/](https://luminousky.com/Visual-Assets-for-CS-Teacher/)
 
 ## 🌟 주요 특징
